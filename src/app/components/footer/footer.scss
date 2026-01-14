@@ -1,0 +1,133 @@
+/* 
+  Footer institucional - Estilos internos únicamente
+  Responsable de: apariencia, tipografía, colores
+  NO responsable de: posicionamiento sticky, relación con sidebar
+*/
+
+.modern-footer {
+  width: 100%;
+  height: var(--footer-height, 56px);
+  box-sizing: border-box;
+  background: var(--policia-gradiente-principal);
+  box-shadow: 0 -4px 20px rgba(21, 27, 59, 0.28);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 30px;
+  z-index: 900;
+
+
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image:
+      repeating-linear-gradient(
+        45deg,
+        transparent,
+        transparent 10px,
+        rgba(255, 255, 255, 0.02) 10px,
+        rgba(255, 255, 255, 0.02) 20px
+      );
+    pointer-events: none;
+  }
+
+  /* Línea superior de acento */
+  &::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: var(--policia-acento);
+    opacity: 0.9;
+  }
+}
+
+/* --- Contenido izquierdo --- */
+.footer-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  position: relative;
+  z-index: 1;
+}
+
+.footer-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--policia-acento);
+  box-shadow: 0 0 10px rgba(205, 255, 0, 0.4);
+  flex: 0 0 auto;
+}
+
+.footer-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.1;
+}
+
+.footer-title {
+  color: #fff;
+  font-size: 0.9rem;
+  font-weight: 700;
+  margin: 0;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.footer-meta {
+  margin-top: 2px;
+  color: var(--policia-cielo);
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+}
+
+/* --- Contenido derecho --- */
+.footer-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  position: relative;
+  z-index: 1;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.footer-link {
+  color: rgba(255, 255, 255, 0.9);
+  text-decoration: none;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--policia-acento);
+  }
+}
+
+.footer-sep {
+  color: rgba(255, 255, 255, 0.2);
+  font-weight: 700;
+}
+
+/* --- RESPONSIVE --- */
+@media (max-width: 768px) {
+  .modern-footer {
+    padding: 0 15px;
+  }
+
+  .footer-right {
+    display: none;
+  }
+
+  .footer-title {
+    font-size: 0.85rem;
+  }
+}

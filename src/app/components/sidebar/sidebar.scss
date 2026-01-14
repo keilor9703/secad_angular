@@ -1,0 +1,223 @@
+/* 
+  Sidebar institucional - Estilos internos únicamente
+  Responsable de: apariencia, interacciones visuales, submenús
+  NO responsable de: posicionamiento global, ancho fijo, márgenes
+*/
+
+.sidebar {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  background: var(--policia-oscuro);
+  box-shadow: 4px 0 15px rgba(21, 27, 59, 0.3);
+  border-right: 1px solid rgba(255, 255, 255, 0.05);
+overflow: visible;      
+  z-index: 1000;
+}
+.sidebar-scroll {
+  height: calc(100% - 70px);
+  overflow-y: auto;         
+  overflow-x: hidden;
+}
+/* Tramado sutil institucional */
+.sidebar::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background-image:
+    repeating-linear-gradient(
+      45deg,
+      transparent,
+      transparent 12px,
+      rgba(255, 255, 255, 0.02) 12px,
+      rgba(255, 255, 255, 0.02) 24px
+    );
+}
+
+/* Brillos ambientales */
+.sidebar::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background:
+    radial-gradient(circle at 20% 10%, rgba(205, 255, 0, 0.04), transparent 55%),
+    radial-gradient(circle at 80% 30%, rgba(8, 166, 203, 0.04), transparent 60%);
+}
+
+/* --- HEADER DEL SIDEBAR --- */
+.sidebar-header {
+  height: 70px;
+  display: flex;
+  align-items: center;
+  padding: 0 14px;
+  color: white;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  position: relative;
+  z-index: 1;
+}
+
+.header-brand-link{
+  display: flex;
+  align-items: center;
+  gap: 10px;           
+  text-decoration: none;
+  width: 100%;
+}
+
+.logo-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;         
+  flex: 0 0 auto;
+  margin-left: 20px;
+}
+
+.header-logo-img {
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+  filter: drop-shadow(0 0 5px rgba(205, 255, 0, 0.3));
+}
+
+.logo-name {
+  font-size: 25px;
+  font-weight: 800;
+  margin-left: 0;
+  line-height: 1;
+  color: white;
+  opacity: 0;
+  visibility: hidden;
+  white-space: nowrap;
+  transition: opacity 0.3s ease, visibility 0.3s ease;
+}
+
+/* Mostrar nombre SOLO cuando el sidebar está expandido (clase desde layout) */
+:host(.expanded) .logo-name {
+  opacity: 1;
+  visibility: visible;
+}
+
+/* --- NAVEGACIÓN --- */
+.sidebar-nav {
+  margin-top: 20px;
+  position: relative;
+  z-index: 1;
+}
+
+
+// .menu-item {
+//   position: relative;
+//   overflow: visible;
+// }
+
+
+.menu-link {
+  display: flex;
+  align-items: center;
+  padding: 12px 15px;
+  margin: 5px 10px;
+  border-radius: 10px;
+  color: var(--policia-neutral-claro);
+  text-decoration: none;
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.menu-link:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--policia-acento);
+}
+
+.icon {
+  min-width: 50px;
+  text-align: center;
+  font-size: 20px;
+  flex-shrink: 0;
+}
+
+.label {
+  opacity: 0;
+  visibility: hidden;
+  white-space: nowrap;
+  transition: opacity 0.3s ease, visibility 0.3s ease;
+  margin-left: 10px;
+  font-weight: 600;
+}
+
+.arrow {
+  font-size: 10px;
+  transition: opacity 0.3s ease;
+  opacity: 0;
+  margin-left: auto;
+}
+
+/* Mostrar texto y flecha SOLO cuando expandido */
+:host(.expanded) .label,
+:host(.expanded) .logo-name,
+:host(.expanded) .arrow {
+  opacity: 1;
+  visibility: visible;
+}
+.menu-item {
+  position: relative;
+//   list-style: none;
+//   margin-bottom: 5px;
+  overflow: visible ;
+}
+.submenu {
+  margin: 0 10px 6px 10px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.06);
+  overflow: hidden;
+
+  max-height: 0;
+  opacity: 0;
+  transform: translateY(-6px);
+  transition: max-height 0.25s ease, opacity 0.2s ease, transform 0.2s ease;
+  pointer-events: none;
+}
+.menu-item:hover .submenu {
+  max-height: 500px;   
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+.sidebar {
+  overflow-x: hidden;   /* el sidebar no debería desbordar horizontalmente */
+}
+.submenu a {
+  display: block;
+  padding: 10px 16px;
+  color: rgba(255, 255, 255, 0.75);
+  text-decoration: none;
+  border-left: 3px solid transparent;
+}
+
+.submenu a:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--policia-acento);
+  border-left-color: var(--policia-acento);
+}
+
+.submenu a:last-child {
+  border-bottom: none;
+}
+
+/* Scrollbar personalizada */
+.sidebar::-webkit-scrollbar {
+  width: 4px;
+}
+.sidebar::-webkit-scrollbar-thumb {
+  background: var(--policia-claro);
+  border-radius: 10px;
+}
+
+/* Soporte íconos Font Awesome */
+.fa, .fas, .far, .fal, .fab, .fa-solid, .fa-regular, .fa-light, .fa-brands {
+  font-family: "Font Awesome 6 Free", "Font Awesome 6 Pro", "Font Awesome 6 Brands" !important;
+}

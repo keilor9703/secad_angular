@@ -1,0 +1,45 @@
+<aside class="sidebar" (mouseenter)="onMouseEnter()" (mouseleave)="onMouseLeave()">
+
+  <!-- Header del Sidebar -->
+  <div class="sidebar-header">
+    <a routerLink="/" class="header-brand-link">
+      <div class="logo-icon">
+        <img src="SEGEN-escudo.png" alt="SISGE" class="header-logo-img">
+      </div>
+      <span class="logo-name">SISGE</span>
+    </a>
+  </div>
+
+  <!-- Scroll solo del menú -->
+  <div class="sidebar-scroll">
+    <nav class="sidebar-nav">
+      <div class="menu-item" *ngFor="let item of menuItems">
+
+        <!-- ✅ Item sin submenu: navega directo -->
+        <a *ngIf="item.route; else itemConSubmenu"
+           class="menu-link"
+           [routerLink]="item.route">
+          <i [class]="item.icon + ' icon'"></i>
+          <span class="label">{{ item.label }}</span>
+        </a>
+
+        <!-- ✅ Item con submenu -->
+        <ng-template #itemConSubmenu>
+          <div class="menu-link">
+            <i [class]="item.icon + ' icon'"></i>
+            <span class="label">{{ item.label }}</span>
+            <i *ngIf="item.submenu?.length" class="fa-solid fa-chevron-right arrow"></i>
+          </div>
+
+          <div class="submenu" *ngIf="item.submenu?.length">
+            <a *ngFor="let sub of item.submenu" [routerLink]="sub.route">
+              {{ sub.label }}
+            </a>
+          </div>
+        </ng-template>
+
+      </div>
+    </nav>
+  </div>
+
+</aside>

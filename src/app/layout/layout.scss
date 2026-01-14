@@ -1,0 +1,71 @@
+:root {
+  --collapsed-width: 78px;
+  --expanded-width: 260px;
+  --sidebar-collapsed-total: calc(var(--collapsed-width) + 5px); /* 78 + 4(sombra) + 1(borde) */
+  --sidebar-expanded-total: calc(var(--expanded-width) + 5px);
+}
+
+/* --- SHELL DEL SISTEMA --- */
+.app-shell {
+  min-height: 100vh;
+  background: #f3f6fb;
+  display: flex;
+}
+
+/* Sidebar: debe ser bloque y tener ancho controlado */
+.app-sidebar {
+  position: block !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: var(--collapsed-width) !important; /* ← 78px */
+  z-index: 950 !important;
+  transition: width 0.3s ease !important;
+  overflow-x: visible !important; /* ← Permite que el submenú salga */
+  overflow-y: hidden !important; 
+}
+
+.app-sidebar.expanded {
+  width: var(--expanded-width) !important; /* ← 260px */
+}
+
+/* Contenido principal */
+.shell {
+  flex: 1;
+  min-height: 100vh;
+  margin-left: var(--sidebar-collapsed-total) !important;
+  display: flex;
+  flex-direction: column;
+  transition: margin-left var(--transition-speed) cubic-bezier(0.4, 0, 0.2, 1) !important;
+   position: relative; 
+  overflow-x: hidden; 
+}
+
+.shell.shell-expanded {
+  margin-left: var(--sidebar-expanded-total);
+}
+
+/* Área principal */
+.main {
+  flex: 1;
+  // padding: 24px;
+  overflow-y: auto;
+}
+
+.content {
+ 
+  margin: 0 auto;
+  width: 100%;
+  background: rgba(255, 255, 255, 0.8);
+  border: 1px solid var(--policia-neutral-claro);
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(21, 27, 59, 0.08);
+  padding: 20px;
+  backdrop-filter: blur(8px);
+  position: relative;
+}
+
+/* Footer */
+.app-footer {
+  margin-top: auto;
+  width: 100%;
+}
