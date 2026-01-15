@@ -131,3 +131,43 @@
     font-size: 0.85rem;
   }
 }
+
+.ui-policy{
+  color: rgba(83,86,90,.95);
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.ui-policy h4{
+  margin: 14px 0 6px;
+  font-weight: 900;
+  color: var(--policia-oscuro);
+}
+
+.ui-policy p{
+  margin: 10px 0;
+}
+
+.ui-policy ul{
+  margin: 8px 0 12px 18px;
+}
+
+.ui-policy li{
+  margin: 6px 0;
+}
+
+.ui-policy code{
+  background: rgba(21,27,59,.06);
+  border: 1px solid rgba(21,27,59,.10);
+  padding: 2px 6px;
+  border-radius: 8px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 12px;
+}
+
+.ui-policy__hr{
+  border: none;
+  height: 1px;
+  background: rgba(21,27,59,.10);
+  margin: 14px 0;
+}

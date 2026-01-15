@@ -611,12 +611,15 @@ textarea.ui-control{
 
 #tab-1:checked + label,
 #tab-2:checked + label,
-#tab-3:checked + label{
+#tab-3:checked + label,
+#tab-4:checked + label{
   background: var(--policia-gradiente-soft);
   border-color: rgba(255,255,255,.16);
   color: #fff;
 }
-
+#tab-4:checked ~ .ui-tabs__panels .ui-tabs__panel[data-for="tab-4"]{
+  display: block;
+}
 .ui-tabs__panels{
   width: 100%;
   border-radius: 14px;
@@ -629,6 +632,7 @@ textarea.ui-control{
 #tab-1:checked ~ .ui-tabs__panels .ui-tabs__panel[data-for="tab-1"]{ display:block; }
 #tab-2:checked ~ .ui-tabs__panels .ui-tabs__panel[data-for="tab-2"]{ display:block; }
 #tab-3:checked ~ .ui-tabs__panels .ui-tabs__panel[data-for="tab-3"]{ display:block; }
+#tab-4:checked ~ .ui-tabs__panels .ui-tabs__panel[data-for="tab-4"]{ display:block; }
 
 /* ===== Acordeón ===== */
 .ui-accordion{
@@ -744,4 +748,157 @@ textarea.ui-control{
   display:flex;
   gap: 10px;
   flex-wrap:wrap;
+}
+
+/* ===== Icon cards grid ===== */
+
+/* Grid específico para cards grandes */
+.ui-card-grid--cards{
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+@media (max-width: 1024px){
+  .ui-card-grid--cards{ grid-template-columns: 1fr; }
+}
+
+/* Card tipo “feature” (como la imagen) */
+.ui-feature-card{
+  border: 1px solid rgba(21,27,59,.10);
+  border-radius: 22px;
+  background: #fff;
+  box-shadow: 0 18px 40px rgba(2,6,23,.12);
+  padding: 22px;
+  transition: transform .15s ease, box-shadow .15s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.ui-feature-card:hover{
+  transform: translateY(-2px);
+  box-shadow: 0 22px 55px rgba(2,6,23,.14);
+}
+
+/* Icono en “cuadro” */
+.ui-feature-card__icon{
+  width: 74px;
+  height: 74px;
+  border-radius: 16px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+
+  background: var(--policia-gradiente-principal);
+  color: #fff;
+  box-shadow: 0 12px 26px rgba(2,6,23,.18);
+  margin-bottom: 18px;
+}
+
+.ui-feature-card__icon i{
+  font-size: 26px;
+}
+
+/* Título + texto */
+.ui-feature-card__title{
+  margin: 0 0 10px;
+  font-size: 22px;
+  font-weight: 900;
+  color: var(--policia-oscuro);
+  line-height: 1.15;
+}
+
+.ui-feature-card__text{
+  margin: 0 0 16px;
+  color: var(--policia-neutral-oscuro);
+  line-height: 1.45;
+  font-size: 14px;
+}
+
+/* Link Acceder */
+.ui-feature-card__link{
+  display:inline-flex;
+  align-items:center;
+  gap: 8px;
+  font-weight: 900;
+  color: var(--policia-medio);
+  text-decoration: none;
+}
+
+.ui-feature-card__arrow{
+  transition: transform .15s ease;
+}
+
+.ui-feature-card:hover .ui-feature-card__arrow{
+  transform: translateX(2px);
+}
+
+
+
+/*MODAL SOPORTE*/
+
+.ui-modal-open { overflow: hidden; }
+
+.ui-modal{
+  position: fixed;
+  inset: 0;
+  background: rgba(2,6,23,.55);
+  backdrop-filter: blur(4px);
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  z-index: 9999;
+}
+
+.ui-modal__dialog{
+  width: min(860px, 96vw);
+  max-height: 90vh;
+  overflow: auto;
+  background: #fff;
+  border-radius: 18px;
+  border: 1px solid rgba(255,255,255,.14);
+  box-shadow: 0 30px 80px rgba(2,6,23,.35);
+  animation: uiModalIn .16s ease-out;
+}
+
+@keyframes uiModalIn{
+  from { transform: translateY(8px) scale(.99); opacity: .6; }
+  to   { transform: translateY(0) scale(1); opacity: 1; }
+}
+
+.ui-modal__head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  background: var(--policia-gradiente-soft);
+  color: #fff;
+  border-top-left-radius: 18px;
+  border-top-right-radius: 18px;
+}
+
+.ui-modal__title{
+  display:flex;
+  align-items:center;
+  gap: 10px;
+  font-weight: 900;
+  letter-spacing: .2px;
+}
+
+.ui-modal__body{ padding: 16px; }
+.ui-modal__foot{
+  padding: 14px 16px;
+  border-top: 1px solid rgba(21,27,59,.10);
+  display:flex;
+  justify-content:flex-end;
+  gap: 10px;
+}
+.ui-upload{
+  border: 1px dashed rgba(21,27,59,.25);
+  border-radius: 12px;
+  padding: 12px;
+  background: rgba(21,27,59,.03);
+}
+.ui-upload__hint{
+  margin-top: 8px;
+  color: rgba(83,86,90,.92);
+  font-size: 12px;
 }
