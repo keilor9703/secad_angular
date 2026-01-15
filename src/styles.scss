@@ -902,3 +902,197 @@ textarea.ui-control{
   color: rgba(83,86,90,.92);
   font-size: 12px;
 }
+.ui-toast-wrap{
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 10000;
+  display: grid;
+  gap: 10px;
+}
+
+.ui-toast{
+  width: min(420px, calc(100vw - 32px));
+  display: grid;
+  grid-template-columns: 44px 1fr 40px;
+  align-items: start;
+  gap: 12px;
+  padding: 12px 12px;
+  border-radius: 16px;
+  border: 1px solid rgba(21,27,59,.14);
+  background: #fff;
+  box-shadow: 0 16px 40px rgba(2,6,23,.18);
+  animation: uiToastIn .16s ease-out;
+}
+
+@keyframes uiToastIn{
+  from{ transform: translateY(8px); opacity: .65; }
+  to{ transform: translateY(0); opacity: 1; }
+}
+
+.ui-toast__icon{
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  color: #fff;
+}
+
+.ui-toast__title{
+  font-weight: 900;
+  color: var(--policia-oscuro);
+  margin-bottom: 2px;
+}
+
+.ui-toast__text{
+  color: rgba(83,86,90,.95);
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.ui-toast__close{
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+}
+
+/* variantes */
+.ui-toast.success .ui-toast__icon{
+  background: linear-gradient(135deg, #16a34a, #22c55e);
+}
+.ui-toast.info .ui-toast__icon{
+  background: var(--policia-gradiente-principal);
+}
+.ui-toast.warning .ui-toast__icon{
+  background: linear-gradient(135deg, var(--policia-resalte-oro), #f59e0b);
+}
+.ui-toast.error .ui-toast__icon{
+  background: linear-gradient(135deg, #dc2626, #ef4444);
+}
+
+/* Bloquear scroll (esto ya te sirve para soporte/política también) */
+.ui-modal-open{ overflow: hidden; }
+
+/* Overlay */
+.ui-alert{
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  z-index: 10050;
+  background: rgba(2, 6, 23, .55);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
+/* Dialog */
+.ui-alert__dialog{
+  width: min(560px, 94vw);
+  border-radius: 20px;
+
+  /* glass surface */
+  background: rgba(255,255,255,.78);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+
+  border: 1px solid rgba(255,255,255,.40);
+  box-shadow:
+    0 32px 90px rgba(2,6,23,.35),
+    inset 0 1px 0 rgba(255,255,255,.55);
+
+  text-align: center;
+  overflow: hidden; /* para que el footer banda siga el radio */
+  animation: uiAlertIn .16s ease-out;
+}
+
+@keyframes uiAlertIn{
+  from{ transform: translateY(12px) scale(.99); opacity: .55; }
+  to{ transform: translateY(0) scale(1); opacity: 1; }
+}
+
+/* Icono grande */
+.ui-alert__icon{
+  width: 78px;
+  height: 78px;
+  border-radius: 999px;
+  margin: 18px auto 12px;
+
+  display:flex;
+  align-items:center;
+  justify-content:center;
+
+  background: rgba(255,255,255,.55);
+  border: 2px solid rgba(255,255,255,.55);
+  box-shadow:
+    0 14px 30px rgba(2,6,23,.12),
+    inset 0 1px 0 rgba(255,255,255,.65);
+
+  color: var(--policia-medio);
+}
+
+.ui-alert__icon i{ font-size: 34px; }
+
+/* Variantes */
+.ui-alert__icon.success{ background: rgba(34,197,94,.12); border-color: rgba(34,197,94,.30); color:#16a34a; }
+.ui-alert__icon.warning{ background: rgba(179,110,26,.12); border-color: rgba(179,110,26,.30); color: var(--policia-resalte-oro); }
+.ui-alert__icon.error{ background: rgba(239,68,68,.12); border-color: rgba(239,68,68,.30); color:#dc2626; }
+.ui-alert__icon.info{ background: rgba(8,166,203,.12); border-color: rgba(8,166,203,.30); color: var(--policia-medio); }
+
+/* Texto */
+.ui-alert__title{
+  margin: 0 16px 8px;
+  font-size: 22px;
+  font-weight: 900;
+  color: var(--policia-oscuro);
+  letter-spacing: .2px;
+}
+
+.ui-alert__text{
+  margin: 0 22px 18px;
+  color: rgba(83,86,90,.95);
+  line-height: 1.5;
+  font-size: 14px;
+}
+/* Footer con banda (como el screenshot) */
+.ui-alert__foot{
+  padding: 14px 18px 18px;
+  border-top: 1px solid rgba(21,27,59,.10);
+  background: rgba(255,255,255,.55);
+}
+.ui-alert__icon.success{
+  color: #16a34a;
+  border-color: rgba(34,197,94,.35);
+  box-shadow: 0 14px 30px rgba(34,197,94,.14), inset 0 1px 0 rgba(255,255,255,.65);
+}
+.ui-alert__foot.success{
+  background: linear-gradient(90deg, rgba(34,197,94,.16), rgba(255,255,255,.55));
+}
+
+.ui-alert__icon.warning{
+  color: var(--policia-resalte-oro);
+  border-color: rgba(179,110,26,.35);
+  box-shadow: 0 14px 30px rgba(179,110,26,.14), inset 0 1px 0 rgba(255,255,255,.65);
+}
+.ui-alert__foot.warning{
+background: linear-gradient(178deg,rgba(0, 42, 102, 1) 0%, rgba(21, 27, 59, 1) 43%, rgba(8, 166, 203, 1) 100%);
+}
+.ui-alert__icon.error{
+  color: #dc2626;
+  border-color: rgba(239,68,68,.35);
+  box-shadow: 0 14px 30px rgba(239,68,68,.14), inset 0 1px 0 rgba(255,255,255,.65);
+}
+.ui-alert__foot.error{
+background: linear-gradient(353deg,rgba(0, 42, 102, 1) 0%, rgba(21, 27, 59, 1) 43%, rgba(8, 166, 203, 1) 100%);
+}
+
+.ui-alert__icon.info{
+  color: var(--policia-medio);
+  border-color: rgba(8,166,203,.35);
+  box-shadow: 0 14px 30px rgba(8,166,203,.14), inset 0 1px 0 rgba(255,255,255,.65);
+}
+.ui-alert__foot.info{
+  background: linear-gradient(90deg, rgba(8,166,203,.16), rgba(255,255,255,.55));
+}
