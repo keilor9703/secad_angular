@@ -48,6 +48,15 @@ onEliminar(): void {
     btnInfo() {
     this.alert.info('Información', 'No se encontraron datos para el numero  proporcionado');
   }
+ minimized = false;
+  visible = true;
 
+  toggleMinimize(): void {
+    this.minimized = !this.minimized;
+  }
+
+  closePanel(): void {
+    this.visible = false;
+  }
 }
 

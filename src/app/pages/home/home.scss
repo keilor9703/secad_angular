@@ -12,10 +12,12 @@
    ========================================== */
 .content-area {
     position: relative;
-    margin-left: var(--collapsed-width);
+    // margin-left: var(--collapsed-width);
     width: calc(100% - var(--collapsed-width));
     min-height: 100vh;
     transition: all var(--transition-speed) ease;
+    margin: auto;
+    padding: 30px;
 }
 
 .navbar {
@@ -76,7 +78,7 @@
 }
 
 .view-container {
-    padding: 30px;
+    // padding: 30px;
 }
 
 .card-view {
@@ -95,7 +97,7 @@
 .main-slider {
     position: relative;
     width: 100%;
-    height: 600px;
+    height: 500px;
     background: #1e293b;
     border-radius: 20px;
     overflow: hidden;
@@ -362,4 +364,422 @@
 /* Asegurar que Font Awesome funcione */
 .fa, .fas, .far, .fal, .fab, .fa-solid, .fa-regular, .fa-light, .fa-brands {
     font-family: "Font Awesome 6 Free", "Font Awesome 6 Pro", "Font Awesome 6 Brands" !important;
+}
+
+
+.home-two-col{
+  display: grid;
+  grid-template-columns: 0.35fr 0.65fr; /* col-6 / col-6 */
+  gap: 16px;
+}
+
+@media (max-width: 980px){
+  .home-two-col{
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Video */
+.video-box{
+  border-radius: 14px;
+  overflow: hidden;
+  border: 1px solid rgba(21,27,59,.12);
+  background: rgba(21,27,59,.04);
+}
+
+.video-frame{
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  display: block;
+}
+
+.video-caption{
+  margin-top: 10px;
+  color: rgba(83,86,90,.95);
+}
+
+/* Noticias */
+.news-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap: 12px;
+}
+
+.news-list{
+  display: grid;
+  gap: 12px;
+}
+
+.news-card{
+  border: 1px solid rgba(21,27,59,.10);
+  border-radius: 14px;
+  padding: 12px 12px;
+  background: rgba(255,255,255,.85);
+  box-shadow: 0 10px 24px rgba(2,6,23,.06);
+  transition: transform .15s ease, box-shadow .15s ease;
+}
+
+.news-card:hover{
+  transform: translateY(-2px);
+  box-shadow: 0 16px 40px rgba(2,6,23,.12);
+}
+
+.news-meta{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap: 10px;
+  margin-bottom: 6px;
+  color: rgba(83,86,90,.9);
+  font-size: 12px;
+}
+
+.news-title{
+  margin: 0 0 6px;
+  font-size: 15px;
+  font-weight: 900;
+  color: var(--policia-oscuro);
+}
+
+.news-lead{
+  margin: 0 0 10px;
+  color: rgba(83,86,90,.95);
+  line-height: 1.45;
+  font-size: 13px;
+}
+
+.news-link{
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 800;
+  color: var(--policia-medio);
+  text-decoration: none;
+}
+
+.news-link:hover{
+  text-decoration: underline;
+}
+
+.news-arrow{
+  transition: transform .15s ease;
+}
+
+.news-link:hover .news-arrow{
+  transform: translateX(3px);
+}
+.home-spotlight{
+  display: grid;
+  grid-template-columns: 1fr 1fr; /* 70/30 */
+  gap: 16px;
+}
+
+@media (max-width: 980px){
+  .home-spotlight{
+    grid-template-columns: 1fr;
+  }
+}
+
+.spotlight-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap: 12px;
+}
+
+/* Grid de 4 categorías */
+.spotlight-grid{
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+@media (max-width: 980px){
+  .spotlight-grid{ grid-template-columns: 1fr; }
+}
+
+/* Card personaje */
+.spotlight-card{
+  border: 1px solid rgba(21,27,59,.10);
+  border-radius: 16px;
+  padding: 12px;
+  background: rgba(255,255,255,.85);
+  box-shadow: 0 10px 24px rgba(2,6,23,.06);
+  transition: transform .15s ease, box-shadow .15s ease;
+}
+
+.spotlight-card:hover{
+  transform: translateY(-2px);
+  box-shadow: 0 16px 40px rgba(2,6,23,.12);
+}
+
+.spotlight-card__top{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.spotlight-tag{
+  display:inline-flex;
+  align-items:center;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-weight: 900;
+  font-size: 12px;
+  color: var(--policia-oscuro);
+  background: color-mix(in srgb, var(--policia-acento) 35%, white);
+  border: 1px solid rgba(21,27,59,.10);
+}
+
+.spotlight-mini{
+  font-size: 12px;
+  color: rgba(83,86,90,.92);
+}
+
+/* Persona */
+.spotlight-person{
+  display:flex;
+  gap: 12px;
+  align-items:center;
+}
+
+.spotlight-avatar{
+  width: 54px;
+  height: 54px;
+  border-radius: 16px;
+  object-fit: cover;
+  border: 1px solid rgba(21,27,59,.12);
+  background: rgba(21,27,59,.04);
+}
+
+.spotlight-name{
+  font-weight: 1000;
+  color: var(--policia-oscuro);
+  line-height: 1.2;
+}
+
+.spotlight-role{
+  color: rgba(83,86,90,.95);
+  font-size: 13px;
+  margin-top: 2px;
+}
+
+.spotlight-group{
+  color: rgba(83,86,90,.85);
+  font-size: 12px;
+  margin-top: 2px;
+}
+
+/* Enlaces */
+.links-list{
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.link-item{
+  display:grid;
+  grid-template-columns: 36px 1fr 18px;
+  align-items:center;
+  gap: 10px;
+  padding: 10px 10px;
+  border-radius: 14px;
+  text-decoration: none;
+  border: 1px solid rgba(21,27,59,.10);
+  background: rgba(255,255,255,.80);
+  transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
+}
+
+.link-item:hover{
+  transform: translateY(-1px);
+  box-shadow: 0 12px 26px rgba(2,6,23,.10);
+  border-color: rgba(8,166,203,.28);
+}
+
+.link-ico{
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  color: var(--policia-medio);
+  background: rgba(8,166,203,.10);
+  border: 1px solid rgba(8,166,203,.18);
+}
+
+.link-title{
+  display:block;
+  font-weight: 900;
+  color: var(--policia-oscuro);
+  line-height: 1.2;
+}
+
+.link-desc{
+  display:block;
+  font-size: 12px;
+  color: rgba(83,86,90,.92);
+  margin-top: 2px;
+}
+
+.link-go{
+  font-weight: 900;
+  color: var(--policia-medio);
+}
+/* Card base (si ya tienes card-view, deja solo lo que no tengas) */
+.card-view{
+  border-radius: 16px;
+  overflow: hidden; /* importante: el header respeta el borde */
+  border: 1px solid rgba(21,27,59,.10);
+  background: rgba(255,255,255,.92);
+  box-shadow: 0 12px 30px rgba(2,6,23,.06);
+}
+
+/* Header oscuro tipo panel */
+.card-head{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 12px 12px 0 0;
+}
+
+.card-head--dark{
+  background: var(--policia-gradiente-deep);
+  border-bottom: 1px solid rgba(255,255,255,.12);
+  color: #fff;
+}
+
+.card-title{
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 900;
+  letter-spacing: .2px;
+}
+
+.card-title i{
+  color: var(--policia-acento); /* acento verde */
+  filter: drop-shadow(0 6px 16px rgba(0,0,0,.25));
+}
+
+/* cuerpo */
+.card-body{
+  padding: 14px;
+  height: 350px;
+  background: var(--policia-neutral-claro);
+}
+
+/* Fila de 4 (como la maqueta) */
+.cmd-row{
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  align-items: start;
+}
+
+/* Responsive */
+@media (max-width: 1100px){
+  .cmd-row{ grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 620px){
+  .cmd-row{ grid-template-columns: 1fr; }
+}
+
+/* Item estilo card (similar a spotlight-card) */
+.cmd-item{
+  text-align: center;
+  border-radius: 16px;
+  padding: 12px 12px 14px;
+  border: 1px solid rgba(21,27,59,.10);
+  background: rgba(255,255,255,.86);
+  height: 300px;
+  box-shadow: 0 10px 24px rgba(2,6,23,.06);
+  transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
+}
+
+.cmd-item:hover{
+  transform: translateY(-2px);
+  box-shadow: 0 16px 40px rgba(2,6,23,.12);
+  border-color: rgba(8,166,203,.28);
+}
+
+/* Foto grande arriba */
+.cmd-photo-lg{
+  width: 100%;
+  aspect-ratio: 1 / 1;          
+  object-fit: cover;
+  border-radius: 14px;
+  border: 1px solid rgba(21,27,59,.12);
+  background: rgba(21,27,59,.04);
+  box-shadow: 0 12px 26px rgba(2,6,23,.12);
+  margin-bottom: 10px;
+}
+
+/* Texto debajo (3 líneas) */
+.cmd-name{
+  font-weight: 1000;
+  color: var(--policia-oscuro);
+  font-size: 13px;
+  line-height: 1.15;
+  height: 37px;
+}
+
+.cmd-grade{
+  margin-top: 4px;
+  color: rgba(83,86,90,.92);
+  font-size: 12px;
+  line-height: 1.15;
+}
+
+.cmd-role{
+  margin-top: 4px;
+  color: rgba(83,86,90,.88);
+  font-size: 12px;
+  line-height: 1.15;
+}
+
+
+.ui-modal__dialog--news{
+  width: min(780px, 96vw);
+}
+
+.news-modal__img{
+  width: 100%;
+  border-radius: 14px;
+  border: 1px solid rgba(21,27,59,.12);
+  object-fit: cover;
+  aspect-ratio: 16 / 9;
+  background: rgba(21,27,59,.04);
+  margin-bottom: 10px;
+}
+
+.news-modal__meta{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap: 10px;
+  margin: 6px 0 10px;
+  color: rgba(83,86,90,.95);
+  font-size: 12px;
+}
+
+.news-modal__title{
+  margin: 0 0 10px;
+  font-size: 18px;
+  font-weight: 1000;
+  color: var(--policia-oscuro);
+}
+
+.news-modal__text{
+  margin: 0;
+  color: rgba(83,86,90,.95);
+  line-height: 1.55;
+  font-size: 13.5px;
 }

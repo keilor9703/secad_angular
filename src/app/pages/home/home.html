@@ -1,7 +1,5 @@
-<div class="app-container">
-      <main class="content-area">
-     
 
+      <main class="content-area">
         <section class="view-container">
             <div class="slider-wrapper">
                 <div class="main-slider">
@@ -49,7 +47,6 @@
                     </div>
                 </div>
             </div>
-
             <div class="stats-grid">
                 <div class="stat-card">
                     <div class="stat-icon blue"><i class="fa-solid fa-users"></i></div>
@@ -73,12 +70,275 @@
                     </div>
                 </div>
             </div>
+            <div class="home-two-col mt-4">
 
-            <div class="card-view mt-4">
+            <!-- IZQUIERDA: VIDEO -->
+            <div class="card-view">
+                <h3><i class="fa-solid fa-circle-play"></i> Video de la Unidad</h3>
+                <hr>
+
+                <div class="video-box">
+                <!-- Puedes usar YouTube/Vimeo o un mp4. Aquí ejemplo YouTube -->
+                <iframe
+                    class="video-frame"
+                    src="https://www.youtube.com/embed/OiUyIkkVeQc?si=JTrpW5f8ZsxrGRbi"
+                    title="Video institucional"
+                    frameborder="0"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowfullscreen>
+                </iframe>
+                </div>
+
+                <p class="video-caption">
+                Mensaje institucional o video informativo de la unidad (comunicados, campañas, instrucciones).
+                </p>
+            </div>
+
+            <!-- DERECHA: NOTICIAS -->
+            <div class="card-view">
+                <div class="news-head">
+                <h3><i class="fa-solid fa-newspaper"></i> Noticias y Comunicados</h3>
+
+                <!-- opcional: botón para ver más -->
+                <button class="ui-btn outline" type="button">
+                    <i class="fa-solid fa-arrow-right"></i> Ver todas
+                </button>
+                </div>
+
+                <hr>
+
+                <div class="news-list">
+
+                <article class="news-card">
+                    <div class="news-meta">
+                    <span class="news-date">
+                        <i class="fa-regular fa-calendar"></i> 15 Ene 2026
+                    </span>
+              
+                    </div>
+
+                    <h4 class="news-title">Actualización del sistema SISGE</h4>
+                    <p class="news-lead">
+                    Se implementaron mejoras de rendimiento y ajustes visuales en formularios y turnos de pago.
+                    </p>
+
+                   <a class="news-link" href="#" (click)="$event.preventDefault(); openNews(news[0])">Leer más <span class="news-arrow">→</span></a>
+                </article>
+
+                <article class="news-card">
+                    <div class="news-meta">
+                    <span class="news-date">
+                        <i class="fa-regular fa-calendar"></i> 12 Ene 2026
+                    </span>
+                  
+                    </div>
+
+                    <h4 class="news-title">Nueva guía para radicación</h4>
+                    <p class="news-lead">
+                    Consulta el paso a paso actualizado para radicar y validar documentos en el módulo judicial.
+                    </p>
+                    <a class="news-link" href="#" (click)="$event.preventDefault(); openNews(news[1])">Leer más <span class="news-arrow">→</span></a>
+
+                </article>
+
+                <article class="news-card">
+                    <div class="news-meta">
+                    <span class="news-date">
+                        <i class="fa-regular fa-calendar"></i> 08 Ene 2026
+                    </span>
+                 
+                    </div>
+
+                    <h4 class="news-title">Ventana de mantenimiento</h4>
+                    <p class="news-lead">
+                    El sistema tendrá una ventana programada el fin de semana para actualización de seguridad.
+                    </p>
+                    <a class="news-link" href="#" (click)="$event.preventDefault(); openNews(news[2])">Leer más <span class="news-arrow">→</span></a>
+                </article>
+
+                </div>
+            </div>
+
+            </div>
+          <div class="card-view mt-4">
                 <h3><i class="fa-solid fa-clock-rotate-left"></i> Actividad Reciente</h3>
                 <hr>
                 <p style="color: #666; margin-top: 10px;">No hay movimientos recientes en tu cuenta.</p>
             </div>
         </section>
+        <section class="home-spotlight mt-4">
+  <!-- Personajes del mes -->
+ <div class="card-view">
+  <div class="card-head card-head--dark">
+    <div class="card-title">
+      <i class="fa-solid fa-award"></i>
+      <span>Personajes del mes</span>
+    </div>
+  </div>
+
+  <div class="card-body">
+    <div class="spotlight-grid">
+      <!-- Categoría 1 -->
+      <article class="spotlight-card">
+        <div class="spotlight-card__top">
+          <span class="spotlight-tag">Oficial</span>
+          <span class="spotlight-mini">
+            <i class="fa-solid fa-shield"></i> Grupo: Judicial
+          </span>
+        </div>
+
+        <div class="spotlight-person">
+          <img class="spotlight-avatar" src="imagenes/policia.jpg" alt="Foto personaje">
+          <div class="spotlight-person__info">
+            <div class="spotlight-name">CT. Juan Pérez</div>
+            <div class="spotlight-role">Coordinador de Turnos</div>
+            <div class="spotlight-group">Grupo: Gestión de Pagos</div>
+          </div>
+        </div>
+      </article>
+
+      <!-- Categoría 2 -->
+      <article class="spotlight-card">
+        <div class="spotlight-card__top">
+          <span class="spotlight-tag">Mando Ejecutivo</span>
+          <span class="spotlight-mini">
+            <i class="fa-solid fa-users"></i> Grupo: GUTIC
+          </span>
+        </div>
+
+        <div class="spotlight-person">
+          <img class="spotlight-avatar" src="imagenes/policia.jpg" alt="Foto personaje">
+          <div class="spotlight-person__info">
+            <div class="spotlight-name">It. María Gómez</div>
+            <div class="spotlight-role">Analista de Calidad</div>
+            <div class="spotlight-group">Grupo: Mejora Continua</div>
+          </div>
+        </div>
+      </article>
+
+      <!-- Categoría 3 -->
+      <article class="spotlight-card">
+        <div class="spotlight-card__top">
+          <span class="spotlight-tag">Patrullero</span>
+          <span class="spotlight-mini">
+            <i class="fa-solid fa-headset"></i> Grupo: Atención
+          </span>
+        </div>
+
+        <div class="spotlight-person">
+          <img class="spotlight-avatar" src="imagenes/policia.jpg" alt="Foto personaje">
+          <div class="spotlight-person__info">
+            <div class="spotlight-name">Pt. Luis Rojas</div>
+            <div class="spotlight-role">Soporte Operativo</div>
+            <div class="spotlight-group">Grupo: Mesa de Ayuda</div>
+          </div>
+        </div>
+      </article>
+
+      <!-- Categoría 4 -->
+      <article class="spotlight-card">
+        <div class="spotlight-card__top">
+          <span class="spotlight-tag">No Uniformado</span>
+          <span class="spotlight-mini">
+            <i class="fa-solid fa-lightbulb"></i> Grupo: Desarrollo
+          </span>
+        </div>
+
+        <div class="spotlight-person">
+          <img class="spotlight-avatar" src="imagenes/policia.jpg" alt="Foto personaje">
+          <div class="spotlight-person__info">
+            <div class="spotlight-name">Ing. Carlos Díaz</div>
+            <div class="spotlight-role">Desarrollador Front</div>
+            <div class="spotlight-group">Grupo: UI/UX</div>
+          </div>
+        </div>
+      </article>
+    </div>
+  </div>
+</div>
+  <!-- linea de mando -->
+
+ <div class="card-view">
+  <div class="card-head card-head--dark">
+    <div class="card-title">
+      <i class="fa-solid fa-user-group"></i>
+      <span>Línea de mando</span>
+    </div>
+
+    <span class="ui-badge info">Unidad</span>
+  </div>
+
+  <div class="card-body">
+    <div class="cmd-row">
+      <article class="cmd-item">
+        <img class="cmd-photo-lg" src="imagenes/policia.jpg" alt="Foto">
+        <div class="cmd-name">Gr. William Oswaldo Rincón Zambrano</div>
+        <div class="cmd-grade">General</div>
+        <div class="cmd-role">Director Policía</div>
+      </article>
+
+      <article class="cmd-item">
+        <img class="cmd-photo-lg" src="imagenes/policia.jpg" alt="Foto">
+        <div class="cmd-name">Mg. Rosemberg Novoa</div>
+        <div class="cmd-grade">Mayor General</div>
+        <div class="cmd-role">Subdirector Policía</div>
+      </article>
+
+      <article class="cmd-item">
+        <img class="cmd-photo-lg" src="imagenes/policia.jpg" alt="Foto">
+        <div class="cmd-name">MY. Andrés Pérez</div>
+        <div class="cmd-grade">Coronel</div>
+        <div class="cmd-role">Jefe Unidad</div>
+      </article>
+
+      <article class="cmd-item">
+        <img class="cmd-photo-lg" src="imagenes/policia.jpg" alt="Foto">
+        <div class="cmd-name">Cm. Laura Gómez</div>
+        <div class="cmd-grade">Comisario</div>
+        <div class="cmd-role">Mando Ejecutivo</div>
+      </article>
+    </div>
+  </div>
+</div>
+
+
+</section>
+
     </main>
+
+
+    <!-- MODAL NOTICIA -->
+<div class="ui-modal" *ngIf="newsModalOpen" (click)="closeNews()">
+  <div class="ui-modal__dialog ui-modal__dialog--news" (click)="$event.stopPropagation()" role="dialog" aria-modal="true">
+    <div class="ui-modal__head">
+      <div class="ui-modal__title">
+        <i class="fa-solid fa-newspaper"></i>
+        Noticia
+      </div>
+
+      <button class="ui-icon-btn" type="button" (click)="closeNews()" aria-label="Cerrar">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+    </div>
+
+    <div class="ui-modal__body">
+      <div class="news-modal" *ngIf="selectedNews">
+        <img class="news-modal__img" [src]="selectedNews.image" [alt]="selectedNews.title">
+
+        <div class="news-modal__meta">
+          <span class="news-modal__date">
+            <i class="fa-regular fa-calendar"></i> {{ selectedNews.date }}
+          </span>
+         
+        </div>
+
+        <h3 class="news-modal__title">{{ selectedNews.title }}</h3>
+        <p class="news-modal__text">{{ selectedNews.content }}</p>
+      </div>
+    </div>
+
+    <div class="ui-modal__foot">
+      <button class="ui-btn outline" type="button" (click)="closeNews()">Cerrar</button>
+    </div>
+  </div>
 </div>
