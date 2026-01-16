@@ -1,5 +1,6 @@
 import { Component,HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { RouterLink, RouterModule } from '@angular/router';
 
 type NewsTag = 'Comunicado' | 'Servicio' | 'Importante';
 
@@ -13,10 +14,11 @@ interface NewsItem {
   image: string;   
 }
 
+
 @Component({
   selector: 'app-home',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule,RouterLink],
   templateUrl: './home.html',
   styleUrls: ['./home.scss'],
 })

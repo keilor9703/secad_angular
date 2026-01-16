@@ -3,6 +3,7 @@ import { LoginComponent } from './pages/login/login';
 import { HomeComponent } from './pages/home/home';
 import { Formularios } from './pages/formularios/formularios';
 import { LayoutComponent } from './layout/layout';
+import { Noticias } from './pages/noticias/noticias';
 
 export const routes: Routes = [
   // 1. Forzamos que la raíz redirija siempre al login primero
@@ -18,6 +19,7 @@ export const routes: Routes = [
     children: [
       { path: 'home', component: HomeComponent },
       { path: 'formularios', component: Formularios },
+      {path: 'noticias', component: Noticias},
     ]
   },
 

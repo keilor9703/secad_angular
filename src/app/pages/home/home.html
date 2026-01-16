@@ -74,7 +74,7 @@
 
             <!-- IZQUIERDA: VIDEO -->
             <div class="card-view">
-                <h3><i class="fa-solid fa-circle-play"></i> Video de la Unidad</h3>
+                <h3 class ="title-cards"><i class="fa-solid fa-circle-play"></i> Video de la Unidad</h3>
                 <hr>
 
                 <div class="video-box">
@@ -97,12 +97,12 @@
             <!-- DERECHA: NOTICIAS -->
             <div class="card-view">
                 <div class="news-head">
-                <h3><i class="fa-solid fa-newspaper"></i> Noticias y Comunicados</h3>
+                <h3 class ="title-cards"><i class="fa-solid fa-newspaper"></i> Noticias y Comunicados</h3>
 
                 <!-- opcional: botón para ver más -->
-                <button class="ui-btn outline" type="button">
-                    <i class="fa-solid fa-arrow-right"></i> Ver todas
-                </button>
+               <button class="ui-btn outline" type="button" routerLink="/noticias">
+                <i class="fa-solid fa-arrow-right"></i> Ver todas
+              </button>
                 </div>
 
                 <hr>
@@ -161,9 +161,9 @@
 
             </div>
           <div class="card-view mt-4">
-                <h3><i class="fa-solid fa-clock-rotate-left"></i> Actividad Reciente</h3>
+                <h3 class ="title-cards"><i class="fa-solid fa-clock-rotate-left"></i> Actividad Reciente</h3>
                 <hr>
-                <p style="color: #666; margin-top: 10px;">No hay movimientos recientes en tu cuenta.</p>
+                <p style="color: #666; margin: 10px;">No hay movimientos recientes en tu cuenta.</p>
             </div>
         </section>
         <section class="home-spotlight mt-4">
@@ -264,8 +264,6 @@
       <i class="fa-solid fa-user-group"></i>
       <span>Línea de mando</span>
     </div>
-
-    <span class="ui-badge info">Unidad</span>
   </div>
 
   <div class="card-body">

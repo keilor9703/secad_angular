@@ -174,14 +174,14 @@
 
 .notification-btn {
   position: relative;
-  width: 45px;
-  height: 45px;
+  width: 35px;
+  height: 35px;
   border: none;
   background: rgba(255, 255, 255, 0.1);
   backdrop-filter: blur(10px);
   border-radius: var(--ui-radius-sm);
   color: white;
-  font-size: 18px;
+  font-size: 15px;
   cursor: pointer;
   transition: all var(--transition-speed) ease;
   display: flex;

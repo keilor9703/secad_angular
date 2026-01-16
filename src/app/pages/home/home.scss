@@ -10,15 +10,6 @@
 /* ==========================================
    CONTENIDO PRINCIPAL
    ========================================== */
-.content-area {
-    position: relative;
-    width: calc(100% - var(--collapsed-width));
-    min-height: 100vh;
-    transition: all var(--transition-speed) ease;
-    margin: auto;
-    padding: 30px;
-}
-
 /* --- NAVBAR (Optimized) --- */
 .navbar {
     height: 60px;
@@ -335,6 +326,7 @@
 .news-list {
     display: grid;
     gap: 12px;
+    margin: 10px;
 }
 
 .news-card {
@@ -652,7 +644,7 @@
 }
 
 .cmd-grade {
-    margin-top: 4px;
+    margin-top: 14px;
     color: var(--policia-neutral-medio);
     font-size: 12px;
     line-height: 1.15;

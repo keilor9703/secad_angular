@@ -1,0 +1,77 @@
+<main class="content-area">
+<section class="ui-page view-container">
+  <div class="ui-panel">
+    <div class="ui-panel__head">
+      <div class="ui-panel__title">
+        <i class="fa-solid fa-newspaper"></i>
+        Noticias y actividades
+      </div>
+
+      <div class="ui-panel__actions ui-window-controls">
+        <button class="ui-icon-btn ui-win-btn is-min" type="button" title="Minimizar" (click)="minimized = !minimized">
+          <i class="fa-solid fa-minus"></i>
+        </button>
+        <button class="ui-icon-btn ui-win-btn is-close" type="button" title="Cerrar" (click)="closed = true">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+    </div>
+
+    <div class="ui-panel__body" *ngIf="!minimized && !closed">
+
+      <div class="news-page-grid">
+        <article class="news-card" *ngFor="let n of news">
+          <div class="news-meta">
+            <span class="news-date">
+              <i class="fa-regular fa-calendar"></i> {{ n.date }}
+            </span>
+            <span class="ui-badge info">{{ n.tag }}</span>
+          </div>
+
+          <h4 class="news-title">{{ n.title }}</h4>
+          <p class="news-lead">{{ n.lead }}</p>
+
+          <a class="news-link" href="#" (click)="$event.preventDefault(); openNews(n)">
+            Leer más <span class="news-arrow">→</span>
+          </a>
+        </article>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- MODAL NOTICIA -->
+<div class="ui-modal" *ngIf="newsModalOpen" (click)="closeNews()">
+  <div class="ui-modal__dialog ui-modal__dialog--news" (click)="$event.stopPropagation()" role="dialog" aria-modal="true">
+    <div class="ui-modal__head">
+      <div class="ui-modal__title">
+        <i class="fa-solid fa-newspaper"></i>
+        Noticia
+      </div>
+
+      <button class="ui-icon-btn" type="button" (click)="closeNews()" aria-label="Cerrar">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+    </div>
+
+    <div class="ui-modal__body" *ngIf="selectedNews">
+      <img class="news-modal__img" [src]="selectedNews.image" [alt]="selectedNews.title">
+
+      <div class="news-modal__meta">
+        <span class="news-modal__date">
+          <i class="fa-regular fa-calendar"></i> {{ selectedNews.date }}
+        </span>
+        <span class="ui-badge info">{{ selectedNews.tag }}</span>
+      </div>
+
+      <h3 class="news-modal__title">{{ selectedNews.title }}</h3>
+      <p class="news-modal__text">{{ selectedNews.content }}</p>
+    </div>
+
+    <div class="ui-modal__foot">
+      <button class="ui-btn outline" type="button" (click)="closeNews()">Cerrar</button>
+    </div>
+  </div>
+</div>
+</main>

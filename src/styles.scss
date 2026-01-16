@@ -1082,3 +1082,11 @@ textarea.ui-control {
   background: #28c840;
   border-color: rgba(0, 0, 0, .15);
 }
+.content-area {
+    position: relative;
+    width: calc(100% - var(--collapsed-width));
+    min-height: 100vh;
+    transition: all var(--transition-speed) ease;
+    margin: auto;
+    padding: 30px;
+}
