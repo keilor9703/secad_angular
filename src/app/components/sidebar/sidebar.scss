@@ -9,16 +9,18 @@
   height: 100%;
   position: relative;
   background: var(--policia-oscuro);
-  box-shadow: 4px 0 15px rgba(21, 27, 59, 0.3);
-  border-right: 1px solid rgba(255, 255, 255, 0.05);
-overflow: visible;      
+  box-shadow: var(--ui-shadow);
+  border-right: 1px solid var(--ui-border);
+  overflow: visible;      
   z-index: 1000;
 }
+
 .sidebar-scroll {
-  height: calc(100% - 70px);
+  height: calc(100% - var(--header-height));
   overflow-y: auto;         
   overflow-x: hidden;
 }
+
 /* Tramado sutil institucional */
 .sidebar::before {
   content: '';
@@ -48,19 +50,19 @@ overflow: visible;
     radial-gradient(circle at 80% 30%, rgba(8, 166, 203, 0.04), transparent 60%);
 }
 
-/* --- HEADER DEL SIDEBAR --- */
+/* --- HEADER DEL SIDEBAR (Optimized) --- */
 .sidebar-header {
-  height: 70px;
+  height: var(--header-height);
   display: flex;
   align-items: center;
   padding: 0 14px;
   color: white;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  border-bottom: 1px solid var(--ui-border);
   position: relative;
   z-index: 1;
 }
 
-.header-brand-link{
+.header-brand-link {
   display: flex;
   align-items: center;
   gap: 10px;           
@@ -93,38 +95,36 @@ overflow: visible;
   opacity: 0;
   visibility: hidden;
   white-space: nowrap;
-  transition: opacity 0.3s ease, visibility 0.3s ease;
+  transition: opacity var(--transition-speed) ease, visibility var(--transition-speed) ease;
 }
 
-/* Mostrar nombre SOLO cuando el sidebar está expandido (clase desde layout) */
+/* Mostrar nombre SOLO cuando el sidebar está expandido */
 :host(.expanded) .logo-name {
   opacity: 1;
   visibility: visible;
 }
 
-/* --- NAVEGACIÓN --- */
+/* --- NAVEGACIÓN (Optimized) --- */
 .sidebar-nav {
   margin-top: 20px;
   position: relative;
   z-index: 1;
 }
 
-
-// .menu-item {
-//   position: relative;
-//   overflow: visible;
-// }
-
+.menu-item {
+  position: relative;
+  overflow: visible;
+}
 
 .menu-link {
   display: flex;
   align-items: center;
   padding: 12px 15px;
   margin: 5px 10px;
-  border-radius: 10px;
+  border-radius: var(--ui-radius-sm);
   color: var(--policia-neutral-claro);
   text-decoration: none;
-  transition: all 0.3s ease;
+  transition: all var(--transition-speed) ease;
   cursor: pointer;
 }
 
@@ -144,14 +144,14 @@ overflow: visible;
   opacity: 0;
   visibility: hidden;
   white-space: nowrap;
-  transition: opacity 0.3s ease, visibility 0.3s ease;
+  transition: opacity var(--transition-speed) ease, visibility var(--transition-speed) ease;
   margin-left: 10px;
   font-weight: 600;
 }
 
 .arrow {
   font-size: 10px;
-  transition: opacity 0.3s ease;
+  transition: opacity var(--transition-speed) ease;
   opacity: 0;
   margin-left: auto;
 }
@@ -163,39 +163,38 @@ overflow: visible;
   opacity: 1;
   visibility: visible;
 }
-.menu-item {
-  position: relative;
-//   list-style: none;
-//   margin-bottom: 5px;
-  overflow: visible ;
-}
+
+/* --- SUBMENÚ (Optimized) --- */
 .submenu {
   margin: 0 10px 6px 10px;
-  border-radius: 12px;
+  border-radius: var(--ui-radius-sm);
   background: rgba(255, 255, 255, 0.06);
   overflow: hidden;
-
   max-height: 0;
   opacity: 0;
   transform: translateY(-6px);
-  transition: max-height 0.25s ease, opacity 0.2s ease, transform 0.2s ease;
+  transition: max-height var(--transition-speed) ease, opacity var(--transition-speed) ease, transform var(--transition-speed) ease;
   pointer-events: none;
 }
+
 .menu-item:hover .submenu {
   max-height: 500px;   
   opacity: 1;
   transform: translateY(0);
   pointer-events: auto;
 }
+
 .sidebar {
-  overflow-x: hidden;   /* el sidebar no debería desbordar horizontalmente */
+  overflow-x: hidden;
 }
+
 .submenu a {
   display: block;
   padding: 10px 16px;
   color: rgba(255, 255, 255, 0.75);
   text-decoration: none;
   border-left: 3px solid transparent;
+  transition: all var(--transition-speed) ease;
 }
 
 .submenu a:hover {
@@ -204,20 +203,47 @@ overflow: visible;
   border-left-color: var(--policia-acento);
 }
 
-.submenu a:last-child {
-  border-bottom: none;
-}
-
-/* Scrollbar personalizada */
+/* Scrollbar personalizada (Optimized) */
 .sidebar::-webkit-scrollbar {
   width: 4px;
 }
+
 .sidebar::-webkit-scrollbar-thumb {
   background: var(--policia-claro);
-  border-radius: 10px;
+  border-radius: var(--ui-radius-sm);
 }
 
-/* Soporte íconos Font Awesome */
-.fa, .fas, .far, .fal, .fab, .fa-solid, .fa-regular, .fa-light, .fa-brands {
-  font-family: "Font Awesome 6 Free", "Font Awesome 6 Pro", "Font Awesome 6 Brands" !important;
+.sidebar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* --- RESPONSIVE (Optimized) --- */
+@media (max-width: 768px) {
+  .sidebar-header {
+    padding: 0 10px;
+  }
+  
+  .logo-icon {
+    margin-left: 10px;
+  }
+  
+  .menu-link {
+    padding: 10px 12px;
+    margin: 3px 8px;
+  }
+  
+  .icon {
+    min-width: 40px;
+  }
+}
+
+/* Focus states for accessibility */
+.menu-link:focus-visible {
+  outline: none;
+  box-shadow: var(--ui-focus-ring);
+}
+
+.submenu a:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px var(--policia-acento);
 }

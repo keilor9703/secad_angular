@@ -3,14 +3,13 @@
   Responsable de: apariencia, interacciones, dropdowns, búsqueda
   NO responsable de: márgenes externos, relación con sidebar, ancho del contenido
 */
-
 .modern-header {
   position: sticky;
   top: 0;
   width: 100%;
   height: var(--header-height, 70px);
   background: var(--policia-gradiente-principal);
-  box-shadow: 0 4px 20px rgba(21, 27, 59, 0.3);
+  box-shadow: var(--ui-shadow);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -33,7 +32,6 @@
     pointer-events: none;
   }
 
-
   &::after {
     content: '';
     position: absolute;
@@ -44,7 +42,6 @@
     background: var(--policia-acento);
   }
 }
-
 
 .header-brand {
   display: flex;
@@ -60,13 +57,13 @@
   background: rgba(255, 255, 255, 0.1);
   backdrop-filter: blur(10px);
   border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 12px;
+  border-radius: var(--ui-radius-sm);
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 8px;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-  transition: transform 0.3s ease;
+  box-shadow: var(--ui-shadow-sm);
+  transition: transform var(--transition-speed) ease;
 
   &:hover {
     transform: scale(1.05);
@@ -101,7 +98,7 @@
   text-transform: uppercase;
 }
 
-/* --- BUSCADOR --- */
+/* --- BUSCADOR (Optimized with existing form styles) --- */
 .header-search {
   flex: 0 1 500px;
   display: flex;
@@ -111,7 +108,7 @@
   border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: 25px;
   padding: 0 20px;
-  transition: all 0.3s ease;
+  transition: all var(--transition-speed) ease;
   position: relative;
   z-index: 1;
 
@@ -123,7 +120,7 @@
   &:focus-within {
     background: rgba(255, 255, 255, 0.25);
     border-color: var(--policia-acento);
-    box-shadow: 0 0 0 3px rgba(205, 255, 0, 0.2);
+    box-shadow: var(--ui-focus-ring);
   }
 
   .search-icon {
@@ -148,7 +145,7 @@
 
   .search-btn {
     background: var(--policia-acento);
-    color: var(--policia-oscuro);
+    color: var(--btn-primary-text);
     border: none;
     width: 35px;
     height: 35px;
@@ -157,7 +154,7 @@
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    transition: all 0.3s ease;
+    transition: all var(--transition-speed) ease;
     margin-left: 10px;
 
     &:hover {
@@ -167,7 +164,7 @@
   }
 }
 
-/* --- NOTIFICACIONES --- */
+/* --- NOTIFICACIONES (Optimized with existing button styles) --- */
 .header-notifications {
   display: flex;
   gap: 8px;
@@ -182,11 +179,11 @@
   border: none;
   background: rgba(255, 255, 255, 0.1);
   backdrop-filter: blur(10px);
-  border-radius: 12px;
+  border-radius: var(--ui-radius-sm);
   color: white;
   font-size: 18px;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all var(--transition-speed) ease;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -204,7 +201,7 @@
     position: absolute;
     top: -5px;
     right: -5px;
-    background: #ef4444;
+    background: var(--ui-badge-danger, #ef4444);
     color: white;
     font-size: 10px;
     font-weight: bold;
@@ -227,12 +224,12 @@
 
 /* Estados semánticos de notificación */
 .notification-warning:hover { background: rgba(245, 158, 11, 0.2); }
-.notification-info:hover { background: rgba(59, 130, 246, 0.2); }
+.notification-info:hover { background: rgba(8, 166, 203, 0.2); }
 .notification-success:hover { background: rgba(34, 197, 94, 0.2); }
 .notification-primary:hover { background: rgba(139, 92, 246, 0.2); }
 .notification-accent:hover { background: rgba(205, 255, 0, 0.2); }
 
-/* --- USUARIO --- */
+/* --- USUARIO (Optimized) --- */
 .header-user {
   position: relative;
   z-index: 1;
@@ -247,7 +244,7 @@
   padding: 8px 16px;
   border-radius: 25px;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all var(--transition-speed) ease;
   border: 1px solid rgba(255, 255, 255, 0.1);
 
   &:hover {
@@ -260,7 +257,7 @@
   width: 40px;
   height: 40px;
   background: var(--policia-acento);
-  color: var(--policia-oscuro);
+  color: var(--btn-primary-text);
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -294,26 +291,26 @@
 .user-info i.fa-chevron-down {
   color: rgba(255, 255, 255, 0.7);
   font-size: 12px;
-  transition: transform 0.3s ease;
+  transition: transform var(--transition-speed) ease;
 }
 
 .user-info:hover i.fa-chevron-down {
   transform: translateY(2px);
 }
 
-/* --- DROPDOWN DE USUARIO --- */
+/* --- DROPDOWN DE USUARIO (Optimized with existing dropdown styles) --- */
 .user-dropdown {
   position: absolute;
   top: calc(100% + 10px);
   right: 0;
   min-width: 220px;
-  background: white;
-  border-radius: 12px;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+  background: var(--ui-surface);
+  border-radius: var(--ui-radius);
+  box-shadow: var(--ui-shadow);
   opacity: 0;
   visibility: hidden;
   transform: translateY(-10px);
-  transition: all 0.3s ease;
+  transition: all var(--transition-speed) ease;
   overflow: hidden;
 }
 
@@ -345,15 +342,15 @@
   }
 
   &.logout {
-    color: #ef4444;
-    i { color: #ef4444; }
-    &:hover { background: #fee2e2; }
+    color: var(--ui-btn-danger, #ef4444);
+    i { color: var(--ui-btn-danger, #ef4444); }
+    &:hover { background: rgba(239, 68, 68, 0.12); }
   }
 }
 
 .dropdown-divider {
   height: 1px;
-  background: var(--policia-neutral-claro);
+  background: var(--ui-border);
   margin: 5px 0;
 }
 
@@ -368,5 +365,9 @@
   .brand-subtitle { display: none; }
   .header-search { flex: 0 1 250px; }
   .user-details { display: none; }
-  .notification-btn { width: 40px; height: 40px; font-size: 16px; }
+  .notification-btn { 
+    width: 40px; 
+    height: 40px; 
+    font-size: 16px; 
+  }
 }

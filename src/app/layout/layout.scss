@@ -1,7 +1,7 @@
 :root {
   --collapsed-width: 78px;
   --expanded-width: 260px;
-  --sidebar-collapsed-total: calc(var(--collapsed-width) + 5px); /* 78 + 4(sombra) + 1(borde) */
+  --sidebar-collapsed-total: calc(var(--collapsed-width) + 5px);
   --sidebar-expanded-total: calc(var(--expanded-width) + 5px);
 }
 
@@ -12,47 +12,42 @@
   display: flex;
 }
 
-/* Sidebar: debe ser bloque y tener ancho controlado */
 .app-sidebar {
-  position: block !important;
-  top: 0 !important;
-  left: 0 !important;
-  width: var(--collapsed-width) !important; /* ← 78px */
-  z-index: 950 !important;
-  transition: width 0.3s ease !important;
-  overflow-x: visible !important; /* ← Permite que el submenú salga */
-  overflow-y: hidden !important; 
+  position: block;
+  top: 0;
+  left: 0;
+  width: var(--collapsed-width);
+  z-index: 950;
+  transition: width var(--transition-speed) ease;
+  overflow-x: visible;
+  overflow-y: hidden;
 }
 
 .app-sidebar.expanded {
-  width: var(--expanded-width) !important; /* ← 260px */
+  width: var(--expanded-width);
 }
 
-/* Contenido principal */
 .shell {
   flex: 1;
   min-height: 100vh;
-  margin-left: var(--sidebar-collapsed-total) !important;
+  margin-left: var(--sidebar-collapsed-total);
   display: flex;
   flex-direction: column;
-  transition: margin-left var(--transition-speed) cubic-bezier(0.4, 0, 0.2, 1) !important;
-   position: relative; 
-  overflow-x: hidden; 
+  transition: margin-left var(--transition-speed) cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow-x: hidden;
 }
 
 .shell.shell-expanded {
   margin-left: var(--sidebar-expanded-total);
 }
 
-/* Área principal */
 .main {
   flex: 1;
-  // padding: 24px;
   overflow-y: auto;
 }
 
 .content {
- 
   margin: 0 auto;
   width: 100%;
   background: rgba(255, 255, 255, 0.8);
@@ -62,7 +57,6 @@
   position: relative;
 }
 
-/* Footer */
 .app-footer {
   margin-top: auto;
   width: 100%;

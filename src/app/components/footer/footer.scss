@@ -9,13 +9,12 @@
   height: var(--footer-height, 56px);
   box-sizing: border-box;
   background: var(--policia-gradiente-principal);
-  box-shadow: 0 -4px 20px rgba(21, 27, 59, 0.28);
+  box-shadow: var(--ui-shadow);
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 0 30px;
   z-index: 900;
-
 
   &::before {
     content: '';
@@ -45,7 +44,7 @@
   }
 }
 
-/* --- Contenido izquierdo --- */
+/* --- Contenido izquierdo (Optimized) --- */
 .footer-left {
   display: flex;
   align-items: center;
@@ -86,7 +85,7 @@
   text-transform: uppercase;
 }
 
-/* --- Contenido derecho --- */
+/* --- Contenido derecho (Optimized with existing button styles) --- */
 .footer-right {
   display: flex;
   align-items: center;
@@ -103,8 +102,8 @@
   font-size: 0.75rem;
   font-weight: 600;
   padding: 6px 12px;
-  border-radius: 8px;
-  transition: all 0.2s ease;
+  border-radius: var(--ui-radius-sm);
+  transition: all var(--transition-speed) ease;
 
   &:hover {
     background: rgba(255, 255, 255, 0.1);
@@ -117,7 +116,7 @@
   font-weight: 700;
 }
 
-/* --- RESPONSIVE --- */
+/* --- RESPONSIVE (Optimized) --- */
 @media (max-width: 768px) {
   .modern-footer {
     padding: 0 15px;
@@ -132,42 +131,72 @@
   }
 }
 
-.ui-policy{
-  color: rgba(83,86,90,.95);
+/* --- POLICY TEXT (Optimized with existing typography) --- */
+.ui-policy {
+  color: var(--policia-neutral-medio);
   font-size: 14px;
   line-height: 1.55;
 }
 
-.ui-policy h4{
+.ui-policy h4 {
   margin: 14px 0 6px;
   font-weight: 900;
   color: var(--policia-oscuro);
 }
 
-.ui-policy p{
+.ui-policy p {
   margin: 10px 0;
 }
 
-.ui-policy ul{
+.ui-policy ul {
   margin: 8px 0 12px 18px;
 }
 
-.ui-policy li{
+.ui-policy li {
   margin: 6px 0;
 }
 
-.ui-policy code{
-  background: rgba(21,27,59,.06);
-  border: 1px solid rgba(21,27,59,.10);
+.ui-policy code {
+  background: rgba(21, 27, 59, 0.06);
+  border: 1px solid var(--ui-border);
   padding: 2px 6px;
-  border-radius: 8px;
+  border-radius: var(--ui-radius-sm);
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
   font-size: 12px;
 }
 
-.ui-policy__hr{
+.ui-policy__hr {
   border: none;
   height: 1px;
-  background: rgba(21,27,59,.10);
+  background: var(--ui-border);
   margin: 14px 0;
+}
+
+/* --- ACCESSIBILITY (Added) --- */
+.footer-link:focus-visible {
+  outline: none;
+  box-shadow: var(--ui-focus-ring);
+}
+
+/* --- HIGH CONTRAST MODE (Added) --- */
+@media (prefers-contrast: high) {
+  .modern-footer::after {
+    height: 4px;
+    opacity: 1;
+  }
+  
+  .footer-link:hover {
+    background: rgba(255, 255, 255, 0.2);
+  }
+}
+
+/* --- REDUCED MOTION (Added) --- */
+@media (prefers-reduced-motion: reduce) {
+  .footer-link {
+    transition: none;
+  }
+  
+  .modern-footer::before {
+    animation: none;
+  }
 }
