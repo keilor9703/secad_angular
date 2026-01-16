@@ -394,7 +394,9 @@
     grid-template-columns: 1fr 1fr;
     gap: 16px;
 }
-
+h3.title-cards {
+    margin: 10px;
+}
 @media (max-width: 980px) {
     .home-spotlight {
         grid-template-columns: 1fr;
@@ -613,7 +615,7 @@
     padding: 12px;
     border: 1px solid var(--ui-border);
     background: rgba(255, 255, 255, .86);
-    height: 300px;
+    height: 330px;
     box-shadow: var(--ui-shadow-sm);
     transition: transform var(--transition-speed), box-shadow var(--transition-speed), border-color var(--transition-speed);
 }
