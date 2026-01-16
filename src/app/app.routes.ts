@@ -6,13 +6,9 @@ import { LayoutComponent } from './layout/layout';
 import { Noticias } from './pages/noticias/noticias';
 
 export const routes: Routes = [
-  // 1. Forzamos que la raíz redirija siempre al login primero
+
   { path: '', redirectTo: 'login', pathMatch: 'full' },
-
-  // 2. Ruta de login (fuera del layout principal)
   { path: 'login', component: LoginComponent },
-
-  // 3. Rutas protegidas por el layout
   {
     path: '',
     component: LayoutComponent,
@@ -22,7 +18,5 @@ export const routes: Routes = [
       {path: 'noticias', component: Noticias},
     ]
   },
-
-  // 4. Comodín: si la ruta no existe, al login
   { path: '**', redirectTo: 'login' }
 ];
