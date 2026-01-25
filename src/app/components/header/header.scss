@@ -371,3 +371,32 @@
     font-size: 16px; 
   }
 }
+.menu-trigger{
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+
+  background: transparent;
+  border: none;
+  padding: 8px 10px;
+
+  color: #fff;
+  cursor: pointer;
+
+  transition: opacity var(--transition-speed) ease, transform var(--transition-speed) ease;
+}
+
+.menu-trigger i,
+.menu-trigger span{
+  color: #fff;
+}
+
+.menu-trigger:hover{
+  opacity: 0.85;
+  transform: translateY(-1px);
+}
+
+.menu-trigger:focus-visible{
+  outline: none;
+  box-shadow: var(--ui-focus-ring);
+}

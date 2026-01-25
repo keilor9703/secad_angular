@@ -2,6 +2,8 @@ import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { FormsModule } from '@angular/forms';
+import { SidebarService } from '../../services/sidebar.js';
+
 
 interface Notification {
   id: number;
@@ -19,6 +21,12 @@ interface Notification {
   styleUrls: ['./header.scss']
 })
 export class HeaderComponent {
+  constructor(private SidebarService: SidebarService) {}
+
+  toggleMenu() {
+    this.SidebarService.toggleSidebar();
+  }
+  
   notifications: Notification[] = [
     { id: 1, icon: 'fa-bell', color: 'warning', count: 3, tooltip: 'Notificaciones' },
     { id: 2, icon: 'fa-envelope', color: 'info', count: 5, tooltip: 'Mensajes' },

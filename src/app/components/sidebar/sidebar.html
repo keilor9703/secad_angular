@@ -1,45 +1,50 @@
-<aside class="sidebar" (mouseenter)="onMouseEnter()" (mouseleave)="onMouseLeave()">
+<aside class="sidebar" [class.open]="isOpen()" (click)="$event.stopPropagation()">
+  <div class="sidebar-content">
+    <div class="sidebar-header">
+      <a href="#" class="header-brand-link">
+        <div class="logo-icon">
+          <img src="/imagenes/SEGEN-escudo.png" alt="Sistema de gestión de Secretaría General" class="header-logo-img">
+        </div>
+        <span class="logo-name">SISGE</span>
+      </a>
 
-  <!-- Header del Sidebar -->
-  <div class="sidebar-header">
-    <a routerLink="/" class="header-brand-link">
-      <div class="logo-icon">
-        <img src="SEGEN-escudo.png" alt="SISGE" class="header-logo-img">
-      </div>
-      <span class="logo-name">SISGE</span>
-    </a>
-  </div>
+      <button class="btn-close" type="button" (click)="closeSidebar()" aria-label="Cerrar menú">✕</button>
+    </div>
 
-  <!-- Scroll solo del menú -->
-  <div class="sidebar-scroll">
-    <nav class="sidebar-nav">
-      <div class="menu-item" *ngFor="let item of menuItems">
+    <nav class="sidebar-scroll">
+      <div class="sidebar-nav">
+        @for (item of menuItems; track item.label) {
+          <div class="menu-item" [class.expanded]="isExpandedItem(item)">
+            <a
+              class="menu-link"
+              [routerLink]="item.route && !item.submenu ? [item.route] : null"
+              (click)="onItemTap(item, $event)"
+              routerLinkActive="active">
 
-        <!-- ✅ Item sin submenu: navega directo -->
-        <a *ngIf="item.route; else itemConSubmenu"
-           class="menu-link"
-           [routerLink]="item.route">
-          <i [class]="item.icon + ' icon'"></i>
-          <span class="label">{{ item.label }}</span>
-        </a>
+              <i class="icon" [class]="item.icon"></i>
+              <span class="label">{{ item.label }}</span>
 
-        <!-- ✅ Item con submenu -->
-        <ng-template #itemConSubmenu>
-          <div class="menu-link">
-            <i [class]="item.icon + ' icon'"></i>
-            <span class="label">{{ item.label }}</span>
-            <i *ngIf="item.submenu?.length" class="fa-solid fa-chevron-right arrow"></i>
-          </div>
-
-          <div class="submenu" *ngIf="item.submenu?.length">
-            <a *ngFor="let sub of item.submenu" [routerLink]="sub.route">
-              {{ sub.label }}
+              @if (item.submenu) {
+                <button type="button" class="arrow-btn" (click)="toggleItem(item, $event)">
+                  <i class="arrow fa-solid fa-chevron-down"></i>
+                </button>
+              }
             </a>
-          </div>
-        </ng-template>
 
+           @if (item.submenu) {
+            <div class="submenu"
+                 [class.open]="isOpen() && isExpandedItem(item)"
+                 [ngStyle]="(isOpen() && isExpandedItem(item)) ? getSubmenuStyle() : null">
+              @for (subItem of item.submenu; track subItem.label) {
+                <a [routerLink]="[subItem.route]" class="submenu-item" (click)="onNavigate()">
+                  {{ subItem.label }}
+                </a>
+              }
+            </div>
+          }
+          </div>
+        }
       </div>
     </nav>
   </div>
-
 </aside>

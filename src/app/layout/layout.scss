@@ -12,15 +12,12 @@
   display: flex;
 }
 
-.app-sidebar {
-  position: block;
+.app-sidebar{
+  position: fixed;    
   top: 0;
   left: 0;
-  width: var(--collapsed-width);
-  z-index: 950;
-  transition: width var(--transition-speed) ease;
-  overflow-x: visible;
-  overflow-y: hidden;
+  width: auto;       
+  z-index: 1200;    
 }
 
 .app-sidebar.expanded {
@@ -30,12 +27,20 @@
 .shell {
   flex: 1;
   min-height: 100vh;
-  margin-left: var(--sidebar-collapsed-total);
+  margin-left: 0; 
   display: flex;
   flex-direction: column;
-  transition: margin-left var(--transition-speed) cubic-bezier(0.4, 0, 0.2, 1);
+  transition: none;
   position: relative;
-  overflow-x: hidden;
+  overflow-x: visible;
+}
+.app-backdrop{
+  position: fixed;
+  inset: 0;
+  z-index: 1150;
+  background: rgba(0,0,0,.45);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
 }
 
 .shell.shell-expanded {

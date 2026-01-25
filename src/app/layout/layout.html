@@ -1,13 +1,7 @@
 <div class="app-shell">
-  <app-sidebar
-    class="app-sidebar"
-    (hoverState)="onSidebarHover($event)">
-  </app-sidebar>
+  <app-sidebar class="app-sidebar"></app-sidebar>
 
-  <div
-    class="shell"
-    [class.shell-expanded]="isSidebarExpanded">
-    
+  <div class="shell">
     <app-header></app-header>
 
     <main class="main">
