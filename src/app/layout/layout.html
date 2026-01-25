@@ -1,5 +1,11 @@
-<div class="app-shell">
+<!-- <div class="app-shell" [class.menu-open]="isMenuOpen()">
   <app-sidebar class="app-sidebar"></app-sidebar>
+
+    <div class="app-backdrop"
+       *ngIf="isMenuOpen()"
+       (click)="closeMenu()"
+       aria-hidden="true">
+   </div>
 
   <div class="shell">
     <app-header></app-header>
@@ -11,5 +17,26 @@
     </main>
 
     <app-footer></app-footer>
+  </div>
+</div> -->
+
+<div class="app-shell" [class.menu-open]="isMenuOpen()">
+  <app-sidebar class="app-sidebar"></app-sidebar>
+
+  <div class="app-backdrop"
+       *ngIf="isMenuOpen()"
+       (click)="closeMenu()"
+       aria-hidden="true"></div>
+
+  <div class="shell">
+    <main class="main">
+      <app-header></app-header>
+
+      <div class="content">
+        <router-outlet></router-outlet>
+      </div>
+
+      <app-footer></app-footer>
+    </main>
   </div>
 </div>

@@ -13,6 +13,9 @@
   display: flex;
 }
 
+body.no-scroll{
+  overflow: hidden;
+}
 /* Sidebar fijo a la izquierda */
 .app-sidebar {
   position: fixed;

@@ -32,15 +32,17 @@
   flex-direction: column;
   transition: none;
   position: relative;
-  overflow-x: visible;
+  overflow-x: hidden;
+  overflow-y: visible;
+  padding-top: var(--header-height, 70px);
 }
 .app-backdrop{
   position: fixed;
   inset: 0;
-  z-index: 1150;
-  background: rgba(0,0,0,.45);
-  backdrop-filter: blur(2px);
-  -webkit-backdrop-filter: blur(2px);
+  z-index: 1150; /* debajo del sidebar (1200) */
+  background: rgba(0,0,0,.55);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
 }
 
 .shell.shell-expanded {
@@ -49,7 +51,10 @@
 
 .main {
   flex: 1;
+  min-height: 100vh;
   overflow-y: auto;
+  display: flex;
+  flex-direction: column;
 }
 
 .content {
@@ -65,4 +70,8 @@
 .app-footer {
   margin-top: auto;
   width: 100%;
+}
+
+.app-shell.menu-open .main{
+  overflow: hidden !important;
 }

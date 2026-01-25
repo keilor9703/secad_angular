@@ -4,7 +4,7 @@
   NO responsable de: márgenes externos, relación con sidebar, ancho del contenido
 */
 .modern-header {
-  position: sticky;
+  position: fixed;
   top: 0;
   width: 100%;
   height: var(--header-height, 70px);

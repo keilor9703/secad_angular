@@ -74,6 +74,11 @@ body {
 .fa-solid, .fa-regular, .fa-light, .fa-brands {
   font-family: "Font Awesome 6 Free", "Font Awesome 6 Pro", "Font Awesome 6 Brands" !important;
 }
+html.no-scroll,
+body.no-scroll{
+  overflow: hidden !important;
+  height: 100%;
+}
 
 /* =========================
    COMPONENTES UI

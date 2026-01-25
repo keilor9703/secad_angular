@@ -1,6 +1,4 @@
 import { Injectable, signal } from '@angular/core';
-
-
 @Injectable({ providedIn: 'root' })
 export class SidebarService {
   private _open = signal(false);
@@ -11,21 +9,20 @@ export class SidebarService {
   }
  closeTick() { return this._closeTick(); }
   openSidebar() {
-    this._open.set(true);
+     this._open.set(true);
+    document.documentElement.classList.add('no-scroll');
     document.body.classList.add('no-scroll');
   }
 
   closeSidebar() {
-      this._open.set(false);
-      this._closeTick.update(v => v + 1); 
-      document.body.classList.remove('no-scroll');
+    this._open.set(false);
+    document.documentElement.classList.remove('no-scroll');
+    document.body.classList.remove('no-scroll');
   }
 
   toggleSidebar() {
     this.isOpen() ? this.closeSidebar() : this.openSidebar();
   }
 
-  
- 
 }
 
