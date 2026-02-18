@@ -1,0 +1,15 @@
+C:\Users\Dyck.lopez\source\repos\oftic\oftic.dl\bin\Debug\net8.0\Datos.deps.json
+C:\Users\Dyck.lopez\source\repos\oftic\oftic.dl\bin\Debug\net8.0\Datos.dll
+C:\Users\Dyck.lopez\source\repos\oftic\oftic.dl\bin\Debug\net8.0\Datos.pdb
+C:\Users\Dyck.lopez\source\repos\oftic\oftic.dl\bin\Debug\net8.0\Comun.dll
+C:\Users\Dyck.lopez\source\repos\oftic\oftic.dl\bin\Debug\net8.0\Comun.pdb
+C:\Users\Dyck.lopez\source\repos\oftic\oftic.dl\obj\Debug\net8.0\Datos.csproj.AssemblyReference.cache
+C:\Users\Dyck.lopez\source\repos\oftic\oftic.dl\obj\Debug\net8.0\Datos.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\Dyck.lopez\source\repos\oftic\oftic.dl\obj\Debug\net8.0\Datos.AssemblyInfoInputs.cache
+C:\Users\Dyck.lopez\source\repos\oftic\oftic.dl\obj\Debug\net8.0\Datos.AssemblyInfo.cs
+C:\Users\Dyck.lopez\source\repos\oftic\oftic.dl\obj\Debug\net8.0\Datos.csproj.CoreCompileInputs.cache
+C:\Users\Dyck.lopez\source\repos\oftic\oftic.dl\obj\Debug\net8.0\Datos.csproj.Up2Date
+C:\Users\Dyck.lopez\source\repos\oftic\oftic.dl\obj\Debug\net8.0\Datos.dll
+C:\Users\Dyck.lopez\source\repos\oftic\oftic.dl\obj\Debug\net8.0\refint\Datos.dll
+C:\Users\Dyck.lopez\source\repos\oftic\oftic.dl\obj\Debug\net8.0\Datos.pdb
+C:\Users\Dyck.lopez\source\repos\oftic\oftic.dl\obj\Debug\net8.0\ref\Datos.dll

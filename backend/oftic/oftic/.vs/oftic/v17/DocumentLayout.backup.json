@@ -1,0 +1,82 @@
+{
+  "Version": 1,
+  "WorkspaceRootPath": "C:\\Users\\Dyck.lopez\\source\\repos\\oftic\\oftic\\",
+  "Documents": [
+    {
+      "AbsoluteMoniker": "D:0:0:{464113DD-2473-41F4-B020-5703F41595B3}|Api.csproj|c:\\users\\dyck.lopez\\source\\repos\\oftic\\oftic\\controllers\\cuentacontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{464113DD-2473-41F4-B020-5703F41595B3}|Api.csproj|solutionrelative:controllers\\cuentacontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{464113DD-2473-41F4-B020-5703F41595B3}|Api.csproj|c:\\users\\dyck.lopez\\source\\repos\\oftic\\oftic\\controllers\\usuariocontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{464113DD-2473-41F4-B020-5703F41595B3}|Api.csproj|solutionrelative:controllers\\usuariocontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{2A05788F-1A4D-4BAA-8AF9-AFF561D1EE97}|..\\oftic.dl\\Datos.csproj|c:\\users\\dyck.lopez\\source\\repos\\oftic\\oftic.dl\\gestion\\dbauthrepository.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    }
+  ],
+  "DocumentGroupContainers": [
+    {
+      "Orientation": 1,
+      "VerticalTabListWidth": 256,
+      "DocumentGroups": [
+        {
+          "DockedHeight": 290,
+          "SelectedChildIndex": 5,
+          "Children": [
+            {
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{d78612c7-9962-4b83-95d9-268046dad23a}"
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:128:0:{1fc202d4-d401-403c-9834-5b218574bb67}"
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:129:0:{1fc202d4-d401-403c-9834-5b218574bb67}"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 2,
+              "Title": "DbAuthRepository.cs",
+              "DocumentMoniker": "C:\\Users\\Dyck.lopez\\source\\repos\\oftic\\oftic.dl\\Gestion\\DbAuthRepository.cs",
+              "RelativeDocumentMoniker": "..\\oftic.dl\\Gestion\\DbAuthRepository.cs",
+              "ToolTip": "C:\\Users\\Dyck.lopez\\source\\repos\\oftic\\oftic.dl\\Gestion\\DbAuthRepository.cs",
+              "RelativeToolTip": "..\\oftic.dl\\Gestion\\DbAuthRepository.cs",
+              "ViewState": "AgIAAAMAAAAAAAAAAADwvxYAAAAMAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-02-15T18:22:31.579Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "UsuarioController.cs",
+              "DocumentMoniker": "C:\\Users\\Dyck.lopez\\source\\repos\\oftic\\oftic\\Controllers\\UsuarioController.cs",
+              "RelativeDocumentMoniker": "Controllers\\UsuarioController.cs",
+              "ToolTip": "C:\\Users\\Dyck.lopez\\source\\repos\\oftic\\oftic\\Controllers\\UsuarioController.cs",
+              "RelativeToolTip": "Controllers\\UsuarioController.cs",
+              "ViewState": "AgIAAG0AAAAAAAAAAADwv4EAAAAMAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-02-15T17:49:22.323Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "CuentaController.cs",
+              "DocumentMoniker": "C:\\Users\\Dyck.lopez\\source\\repos\\oftic\\oftic\\Controllers\\CuentaController.cs",
+              "RelativeDocumentMoniker": "Controllers\\CuentaController.cs",
+              "ToolTip": "C:\\Users\\Dyck.lopez\\source\\repos\\oftic\\oftic\\Controllers\\CuentaController.cs",
+              "RelativeToolTip": "Controllers\\CuentaController.cs",
+              "ViewState": "AgIAABEAAAAAAAAAAAAowCMAAAAIAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-02-14T21:22:38.43Z",
+              "EditorCaption": ""
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
