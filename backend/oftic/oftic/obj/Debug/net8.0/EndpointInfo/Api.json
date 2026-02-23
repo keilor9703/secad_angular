@@ -1,8 +1,8 @@
 {
   "openapi": "3.0.1",
   "info": {
-    "title": "Api",
-    "version": "1.0"
+    "title": "OFTIC API",
+    "version": "v1"
   },
   "paths": {
     "/health": {
@@ -99,6 +99,44 @@
               "format": "int64"
             }
           }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/DtoMenuItem"
+                  }
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/DtoMenuItem"
+                  }
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/DtoMenuItem"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/menu/me": {
+      "get": {
+        "tags": [
+          "Menu"
         ],
         "responses": {
           "200": {
@@ -454,6 +492,19 @@
         },
         "additionalProperties": false
       }
+    },
+    "securitySchemes": {
+      "Bearer": {
+        "type": "http",
+        "description": "Ingrese: Bearer {token}",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
     }
-  }
+  },
+  "security": [
+    {
+      "Bearer": [ ]
+    }
+  ]
 }

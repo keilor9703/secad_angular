@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "18EPQRtMvCw=",
+  "dgSpecHash": "XmZ4qrTsiNU=",
   "success": true,
-  "projectFilePath": "C:\\Users\\Dyck.lopez\\source\\repos\\oftic\\oftic\\Api.csproj",
+  "projectFilePath": "C:\\Users\\Dyck.lopez\\source\\repos\\sisgeNg\\backend\\oftic\\oftic\\Api.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\Dyck.lopez\\.nuget\\packages\\microsoft.aspnetcore.authentication.jwtbearer\\8.0.0\\microsoft.aspnetcore.authentication.jwtbearer.8.0.0.nupkg.sha512",
     "C:\\Users\\Dyck.lopez\\.nuget\\packages\\microsoft.extensions.apidescription.server\\6.0.5\\microsoft.extensions.apidescription.server.6.0.5.nupkg.sha512",

@@ -11,6 +11,7 @@
   padding: 0 30px;
   z-index: 1100;
   box-sizing: border-box;
+  gap: 10px;
 
   &::before {
     content: '';
@@ -37,6 +38,7 @@
     background: var(--policia-acento);
   }
 }
+
 
 .header-brand {
   display: flex;
@@ -358,12 +360,25 @@
 @media (max-width: 768px) {
   .modern-header { padding: 0 15px; }
   .brand-subtitle { display: none; }
-  .header-search { flex: 0 1 250px; }
+  .header-search { display: none; }
   .user-details { display: none; }
+  .menu-trigger span { display: none; }
   .notification-btn { 
     width: 40px; 
     height: 40px; 
     font-size: 16px; 
+  }
+  .header-notifications .notification-btn:nth-child(n+3) { display: none; }
+
+  .user-info {
+    padding: 8px 10px;
+    gap: 8px;
+  }
+
+  .user-avatar {
+    width: 34px;
+    height: 34px;
+    font-size: 15px;
   }
 }
 .menu-trigger{

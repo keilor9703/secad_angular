@@ -1,11 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Comun.Dtos;
-using Negocio.Gestion;
-using Negocio.Interfaz;
 using Servicios.ApiInterfaz;
-using System.IdentityModel.Tokens.Jwt;
-using System.Security.Claims;
 
 namespace ofic.Controllers
 {
@@ -16,20 +12,52 @@ namespace ofic.Controllers
     {
         private readonly IApiWebToken _apiWebToken;
         private readonly ILogger<UsuarioController> _logger;
+        private readonly IConfiguration _configuration;
 
         public UsuarioController(
             IApiWebToken apiWebToken,
-            ILogger<UsuarioController> logger)
+            ILogger<UsuarioController> logger,
+            IConfiguration configuration)
         {
             _apiWebToken = apiWebToken;
             _logger = logger;
+            _configuration = configuration;
         }
 
-        private string? GetUserFromToken()
+        private async Task<string> GetTechnicalTokenAsync(CancellationToken ct)
         {
-            var claims = User.Claims;
-            var usernameClaim = claims.FirstOrDefault(c => c.Type == ClaimTypes.Name || c.Type == JwtRegisteredClaimNames.Sub);
-            return usernameClaim?.Value;
+            try
+            {
+                var tokenResp = await _apiWebToken.ObtenerTokenPipAsync(ct);
+                if (tokenResp is not null && tokenResp.Estado && !string.IsNullOrWhiteSpace(tokenResp.Respuesta))
+                {
+                    return tokenResp.Respuesta!;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Falló ObtenerTokenPipAsync; se intentará fallback con PostPipToken.");
+            }
+
+            // Fallback robusto: usa credenciales técnicas de appsettings contra PostPipToken.
+            var usuarioPip = _configuration["ApiSettings:UsuarioPip"] ?? string.Empty;
+            var clavePip = _configuration["ApiSettings:ClavePip"] ?? string.Empty;
+            if (string.IsNullOrWhiteSpace(usuarioPip) || string.IsNullOrWhiteSpace(clavePip))
+            {
+                _logger.LogWarning("ApiSettings:UsuarioPip/ClavePip no configurados.");
+                return string.Empty;
+            }
+
+            try
+            {
+                return await _apiWebToken.GetTokenAsync(usuarioPip, clavePip);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Falló fallback GetTokenAsync con credenciales técnicas.");
+            }
+
+            return string.Empty;
         }
 
         [HttpGet("Funcionario")]
@@ -42,15 +70,8 @@ namespace ofic.Controllers
                     return BadRequest(new { message = "Identificación requerida" });
                 }
 
-                // Obtener el usuario actual del token
-                var currentUser = GetUserFromToken();
-                if (string.IsNullOrEmpty(currentUser))
-                {
-                    return Unauthorized(new { message = "Usuario no autorizado" });
-                }
-
-                // Obtener token de la API externa
-                var tokenPip = await _apiWebToken.GetTokenAsync(currentUser, "");
+                // Obtener token técnico de API externa configurado en ApiSettings.
+                var tokenPip = await GetTechnicalTokenAsync(HttpContext.RequestAborted);
                 
                 if (string.IsNullOrEmpty(tokenPip))
                 {
@@ -79,13 +100,7 @@ namespace ofic.Controllers
                     return BadRequest(new { message = "Identificación requerida" });
                 }
 
-                var currentUser = GetUserFromToken();
-                if (string.IsNullOrEmpty(currentUser))
-                {
-                    return Unauthorized(new { message = "Usuario no autorizado" });
-                }
-
-                var tokenPip = await _apiWebToken.GetTokenAsync(currentUser, "");
+                var tokenPip = await GetTechnicalTokenAsync(HttpContext.RequestAborted);
                 
                 if (string.IsNullOrEmpty(tokenPip))
                 {

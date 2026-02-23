@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;  
 using System;
+using System.Linq;
 using System.Net.Http;             
 using System.Text;
 using System.Text.Json;
@@ -62,11 +63,28 @@ namespace Servicios.Api
                 "application/json");
 
             using var resp = await client.PostAsync(url, content);
-            resp.EnsureSuccessStatusCode();
+            if (!resp.IsSuccessStatusCode)
+            {
+                _logger.LogWarning("OUD login failed: {StatusCode}", resp.StatusCode);
+                return new DtoRespuesta<string>
+                {
+                    Estado = false,
+                    Codigo = (int)resp.StatusCode,
+                    Mensaje = "Credenciales inválidas en OUD",
+                    Respuesta = string.Empty
+                };
+            }
 
             var json = await resp.Content.ReadAsStringAsync();
             return JsonSerializer.Deserialize<DtoRespuesta<string>>(json,
-                new JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;
+                new JsonSerializerOptions { PropertyNameCaseInsensitive = true })
+                ?? new DtoRespuesta<string>
+                {
+                    Estado = false,
+                    Codigo = 500,
+                    Mensaje = "Respuesta inválida de OUD",
+                    Respuesta = string.Empty
+                };
         }
 
         public async Task<string> GetTokenAsync(string usuario, string contrasena)
@@ -75,30 +93,93 @@ namespace Servicios.Api
             {
                 var client = _factory.CreateClient("AuthClient");
                 var url = _cfg["ApiSettings:PostPipToken"] ?? "https://internalpip.policia.gov.co:8080/api/Cuenta/Token";
-
-                var payload = new { Usuario = usuario, Contrasena = contrasena };
-                var json = JsonSerializer.Serialize(payload);
-                var content = new StringContent(json, Encoding.UTF8, "application/json");
-
-                var resp = await client.PostAsync(url, content);
-                
-                if (!resp.IsSuccessStatusCode)
+                var payloads = new object[]
                 {
-                    _logger.LogWarning("Token request failed: {StatusCode}", resp.StatusCode);
-                    return string.Empty;
+                    new { Usuario = usuario, Contrasena = contrasena },
+                    new { usuario, contrasena },
+                    new { usuario, clave = contrasena }
+                };
+
+                foreach (var payload in payloads)
+                {
+                    var json = JsonSerializer.Serialize(payload);
+                    using var content = new StringContent(json, Encoding.UTF8, "application/json");
+                    using var resp = await client.PostAsync(url, content);
+                    var responseJson = await resp.Content.ReadAsStringAsync();
+
+                    if (!resp.IsSuccessStatusCode)
+                    {
+                        _logger.LogWarning("Token request failed: {StatusCode}. Payload: {Payload}. Body: {Body}",
+                            resp.StatusCode, json, responseJson);
+                        continue;
+                    }
+
+                    var token = TryExtractToken(responseJson);
+                    if (!string.IsNullOrWhiteSpace(token))
+                    {
+                        return token;
+                    }
+
+                    _logger.LogWarning("Token response parsed without token. Payload: {Payload}. Body: {Body}", json, responseJson);
                 }
 
-                var responseJson = await resp.Content.ReadAsStringAsync();
-                var result = JsonSerializer.Deserialize<DtoTokenResponse>(responseJson,
-                    new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-
-                return result?.token ?? string.Empty;
+                return string.Empty;
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error getting token");
                 return string.Empty;
             }
+        }
+
+        private static string TryExtractToken(string json)
+        {
+            if (string.IsNullOrWhiteSpace(json))
+            {
+                return string.Empty;
+            }
+
+            // Intento 1: formato conocido { token: "..."}
+            var dto = JsonSerializer.Deserialize<DtoTokenResponse>(json,
+                new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+            if (!string.IsNullOrWhiteSpace(dto?.token))
+            {
+                return dto.token!;
+            }
+
+            // Intento 2: formatos alternos { Token }, { respuesta }, { Respuesta }, { data: { token } }
+            using var doc = JsonDocument.Parse(json);
+            var root = doc.RootElement;
+
+            if (TryGetString(root, "token", out var token)) return token;
+            if (TryGetString(root, "Token", out token)) return token;
+            if (TryGetString(root, "respuesta", out token)) return token;
+            if (TryGetString(root, "Respuesta", out token)) return token;
+
+            if (root.TryGetProperty("data", out var data) && data.ValueKind == JsonValueKind.Object)
+            {
+                if (TryGetString(data, "token", out token)) return token;
+                if (TryGetString(data, "Token", out token)) return token;
+            }
+
+            return string.Empty;
+        }
+
+        private static bool TryGetString(JsonElement element, string propName, out string value)
+        {
+            value = string.Empty;
+            if (!element.TryGetProperty(propName, out var prop))
+            {
+                return false;
+            }
+
+            if (prop.ValueKind == JsonValueKind.String)
+            {
+                value = prop.GetString() ?? string.Empty;
+                return !string.IsNullOrWhiteSpace(value);
+            }
+
+            return false;
         }
 
         public async Task<DtoFuncionario> GetFuncionarioAsync(string token, string identificacion)
@@ -120,8 +201,14 @@ namespace Servicios.Api
                 }
 
                 var json = await resp.Content.ReadAsStringAsync();
-                return JsonSerializer.Deserialize<DtoFuncionario>(json,
-                    new JsonSerializerOptions { PropertyNameCaseInsensitive = true }) ?? new DtoFuncionario();
+                var funcionario = TryExtractFuncionario(json);
+                if (funcionario is null)
+                {
+                    _logger.LogWarning("GetFuncionario returned 200 but could not parse payload. Body: {Body}", json);
+                    return new DtoFuncionario();
+                }
+
+                return funcionario;
             }
             catch (Exception ex)
             {
@@ -148,13 +235,396 @@ namespace Servicios.Api
                     return string.Empty;
                 }
 
-                return await resp.Content.ReadAsStringAsync();
+                var raw = await resp.Content.ReadAsStringAsync();
+                var foto = TryExtractFotoBase64(raw);
+                if (string.IsNullOrWhiteSpace(foto))
+                {
+                    _logger.LogWarning("GetFoto returned 200 but no base64 could be extracted. Body: {Body}", raw);
+                }
+                return foto;
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error getting photo");
                 return string.Empty;
             }
+        }
+
+        private static DtoFuncionario? TryExtractFuncionario(string json)
+        {
+            if (string.IsNullOrWhiteSpace(json))
+            {
+                return null;
+            }
+
+            var opts = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+
+            // 1) Formato directo
+            var direct = SafeDeserialize<DtoFuncionario>(json, opts);
+            if (HasFuncionarioData(direct))
+            {
+                return direct;
+            }
+
+            // 2) Formato envuelto: { estado, respuesta: { ... } }
+            var wrapped = SafeDeserialize<DtoRespuesta<DtoFuncionario>>(json, opts);
+            if (wrapped?.Respuesta is not null && HasFuncionarioData(wrapped.Respuesta))
+            {
+                return wrapped.Respuesta;
+            }
+
+            // 3) Formato envuelto con lista: { respuesta: [ { ... } ] }
+            var wrappedList = SafeDeserialize<DtoRespuesta<List<DtoFuncionario>>>(json, opts);
+            var first = wrappedList?.Respuesta?.FirstOrDefault();
+            if (HasFuncionarioData(first))
+            {
+                return first;
+            }
+
+            // 4) Parse flexible con data/respuesta/Resultado/etc.
+            using var doc = JsonDocument.Parse(json);
+            var root = doc.RootElement;
+
+            if (TryGetFuncionarioFromProperty(root, "respuesta", opts, out var fromRespuesta)) return fromRespuesta;
+            if (TryGetFuncionarioFromProperty(root, "Respuesta", opts, out fromRespuesta)) return fromRespuesta;
+            if (TryGetFuncionarioFromProperty(root, "data", opts, out fromRespuesta)) return fromRespuesta;
+            if (TryGetFuncionarioFromProperty(root, "Data", opts, out fromRespuesta)) return fromRespuesta;
+            if (TryGetFuncionarioFromProperty(root, "resultado", opts, out fromRespuesta)) return fromRespuesta;
+            if (TryGetFuncionarioFromProperty(root, "Resultado", opts, out fromRespuesta)) return fromRespuesta;
+
+            // 5) Búsqueda recursiva del objeto candidato en cualquier nivel.
+            if (TryFindFuncionarioCandidate(root, 0, out var candidate))
+            {
+                var mapped = MapFlexibleFuncionario(candidate);
+                if (HasFuncionarioData(mapped))
+                {
+                    return mapped;
+                }
+            }
+
+            return null;
+        }
+
+        private static bool TryGetFuncionarioFromProperty(
+            JsonElement root,
+            string propertyName,
+            JsonSerializerOptions opts,
+            out DtoFuncionario? funcionario)
+        {
+            funcionario = null;
+            if (!root.TryGetProperty(propertyName, out var prop))
+            {
+                return false;
+            }
+
+            if (prop.ValueKind == JsonValueKind.Object)
+            {
+                funcionario = SafeDeserialize<DtoFuncionario>(prop.GetRawText(), opts);
+                if (HasFuncionarioData(funcionario))
+                {
+                    return true;
+                }
+
+                funcionario = MapFlexibleFuncionario(prop);
+                return HasFuncionarioData(funcionario);
+            }
+
+            if (prop.ValueKind == JsonValueKind.Array && prop.GetArrayLength() > 0)
+            {
+                var first = prop[0];
+                if (first.ValueKind == JsonValueKind.Object)
+                {
+                    funcionario = SafeDeserialize<DtoFuncionario>(first.GetRawText(), opts);
+                    if (HasFuncionarioData(funcionario))
+                    {
+                        return true;
+                    }
+
+                    funcionario = MapFlexibleFuncionario(first);
+                    return HasFuncionarioData(funcionario);
+                }
+            }
+
+            return false;
+        }
+
+        private static bool HasFuncionarioData(DtoFuncionario? f)
+        {
+            if (f is null) return false;
+            return
+                !string.IsNullOrWhiteSpace(f.identificacion) ||
+                !string.IsNullOrWhiteSpace(f.nombres) ||
+                !string.IsNullOrWhiteSpace(f.apellidos) ||
+                !string.IsNullOrWhiteSpace(f.usuario) ||
+                !string.IsNullOrWhiteSpace(f.correo);
+        }
+
+        private static DtoFuncionario MapFlexibleFuncionario(JsonElement obj)
+        {
+            return new DtoFuncionario
+            {
+                identificacion = Pick(obj, "identificacion", "Identificacion", "numeroDocumento", "NumeroDocumento", "documento", "Documento", "identidad", "IdFuncionario"),
+                nombres = Pick(obj, "nombres", "Nombres", "nombre", "Nombre", "primerNombre", "PrimerNombre", "nombresFuncionario"),
+                apellidos = Pick(obj, "apellidos", "Apellidos", "apellido", "Apellido", "primerApellido", "PrimerApellido", "apellidosFuncionario"),
+                situacionLaboral = Pick(obj, "situacionLaboral", "SituacionLaboral", "situacion", "Situacion", "estadoLaboral", "EstadoLaboral"),
+                correo = Pick(obj, "correo", "Correo", "email", "Email", "correoElectronico", "CorreoElectronico", "mail", "Mail"),
+                usuario = Pick(obj, "usuario", "Usuario", "username", "Username", "usuarioEmpresarial", "UsuarioEmpresarial"),
+                celular = Pick(obj, "celular", "Celular", "numeroCelular", "NumeroCelular", "telefono", "Telefono", "telefonoMovil", "TelefonoMovil", "movil", "Movil"),
+                dependencia = Pick(obj, "descripcionDependencia", "DescripcionDependencia"),
+                siglaFisica = Pick(obj, "siglaFisica", "SiglaFisica", "siglaLaborando", "SiglaLaborando"),
+                siglaLaborando = Pick(obj, "siglaLaborando", "SiglaLaborando"),
+                nombreGrado = Pick(obj, "nombreGrado", "NombreGrado", "grado", "Grado"),
+                cargo = Pick(obj, "cargo", "Cargo", "rolCargo", "RolCargo"),
+                activo = PickBool(obj, "activo", "Activo", "vigente", "Vigente")
+            };
+        }
+
+        private static string? Pick(JsonElement obj, params string[] names)
+        {
+            foreach (var n in names)
+            {
+                if (TryExtractStringProp(obj, n, out var value) && !string.IsNullOrWhiteSpace(value))
+                {
+                    return value.Trim();
+                }
+            }
+            return null;
+        }
+
+        private static bool PickBool(JsonElement obj, params string[] names)
+        {
+            foreach (var n in names)
+            {
+                if (TryGetBoolProp(obj, n, out var value))
+                {
+                    return value;
+                }
+            }
+            return true;
+        }
+
+        private static string TryExtractFotoBase64(string raw)
+        {
+            if (string.IsNullOrWhiteSpace(raw))
+            {
+                return string.Empty;
+            }
+
+            var trimmed = raw.Trim();
+
+            // 1) String plano (puede venir como "....")
+            if (trimmed.StartsWith("\"") && trimmed.EndsWith("\""))
+            {
+                try
+                {
+                    trimmed = JsonSerializer.Deserialize<string>(trimmed) ?? string.Empty;
+                }
+                catch
+                {
+                    // dejar trimmed original
+                }
+            }
+
+            if (LooksLikeBase64(trimmed))
+            {
+                return trimmed;
+            }
+
+            // 2) JSON envuelto: { respuesta: "..." } o { data: { foto: "..." } }
+            try
+            {
+                using var doc = JsonDocument.Parse(raw);
+                var root = doc.RootElement;
+
+                if (TryExtractStringProp(root, "respuesta", out var s) && LooksLikeBase64(s)) return s;
+                if (TryExtractStringProp(root, "Respuesta", out s) && LooksLikeBase64(s)) return s;
+                if (TryExtractStringProp(root, "foto", out s) && LooksLikeBase64(s)) return s;
+                if (TryExtractStringProp(root, "Foto", out s) && LooksLikeBase64(s)) return s;
+
+                if (root.TryGetProperty("data", out var data) && data.ValueKind == JsonValueKind.Object)
+                {
+                    if (TryExtractStringProp(data, "foto", out s) && LooksLikeBase64(s)) return s;
+                    if (TryExtractStringProp(data, "Foto", out s) && LooksLikeBase64(s)) return s;
+                    if (TryExtractStringProp(data, "respuesta", out s) && LooksLikeBase64(s)) return s;
+                }
+            }
+            catch
+            {
+                // No JSON parseable
+            }
+
+            return string.Empty;
+        }
+
+        private static bool TryExtractStringProp(JsonElement root, string propName, out string value)
+        {
+            value = string.Empty;
+            if (!TryGetPropertyIgnoreCase(root, propName, out var prop))
+            {
+                return false;
+            }
+
+            if (prop.ValueKind == JsonValueKind.String)
+            {
+                value = prop.GetString() ?? string.Empty;
+                return !string.IsNullOrWhiteSpace(value);
+            }
+
+            if (prop.ValueKind == JsonValueKind.Number)
+            {
+                value = prop.GetRawText();
+                return !string.IsNullOrWhiteSpace(value);
+            }
+
+            if (prop.ValueKind == JsonValueKind.True || prop.ValueKind == JsonValueKind.False)
+            {
+                value = prop.GetBoolean() ? "true" : "false";
+                return true;
+            }
+
+            return false;
+        }
+
+        private static bool TryGetBoolProp(JsonElement root, string propName, out bool value)
+        {
+            value = false;
+            if (!TryGetPropertyIgnoreCase(root, propName, out var prop))
+            {
+                return false;
+            }
+
+            if (prop.ValueKind == JsonValueKind.True || prop.ValueKind == JsonValueKind.False)
+            {
+                value = prop.GetBoolean();
+                return true;
+            }
+
+            if (prop.ValueKind == JsonValueKind.Number && prop.TryGetInt32(out var number))
+            {
+                value = number != 0;
+                return true;
+            }
+
+            if (prop.ValueKind == JsonValueKind.String)
+            {
+                var raw = prop.GetString() ?? string.Empty;
+                if (bool.TryParse(raw, out var parsedBool))
+                {
+                    value = parsedBool;
+                    return true;
+                }
+
+                if (int.TryParse(raw, out var parsedInt))
+                {
+                    value = parsedInt != 0;
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private static bool TryGetPropertyIgnoreCase(JsonElement root, string propName, out JsonElement value)
+        {
+            foreach (var p in root.EnumerateObject())
+            {
+                if (string.Equals(p.Name, propName, StringComparison.OrdinalIgnoreCase))
+                {
+                    value = p.Value;
+                    return true;
+                }
+            }
+            value = default;
+            return false;
+        }
+
+        private static bool LooksLikeBase64(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value) || value.Length < 40)
+            {
+                return false;
+            }
+
+            // Acepta Base64 puro o data URL.
+            if (value.StartsWith("data:image/", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            return value.All(c =>
+                (c >= 'A' && c <= 'Z') ||
+                (c >= 'a' && c <= 'z') ||
+                (c >= '0' && c <= '9') ||
+                c == '+' || c == '/' || c == '=' ||
+                c == '-' || c == '_');
+        }
+
+        private static T? SafeDeserialize<T>(string json, JsonSerializerOptions opts)
+        {
+            try
+            {
+                return JsonSerializer.Deserialize<T>(json, opts);
+            }
+            catch
+            {
+                return default;
+            }
+        }
+
+        private static bool TryFindFuncionarioCandidate(JsonElement element, int depth, out JsonElement candidate)
+        {
+            candidate = default;
+            if (depth > 8)
+            {
+                return false;
+            }
+
+            if (element.ValueKind == JsonValueKind.Object)
+            {
+                if (LooksLikeFuncionarioObject(element))
+                {
+                    candidate = element;
+                    return true;
+                }
+
+                foreach (var prop in element.EnumerateObject())
+                {
+                    if (TryFindFuncionarioCandidate(prop.Value, depth + 1, out candidate))
+                    {
+                        return true;
+                    }
+                }
+            }
+
+            if (element.ValueKind == JsonValueKind.Array)
+            {
+                foreach (var item in element.EnumerateArray())
+                {
+                    if (TryFindFuncionarioCandidate(item, depth + 1, out candidate))
+                    {
+                        return true;
+                    }
+                }
+            }
+
+            return false;
+        }
+
+        private static bool LooksLikeFuncionarioObject(JsonElement obj)
+        {
+            var keys = obj.EnumerateObject().Select(p => p.Name.ToLowerInvariant()).ToList();
+
+            var score = 0;
+            if (keys.Any(k => k.Contains("ident"))) score++;
+            if (keys.Any(k => k.Contains("nombre"))) score++;
+            if (keys.Any(k => k.Contains("apellido"))) score++;
+            if (keys.Any(k => k.Contains("correo") || k.Contains("email") || k.Contains("mail"))) score++;
+            if (keys.Any(k => k.Contains("usuario"))) score++;
+            if (keys.Any(k => k.Contains("celular") || k.Contains("telefono") || k.Contains("movil"))) score++;
+            if (keys.Any(k => k.Contains("dependencia") || k.Contains("unidad"))) score++;
+            if (keys.Any(k => k.Contains("cargo"))) score++;
+
+            return score >= 2;
         }
     }
 }

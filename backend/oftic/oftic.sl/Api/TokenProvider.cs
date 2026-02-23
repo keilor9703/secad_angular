@@ -40,7 +40,21 @@ namespace Servicios.Api
                 return token;
             }
 
-            token = await FetchTokenAsync(ct);
+            try
+            {
+                token = await FetchTokenAsync(ct);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "No fue posible obtener token técnico PIP");
+                return string.Empty;
+            }
+
+            if (string.IsNullOrWhiteSpace(token))
+            {
+                _logger.LogWarning("Token técnico PIP vacío; no se almacena en caché");
+                return string.Empty;
+            }
 
             var cacheOptions = new MemoryCacheEntryOptions()
                 .SetAbsoluteExpiration(TimeSpan.FromMinutes(25))
@@ -67,7 +81,10 @@ namespace Servicios.Api
             var clave = _cfg["ApiSettings:ClavePip"];
 
             if (string.IsNullOrEmpty(url))
-                throw new InvalidOperationException("PostPipToken no configurado");
+            {
+                _logger.LogError("PostPipToken no configurado");
+                return string.Empty;
+            }
 
             _logger.LogInformation("Obteniendo token de: {Url}", url);
 
@@ -78,15 +95,15 @@ namespace Servicios.Api
             };
 
             var json = JsonSerializer.Serialize(payload);
-            var content = new StringContent(json, Encoding.UTF8, "application/json");
+            using var content = new StringContent(json, Encoding.UTF8, "application/json");
 
-            var resp = await client.PostAsync(url, content, ct);
+            using var resp = await client.PostAsync(url, content, ct);
 
             if (!resp.IsSuccessStatusCode)
             {
                 var error = await resp.Content.ReadAsStringAsync(ct);
                 _logger.LogError("Error {StatusCode}: {Error}", resp.StatusCode, error);
-                throw new HttpRequestException($"API devolvió {resp.StatusCode}: {error}");
+                return string.Empty;
             }
 
             var responseJson = await resp.Content.ReadAsStringAsync(ct);
@@ -95,7 +112,8 @@ namespace Servicios.Api
 
             if (result?.Codigo != 1 || string.IsNullOrEmpty(result.Respuesta))
             {
-                throw new InvalidOperationException($"Error en respuesta: {result?.Mensaje}");
+                _logger.LogError("Respuesta de token inválida. Codigo: {Codigo}, Mensaje: {Mensaje}", result?.Codigo, result?.Mensaje);
+                return string.Empty;
             }
 
             _logger.LogInformation("Token obtenido exitosamente");

@@ -1,12 +1,10 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
+﻿using System.Threading;
 using System.Threading.Tasks;
 
 namespace Servicios.ApiInterfaz
 {
     public interface IApiWebOud
     {
+        Task<bool> ValidarCredencialesAsync(string usuario, string contrasena, CancellationToken ct);
     }
 }

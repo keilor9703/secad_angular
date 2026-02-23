@@ -72,6 +72,26 @@
     ]
   },
   {
+    "ContainingType": "Api.Controllers.MenuController",
+    "Method": "GetMyMenu",
+    "RelativePath": "api/menu/me",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": [
+      {
+        "Type": "System.Collections.Generic.List\u00601[[Comun.Dtos.Menu.DtoMenuItem, Comun, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]]",
+        "MediaTypes": [
+          "text/plain",
+          "application/json",
+          "text/json"
+        ],
+        "StatusCode": 200
+      }
+    ]
+  },
+  {
     "ContainingType": "ofic.Controllers.UsuarioController",
     "Method": "SaveUsuario",
     "RelativePath": "api/Usuario",
@@ -163,7 +183,7 @@
   },
   {
     "ContainingType": "Program\u002B\u003C\u003Ec",
-    "Method": "\u003C\u003CMain\u003E$\u003Eb__0_4",
+    "Method": "\u003C\u003CMain\u003E$\u003Eb__0_5",
     "RelativePath": "health",
     "HttpMethod": "GET",
     "IsController": false,

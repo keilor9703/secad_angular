@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi.Models;
 using System.Text;
 using Datos.Gestion;
 using Datos.Interfaz;
@@ -20,7 +21,7 @@ builder.Services.AddControllers()
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("DevCors", p =>
-        p.WithOrigins("http://localhost:4200", "https://localhost:4200")
+        p.WithOrigins("http://localhost:4200", "https://localhost:4200", "http://localhost:4300", "https://localhost:4300")
          .AllowAnyHeader()
          .AllowAnyMethod()
          .AllowCredentials());
@@ -66,7 +67,35 @@ builder.Services.AddScoped<IApiWebToken, ApiWebToken>();
 builder.Services.AddScoped<IDbMenuService, DbMenuService>();
 builder.Services.AddScoped<IDbMenuRepository, DbMenuRepository>();
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(options =>
+{
+    options.SwaggerDoc("v1", new OpenApiInfo { Title = "OFTIC API", Version = "v1" });
+
+    options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Name = "Authorization",
+        Type = SecuritySchemeType.Http,
+        Scheme = "bearer",
+        BearerFormat = "JWT",
+        In = ParameterLocation.Header,
+        Description = "Ingrese: Bearer {token}"
+    });
+
+    options.AddSecurityRequirement(new OpenApiSecurityRequirement
+    {
+        {
+            new OpenApiSecurityScheme
+            {
+                Reference = new OpenApiReference
+                {
+                    Type = ReferenceType.SecurityScheme,
+                    Id = "Bearer"
+                }
+            },
+            Array.Empty<string>()
+        }
+    });
+});
 
 builder.Services.AddScoped<IDbAuthRepository, DbAuthRepository>();
 builder.Services.AddScoped<IJwtService, JwtService>();

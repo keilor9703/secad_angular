@@ -2188,11 +2188,11 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "C:\\Users\\Dyck.lopez\\source\\repos\\oftic\\oftic\\Api.csproj",
+      "projectUniqueName": "C:\\Users\\Dyck.lopez\\source\\repos\\sisgeNg\\backend\\oftic\\oftic\\Api.csproj",
       "projectName": "Api",
-      "projectPath": "C:\\Users\\Dyck.lopez\\source\\repos\\oftic\\oftic\\Api.csproj",
+      "projectPath": "C:\\Users\\Dyck.lopez\\source\\repos\\sisgeNg\\backend\\oftic\\oftic\\Api.csproj",
       "packagesPath": "C:\\Users\\Dyck.lopez\\.nuget\\packages\\",
-      "outputPath": "C:\\Users\\Dyck.lopez\\source\\repos\\oftic\\oftic\\obj\\",
+      "outputPath": "C:\\Users\\Dyck.lopez\\source\\repos\\sisgeNg\\backend\\oftic\\oftic\\obj\\",
       "projectStyle": "PackageReference",
       "fallbackFolders": [
         "C:\\Program Files\\DevExpress 25.2\\Components\\Offline Packages",
@@ -2216,14 +2216,14 @@
         "net8.0": {
           "targetAlias": "net8.0",
           "projectReferences": {
-            "C:\\Users\\Dyck.lopez\\source\\repos\\oftic\\oftic.bl\\Negocio.csproj": {
-              "projectPath": "C:\\Users\\Dyck.lopez\\source\\repos\\oftic\\oftic.bl\\Negocio.csproj"
+            "C:\\Users\\Dyck.lopez\\source\\repos\\sisgeNg\\backend\\oftic\\oftic.bl\\Negocio.csproj": {
+              "projectPath": "C:\\Users\\Dyck.lopez\\source\\repos\\sisgeNg\\backend\\oftic\\oftic.bl\\Negocio.csproj"
             },
-            "C:\\Users\\Dyck.lopez\\source\\repos\\oftic\\oftic.cl\\Comun.csproj": {
-              "projectPath": "C:\\Users\\Dyck.lopez\\source\\repos\\oftic\\oftic.cl\\Comun.csproj"
+            "C:\\Users\\Dyck.lopez\\source\\repos\\sisgeNg\\backend\\oftic\\oftic.cl\\Comun.csproj": {
+              "projectPath": "C:\\Users\\Dyck.lopez\\source\\repos\\sisgeNg\\backend\\oftic\\oftic.cl\\Comun.csproj"
             },
-            "C:\\Users\\Dyck.lopez\\source\\repos\\oftic\\oftic.sl\\Servicios.csproj": {
-              "projectPath": "C:\\Users\\Dyck.lopez\\source\\repos\\oftic\\oftic.sl\\Servicios.csproj"
+            "C:\\Users\\Dyck.lopez\\source\\repos\\sisgeNg\\backend\\oftic\\oftic.sl\\Servicios.csproj": {
+              "projectPath": "C:\\Users\\Dyck.lopez\\source\\repos\\sisgeNg\\backend\\oftic\\oftic.sl\\Servicios.csproj"
             }
           }
         }
@@ -2238,7 +2238,7 @@
         "auditLevel": "low",
         "auditMode": "direct"
       },
-      "SdkAnalysisLevel": "10.0.100"
+      "SdkAnalysisLevel": "9.0.300"
     },
     "frameworks": {
       "net8.0": {
@@ -2276,7 +2276,7 @@
             "privateAssets": "all"
           }
         },
-        "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.103/PortableRuntimeIdentifierGraph.json"
+        "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.311/PortableRuntimeIdentifierGraph.json"
       }
     }
   }

@@ -15,6 +15,9 @@ namespace Comun.Dtos
         public string? usuario { get; set; }
         public string? celular { get; set; }
         public string? dependencia { get; set; }
+        public string? siglaFisica { get; set; }
+        public string? siglaLaborando { get; set; }
+        public string? nombreGrado { get; set; }
         public string? cargo { get; set; }
         public bool activo { get; set; } = true;
     }

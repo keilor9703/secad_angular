@@ -13,7 +13,7 @@
 
     <nav class="sidebar-scroll">
       <div class="sidebar-nav">
-        @for (item of menuItems; track item.label) {
+        @for (item of menuItems; track item.id) {
           <div class="menu-item" [class.expanded]="isExpandedItem(item)">
             <a
               class="menu-link"
@@ -35,7 +35,7 @@
             <div class="submenu"
                  [class.open]="isOpen() && isExpandedItem(item)"
                  [ngStyle]="(isOpen() && isExpandedItem(item)) ? getSubmenuStyle() : null">
-              @for (subItem of item.submenu; track subItem.label) {
+              @for (subItem of item.submenu; track subItem.id) {
                 <a [routerLink]="[subItem.route]" class="submenu-item" (click)="onNavigate()">
                   {{ subItem.label }}
                 </a>

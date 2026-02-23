@@ -18,15 +18,21 @@
       </div>
 
       <div class="ui-panel__body" *ngIf="!minimized && !closed">
-        <!-- Grid de Noticias -->
-        <div class="news-list">
-          <article class="news-card" *ngFor="let n of paginatedNews">
-            <!-- Imagen superior -->
+        <div class="news-state" *ngIf="isLoading">
+          Cargando noticias recientes...
+        </div>
+
+        <div class="news-state error" *ngIf="hasError">
+          <p>{{ errorMessage }}</p>
+          <button class="ui-btn secondary" type="button" (click)="loadNoticias()">Reintentar</button>
+        </div>
+
+        <div class="news-list" *ngIf="!isLoading && !hasError && news.length > 0">
+          <article class="news-card" *ngFor="let n of paginatedNews" (click)="openOriginalNews(n.url)">
             <div class="news-media">
               <img class="news-img" [src]="n.image" [alt]="n.title">
             </div>
 
-            <!-- Contenido -->
             <div class="news-body">
               <h4 class="news-title">{{ n.title }}</h4>
 
@@ -39,25 +45,27 @@
               <p class="news-lead">{{ n.lead }}</p>
 
               <div class="news-foot">
-                <a class="news-link" href="#" (click)="$event.preventDefault(); openNews(n)">
-                  Leer más <span class="news-arrow">→</span>
-                </a>
+                <span class="news-link">
+                  Ver más <span class="news-arrow">↗</span>
+                </span>
               </div>
             </div>
           </article>
         </div>
 
-        <!-- Paginador -->
-        <div class="pagination" *ngIf="totalPages > 1">
+        <div class="news-state" *ngIf="!isLoading && !hasError && news.length === 0">
+          No hay noticias disponibles.
+        </div>
+
+        <div class="pagination" *ngIf="!isLoading && !hasError && totalPages > 1">
           <div class="pagination-info">
-            Mostrando {{ (currentPage - 1) * itemsPerPage + 1 }} - 
-            {{ currentPage * itemsPerPage > news.length ? news.length : currentPage * itemsPerPage }} 
+            Mostrando {{ (currentPage - 1) * itemsPerPage + 1 }} -
+            {{ currentPage * itemsPerPage > news.length ? news.length : currentPage * itemsPerPage }}
             de {{ news.length }} noticias
           </div>
 
           <div class="pagination-controls">
-            <!-- Botón Anterior -->
-            <button 
+            <button
               class="pagination-btn"
               [class.disabled]="currentPage === 1"
               [disabled]="currentPage === 1"
@@ -68,7 +76,6 @@
               Anterior
             </button>
 
-            <!-- Números de página -->
             <div class="pagination-numbers">
               <button
                 *ngFor="let page of pageNumbers"
@@ -81,8 +88,7 @@
               </button>
             </div>
 
-            <!-- Botón Siguiente -->
-            <button 
+            <button
               class="pagination-btn"
               [class.disabled]="currentPage === totalPages"
               [disabled]="currentPage === totalPages"
@@ -97,38 +103,4 @@
       </div>
     </div>
   </section>
-
-  <!-- MODAL NOTICIA -->
-  <div class="ui-modal" *ngIf="newsModalOpen" (click)="closeNews()">
-    <div class="ui-modal__dialog ui-modal__dialog--news" (click)="$event.stopPropagation()" role="dialog" aria-modal="true">
-      <div class="ui-modal__head">
-        <div class="ui-modal__title">
-          <i class="fa-solid fa-newspaper"></i>
-          Noticia
-        </div>
-
-        <button class="ui-icon-btn" type="button" (click)="closeNews()" aria-label="Cerrar">
-          <i class="fa-solid fa-xmark"></i>
-        </button>
-      </div>
-
-      <div class="ui-modal__body" *ngIf="selectedNews">
-        <img class="news-modal__img" [src]="selectedNews.image" [alt]="selectedNews.title">
-
-        <div class="news-modal__meta">
-          <span class="news-modal__date">
-            <i class="fa-regular fa-calendar"></i> {{ selectedNews.date }}
-          </span>
-          <span class="ui-badge info">{{ selectedNews.tag }}</span>
-        </div>
-
-        <h3 class="news-modal__title">{{ selectedNews.title }}</h3>
-        <p class="news-modal__text">{{ selectedNews.content }}</p>
-      </div>
-
-      <div class="ui-modal__foot">
-        <button class="ui-btn outline" type="button" (click)="closeNews()">Cerrar</button>
-      </div>
-    </div>
-  </div>
 </main>

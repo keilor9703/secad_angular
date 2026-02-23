@@ -1,9 +1,9 @@
-import { Component } from '@angular/core';
+import { Component, HostListener, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterModule } from '@angular/router';
+import { Router, RouterModule } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { SidebarService } from '../../services/sidebar.js';
-
+import { AuthService } from '../../core/auth/auth.service';
 
 interface Notification {
   id: number;
@@ -16,17 +16,53 @@ interface Notification {
 @Component({
   selector: 'app-header',
   standalone: true,
-  imports: [CommonModule, RouterModule,FormsModule],
+  imports: [CommonModule, RouterModule, FormsModule],
   templateUrl: './header.html',
   styleUrls: ['./header.scss']
 })
-export class HeaderComponent {
-  constructor(private SidebarService: SidebarService) {}
+export class HeaderComponent implements OnInit {
+  isUserDropdownOpen = false;
+
+  constructor(
+    private SidebarService: SidebarService,
+    private authService: AuthService,
+    private router: Router
+  ) {}
+
+  ngOnInit(): void {
+    this.userName = this.authService.getUsuario();
+  }
 
   toggleMenu() {
     this.SidebarService.toggleSidebar();
   }
-  
+
+  toggleUserDropdown(event?: Event): void {
+    if (event) {
+      event.stopPropagation();
+    }
+    this.isUserDropdownOpen = !this.isUserDropdownOpen;
+  }
+
+  closeUserDropdown(): void {
+    this.isUserDropdownOpen = false;
+  }
+
+  @HostListener('document:click', ['$event'])
+  onDocumentClick(event: Event): void {
+    if (this.isUserDropdownOpen) {
+      const target = event.target as HTMLElement;
+      if (!target.closest('.header-user')) {
+        this.closeUserDropdown();
+      }
+    }
+  }
+
+  @HostListener('document:keydown.escape')
+  onEscape(): void {
+    this.closeUserDropdown();
+  }
+
   notifications: Notification[] = [
     { id: 1, icon: 'fa-bell', color: 'warning', count: 3, tooltip: 'Notificaciones' },
     { id: 2, icon: 'fa-envelope', color: 'info', count: 5, tooltip: 'Mensajes' },
@@ -36,8 +72,8 @@ export class HeaderComponent {
   ];
 
   searchQuery: string = '';
-  userName: string = 'Usuario Oracle';
-  userRole: string = 'OFTIC-GUSOF';
+  userName: string = 'Usuario';
+  userRole: string = 'SISGE';
 
   onSearch(): void {
     console.log('Buscando:', this.searchQuery);
@@ -52,6 +88,7 @@ export class HeaderComponent {
   }
 
   onLogout(): void {
-    console.log('Cerrando sesión');
+    this.authService.logout();
+    this.router.navigate(['/login']);
   }
 }

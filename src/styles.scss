@@ -1089,9 +1089,9 @@ textarea.ui-control {
 }
 .content-area {
     position: relative;
-    width: calc(100% - var(--collapsed-width));
+    width: 100%;
     min-height: 100vh;
     transition: all var(--transition-speed) ease;
     margin: auto;
-    padding: 30px;
+    padding: 10px;
 }

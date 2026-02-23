@@ -30,12 +30,18 @@
               }
             ],
             "styles": [
-             "src/styles.scss",
-               "node_modules/@fortawesome/fontawesome-free/css/all.min.css"
+              "src/styles.scss",
+              "node_modules/@fortawesome/fontawesome-free/css/all.min.css"
             ]
           },
           "configurations": {
             "production": {
+              "fileReplacements": [
+                {
+                  "replace": "src/environments/environment.ts",
+                  "with": "src/environments/environment.prod.ts"
+                }
+              ],
               "budgets": [
                 {
                   "type": "initial",
@@ -68,7 +74,10 @@
               "buildTarget": "policiadev-app:build:development"
             }
           },
-          "defaultConfiguration": "development"
+          "defaultConfiguration": "development",
+          "options": {
+            "proxyConfig": "proxy.conf.json"
+          }
         },
         "extract-i18n": {
           "builder": "@angular/build:extract-i18n"
@@ -95,5 +104,8 @@
         }
       }
     }
+  },
+  "cli": {
+    "analytics": "2d941f4e-092d-42f3-8f3c-7629c38aecf5"
   }
 }

@@ -1,0 +1,28 @@
+import { Injectable } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { Observable } from 'rxjs';
+import { environment } from '../../../environments/environment';
+
+export interface DbMenuItem {
+  idMenu: number;
+  descripcion: string;
+  idPadre: number;
+  posicion: number;
+  tipo: string;
+  icono?: string | null;
+  vigente: number;
+  detalle?: string | null;
+}
+
+@Injectable({ providedIn: 'root' })
+export class MenuService {
+  constructor(private http: HttpClient) {}
+
+  getByUser(idUsuario: number): Observable<DbMenuItem[]> {
+    return this.http.get<DbMenuItem[]>(`${environment.apiBaseUrl}/menu/by-user/${idUsuario}`);
+  }
+
+  getMyMenu(): Observable<DbMenuItem[]> {
+    return this.http.get<DbMenuItem[]>(`${environment.apiBaseUrl}/menu/me`);
+  }
+}
