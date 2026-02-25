@@ -51,7 +51,10 @@
     <div class="header-user">
         <div class="user-info" (click)="onProfileClick()">
             <div class="user-avatar">
-                <i class="fa-solid fa-user"></i>
+                <img *ngIf="userPhotoUrl; else userIconTpl" [src]="userPhotoUrl" alt="Foto usuario" class="user-avatar-img">
+                <ng-template #userIconTpl>
+                  <i class="fa-solid fa-user"></i>
+                </ng-template>
             </div>
             <div class="user-details">
                 <span class="user-name">{{ userName }}</span>
@@ -62,11 +65,11 @@
 
         <!-- Dropdown Menu (opcional) -->
         <div class="user-dropdown">
-            <a routerLink="/perfil" class="dropdown-item">
+            <a href="#" class="dropdown-item" (click)="$event.preventDefault(); openProfileModal()">
                 <i class="fa-solid fa-user-circle"></i>
                 Mi Perfil
             </a>
-            <a routerLink="/configuracion" class="dropdown-item">
+            <a routerLink="/administracion/usuarios" class="dropdown-item">
                 <i class="fa-solid fa-cog"></i>
                 Configuración
             </a>
@@ -78,3 +81,33 @@
         </div>
     </div>
 </header>
+
+<div class="profile-modal-backdrop" *ngIf="profileModalOpen" (click)="closeProfileModal()">
+  <div class="profile-modal" (click)="$event.stopPropagation()">
+    <div class="profile-modal__head">
+      <h3>Mi Perfil</h3>
+      <button type="button" class="close-btn" (click)="closeProfileModal()">✕</button>
+    </div>
+
+    <div class="profile-modal__body" *ngIf="!profileLoading; else loadingTpl">
+      <div class="profile-photo">
+        <img *ngIf="userPhotoUrl; else profileIconTpl" [src]="userPhotoUrl" alt="Foto de perfil">
+        <ng-template #profileIconTpl>
+          <i class="fa-solid fa-user"></i>
+        </ng-template>
+      </div>
+
+      <div class="profile-fields">
+        <div><strong>Grado:</strong> {{ perfil?.grado || 'Sin información' }}</div>
+        <div><strong>Nombre:</strong> {{ perfil?.nombreCompleto || userName }}</div>
+        <div><strong>Cargo:</strong> {{ perfil?.cargo || 'Sin información' }}</div>
+        <div><strong>Situación laboral:</strong> {{ perfil?.situacionLaboral || 'Sin información' }}</div>
+        <div><strong>Tiempo servicio:</strong> {{ perfil?.tiempoServicio || 'Sin información' }}</div>
+      </div>
+    </div>
+
+    <ng-template #loadingTpl>
+      <div class="profile-modal__loading">Cargando perfil...</div>
+    </ng-template>
+  </div>
+</div>

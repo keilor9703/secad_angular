@@ -2,8 +2,11 @@ import { Component, HostListener, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, RouterModule } from '@angular/router';
 import { FormsModule } from '@angular/forms';
+import { HttpClient } from '@angular/common/http';
 import { SidebarService } from '../../services/sidebar.js';
 import { AuthService } from '../../core/auth/auth.service';
+import { environment } from '../../../environments/environment';
+import { BrandingService } from '../../core/services/branding.service';
 
 interface Notification {
   id: number;
@@ -11,6 +14,15 @@ interface Notification {
   color: string;
   count: number;
   tooltip: string;
+}
+
+interface MiPerfilDto {
+  identificacion?: string;
+  grado?: string;
+  nombreCompleto?: string;
+  cargo?: string;
+  situacionLaboral?: string;
+  tiempoServicio?: string;
 }
 
 @Component({
@@ -22,15 +34,23 @@ interface Notification {
 })
 export class HeaderComponent implements OnInit {
   isUserDropdownOpen = false;
+  userPhotoUrl: string | null = null;
+  profileModalOpen = false;
+  profileLoading = false;
+  perfil: MiPerfilDto | null = null;
 
   constructor(
     private SidebarService: SidebarService,
     private authService: AuthService,
-    private router: Router
+    private http: HttpClient,
+    private router: Router,
+    private brandingService: BrandingService
   ) {}
 
   ngOnInit(): void {
     this.userName = this.authService.getUsuario();
+    this.loadBranding();
+    this.loadMyPhoto();
   }
 
   toggleMenu() {
@@ -75,6 +95,18 @@ export class HeaderComponent implements OnInit {
   userName: string = 'Usuario';
   userRole: string = 'SISGE';
 
+  private loadBranding(): void {
+    this.brandingService.getPublicConfig().subscribe({
+      next: (cfg) => {
+        const name = (cfg?.systemName ?? '').trim();
+        this.userRole = name || 'SISGE';
+      },
+      error: () => {
+        this.userRole = 'SISGE';
+      }
+    });
+  }
+
   onSearch(): void {
     console.log('Buscando:', this.searchQuery);
   }
@@ -84,11 +116,79 @@ export class HeaderComponent implements OnInit {
   }
 
   onProfileClick(): void {
-    console.log('Perfil clickeado');
+    this.openProfileModal();
   }
 
   onLogout(): void {
     this.authService.logout();
     this.router.navigate(['/login']);
+  }
+
+  private loadMyPhoto(): void {
+    this.http
+      .get(`${environment.apiBaseUrl}/Usuario/MiFoto`, { responseType: 'text' })
+      .subscribe({
+        next: (raw) => {
+          this.userPhotoUrl = this.normalizePhoto(raw);
+        },
+        error: () => {
+          this.userPhotoUrl = null;
+        }
+      });
+  }
+
+  private normalizePhoto(raw: string | null): string | null {
+    if (!raw) {
+      return null;
+    }
+
+    const trimmed = raw.trim();
+    if (!trimmed) {
+      return null;
+    }
+
+    let decoded = trimmed;
+    try {
+      if (trimmed.startsWith('"') && trimmed.endsWith('"')) {
+        decoded = JSON.parse(trimmed);
+      }
+    } catch {
+      decoded = trimmed;
+    }
+
+    if (!decoded || decoded.length < 20) {
+      return null;
+    }
+
+    if (decoded.startsWith('data:image/')) {
+      return decoded;
+    }
+
+    return `data:image/jpeg;base64,${decoded}`;
+  }
+
+  openProfileModal(): void {
+    this.profileModalOpen = true;
+    this.closeUserDropdown();
+
+    if (this.perfil) {
+      return;
+    }
+
+    this.profileLoading = true;
+    this.http.get<MiPerfilDto>(`${environment.apiBaseUrl}/Usuario/MiPerfil`).subscribe({
+      next: (data) => {
+        this.perfil = data ?? {};
+        this.profileLoading = false;
+      },
+      error: () => {
+        this.perfil = null;
+        this.profileLoading = false;
+      }
+    });
+  }
+
+  closeProfileModal(): void {
+    this.profileModalOpen = false;
   }
 }

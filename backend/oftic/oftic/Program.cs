@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.Extensions.FileProviders;
 using Microsoft.OpenApi.Models;
 using System.Text;
 using Datos.Gestion;
@@ -66,6 +67,9 @@ builder.Services.AddScoped<IApiWebToken, ApiWebToken>();
 
 builder.Services.AddScoped<IDbMenuService, DbMenuService>();
 builder.Services.AddScoped<IDbMenuRepository, DbMenuRepository>();
+builder.Services.AddScoped<IDbUsuarioRepository, DbUsuarioRepository>();
+builder.Services.AddScoped<IDbSliders, DbSliders>();
+builder.Services.AddScoped<IDbHomeRepository, DbHomeRepository>();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {
@@ -102,6 +106,9 @@ builder.Services.AddScoped<IJwtService, JwtService>();
 
 var app = builder.Build();
 
+var uploadsRoot = Path.Combine(app.Environment.ContentRootPath, "uploads", "sliders");
+Directory.CreateDirectory(uploadsRoot);
+
 app.UseCors("DevCors");
 
 if (app.Environment.IsDevelopment())
@@ -109,6 +116,12 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 }
+
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new PhysicalFileProvider(uploadsRoot),
+    RequestPath = "/uploads/sliders"
+});
 
 app.UseAuthentication();
 app.UseAuthorization();

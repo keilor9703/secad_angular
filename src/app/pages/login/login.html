@@ -1,14 +1,17 @@
 <div class="background-carousel">
-    <div class="slide" style="background-image: url('/background/banner1.jpg');"></div>
-    <div class="slide" style="background-image: url('/background/banner2.jpg');"></div>
-    <div class="slide" style="background-image: url('/background/banner3.jpg');"></div>
+    <div
+        class="slide"
+        *ngFor="let item of slides; let i = index"
+        [class.active]="i === currentSlideIndex"
+        [style.background-image]="'url(' + item.url + ')'">
+    </div>
 </div>
 
 <main class="login-container">
     <div class="glass-card">
-        <h1 class="system-title">SISGE</h1>
+        <h1 class="system-title">{{ systemName }}</h1>
 
-        <img src="/escudo.png" alt="Escudo Policía Nacional" class="logo-institucional">
+        <img [src]="logoUrl" alt="Logo sistema" class="logo-institucional">
 
         <form class="login-form" (ngSubmit)="onSubmit()">
             <div class="input-group">

@@ -95,10 +95,15 @@ namespace Servicios.Api
                 var url = _cfg["ApiSettings:PostPipToken"] ?? "https://internalpip.policia.gov.co:8080/api/Cuenta/Token";
                 var payloads = new object[]
                 {
-                    new { Usuario = usuario, Contrasena = contrasena },
+                    new { Usuario = usuario, Clave = contrasena },
+                    new { usuario, clave = contrasena },
                     new { usuario, contrasena },
-                    new { usuario, clave = contrasena }
+                    new { Usuario = usuario, Contrasena = contrasena }
                 };
+
+                HttpResponseMessage? lastResponse = null;
+                string lastPayload = string.Empty;
+                string lastBody = string.Empty;
 
                 foreach (var payload in payloads)
                 {
@@ -106,10 +111,13 @@ namespace Servicios.Api
                     using var content = new StringContent(json, Encoding.UTF8, "application/json");
                     using var resp = await client.PostAsync(url, content);
                     var responseJson = await resp.Content.ReadAsStringAsync();
+                    lastResponse = resp;
+                    lastPayload = json;
+                    lastBody = responseJson;
 
                     if (!resp.IsSuccessStatusCode)
                     {
-                        _logger.LogWarning("Token request failed: {StatusCode}. Payload: {Payload}. Body: {Body}",
+                        _logger.LogInformation("Token attempt failed: {StatusCode}. Payload: {Payload}",
                             resp.StatusCode, json, responseJson);
                         continue;
                     }
@@ -120,7 +128,16 @@ namespace Servicios.Api
                         return token;
                     }
 
-                    _logger.LogWarning("Token response parsed without token. Payload: {Payload}. Body: {Body}", json, responseJson);
+                    _logger.LogInformation("Token attempt without token in response. Payload: {Payload}", json);
+                }
+
+                if (lastResponse is not null)
+                {
+                    _logger.LogWarning(
+                        "Token request failed after all attempts. LastStatus: {StatusCode}. LastPayload: {Payload}. LastBody: {Body}",
+                        lastResponse.StatusCode,
+                        lastPayload,
+                        lastBody);
                 }
 
                 return string.Empty;
@@ -320,12 +337,8 @@ namespace Servicios.Api
             if (prop.ValueKind == JsonValueKind.Object)
             {
                 funcionario = SafeDeserialize<DtoFuncionario>(prop.GetRawText(), opts);
-                if (HasFuncionarioData(funcionario))
-                {
-                    return true;
-                }
-
-                funcionario = MapFlexibleFuncionario(prop);
+                var mapped = MapFlexibleFuncionario(prop);
+                funcionario = MergeFuncionario(funcionario, mapped);
                 return HasFuncionarioData(funcionario);
             }
 
@@ -335,12 +348,8 @@ namespace Servicios.Api
                 if (first.ValueKind == JsonValueKind.Object)
                 {
                     funcionario = SafeDeserialize<DtoFuncionario>(first.GetRawText(), opts);
-                    if (HasFuncionarioData(funcionario))
-                    {
-                        return true;
-                    }
-
-                    funcionario = MapFlexibleFuncionario(first);
+                    var mapped = MapFlexibleFuncionario(first);
+                    funcionario = MergeFuncionario(funcionario, mapped);
                     return HasFuncionarioData(funcionario);
                 }
             }
@@ -366,7 +375,7 @@ namespace Servicios.Api
                 identificacion = Pick(obj, "identificacion", "Identificacion", "numeroDocumento", "NumeroDocumento", "documento", "Documento", "identidad", "IdFuncionario"),
                 nombres = Pick(obj, "nombres", "Nombres", "nombre", "Nombre", "primerNombre", "PrimerNombre", "nombresFuncionario"),
                 apellidos = Pick(obj, "apellidos", "Apellidos", "apellido", "Apellido", "primerApellido", "PrimerApellido", "apellidosFuncionario"),
-                situacionLaboral = Pick(obj, "situacionLaboral", "SituacionLaboral", "situacion", "Situacion", "estadoLaboral", "EstadoLaboral"),
+                situacionLaboral = Pick(obj, "situacionLaboral", "SituacionLaboral", "situacion_laboral", "Situacion_Laboral", "situacion", "Situacion", "estadoLaboral", "EstadoLaboral"),
                 correo = Pick(obj, "correo", "Correo", "email", "Email", "correoElectronico", "CorreoElectronico", "mail", "Mail"),
                 usuario = Pick(obj, "usuario", "Usuario", "username", "Username", "usuarioEmpresarial", "UsuarioEmpresarial"),
                 celular = Pick(obj, "celular", "Celular", "numeroCelular", "NumeroCelular", "telefono", "Telefono", "telefonoMovil", "TelefonoMovil", "movil", "Movil"),
@@ -374,9 +383,42 @@ namespace Servicios.Api
                 siglaFisica = Pick(obj, "siglaFisica", "SiglaFisica", "siglaLaborando", "SiglaLaborando"),
                 siglaLaborando = Pick(obj, "siglaLaborando", "SiglaLaborando"),
                 nombreGrado = Pick(obj, "nombreGrado", "NombreGrado", "grado", "Grado"),
+                gradAlfabetico = Pick(obj, "gradAlfabetico", "GradAlfabetico", "gradoAlfabetico", "GradoAlfabetico", "siglaGrado", "SiglaGrado"),
+                tiempoServicio = Pick(obj, "tiempoServicio", "TiempoServicio", "tiempo_servicio", "Tiempo_Servicio"),
+                // En PIP "funcionario" llega como texto; para código usamos consecutivo/numerico.
+                funcionarioCodigo = Pick(obj, "consecutivo", "Consecutivo", "numerico", "Numerico", "identificacion", "Identificacion"),
+                // Código de unidad donde labora.
+                undeLaborandoCodigo = Pick(obj, "undeConsecutivoLaborando", "UndeConsecutivoLaborando", "undeConsecutivo", "UndeConsecutivo", "tiunCodigo", "TiunCodigo"),
+                // No viene "codigoCargo" explícito; usamos ordenamiento como fallback numérico.
+                codigoCargo = Pick(obj, "codigoCargo", "CodigoCargo", "codigocargo", "idCargo", "IdCargo", "cargoCodigo", "CargoCodigo", "ordenamiento", "Ordenamiento"),
                 cargo = Pick(obj, "cargo", "Cargo", "rolCargo", "RolCargo"),
                 activo = PickBool(obj, "activo", "Activo", "vigente", "Vigente")
             };
+        }
+
+        private static DtoFuncionario MergeFuncionario(DtoFuncionario? primary, DtoFuncionario fallback)
+        {
+            primary ??= new DtoFuncionario();
+
+            primary.identificacion ??= fallback.identificacion;
+            primary.nombres ??= fallback.nombres;
+            primary.apellidos ??= fallback.apellidos;
+            primary.situacionLaboral ??= fallback.situacionLaboral;
+            primary.correo ??= fallback.correo;
+            primary.usuario ??= fallback.usuario;
+            primary.celular ??= fallback.celular;
+            primary.dependencia ??= fallback.dependencia;
+            primary.siglaFisica ??= fallback.siglaFisica;
+            primary.siglaLaborando ??= fallback.siglaLaborando;
+            primary.nombreGrado ??= fallback.nombreGrado;
+            primary.cargo ??= fallback.cargo;
+            primary.gradAlfabetico ??= fallback.gradAlfabetico;
+            primary.tiempoServicio ??= fallback.tiempoServicio;
+            primary.funcionarioCodigo ??= fallback.funcionarioCodigo;
+            primary.undeLaborandoCodigo ??= fallback.undeLaborandoCodigo;
+            primary.codigoCargo ??= fallback.codigoCargo;
+
+            return primary;
         }
 
         private static string? Pick(JsonElement obj, params string[] names)

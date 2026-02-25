@@ -4,6 +4,7 @@ import { RouterModule } from '@angular/router';
 import { SidebarService } from '../../services/sidebar';
 import { MenuService, DbMenuItem } from '../../core/services/menu.service';
 import { AuthService } from '../../core/auth/auth.service';
+import { BrandingService } from '../../core/services/branding.service';
 
 interface SubMenuItem {
   id: number;
@@ -39,10 +40,12 @@ export class SidebarComponent implements OnInit {
   constructor(
     public sidebarService: SidebarService,
     private menuService: MenuService,
-    private authService: AuthService
+    private authService: AuthService,
+    private brandingService: BrandingService
   ) {}
 
   ngOnInit(): void {
+    this.loadBranding();
     this.loadMenuFromDb();
   }
 
@@ -151,6 +154,22 @@ onItemTap(item: MenuItem, ev: MouseEvent) {
   }
 
   menuItems: MenuItem[] = [];
+  systemName = 'OFTIC';
+  logoUrl = '/imagenes/oftic-logo-app.png';
+
+  private loadBranding(): void {
+    this.brandingService.getPublicConfig().subscribe({
+      next: (cfg) => {
+        const name = (cfg?.systemName ?? '').trim();
+        this.systemName = name || 'OFTIC';
+        this.logoUrl = (cfg?.logoUrl ?? '').trim() || '/imagenes/oftic-logo-app.png';
+      },
+      error: () => {
+        this.systemName = 'OFTIC';
+        this.logoUrl = '/imagenes/oftic-logo-app.png';
+      }
+    });
+  }
 
   private loadMenuFromDb(): void {
     this.menuService.getMyMenu().subscribe({
@@ -160,7 +179,7 @@ onItemTap(item: MenuItem, ev: MouseEvent) {
           return;
         }
         const mapped = this.mapDbMenu(items);
-        this.menuItems = this.groupAdministrationItems(mapped);
+        this.menuItems = this.ensureInicioItem(this.groupAdministrationItems(mapped));
       },
       error: () => {
         this.loadMenuByUserFallback();
@@ -177,10 +196,10 @@ onItemTap(item: MenuItem, ev: MouseEvent) {
 
     this.menuService.getByUser(userId).subscribe({
       next: (items) => {
-        this.menuItems = this.groupAdministrationItems(this.mapDbMenu(items));
+        this.menuItems = this.ensureInicioItem(this.groupAdministrationItems(this.mapDbMenu(items)));
       },
       error: () => {
-        this.menuItems = [];
+        this.menuItems = this.ensureInicioItem([]);
       }
     });
   }
@@ -229,19 +248,20 @@ onItemTap(item: MenuItem, ev: MouseEvent) {
       const subs = directChildren
         .map(child => ({
           id: child.idMenu,
-          label: child.descripcion,
-          route: this.normalizeRoute(child.detalle)
+          route: this.normalizeRoute(child.detalle),
+          label: this.normalizeLabel(child.descripcion, this.normalizeRoute(child.detalle))
         }))
         .filter(sub => !!sub.route);
 
       const route = this.normalizeRoute(parent.detalle);
+      const label = this.normalizeLabel(parent.descripcion, route);
       const icon = this.normalizeIcon(parent.icono);
 
       if (subs.length > 0) {
         return {
           id: parent.idMenu,
           icon,
-          label: parent.descripcion,
+          label,
           submenu: subs
         } as MenuItem;
       }
@@ -254,7 +274,7 @@ onItemTap(item: MenuItem, ev: MouseEvent) {
       return {
         id: parent.idMenu,
         icon,
-        label: parent.descripcion,
+        label,
         route
       } as MenuItem;
     });
@@ -274,7 +294,30 @@ onItemTap(item: MenuItem, ev: MouseEvent) {
     if (normalized === '/usuarios') {
       return '/administracion/usuarios';
     }
+    if (normalized === '/video-unidad') {
+      return '/administracion/admin-multimedia';
+    }
+    if (normalized === '/configuracion-imagen-sitio') {
+      return '/administracion/admin-multimedia';
+    }
+    if (normalized === '/admin-multimedia') {
+      return '/administracion/admin-multimedia';
+    }
     return normalized;
+  }
+
+  private normalizeLabel(label: string, route: string): string {
+    if (
+      route === '/administracion/admin-multimedia' ||
+      route === '/administracion/video-unidad' ||
+      route === '/administracion/configuracion-imagen-sitio' ||
+      route === '/video-unidad' ||
+      route === '/configuracion-imagen-sitio' ||
+      route === '/admin-multimedia'
+    ) {
+      return 'Configuración imagen del sitio';
+    }
+    return label;
   }
 
   private normalizeIcon(raw: unknown): string {
@@ -334,8 +377,37 @@ onItemTap(item: MenuItem, ev: MouseEvent) {
     return (
       route.startsWith('/administracion/') ||
       route === '/formularios' ||
-      route === '/usuarios'
+      route === '/usuarios' ||
+      route === '/video-unidad' ||
+      route === '/configuracion-imagen-sitio' ||
+      route === '/admin-multimedia'
     );
+  }
+
+  private ensureInicioItem(items: MenuItem[]): MenuItem[] {
+    if (!this.authService.isAuthenticated()) {
+      return items;
+    }
+
+    const inicioIndex = items.findIndex((item) => item.route === '/home' || item.label.toLowerCase() === 'inicio');
+    if (inicioIndex >= 0) {
+      const inicio = {
+        ...items[inicioIndex],
+        route: '/home'
+      };
+      const rest = items.filter((_, idx) => idx !== inicioIndex);
+      return [inicio, ...rest];
+    }
+
+    return [
+      {
+        id: 999000,
+        icon: 'fa-solid fa-house',
+        label: 'Inicio',
+        route: '/home'
+      },
+      ...items
+    ];
   }
   
 }

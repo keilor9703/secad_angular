@@ -142,61 +142,90 @@
           </article>
 
           <div class="tab-actions" *ngIf="activeTab === 'datos'">
-            <button class="ui-btn primary" type="button" (click)="guardarDatosUsuario()">
+            <button class="ui-btn primary" type="button" (click)="guardarDatosUsuario()" [disabled]="loading">
               <i class="fa-solid fa-floppy-disk"></i>
-              Guardar cambios
+              {{ loading ? 'Guardando...' : 'Guardar' }}
             </button>
           </div>
 
           <article class="tab-card" *ngIf="activeTab === 'roles'">
             <div class="roles-head">
               <h3>Control de acceso</h3>
-              <button class="ui-btn info sm" type="button" (click)="agregarRol()">
+              <button class="ui-btn secondary" type="button" (click)="agregarRol()">
                 <i class="fa-solid fa-plus"></i>
                 Agregar rol
               </button>
             </div>
 
-            <div class="roles-list">
-              <div class="role-item" *ngFor="let rol of user.roles; let i = index">
-                <div class="role-grid">
-                  <div class="ui-field">
-                    <label class="ui-label">Rol</label>
-                    <input class="ui-control" type="text" [(ngModel)]="rol.nombre">
-                  </div>
-
-                  <div class="ui-field">
-                    <label class="ui-label">Fecha expiración</label>
-                    <input class="ui-control" type="date" [(ngModel)]="rol.fechaExpiracion">
-                  </div>
-
-                  <div class="ui-field">
-                    <label class="ui-label">Estado</label>
-                    <select class="ui-control" [(ngModel)]="rol.estado">
-                      <option value="Vigente">Vigente</option>
-                      <option value="Vencido">Vencido</option>
-                    </select>
-                  </div>
-
-                  <div class="ui-field role-justify">
-                    <label class="ui-label">Justificación</label>
-                    <input class="ui-control" type="text" [(ngModel)]="rol.justificacion">
-                  </div>
+            <div class="role-add-form" *ngIf="showAddRoleForm">
+              <div class="ui-grid">
+                <div class="ui-field ui-col-6">
+                  <label class="ui-label">Rol</label>
+                  <select class="ui-control" [(ngModel)]="newRole.rolId">
+                    <option [ngValue]="null">Seleccione un rol</option>
+                    <option *ngFor="let role of rolesCatalogo" [ngValue]="role.id">
+                      {{ role.nombre || ('Rol ' + role.id) }}
+                    </option>
+                  </select>
                 </div>
 
-                <button class="ui-mini-btn danger" type="button" title="Eliminar rol" (click)="eliminarRol(i)">
-                  <i class="fa-solid fa-trash"></i>
+                <div class="ui-field ui-col-6">
+                  <label class="ui-label">Fecha fin</label>
+                  <input class="ui-control" type="date" [(ngModel)]="newRole.fechaFin">
+                </div>
+
+                <div class="ui-field ui-col-12">
+                  <label class="ui-label">Justificación</label>
+                  <textarea class="ui-control" rows="3" [(ngModel)]="newRole.justificacion" placeholder="Motivo de la asignación"></textarea>
+                </div>
+              </div>
+
+              <div class="tab-actions">
+                <button class="ui-btn secondary" type="button" (click)="cancelarNuevoRol()">
+                  <i class="fa-solid fa-ban"></i>
+                  Cancelar
+                </button>
+                <button class="ui-btn primary" type="button" (click)="guardarRoles()" [disabled]="savingRole">
+                  <i class="fa-solid fa-floppy-disk"></i>
+                  {{ savingRole ? 'Guardando...' : 'Guardar rol' }}
                 </button>
               </div>
             </div>
-          </article>
 
-          <div class="tab-actions" *ngIf="activeTab === 'roles'">
-            <button class="ui-btn primary" type="button" (click)="guardarRoles()">
-              <i class="fa-solid fa-floppy-disk"></i>
-              Guardar roles
-            </button>
-          </div>
+            <div class="roles-list" *ngIf="user.roles.length > 0; else noRoles">
+              <div class="role-item" *ngFor="let rol of user.roles">
+                <div class="role-grid role-grid--labels">
+                  <div class="role-label">
+                    <span class="role-label__title">Rol</span>
+                    <strong>{{ rol.nombre }}</strong>
+                  </div>
+
+                  <div class="role-label">
+                    <span class="role-label__title">Estado</span>
+                    <span class="ui-badge" [class.success]="rol.estado === 'Vigente'" [class.warning]="rol.estado === 'Vencido'">
+                      {{ rol.estado }}
+                    </span>
+                  </div>
+
+                  <div class="role-label">
+                    <span class="role-label__title">Fecha expiración</span>
+                    <strong>{{ rol.fechaExpiracion || 'Sin fecha' }}</strong>
+                  </div>
+
+                  <div class="role-label role-label--full">
+                    <span class="role-label__title">Justificación</span>
+                    <strong>{{ rol.justificacion || 'Sin justificación' }}</strong>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <ng-template #noRoles>
+              <div class="news-state">
+                El usuario no tiene roles asignados actualmente.
+              </div>
+            </ng-template>
+          </article>
         </section>
       </div>
 

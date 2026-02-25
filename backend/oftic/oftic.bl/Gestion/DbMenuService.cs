@@ -19,5 +19,14 @@ namespace Negocio.Gestion
         }
         public Task<List<DtoMenuItem>> GetMyMenuAsync(long idUsuario, CancellationToken ct)
         => _repo.GetMyMenuAsync(idUsuario, ct);
+
+        public Task<List<DtoMenuItem>> GetAdminMenuAsync(CancellationToken ct)
+        => _repo.GetAdminMenuAsync(ct);
+
+        public Task<DtoMenuResult> SaveMenuAsync(DtoMenuSaveRequest request, long usuarioAuditoria, string maquinaAuditoria, CancellationToken ct)
+        => _repo.SaveMenuAsync(request, usuarioAuditoria, maquinaAuditoria, ct);
+
+        public Task<DtoMenuResult> SetEstadoMenuAsync(long idMenu, int vigente, long usuarioAuditoria, string maquinaAuditoria, CancellationToken ct)
+        => _repo.SetEstadoMenuAsync(idMenu, vigente, usuarioAuditoria, maquinaAuditoria, ct);
     }
 }

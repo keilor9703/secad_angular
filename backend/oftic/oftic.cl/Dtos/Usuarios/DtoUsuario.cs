@@ -19,6 +19,11 @@ namespace Comun.Dtos
         public string? siglaLaborando { get; set; }
         public string? nombreGrado { get; set; }
         public string? cargo { get; set; }
+        public string? tiempoServicio { get; set; }
+        public string? gradAlfabetico { get; set; }
+        public string? funcionarioCodigo { get; set; }
+        public string? undeLaborandoCodigo { get; set; }
+        public string? codigoCargo { get; set; }
         public bool activo { get; set; } = true;
     }
 
@@ -35,6 +40,7 @@ namespace Comun.Dtos
         public string? fechaInicio { get; set; }
         public string? fechaFin { get; set; }
         public string? estado { get; set; }
+        public string? justificacion { get; set; }
     }
 
     public class DtoTokenRequest
@@ -53,23 +59,32 @@ namespace Comun.Dtos
 
     public class DtoUsuarioRequest
     {
+        public string? username { get; set; }
         public string? identificacion { get; set; }
         public string? nombres { get; set; }
         public string? apellidos { get; set; }
-        public string? situacionLaboral { get; set; }
-        public string? correo { get; set; }
-        public string? usuario { get; set; }
-        public string? celular { get; set; }
-        public string? dependencia { get; set; }
-        public string? cargo { get; set; }
+        public string? email { get; set; }
+        public string? gradAlfabetico { get; set; }
+        public string? funcionario { get; set; }
+        public string? undeLaborando { get; set; }
+        public string? codigoCargo { get; set; }
         public bool activo { get; set; }
+    }
+
+    public class DtoGuardarUsuarioResult
+    {
+        public long idUsuario { get; set; }
+        public string message { get; set; } = string.Empty;
     }
 
     public class DtoAsignarRolRequest
     {
         public int usuarioId { get; set; }
+        public string? usuario { get; set; }
+        public string? identificacion { get; set; }
         public int rolId { get; set; }
         public string? justificacion { get; set; }
         public string? fechaFin { get; set; }
+        public int vigente { get; set; } = 1;
     }
 }

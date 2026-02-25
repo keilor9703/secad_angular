@@ -236,6 +236,19 @@
   gap: 10px;
 }
 
+.role-add-form {
+  margin-bottom: 12px;
+  border: 1px solid rgba(21, 27, 59, .12);
+  border-radius: 12px;
+  padding: 12px;
+  background: rgba(21, 27, 59, .02);
+}
+
+.role-add-form textarea.ui-control {
+  resize: vertical;
+  min-height: 86px;
+}
+
 .role-item {
   border: 1px solid rgba(21, 27, 59, .12);
   border-radius: 14px;
@@ -251,6 +264,36 @@
   display: grid;
   grid-template-columns: 1fr 190px 150px;
   gap: 10px;
+}
+
+.role-grid--labels {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.role-label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.role-label__title {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: .6px;
+  color: rgba(83, 86, 90, .9);
+  font-weight: 800;
+}
+
+.role-label strong {
+  font-size: 13px;
+  color: var(--policia-oscuro);
+  font-weight: 800;
+  word-break: break-word;
+}
+
+.role-label--full {
+  grid-column: 1 / -1;
 }
 
 .role-justify {

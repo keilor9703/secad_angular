@@ -78,7 +78,17 @@ export class AuthService {
   }
 
   isAuthenticated(): boolean {
-    return localStorage.getItem(this.authKey) === '1' || !!localStorage.getItem(this.tokenKey);
+    const token = this.getToken();
+    if (!token) {
+      return false;
+    }
+
+    if (this.isTokenExpired(token)) {
+      this.logout();
+      return false;
+    }
+
+    return true;
   }
 
   isLoginSuccessful(resp: LoginResponse | null | undefined): boolean {
@@ -104,6 +114,28 @@ export class AuthService {
       return Number.isFinite(userId) ? userId : null;
     } catch {
       return null;
+    }
+  }
+
+  private isTokenExpired(token: string): boolean {
+    try {
+      const payload = token.split('.')[1];
+      if (!payload) {
+        return true;
+      }
+      const normalized = payload.replace(/-/g, '+').replace(/_/g, '/');
+      const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, '=');
+      const parsed = JSON.parse(atob(padded));
+
+      const exp = Number(parsed?.exp);
+      if (!Number.isFinite(exp) || exp <= 0) {
+        return false;
+      }
+
+      const now = Math.floor(Date.now() / 1000);
+      return exp <= now;
+    } catch {
+      return true;
     }
   }
 }

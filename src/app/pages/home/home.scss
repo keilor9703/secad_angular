@@ -88,10 +88,6 @@
     box-shadow: var(--ui-shadow);
 }
 
-.main-slider input {
-    display: none;
-}
-
 .slide-item {
     position: absolute;
     width: 100%;
@@ -105,6 +101,12 @@
     overflow: hidden;
 }
 
+.slide-item.active {
+    opacity: 1;
+    z-index: 1;
+    visibility: visible;
+}
+
 .slide-bg {
     position: absolute;
     top: 0;
@@ -114,7 +116,7 @@
     background-size: cover;
     background-position: center;
     z-index: 0;
-    transition: transform 10s ease;
+    transition: transform 30s ease;
 }
 
 .slide-overlay {
@@ -123,7 +125,7 @@
     left: 0;
     width: 100%;
     height: 100%;
-    background: rgba(0, 0, 0, 0.5);
+    background: rgba(0, 0, 0, 0.4);
     z-index: 1;
 }
 
@@ -171,23 +173,12 @@
     color: #fdfdfd;
 }
 
-/* --- Slider Logic --- */
-#slide1:checked ~ .slide-item:nth-of-type(1),
-#slide2:checked ~ .slide-item:nth-of-type(2),
-#slide3:checked ~ .slide-item:nth-of-type(3) {
-    opacity: 1;
-    z-index: 1;
-    visibility: visible;
-}
-
 @keyframes zoomImage {
     from { transform: scale(1); }
     to { transform: scale(1.15); }
 }
 
-#slide1:checked ~ .slide-item:nth-of-type(1) .slide-bg,
-#slide2:checked ~ .slide-item:nth-of-type(2) .slide-bg,
-#slide3:checked ~ .slide-item:nth-of-type(3) .slide-bg {
+.slide-item.active .slide-bg {
     animation: zoomImage 10s infinite alternate;
 }
 
@@ -201,18 +192,18 @@
     z-index: 10;
 }
 
-.slider-controls label {
+.slider-controls button {
     width: 12px;
     height: 12px;
+    border: 0;
     background: rgba(255, 255, 255, 0.3);
     border-radius: 50%;
     cursor: pointer;
     transition: var(--transition-speed);
+    padding: 0;
 }
 
-#slide1:checked ~ .slider-controls label:nth-child(1),
-#slide2:checked ~ .slider-controls label:nth-child(2),
-#slide3:checked .slider-controls label:nth-child(3) {
+.slider-controls button.active {
     background: var(--policia-acento);
     width: 30px;
     border-radius: 6px;

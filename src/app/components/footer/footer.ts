@@ -1,6 +1,7 @@
 import { Component, HostListener, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { BrandingService } from '../../core/services/branding.service';
 
 @Component({
   selector: 'app-footer',
@@ -10,6 +11,7 @@ import { FormsModule } from '@angular/forms';
   styleUrl: './footer.scss',
 })
 export class FooterComponent implements OnDestroy {
+  systemName = 'SISGE';
 
   supportOpen = false;
 
@@ -21,6 +23,22 @@ export class FooterComponent implements OnDestroy {
     incluirDatosTecnicos: true,
     adjuntos: [] as File[]
   };
+
+  constructor(private brandingService: BrandingService) {
+    this.loadBranding();
+  }
+
+  private loadBranding(): void {
+    this.brandingService.getPublicConfig().subscribe({
+      next: (cfg) => {
+        const name = (cfg?.systemName ?? '').trim();
+        this.systemName = name || 'SISGE';
+      },
+      error: () => {
+        this.systemName = 'SISGE';
+      }
+    });
+  }
 
 
   openSupport(): void {

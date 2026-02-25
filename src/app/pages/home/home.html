@@ -3,47 +3,31 @@
         <section class="view-container">
             <div class="slider-wrapper">
                 <div class="main-slider">
-                    <input type="radio" name="slider" id="slide1" checked>
-                    <input type="radio" name="slider" id="slide2">
-                    <input type="radio" name="slider" id="slide3">
-
-                    <div class="slide-item">
-                        <div class="slide-bg" style="background-image: url('banner/banner1.jpg');"></div>
+                    <div
+                        class="slide-item"
+                        *ngFor="let banner of banners; let i = index"
+                        [class.active]="i === currentBannerIndex"
+                    >
+                        <div class="slide-bg" [style.background-image]="'url(' + getBannerImageUrl(banner) + ')'"></div>
                         <div class="slide-overlay"></div>
                         <div class="slide-content">
                             <span class="badge">Información</span>
-                            <h2>Texto para UX</h2>
-                            <p>Explicar que dice la imagen.</p>
-                            <button class="btn-slider">Llamada a la acción</button>
-                        </div>
-                    </div>
-
-                    <div class="slide-item">
-                        <div class="slide-bg" style="background-image: url('banner/banner2.jpg');"></div>
-                        <div class="slide-overlay"></div>
-                        <div class="slide-content">
-                            <span class="badge">Información</span>
-                            <h2>Texto para UX</h2>
-                            <p>Explicar que dice la imagen.</p>
-                            <button class="btn-slider">Llamada a la acción</button>
-                        </div>
-                    </div>
-
-                    <div class="slide-item">
-                        <div class="slide-bg" style="background-image: url('banner/banner3.jpg');"></div>
-                        <div class="slide-overlay"></div>
-                        <div class="slide-content">
-                            <span class="badge">Información</span>
-                            <h2>Texto para UX</h2>
-                            <p>Explicar que dice la imagen.</p>
-                            <button class="btn-slider">Llamada a la acción</button>
+                            <h2>{{ getBannerTitle(banner) }}</h2>
+                            <p>{{ getBannerSubtitle(banner) }}</p>
+                            <button class="btn-slider" type="button" *ngIf="banner.urlDestino" (click)="openBannerLink(banner)">
+                              Ver más
+                            </button>
                         </div>
                     </div>
 
                     <div class="slider-controls">
-                        <label for="slide1"></label>
-                        <label for="slide2"></label>
-                        <label for="slide3"></label>
+                        <button
+                          type="button"
+                          *ngFor="let _ of banners; let i = index"
+                          [class.active]="i === currentBannerIndex"
+                          (click)="goToBanner(i)"
+                          [attr.aria-label]="'Cambiar a banner ' + (i + 1)"
+                        ></button>
                     </div>
                 </div>
             </div>
@@ -51,22 +35,22 @@
                 <div class="stat-card">
                     <div class="stat-icon blue"><i class="fa-solid fa-users"></i></div>
                     <div class="stat-info">
-                        <h3>1,250</h3>
+                        <h3>{{ stats.usuariosActivos | number }}</h3>
                         <p>Usuarios Activos</p>
                     </div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-icon green"><i class="fa-solid fa-file-circle-check"></i></div>
                     <div class="stat-info">
-                        <h3>85</h3>
-                        <p>Reportes Generados</p>
+                        <h3>{{ stats.reportesGenerados | number }}</h3>
+                        <p>Reportes del Mes</p>
                     </div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-icon orange"><i class="fa-solid fa-triangle-exclamation"></i></div>
                     <div class="stat-info">
-                        <h3>12</h3>
-                        <p>Alertas de Sistema</p>
+                        <h3>{{ stats.alertasSistema | number }}</h3>
+                        <p>Roles por Vencer (7 días)</p>
                     </div>
                 </div>
             </div>
@@ -78,15 +62,13 @@
                 <hr>
 
                 <div class="video-box">
-                <!-- Puedes usar YouTube/Vimeo o un mp4. Aquí ejemplo YouTube -->
-                <iframe
-                    class="video-frame"
-                    src="https://www.youtube.com/embed/OiUyIkkVeQc?si=JTrpW5f8ZsxrGRbi"
-                    title="Video institucional"
-                    frameborder="0"
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                    allowfullscreen>
-                </iframe>
+                  <video class="video-frame" controls preload="metadata" *ngIf="videoUnidadUrl; else noVideoTpl">
+                    <source [src]="videoUnidadUrl" type="video/mp4" />
+                    Tu navegador no soporta reproducción de video.
+                  </video>
+                  <ng-template #noVideoTpl>
+                    <div class="news-state" style="margin: 15px;">No hay video institucional configurado.</div>
+                  </ng-template>
                 </div>
 
                 <p class="video-caption">

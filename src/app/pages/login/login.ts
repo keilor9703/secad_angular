@@ -1,8 +1,10 @@
-import { Component } from '@angular/core';
+import { Component, OnDestroy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
 import { AuthService } from '../../core/auth/auth.service';
+import { LoginVisualPublicItem, LoginVisualService } from '../../core/services/login-visual.service';
+import { BrandingService } from '../../core/services/branding.service';
 
 @Component({
   selector: 'app-login',
@@ -11,18 +13,101 @@ import { AuthService } from '../../core/auth/auth.service';
   templateUrl: './login.html',
   styleUrls: ['./login.scss']
 })
-export class LoginComponent {
+export class LoginComponent implements OnInit, OnDestroy {
+  systemName = 'SISGE';
+  logoUrl = '/escudo.png';
   usuario = '';
   contrasena = '';
   showPassword = false;
   isLoading = false;
   errorMessage = '';
+  slides: LoginVisualPublicItem[] = [];
+  currentSlideIndex = 0;
   private loginTimeoutHandle: any = null;
+  private slideTimerHandle: any = null;
 
   constructor(
     private authService: AuthService,
-    private router: Router
+    private router: Router,
+    private loginVisualService: LoginVisualService,
+    private brandingService: BrandingService
   ) {}
+
+  ngOnInit(): void {
+    this.loadBranding();
+    this.loadLoginBackgrounds();
+  }
+
+  ngOnDestroy(): void {
+    if (this.loginTimeoutHandle) {
+      clearTimeout(this.loginTimeoutHandle);
+    }
+    if (this.slideTimerHandle) {
+      clearInterval(this.slideTimerHandle);
+    }
+  }
+
+  loadLoginBackgrounds(): void {
+    this.loginVisualService.getPublicConfig().subscribe({
+      next: (config) => {
+        const items = (config?.items ?? [])
+          .filter((x) => !!x?.url)
+          .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+
+        if (items.length === 0) {
+          this.applyFallbackSlides();
+          return;
+        }
+
+        this.slides = items;
+        this.currentSlideIndex = 0;
+        this.startSlideRotation(Number(config?.intervalMs ?? 6000));
+      },
+      error: () => {
+        this.applyFallbackSlides();
+      }
+    });
+  }
+
+  private loadBranding(): void {
+    this.brandingService.getPublicConfig().subscribe({
+      next: (cfg) => {
+        const name = (cfg?.systemName ?? '').trim();
+        this.systemName = name || 'SISGE';
+        this.logoUrl = (cfg?.logoUrl ?? '').trim() || '/escudo.png';
+      },
+      error: () => {
+        this.systemName = 'SISGE';
+        this.logoUrl = '/escudo.png';
+      }
+    });
+  }
+
+  private applyFallbackSlides(): void {
+    this.slides = [
+      { fileName: 'banner1.jpg', url: '/background/banner1.jpg', order: 1 },
+      { fileName: 'banner2.jpg', url: '/background/banner2.jpg', order: 2 },
+      { fileName: 'banner3.jpg', url: '/background/banner3.jpg', order: 3 }
+    ];
+    this.currentSlideIndex = 0;
+    this.startSlideRotation(6000);
+  }
+
+  private startSlideRotation(intervalMs: number): void {
+    if (this.slideTimerHandle) {
+      clearInterval(this.slideTimerHandle);
+      this.slideTimerHandle = null;
+    }
+
+    if (!this.slides || this.slides.length <= 1) {
+      return;
+    }
+
+    const safeInterval = Number.isFinite(intervalMs) && intervalMs >= 1500 ? intervalMs : 6000;
+    this.slideTimerHandle = setInterval(() => {
+      this.currentSlideIndex = (this.currentSlideIndex + 1) % this.slides.length;
+    }, safeInterval);
+  }
 
   onSubmit(): void {
     this.errorMessage = '';

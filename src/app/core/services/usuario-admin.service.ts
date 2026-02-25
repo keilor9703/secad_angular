@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { forkJoin, map, Observable, of } from 'rxjs';
+import { forkJoin, map, Observable, of, switchMap } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 import { environment } from '../../../environments/environment';
 
@@ -16,8 +16,21 @@ export interface DtoFuncionario {
   siglaFisica?: string | null;
   siglaLaborando?: string | null;
   nombreGrado?: string | null;
+  gradAlfabetico?: string | null;
+  funcionarioCodigo?: string | null;
+  undeLaborandoCodigo?: string | null;
+  codigoCargo?: string | null;
   cargo?: string | null;
   activo?: boolean;
+}
+
+export interface DtoRolAsignado {
+  id: number;
+  rol?: string | null;
+  fechaInicio?: string | null;
+  fechaFin?: string | null;
+  estado?: string | null;
+  justificacion?: string | null;
 }
 
 export interface DtoRolCatalogo {
@@ -28,7 +41,43 @@ export interface DtoRolCatalogo {
 export interface UsuarioConsultaResult {
   funcionario: DtoFuncionario;
   fotoBase64: string | null;
-  roles: DtoRolCatalogo[];
+  rolesAsignados: DtoRolAsignado[];
+  rolesCatalogo: DtoRolCatalogo[];
+}
+
+export interface SaveUsuarioRequest {
+  username: string;
+  identificacion: string;
+  nombres: string;
+  apellidos: string;
+  email: string;
+  gradAlfabetico: string;
+  funcionario: string;
+  undeLaborando: string;
+  codigoCargo: string;
+  activo: boolean;
+}
+
+export interface SaveUsuarioResponse {
+  success: boolean;
+  idUsuario: number;
+  message: string;
+}
+
+export interface AsignarRolRequest {
+  usuarioId: number;
+  usuario: string;
+  identificacion: string;
+  rolId: number;
+  justificacion: string;
+  fechaFin: string;
+  vigente: number;
+}
+
+export interface AsignarRolResponse {
+  success: boolean;
+  idRolUserAdmin?: number;
+  message: string;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -39,22 +88,48 @@ export class UsuarioAdminService {
 
   consultarUsuarioPorIdentificacion(identificacion: string): Observable<UsuarioConsultaResult> {
     const id = identificacion.trim();
-
-    return forkJoin({
-      funcionario: this.http.get<DtoFuncionario>(`${this.baseUrl}/Funcionario`, {
+    return this.http
+      .get<DtoFuncionario>(`${this.baseUrl}/Funcionario`, {
         params: { identificacion: id }
-      }),
-      fotoBase64: this.http
-        .get(`${this.baseUrl}/Foto`, {
-          params: { identificacion: id },
-          responseType: 'text'
+      })
+      .pipe(
+        map((funcionario) => funcionario ?? {}),
+        // Con el usuario empresarial ya resuelto, pedimos datos complementarios en paralelo.
+        // Esto evita consultar roles asignados sin conocer el username real en DB.
+        switchMap((funcionario) => {
+          const usuario = (funcionario.usuario ?? '').trim();
+          return forkJoin({
+            funcionario: of(funcionario),
+            fotoBase64: this.http
+              .get(`${this.baseUrl}/Foto`, {
+                params: { identificacion: id },
+                responseType: 'text'
+              })
+              .pipe(
+                map((raw) => this.normalizeFotoResponse(raw)),
+                catchError(() => of(null))
+              ),
+            rolesAsignados: usuario
+              ? this.http
+                  .get<DtoRolAsignado[]>(`${this.baseUrl}/RolesAsignados`, {
+                    params: { usuario }
+                  })
+                  .pipe(catchError(() => of([])))
+              : of([]),
+            rolesCatalogo: this.http
+              .get<DtoRolCatalogo[]>(`${this.baseUrl}/Roles`)
+              .pipe(catchError(() => of([])))
+          });
         })
-        .pipe(
-          map((raw) => this.normalizeFotoResponse(raw)),
-          catchError(() => of(null))
-        ),
-      roles: this.http.get<DtoRolCatalogo[]>(`${this.baseUrl}/Roles`).pipe(catchError(() => of([])))
-    });
+      );
+  }
+
+  guardarUsuario(payload: SaveUsuarioRequest): Observable<SaveUsuarioResponse> {
+    return this.http.post<SaveUsuarioResponse>(this.baseUrl, payload);
+  }
+
+  asignarRol(payload: AsignarRolRequest): Observable<AsignarRolResponse> {
+    return this.http.post<AsignarRolResponse>(`${this.baseUrl}/Roles`, payload);
   }
 
   private normalizeFotoResponse(raw: string | null): string | null {

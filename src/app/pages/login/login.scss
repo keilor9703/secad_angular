@@ -31,28 +31,11 @@ body, input, button, textarea, select, label, p, h1, h2, h3, h4, h5, h6, a, span
     background-size: cover;
     background-position: center;
     opacity: 0;
-    animation: carouselAnim 15s infinite;
+    transition: opacity .9s ease-in-out;
 }
 
-/* Tiempos del carrusel (3 imágenes) */
-.slide:nth-child(1) { 
-    animation-delay: 0s; 
-}
-
-.slide:nth-child(2) { 
-    animation-delay: 5s; 
-}
-
-.slide:nth-child(3) { 
-    animation-delay: 10s; 
-}
-
-@keyframes carouselAnim {
-    0% { opacity: 0; }
-    10% { opacity: 1; }
-    33% { opacity: 1; }
-    43% { opacity: 0; }
-    100% { opacity: 0; }
+.slide.active {
+    opacity: 1;
 }
 
 /* Contenedor Glassmorphism */
