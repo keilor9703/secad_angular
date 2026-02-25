@@ -30,6 +30,74 @@
     "ReturnTypes": []
   },
   {
+    "ContainingType": "ofic.Controllers.BrandingController",
+    "Method": "GetAdminConfig",
+    "RelativePath": "api/Branding/admin-config",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "ofic.Controllers.BrandingController",
+    "Method": "GetPublicConfig",
+    "RelativePath": "api/Branding/config",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "ofic.Controllers.BrandingController",
+    "Method": "GetLogo",
+    "RelativePath": "api/Branding/logo/{fileName}",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "fileName",
+        "Type": "System.String",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "ofic.Controllers.BrandingController",
+    "Method": "SaveConfig",
+    "RelativePath": "api/Branding/save-config",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "request",
+        "Type": "ofic.Controllers.BrandingSaveRequest",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "ofic.Controllers.BrandingController",
+    "Method": "UploadLogo",
+    "RelativePath": "api/Branding/upload-logo",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "File",
+        "Type": "Microsoft.AspNetCore.Http.IFormFile",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
     "ContainingType": "ofic.Controllers.CuentaController",
     "Method": "GetToken",
     "RelativePath": "api/Cuenta/Token",
@@ -40,6 +108,167 @@
       {
         "Name": "request",
         "Type": "Comun.Dtos.DtoTokenRequest",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "ofic.Controllers.HomeController",
+    "Method": "GetStats",
+    "RelativePath": "api/Home/stats",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "ofic.Controllers.LoginVisualController",
+    "Method": "Delete",
+    "RelativePath": "api/LoginVisual/{fileName}",
+    "HttpMethod": "DELETE",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "fileName",
+        "Type": "System.String",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "ofic.Controllers.LoginVisualController",
+    "Method": "GetAdminConfig",
+    "RelativePath": "api/LoginVisual/admin-config",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "ofic.Controllers.LoginVisualController",
+    "Method": "GetConfig",
+    "RelativePath": "api/LoginVisual/config",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "ofic.Controllers.LoginVisualController",
+    "Method": "GetFiles",
+    "RelativePath": "api/LoginVisual/files",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "ofic.Controllers.LoginVisualController",
+    "Method": "GetImage",
+    "RelativePath": "api/LoginVisual/image/{fileName}",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "fileName",
+        "Type": "System.String",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "ofic.Controllers.LoginVisualController",
+    "Method": "SaveConfig",
+    "RelativePath": "api/LoginVisual/save-config",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "request",
+        "Type": "ofic.Controllers.LoginVisualSaveConfigRequest",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "ofic.Controllers.LoginVisualController",
+    "Method": "Upload",
+    "RelativePath": "api/LoginVisual/upload",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "File",
+        "Type": "Microsoft.AspNetCore.Http.IFormFile",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "Api.Controllers.MenuController",
+    "Method": "GetAdminMenu",
+    "RelativePath": "api/menu/admin",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": [
+      {
+        "Type": "System.Collections.Generic.List\u00601[[Comun.Dtos.Menu.DtoMenuItem, Comun, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]]",
+        "MediaTypes": [
+          "text/plain",
+          "application/json",
+          "text/json"
+        ],
+        "StatusCode": 200
+      }
+    ]
+  },
+  {
+    "ContainingType": "Api.Controllers.MenuController",
+    "Method": "SaveMenu",
+    "RelativePath": "api/menu/admin",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "request",
+        "Type": "Comun.Dtos.Menu.DtoMenuSaveRequest",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "Api.Controllers.MenuController",
+    "Method": "SetEstado",
+    "RelativePath": "api/menu/admin/{idMenu}/estado",
+    "HttpMethod": "PATCH",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "idMenu",
+        "Type": "System.Int64",
+        "IsRequired": true
+      },
+      {
+        "Name": "request",
+        "Type": "Comun.Dtos.Menu.DtoMenuEstadoRequest",
         "IsRequired": true
       }
     ],
@@ -92,6 +321,90 @@
     ]
   },
   {
+    "ContainingType": "ofic.Controllers.SliderController",
+    "Method": "GetAdmin",
+    "RelativePath": "api/Slider",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "ofic.Controllers.SliderController",
+    "Method": "Save",
+    "RelativePath": "api/Slider",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "request",
+        "Type": "Comun.Dtos.Sliders.DtoSaveSliderRequest",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "ofic.Controllers.SliderController",
+    "Method": "SetEstado",
+    "RelativePath": "api/Slider/Estado",
+    "HttpMethod": "PATCH",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "request",
+        "Type": "Comun.Dtos.Sliders.DtoSetEstadoSliderRequest",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "ofic.Controllers.SliderController",
+    "Method": "GetImage",
+    "RelativePath": "api/Slider/Image/{fileName}",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "fileName",
+        "Type": "System.String",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "ofic.Controllers.SliderController",
+    "Method": "GetPublicos",
+    "RelativePath": "api/Slider/Publicos",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "ofic.Controllers.SliderController",
+    "Method": "Upload",
+    "RelativePath": "api/Slider/Upload",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "File",
+        "Type": "Microsoft.AspNetCore.Http.IFormFile",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
     "ContainingType": "ofic.Controllers.UsuarioController",
     "Method": "SaveUsuario",
     "RelativePath": "api/Usuario",
@@ -141,6 +454,26 @@
   },
   {
     "ContainingType": "ofic.Controllers.UsuarioController",
+    "Method": "GetMiFoto",
+    "RelativePath": "api/Usuario/MiFoto",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "ofic.Controllers.UsuarioController",
+    "Method": "GetMiPerfil",
+    "RelativePath": "api/Usuario/MiPerfil",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "ofic.Controllers.UsuarioController",
     "Method": "GetRoles",
     "RelativePath": "api/Usuario/Roles",
     "HttpMethod": "GET",
@@ -177,6 +510,58 @@
         "Name": "rolId",
         "Type": "System.Int32",
         "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "ofic.Controllers.UsuarioController",
+    "Method": "GetRolesAsignados",
+    "RelativePath": "api/Usuario/RolesAsignados",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "usuario",
+        "Type": "System.String",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "ofic.Controllers.VideoUnidadController",
+    "Method": "GetCurrent",
+    "RelativePath": "api/VideoUnidad/current",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "ofic.Controllers.VideoUnidadController",
+    "Method": "StreamCurrentVideo",
+    "RelativePath": "api/VideoUnidad/stream",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "ofic.Controllers.VideoUnidadController",
+    "Method": "Upload",
+    "RelativePath": "api/VideoUnidad/upload",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "File",
+        "Type": "Microsoft.AspNetCore.Http.IFormFile",
+        "IsRequired": false
       }
     ],
     "ReturnTypes": []
