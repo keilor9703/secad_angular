@@ -3,6 +3,8 @@ using Datos.Interfaz;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.StaticFiles;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Hosting;
 using System.Security.Claims;
 
 namespace ofic.Controllers
@@ -17,19 +19,25 @@ namespace ofic.Controllers
     [Authorize]
 public class SliderController : ControllerBase
 {
-    private const string BannerRootPath = @"C:\SISGE\banner";
     private readonly IDbSliders _dbSliders;
     private readonly IDbUsuarioRepository _dbUsuarioRepository;
     private readonly ILogger<SliderController> _logger;
+    private readonly string _bannerRootPath;
 
     public SliderController(
         IDbSliders dbSliders,
         IDbUsuarioRepository dbUsuarioRepository,
+        IConfiguration configuration,
+        IHostEnvironment environment,
         ILogger<SliderController> logger)
     {
         _dbSliders = dbSliders;
         _dbUsuarioRepository = dbUsuarioRepository;
         _logger = logger;
+        _bannerRootPath = ResolveStoragePath(
+            configuration,
+            "Storage:SliderPath",
+            Path.Combine(environment.ContentRootPath, "uploads", "sliders"));
     }
 
         [HttpGet("Publicos")]
@@ -159,7 +167,7 @@ public class SliderController : ControllerBase
                     return BadRequest(new { success = false, message = "Formato inválido. Use JPG, PNG o WEBP." });
                 }
 
-                var uploadsDir = BannerRootPath;
+                var uploadsDir = _bannerRootPath;
                 Directory.CreateDirectory(uploadsDir);
 
                 var safeName = $"{Guid.NewGuid():N}{extension}";
@@ -203,7 +211,7 @@ public class SliderController : ControllerBase
                     return BadRequest(new { message = "Nombre de archivo inválido." });
                 }
 
-                var fullPath = Path.Combine(BannerRootPath, normalized);
+                var fullPath = Path.Combine(_bannerRootPath, normalized);
                 if (!System.IO.File.Exists(fullPath))
                 {
                     return NotFound();
@@ -319,6 +327,13 @@ public class SliderController : ControllerBase
             return HttpContext.Connection.RemoteIpAddress?.ToString()
                 ?? Environment.MachineName
                 ?? "N/A";
+        }
+
+        private static string ResolveStoragePath(IConfiguration configuration, string key, string fallback)
+        {
+            var configured = configuration[key];
+            var path = string.IsNullOrWhiteSpace(configured) ? fallback : configured.Trim();
+            return Path.GetFullPath(path);
         }
     }
 }

@@ -294,6 +294,9 @@ onItemTap(item: MenuItem, ev: MouseEvent) {
     if (normalized === '/usuarios') {
       return '/administracion/usuarios';
     }
+    if (normalized === '/roles') {
+      return '/administracion/roles';
+    }
     if (normalized === '/video-unidad') {
       return '/administracion/admin-multimedia';
     }
@@ -378,6 +381,7 @@ onItemTap(item: MenuItem, ev: MouseEvent) {
       route.startsWith('/administracion/') ||
       route === '/formularios' ||
       route === '/usuarios' ||
+      route === '/roles' ||
       route === '/video-unidad' ||
       route === '/configuracion-imagen-sitio' ||
       route === '/admin-multimedia'

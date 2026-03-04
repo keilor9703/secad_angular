@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.StaticFiles;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Hosting;
 using System.Text.Json;
 
 namespace ofic.Controllers
@@ -35,7 +37,6 @@ namespace ofic.Controllers
     [Route("api/[controller]")]
     public class LoginVisualController : ControllerBase
     {
-        private const string RootPath = @"C:\SISGE\login-backgrounds";
         private const long MaxImageBytes = 10 * 1024 * 1024; // 10MB
         private const string ManifestName = "manifest.json";
         private static readonly HashSet<string> AllowedExtensions = new(StringComparer.OrdinalIgnoreCase)
@@ -50,10 +51,18 @@ namespace ofic.Controllers
         };
 
         private readonly ILogger<LoginVisualController> _logger;
+        private readonly string _rootPath;
 
-        public LoginVisualController(ILogger<LoginVisualController> logger)
+        public LoginVisualController(
+            ILogger<LoginVisualController> logger,
+            IConfiguration configuration,
+            IHostEnvironment environment)
         {
             _logger = logger;
+            _rootPath = ResolveStoragePath(
+                configuration,
+                "Storage:LoginBackgroundsPath",
+                Path.Combine(environment.ContentRootPath, "uploads", "login"));
         }
 
         [HttpGet("config")]
@@ -80,7 +89,7 @@ namespace ofic.Controllers
             try
             {
                 EnsureStorage();
-                var files = Directory.GetFiles(RootPath)
+                var files = Directory.GetFiles(_rootPath)
                     .Select(Path.GetFileName)
                     .Where(name => !string.IsNullOrWhiteSpace(name))
                     .Where(name => !string.Equals(name, ManifestName, StringComparison.OrdinalIgnoreCase))
@@ -150,7 +159,7 @@ namespace ofic.Controllers
                     return BadRequest(new { message = "Formato de imagen inválido." });
                 }
 
-                var fullPath = Path.Combine(RootPath, safe);
+                var fullPath = Path.Combine(_rootPath, safe);
                 if (!System.IO.File.Exists(fullPath))
                 {
                     return NotFound();
@@ -199,7 +208,7 @@ namespace ofic.Controllers
 
                 EnsureStorage();
                 var safeName = $"login-{Guid.NewGuid():N}{extension}";
-                var fullPath = Path.Combine(RootPath, safeName);
+                var fullPath = Path.Combine(_rootPath, safeName);
 
                 await using (var stream = new FileStream(fullPath, FileMode.Create))
                 {
@@ -247,7 +256,7 @@ namespace ofic.Controllers
                     .Where(x => AllowedExtensions.Contains(Path.GetExtension(x.file)))
                     .ToList();
 
-                var fileSet = Directory.GetFiles(RootPath)
+                var fileSet = Directory.GetFiles(_rootPath)
                     .Select(Path.GetFileName)
                     .Where(name => !string.IsNullOrWhiteSpace(name))
                     .ToHashSet(StringComparer.OrdinalIgnoreCase);
@@ -286,7 +295,7 @@ namespace ofic.Controllers
                     return BadRequest(new { success = false, message = "Nombre de archivo inválido." });
                 }
 
-                var fullPath = Path.Combine(RootPath, safe);
+                var fullPath = Path.Combine(_rootPath, safe);
                 if (!System.IO.File.Exists(fullPath))
                 {
                     return NotFound(new { success = false, message = "Archivo no encontrado." });
@@ -314,14 +323,14 @@ namespace ofic.Controllers
             }
         }
 
-        private static void EnsureStorage()
+        private void EnsureStorage()
         {
-            Directory.CreateDirectory(RootPath);
+            Directory.CreateDirectory(_rootPath);
         }
 
-        private static string ManifestPath => Path.Combine(RootPath, ManifestName);
+        private string ManifestPath => Path.Combine(_rootPath, ManifestName);
 
-        private static LoginVisualConfig ReadConfig()
+        private LoginVisualConfig ReadConfig()
         {
             if (System.IO.File.Exists(ManifestPath))
             {
@@ -335,7 +344,7 @@ namespace ofic.Controllers
             }
 
             // Fallback: si no existe manifest, crea una config automática con lo que exista en carpeta.
-            var files = Directory.GetFiles(RootPath)
+            var files = Directory.GetFiles(_rootPath)
                 .Select(Path.GetFileName)
                 .Where(name => !string.IsNullOrWhiteSpace(name))
                 .Where(name => !string.Equals(name, ManifestName, StringComparison.OrdinalIgnoreCase))
@@ -357,10 +366,17 @@ namespace ofic.Controllers
             return cfg;
         }
 
-        private static void WriteConfig(LoginVisualConfig config)
+        private void WriteConfig(LoginVisualConfig config)
         {
             var json = JsonSerializer.Serialize(config, JsonOptions);
             System.IO.File.WriteAllText(ManifestPath, json);
+        }
+
+        private static string ResolveStoragePath(IConfiguration configuration, string key, string fallback)
+        {
+            var configured = configuration[key];
+            var path = string.IsNullOrWhiteSpace(configured) ? fallback : configured.Trim();
+            return Path.GetFullPath(path);
         }
 
         private static object BuildPublicConfig(LoginVisualConfig config)

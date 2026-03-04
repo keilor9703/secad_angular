@@ -1,0 +1,124 @@
+<section class="roles-admin-page" *ngIf="visible">
+  <div class="ui-panel">
+    <div class="ui-panel__head">
+      <div class="ui-panel__title">
+        <i class="fa-solid fa-user-shield"></i>
+        Administración de Roles
+      </div>
+
+      <div class="ui-panel__actions ui-window-controls">
+        <button class="ui-icon-btn ui-win-btn is-min" type="button" title="Minimizar" (click)="toggleMinimize()">
+          <i class="fa-solid fa-minus"></i>
+        </button>
+      </div>
+    </div>
+
+    <div class="ui-panel__body" *ngIf="!minimized">
+      <div class="roles-grid">
+        <article class="tab-card form-card">
+          <h3>{{ editingId ? 'Editar rol' : 'Nuevo rol' }}</h3>
+
+          <div class="ui-grid">
+            <div class="ui-field ui-col-12">
+              <label class="ui-label">Descripción del rol</label>
+              <input class="ui-control" type="text" [(ngModel)]="form.nombre" maxlength="255">
+            </div>
+
+            <div class="ui-field ui-col-12">
+              <label class="ui-label">Vigente</label>
+              <select class="ui-control" [(ngModel)]="form.vigente">
+                <option [ngValue]="1">Sí</option>
+                <option [ngValue]="0">No</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="tab-actions">
+            <button class="ui-btn secondary" type="button" (click)="nuevo()">Limpiar</button>
+            <button class="ui-btn primary" type="button" (click)="guardar()" [disabled]="saving">
+              <i class="fa-solid fa-floppy-disk"></i>
+              {{ saving ? 'Guardando...' : 'Guardar' }}
+            </button>
+          </div>
+        </article>
+
+        <article class="tab-card list-card">
+          <h3>Roles registrados</h3>
+
+          <div class="list-loading" *ngIf="loading">Cargando roles...</div>
+
+          <div class="role-list" *ngIf="!loading && roles.length > 0">
+            <div class="role-item" *ngFor="let item of roles">
+              <div class="role-item__content">
+                <strong>{{ item.nombre || ('Rol ' + item.id) }}</strong>
+                <span class="meta">ID: {{ item.id }}</span>
+                <span class="meta">Vigente: {{ item.vigente === 1 ? 'Sí' : 'No' }}</span>
+              </div>
+
+              <div class="role-item__actions">
+                <button class="ui-btn secondary" type="button" (click)="editar(item)">Editar</button>
+                <button class="ui-btn secondary" type="button" (click)="seleccionarRolPermisos(item)">Permisos</button>
+                <button
+                  class="ui-btn"
+                  [class.primary]="item.vigente === 0"
+                  [class.secondary]="item.vigente === 1"
+                  type="button"
+                  (click)="cambiarEstado(item)"
+                >
+                  {{ item.vigente === 1 ? 'Inactivar' : 'Activar' }}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="news-state" *ngIf="!loading && roles.length === 0">
+            No hay roles registrados.
+          </div>
+        </article>
+
+        <article class="tab-card permissions-card">
+          <h3>Permisos de menú por rol</h3>
+          <p class="meta">Rol seleccionado: <strong>{{ selectedRoleName }}</strong></p>
+
+          <div class="ui-grid">
+            <div class="ui-field ui-col-8">
+              <label class="ui-label">Menú disponible</label>
+              <select class="ui-control" [(ngModel)]="selectedMenuId" [disabled]="!selectedRoleId || availableMenus.length === 0">
+                <option [ngValue]="null">Selecciona un menú...</option>
+                <option *ngFor="let menu of availableMenus" [ngValue]="menu.idMenu">
+                  {{ formatMenuLabel(menu) }}
+                </option>
+              </select>
+            </div>
+
+            <div class="ui-field ui-col-4 role-menu-action">
+              <button class="ui-btn primary" type="button" (click)="asignarMenu()" [disabled]="savingRoleMenu || !selectedRoleId">
+                <i class="fa-solid fa-plus"></i>
+                {{ savingRoleMenu ? 'Asignando...' : 'Asignar menú' }}
+              </button>
+            </div>
+          </div>
+
+          <div class="list-loading" *ngIf="loadingRoleMenus">Consultando menús del rol...</div>
+
+          <div class="role-menu-list" *ngIf="!loadingRoleMenus && roleMenus.length > 0">
+            <div class="role-menu-item" *ngFor="let item of roleMenus">
+              <div class="role-menu-item__content">
+                <strong>{{ item.descripcionMenu }}</strong>
+                <span class="meta">ID menú: {{ item.idMenu }} · Tipo: {{ item.tipo || 'N/A' }}</span>
+              </div>
+
+              <button class="ui-btn secondary" type="button" (click)="quitarMenu(item)">
+                Quitar
+              </button>
+            </div>
+          </div>
+
+          <div class="news-state" *ngIf="!loadingRoleMenus && selectedRoleId && roleMenus.length === 0">
+            El rol no tiene menús asignados.
+          </div>
+        </article>
+      </div>
+    </div>
+  </div>
+</section>

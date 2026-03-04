@@ -42,4 +42,37 @@ namespace Comun.Dtos.Menu
         public long Id { get; set; }
         public string Message { get; set; } = string.Empty;
     }
+
+    public class DtoMenuRolCatalogItem
+    {
+        public int IdRol { get; set; }
+        public string Descripcion { get; set; } = string.Empty;
+    }
+
+    public class DtoMenuRolItem
+    {
+        public long IdMenuRol { get; set; }
+        public int IdRol { get; set; }
+        public string DescripcionRol { get; set; } = string.Empty;
+    }
+
+    public class DtoAssignMenuRolRequest
+    {
+        public int IdRol { get; set; }
+    }
+
+    public class DtoRoleMenuItem
+    {
+        public long IdMenu { get; set; }
+        public string DescripcionMenu { get; set; } = string.Empty;
+        public long IdPadre { get; set; }
+        public int Posicion { get; set; }
+        public string Tipo { get; set; } = string.Empty;
+        public string? Detalle { get; set; }
+    }
+
+    public class DtoAssignRoleMenuRequest
+    {
+        public long IdMenu { get; set; }
+    }
 }

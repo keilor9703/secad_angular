@@ -519,5 +519,137 @@ namespace ofic.Controllers
                 return StatusCode(500, new { message = "Error al eliminar rol" });
             }
         }
+
+        [HttpGet("Roles/Admin")]
+        public async Task<IActionResult> GetRolesAdmin()
+        {
+            try
+            {
+                var roles = await _dbUsuarioRepository.GetRolesAdminAsync(HttpContext.RequestAborted);
+                return Ok(roles);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error consultando administración de roles");
+                return StatusCode(500, new { success = false, message = "Error al consultar roles." });
+            }
+        }
+
+        [HttpPost("Roles/Admin")]
+        public async Task<IActionResult> SaveRolAdmin([FromBody] DtoSaveRolRequest request)
+        {
+            try
+            {
+                if (request is null)
+                {
+                    return BadRequest(new { success = false, message = "Payload inválido." });
+                }
+
+                var usuarioAuditoria = await ResolveUsuarioAuditoriaAsync(
+                    User,
+                    null,
+                    HttpContext.RequestAborted);
+
+                var maquinaAuditoria =
+                    HttpContext.Connection.RemoteIpAddress?.ToString()
+                    ?? Environment.MachineName
+                    ?? "N/A";
+
+                var result = await _dbUsuarioRepository.SaveRolAdminAsync(
+                    request,
+                    usuarioAuditoria,
+                    maquinaAuditoria,
+                    HttpContext.RequestAborted);
+
+                if (result.idRol <= 0)
+                {
+                    return BadRequest(new
+                    {
+                        success = false,
+                        message = string.IsNullOrWhiteSpace(result.message)
+                            ? "No fue posible guardar el rol."
+                            : result.message
+                    });
+                }
+
+                return Ok(new
+                {
+                    success = true,
+                    idRol = result.idRol,
+                    message = string.IsNullOrWhiteSpace(result.message)
+                        ? "Rol guardado correctamente."
+                        : result.message
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error guardando rol");
+                return StatusCode(500, new
+                {
+                    success = false,
+                    message = "Error al guardar rol",
+                    detail = ex.Message
+                });
+            }
+        }
+
+        [HttpPatch("Roles/Admin/{idRol:int}/Estado")]
+        public async Task<IActionResult> SetRolEstado(int idRol, [FromBody] DtoSetRolEstadoRequest request)
+        {
+            try
+            {
+                if (idRol <= 0)
+                {
+                    return BadRequest(new { success = false, message = "Id de rol inválido." });
+                }
+
+                var usuarioAuditoria = await ResolveUsuarioAuditoriaAsync(
+                    User,
+                    null,
+                    HttpContext.RequestAborted);
+
+                var maquinaAuditoria =
+                    HttpContext.Connection.RemoteIpAddress?.ToString()
+                    ?? Environment.MachineName
+                    ?? "N/A";
+
+                var result = await _dbUsuarioRepository.SetRolEstadoAsync(
+                    idRol,
+                    request?.vigente ?? 0,
+                    usuarioAuditoria,
+                    maquinaAuditoria,
+                    HttpContext.RequestAborted);
+
+                if (result.idRol <= 0)
+                {
+                    return BadRequest(new
+                    {
+                        success = false,
+                        message = string.IsNullOrWhiteSpace(result.message)
+                            ? "No fue posible actualizar el estado del rol."
+                            : result.message
+                    });
+                }
+
+                return Ok(new
+                {
+                    success = true,
+                    idRol = result.idRol,
+                    message = string.IsNullOrWhiteSpace(result.message)
+                        ? "Estado del rol actualizado."
+                        : result.message
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error actualizando estado del rol. idRol={IdRol}", idRol);
+                return StatusCode(500, new
+                {
+                    success = false,
+                    message = "Error al actualizar estado del rol",
+                    detail = ex.Message
+                });
+            }
+        }
     }
 }

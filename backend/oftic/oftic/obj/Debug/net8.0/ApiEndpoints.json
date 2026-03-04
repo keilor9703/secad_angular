@@ -276,6 +276,132 @@
   },
   {
     "ContainingType": "Api.Controllers.MenuController",
+    "Method": "GetRolesByMenu",
+    "RelativePath": "api/menu/admin/{idMenu}/roles",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "idMenu",
+        "Type": "System.Int64",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "Api.Controllers.MenuController",
+    "Method": "AssignRolToMenu",
+    "RelativePath": "api/menu/admin/{idMenu}/roles",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "idMenu",
+        "Type": "System.Int64",
+        "IsRequired": true
+      },
+      {
+        "Name": "request",
+        "Type": "Comun.Dtos.Menu.DtoAssignMenuRolRequest",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "Api.Controllers.MenuController",
+    "Method": "RemoveRolFromMenu",
+    "RelativePath": "api/menu/admin/{idMenu}/roles/{idRol}",
+    "HttpMethod": "DELETE",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "idMenu",
+        "Type": "System.Int64",
+        "IsRequired": true
+      },
+      {
+        "Name": "idRol",
+        "Type": "System.Int32",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "Api.Controllers.MenuController",
+    "Method": "GetRolesCatalog",
+    "RelativePath": "api/menu/admin/roles",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "Api.Controllers.MenuController",
+    "Method": "GetMenusByRol",
+    "RelativePath": "api/menu/admin/roles/{idRol}/menus",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "idRol",
+        "Type": "System.Int32",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "Api.Controllers.MenuController",
+    "Method": "AssignMenuToRol",
+    "RelativePath": "api/menu/admin/roles/{idRol}/menus",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "idRol",
+        "Type": "System.Int32",
+        "IsRequired": true
+      },
+      {
+        "Name": "request",
+        "Type": "Comun.Dtos.Menu.DtoAssignRoleMenuRequest",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "Api.Controllers.MenuController",
+    "Method": "RemoveMenuFromRol",
+    "RelativePath": "api/menu/admin/roles/{idRol}/menus/{idMenu}",
+    "HttpMethod": "DELETE",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "idRol",
+        "Type": "System.Int32",
+        "IsRequired": true
+      },
+      {
+        "Name": "idMenu",
+        "Type": "System.Int64",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "Api.Controllers.MenuController",
     "Method": "GetByUser",
     "RelativePath": "api/menu/by-user/{idUsuario}",
     "HttpMethod": "GET",
@@ -509,6 +635,53 @@
       {
         "Name": "rolId",
         "Type": "System.Int32",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "ofic.Controllers.UsuarioController",
+    "Method": "GetRolesAdmin",
+    "RelativePath": "api/Usuario/Roles/Admin",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "ofic.Controllers.UsuarioController",
+    "Method": "SaveRolAdmin",
+    "RelativePath": "api/Usuario/Roles/Admin",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "request",
+        "Type": "Comun.Dtos.DtoSaveRolRequest",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "ofic.Controllers.UsuarioController",
+    "Method": "SetRolEstado",
+    "RelativePath": "api/Usuario/Roles/Admin/{idRol}/Estado",
+    "HttpMethod": "PATCH",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "idRol",
+        "Type": "System.Int32",
+        "IsRequired": true
+      },
+      {
+        "Name": "request",
+        "Type": "Comun.Dtos.DtoSetRolEstadoRequest",
         "IsRequired": true
       }
     ],

@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.StaticFiles;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Hosting;
 
 namespace ofic.Controllers
 {
@@ -13,7 +15,6 @@ namespace ofic.Controllers
     [Route("api/[controller]")]
     public class VideoUnidadController : ControllerBase
     {
-        private const string VideoRootPath = @"C:\SISGE\videos";
         private const long MaxVideoBytes = 100 * 1024 * 1024; // 100MB
         private static readonly HashSet<string> AllowedExtensions = new(StringComparer.OrdinalIgnoreCase)
         {
@@ -21,10 +22,18 @@ namespace ofic.Controllers
         };
 
         private readonly ILogger<VideoUnidadController> _logger;
+        private readonly string _videoRootPath;
 
-        public VideoUnidadController(ILogger<VideoUnidadController> logger)
+        public VideoUnidadController(
+            ILogger<VideoUnidadController> logger,
+            IConfiguration configuration,
+            IHostEnvironment environment)
         {
             _logger = logger;
+            _videoRootPath = ResolveStoragePath(
+                configuration,
+                "Storage:VideoPath",
+                Path.Combine(environment.ContentRootPath, "uploads", "videos"));
         }
 
         [HttpGet("current")]
@@ -33,7 +42,7 @@ namespace ofic.Controllers
         {
             try
             {
-                Directory.CreateDirectory(VideoRootPath);
+                Directory.CreateDirectory(_videoRootPath);
                 var file = GetLatestVideoFile();
                 if (file is null)
                 {
@@ -69,7 +78,7 @@ namespace ofic.Controllers
         {
             try
             {
-                Directory.CreateDirectory(VideoRootPath);
+                Directory.CreateDirectory(_videoRootPath);
                 var file = GetLatestVideoFile();
                 if (file is null || !file.Exists)
                 {
@@ -117,16 +126,16 @@ namespace ofic.Controllers
                     return BadRequest(new { success = false, message = "Formato inválido. Use MP4, WEBM, OGG o MOV." });
                 }
 
-                Directory.CreateDirectory(VideoRootPath);
+                Directory.CreateDirectory(_videoRootPath);
 
                 // Eliminar videos previos para mantener solo un video activo.
-                foreach (var existing in Directory.GetFiles(VideoRootPath))
+                foreach (var existing in Directory.GetFiles(_videoRootPath))
                 {
                     System.IO.File.Delete(existing);
                 }
 
                 var safeName = $"video-unidad-{DateTime.UtcNow:yyyyMMddHHmmss}{extension}";
-                var fullPath = Path.Combine(VideoRootPath, safeName);
+                var fullPath = Path.Combine(_videoRootPath, safeName);
 
                 await using (var stream = new FileStream(fullPath, FileMode.Create, FileAccess.Write, FileShare.None))
                 {
@@ -149,15 +158,22 @@ namespace ofic.Controllers
             }
         }
 
-        private static FileInfo? GetLatestVideoFile()
+        private FileInfo? GetLatestVideoFile()
         {
-            var files = Directory.GetFiles(VideoRootPath)
+            var files = Directory.GetFiles(_videoRootPath)
                 .Select(path => new FileInfo(path))
                 .Where(f => AllowedExtensions.Contains(f.Extension))
                 .OrderByDescending(f => f.LastWriteTimeUtc)
                 .ToList();
 
             return files.Count > 0 ? files[0] : null;
+        }
+
+        private static string ResolveStoragePath(IConfiguration configuration, string key, string fallback)
+        {
+            var configured = configuration[key];
+            var path = string.IsNullOrWhiteSpace(configured) ? fallback : configured.Trim();
+            return Path.GetFullPath(path);
         }
     }
 }

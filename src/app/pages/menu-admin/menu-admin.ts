@@ -3,6 +3,8 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import {
   DbMenuItem,
+  MenuRolCatalogItem,
+  MenuRolItem,
   MenuSaveRequest,
   MenuService
 } from '../../core/services/menu.service';
@@ -24,6 +26,12 @@ export class MenuAdminComponent implements OnInit {
   menuItems: DbMenuItem[] = [];
   parentOptions: DbMenuItem[] = [];
   expandedParents = new Set<number>();
+  selectedMenuForRoles: DbMenuItem | null = null;
+  rolesCatalog: MenuRolCatalogItem[] = [];
+  rolesAsignados: MenuRolItem[] = [];
+  selectedRolId: number | null = null;
+  loadingRoles = false;
+  savingRole = false;
   editingId: number | null = null;
 
   form: MenuSaveRequest = this.getDefaultForm();
@@ -55,6 +63,9 @@ export class MenuAdminComponent implements OnInit {
           .slice()
           .sort((a, b) => a.descripcion.localeCompare(b.descripcion));
         this.expandedParents.clear();
+        this.selectedMenuForRoles = null;
+        this.rolesAsignados = [];
+        this.selectedRolId = null;
         this.loading = false;
       },
       error: (err) => {
@@ -131,6 +142,94 @@ export class MenuAdminComponent implements OnInit {
       },
       error: (err) => {
         this.toast.error('Menú', err?.error?.detail ?? err?.error?.message ?? 'Error actualizando estado.');
+      }
+    });
+  }
+
+  gestionarRoles(item: DbMenuItem): void {
+    this.selectedMenuForRoles = item;
+    this.selectedRolId = null;
+    this.loadRolesPanel(item.idMenu);
+  }
+
+  cargarCatalogoRoles(): void {
+    this.menuService.getRolesCatalog().subscribe({
+      next: (roles) => {
+        this.rolesCatalog = (roles ?? []).slice().sort((a, b) => a.descripcion.localeCompare(b.descripcion));
+      },
+      error: (err) => {
+        this.rolesCatalog = [];
+        this.toast.error('Roles menú', err?.error?.message ?? 'No fue posible cargar el catálogo de roles.');
+      }
+    });
+  }
+
+  loadRolesPanel(idMenu: number): void {
+    this.loadingRoles = true;
+
+    if (this.rolesCatalog.length === 0) {
+      this.cargarCatalogoRoles();
+    }
+
+    this.menuService.getRolesByMenu(idMenu).subscribe({
+      next: (data) => {
+        this.rolesAsignados = (data ?? []).slice().sort((a, b) => a.descripcionRol.localeCompare(b.descripcionRol));
+        this.loadingRoles = false;
+      },
+      error: (err) => {
+        this.rolesAsignados = [];
+        this.loadingRoles = false;
+        this.toast.error('Roles menú', err?.error?.message ?? 'No fue posible consultar roles del menú.');
+      }
+    });
+  }
+
+  asignarRolMenu(): void {
+    if (!this.selectedMenuForRoles) {
+      this.toast.warning('Roles menú', 'Selecciona un menú para gestionar roles.');
+      return;
+    }
+
+    if (!this.selectedRolId || this.selectedRolId <= 0) {
+      this.toast.warning('Roles menú', 'Selecciona un rol.');
+      return;
+    }
+
+    this.savingRole = true;
+    this.menuService.assignRolToMenu(this.selectedMenuForRoles.idMenu, { idRol: this.selectedRolId }).subscribe({
+      next: (resp) => {
+        this.savingRole = false;
+        if (!resp?.success) {
+          this.toast.warning('Roles menú', resp?.message || 'No fue posible asignar el rol.');
+          return;
+        }
+        this.toast.success('Roles menú', resp.message || 'Rol asignado correctamente.');
+        this.selectedRolId = null;
+        this.loadRolesPanel(this.selectedMenuForRoles!.idMenu);
+      },
+      error: (err) => {
+        this.savingRole = false;
+        this.toast.error('Roles menú', err?.error?.detail ?? err?.error?.message ?? 'Error asignando rol.');
+      }
+    });
+  }
+
+  quitarRolMenu(item: MenuRolItem): void {
+    if (!this.selectedMenuForRoles) {
+      return;
+    }
+
+    this.menuService.removeRolFromMenu(this.selectedMenuForRoles.idMenu, item.idRol).subscribe({
+      next: (resp) => {
+        if (!resp?.success) {
+          this.toast.warning('Roles menú', resp?.message || 'No fue posible quitar el rol.');
+          return;
+        }
+        this.toast.success('Roles menú', resp.message || 'Rol retirado del menú.');
+        this.loadRolesPanel(this.selectedMenuForRoles!.idMenu);
+      },
+      error: (err) => {
+        this.toast.error('Roles menú', err?.error?.detail ?? err?.error?.message ?? 'Error retirando rol.');
       }
     });
   }

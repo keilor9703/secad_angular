@@ -100,6 +100,7 @@
                     (click)="toggleChildren(parent.idMenu)">
                     {{ isExpanded(parent.idMenu) ? 'Ocultar hijos' : 'Ver hijos' }}
                   </button>
+                  <button class="ui-btn secondary" type="button" (click)="gestionarRoles(parent)">Roles</button>
                   <button class="ui-btn secondary" type="button" (click)="editar(parent)">Editar</button>
                   <button
                     class="ui-btn"
@@ -127,6 +128,7 @@
                   </div>
 
                   <div class="menu-item__actions">
+                    <button class="ui-btn secondary" type="button" (click)="gestionarRoles(child)">Roles</button>
                     <button class="ui-btn secondary" type="button" (click)="editar(child)">Editar</button>
                     <button
                       class="ui-btn"
@@ -145,6 +147,41 @@
 
           <div class="news-state" *ngIf="!loading && parentMenuItems.length === 0">
             No hay menús padre (idPadre = 1) registrados.
+          </div>
+
+          <div class="menu-roles-panel" *ngIf="selectedMenuForRoles">
+            <h3>Permisos por rol</h3>
+            <span class="meta">Menú seleccionado: {{ selectedMenuForRoles.descripcion }} (ID {{ selectedMenuForRoles.idMenu }})</span>
+
+            <div class="ui-grid mt-roles">
+              <div class="ui-field ui-col-8">
+                <label class="ui-label">Rol</label>
+                <select class="ui-control" [(ngModel)]="selectedRolId">
+                  <option [ngValue]="null">Seleccione un rol</option>
+                  <option *ngFor="let rol of rolesCatalog" [ngValue]="rol.idRol">
+                    {{ rol.descripcion }} ({{ rol.idRol }})
+                  </option>
+                </select>
+              </div>
+              <div class="ui-field ui-col-4 role-action">
+                <button class="ui-btn primary" type="button" (click)="asignarRolMenu()" [disabled]="savingRole">
+                  {{ savingRole ? 'Guardando...' : 'Asignar rol' }}
+                </button>
+              </div>
+            </div>
+
+            <div class="list-loading" *ngIf="loadingRoles">Consultando roles asignados...</div>
+
+            <div class="menu-role-list" *ngIf="!loadingRoles && rolesAsignados.length > 0">
+              <div class="menu-role-item" *ngFor="let r of rolesAsignados">
+                <span><strong>{{ r.descripcionRol }}</strong> ({{ r.idRol }})</span>
+                <button class="ui-btn secondary" type="button" (click)="quitarRolMenu(r)">Quitar</button>
+              </div>
+            </div>
+
+            <div class="news-state" *ngIf="!loadingRoles && rolesAsignados.length === 0">
+              No hay roles asignados a este menú.
+            </div>
           </div>
         </article>
       </div>

@@ -87,4 +87,29 @@ namespace Comun.Dtos
         public string? fechaFin { get; set; }
         public int vigente { get; set; } = 1;
     }
+
+    public class DtoRolAdmin
+    {
+        public int id { get; set; }
+        public string? nombre { get; set; }
+        public int vigente { get; set; }
+    }
+
+    public class DtoSaveRolRequest
+    {
+        public int? id { get; set; }
+        public string? nombre { get; set; }
+        public int vigente { get; set; } = 1;
+    }
+
+    public class DtoSetRolEstadoRequest
+    {
+        public int vigente { get; set; }
+    }
+
+    public class DtoSaveRolResult
+    {
+        public long idRol { get; set; }
+        public string message { get; set; } = string.Empty;
+    }
 }

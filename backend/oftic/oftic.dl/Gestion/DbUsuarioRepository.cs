@@ -414,6 +414,171 @@ ORDER BY descripcion";
             }
         }
 
+        public async Task<List<DtoRolAdmin>> GetRolesAdminAsync(CancellationToken ct)
+        {
+            var result = new List<DtoRolAdmin>();
+
+            await using var conn = new OracleConnection(_cs);
+            await conn.OpenAsync(ct);
+
+            await using var cmd = conn.CreateCommand();
+            cmd.CommandType = CommandType.Text;
+            cmd.CommandText = @"
+SELECT id_rol, descripcion, NVL(vigente, 1) AS vigente
+FROM ctr_roles
+ORDER BY descripcion";
+
+            await using var reader = await cmd.ExecuteReaderAsync(ct);
+            while (await reader.ReadAsync(ct))
+            {
+                result.Add(new DtoRolAdmin
+                {
+                    id = Convert.ToInt32(reader.GetInt64(0)),
+                    nombre = reader.IsDBNull(1) ? null : reader.GetString(1),
+                    vigente = reader.IsDBNull(2) ? 1 : Convert.ToInt32(reader.GetDecimal(2))
+                });
+            }
+
+            return result;
+        }
+
+        public async Task<DtoSaveRolResult> SaveRolAdminAsync(
+            DtoSaveRolRequest request,
+            string usuarioAuditoria,
+            string maquinaAuditoria,
+            CancellationToken ct)
+        {
+            var nombre = (request.nombre ?? string.Empty).Trim();
+            if (string.IsNullOrWhiteSpace(nombre))
+            {
+                return new DtoSaveRolResult { idRol = 0, message = "La descripción del rol es obligatoria." };
+            }
+
+            var vigente = request.vigente == 0 ? 0 : 1;
+
+            await using var conn = new OracleConnection(_cs);
+            await conn.OpenAsync(ct);
+            await using var tx = conn.BeginTransaction();
+
+            try
+            {
+                var idRol = request.id.GetValueOrDefault();
+                if (idRol > 0)
+                {
+                    await using var cmdUpdate = conn.CreateCommand();
+                    cmdUpdate.Transaction = tx;
+                    cmdUpdate.BindByName = true;
+                    cmdUpdate.CommandType = CommandType.Text;
+                    cmdUpdate.CommandText = @"
+UPDATE ctr_roles
+   SET descripcion = :pDescripcion,
+       vigente = :pVigente,
+       usuario_modifica = :pUsuario,
+       fecha_modifica = SYSDATE,
+       maquina_modifica = :pMaquina
+ WHERE id_rol = :pIdRol";
+
+                    cmdUpdate.Parameters.Add(":pDescripcion", OracleDbType.Varchar2).Value = nombre;
+                    cmdUpdate.Parameters.Add(":pVigente", OracleDbType.Int32).Value = vigente;
+                    cmdUpdate.Parameters.Add(":pUsuario", OracleDbType.Int64).Value = AsLongOrZero(usuarioAuditoria);
+                    cmdUpdate.Parameters.Add(":pMaquina", OracleDbType.Varchar2).Value = AsDbValue(maquinaAuditoria, 100);
+                    cmdUpdate.Parameters.Add(":pIdRol", OracleDbType.Int64).Value = idRol;
+
+                    var affected = await cmdUpdate.ExecuteNonQueryAsync(ct);
+                    if (affected <= 0)
+                    {
+                        await tx.RollbackAsync(ct);
+                        return new DtoSaveRolResult { idRol = 0, message = "No se encontró el rol para actualizar." };
+                    }
+
+                    await tx.CommitAsync(ct);
+                    return new DtoSaveRolResult { idRol = idRol, message = "Rol actualizado correctamente." };
+                }
+
+                long nextId;
+                await using (var cmdNext = conn.CreateCommand())
+                {
+                    cmdNext.Transaction = tx;
+                    cmdNext.CommandType = CommandType.Text;
+                    cmdNext.CommandText = "SELECT NVL(MAX(id_rol), 0) + 1 FROM ctr_roles";
+                    nextId = Convert.ToInt64(await cmdNext.ExecuteScalarAsync(ct));
+                }
+
+                await using (var cmdInsert = conn.CreateCommand())
+                {
+                    cmdInsert.Transaction = tx;
+                    cmdInsert.BindByName = true;
+                    cmdInsert.CommandType = CommandType.Text;
+                    cmdInsert.CommandText = @"
+INSERT INTO ctr_roles
+    (id_rol, descripcion, vigente, usuario_creacion, fecha_creacion, maquina_creacion)
+VALUES
+    (:pIdRol, :pDescripcion, :pVigente, :pUsuario, SYSDATE, :pMaquina)";
+
+                    cmdInsert.Parameters.Add(":pIdRol", OracleDbType.Int64).Value = nextId;
+                    cmdInsert.Parameters.Add(":pDescripcion", OracleDbType.Varchar2).Value = nombre;
+                    cmdInsert.Parameters.Add(":pVigente", OracleDbType.Int32).Value = vigente;
+                    cmdInsert.Parameters.Add(":pUsuario", OracleDbType.Int64).Value = AsLongOrZero(usuarioAuditoria);
+                    cmdInsert.Parameters.Add(":pMaquina", OracleDbType.Varchar2).Value = AsDbValue(maquinaAuditoria, 100);
+
+                    var inserted = await cmdInsert.ExecuteNonQueryAsync(ct);
+                    if (inserted <= 0)
+                    {
+                        await tx.RollbackAsync(ct);
+                        return new DtoSaveRolResult { idRol = 0, message = "No fue posible crear el rol." };
+                    }
+                }
+
+                await tx.CommitAsync(ct);
+                return new DtoSaveRolResult { idRol = nextId, message = "Rol creado correctamente." };
+            }
+            catch (OracleException ex)
+            {
+                await tx.RollbackAsync(ct);
+                _logger.LogError(ex, "Error Oracle guardando rol en CTR_ROLES");
+                throw new InvalidOperationException($"Oracle: {ex.Message}", ex);
+            }
+        }
+
+        public async Task<DtoSaveRolResult> SetRolEstadoAsync(
+            long idRol,
+            int vigente,
+            string usuarioAuditoria,
+            string maquinaAuditoria,
+            CancellationToken ct)
+        {
+            await using var conn = new OracleConnection(_cs);
+            await conn.OpenAsync(ct);
+
+            await using var cmd = conn.CreateCommand();
+            cmd.BindByName = true;
+            cmd.CommandType = CommandType.Text;
+            cmd.CommandText = @"
+UPDATE ctr_roles
+   SET vigente = :pVigente,
+       usuario_modifica = :pUsuario,
+       fecha_modifica = SYSDATE,
+       maquina_modifica = :pMaquina
+ WHERE id_rol = :pIdRol";
+
+            cmd.Parameters.Add(":pVigente", OracleDbType.Int32).Value = vigente == 0 ? 0 : 1;
+            cmd.Parameters.Add(":pUsuario", OracleDbType.Int64).Value = AsLongOrZero(usuarioAuditoria);
+            cmd.Parameters.Add(":pMaquina", OracleDbType.Varchar2).Value = AsDbValue(maquinaAuditoria, 100);
+            cmd.Parameters.Add(":pIdRol", OracleDbType.Int64).Value = idRol;
+
+            var affected = await cmd.ExecuteNonQueryAsync(ct);
+            if (affected <= 0)
+            {
+                return new DtoSaveRolResult { idRol = 0, message = "No se encontró el rol." };
+            }
+
+            return new DtoSaveRolResult
+            {
+                idRol = idRol,
+                message = vigente == 0 ? "Rol inactivado correctamente." : "Rol activado correctamente."
+            };
+        }
+
         private static object AsDbValue(string? value, int? maxLen = null)
         {
             var normalized = (value ?? string.Empty).Trim();

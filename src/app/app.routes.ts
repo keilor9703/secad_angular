@@ -6,6 +6,7 @@ import { UsuariosComponent } from './pages/usuarios/usuarios';
 import { SlidersComponent } from './pages/sliders/sliders';
 import { MenuAdminComponent } from './pages/menu-admin/menu-admin';
 import { AdminMultimediaComponent } from './pages/admin-multimedia/admin-multimedia';
+import { RolesAdminComponent } from './pages/roles-admin/roles-admin';
 import { LayoutComponent } from './layout/layout';
 import { Noticias } from './pages/noticias/noticias';
 import { authGuard } from './core/auth/auth.guard';
@@ -25,6 +26,7 @@ export const routes: Routes = [
           { path: '', redirectTo: 'usuarios', pathMatch: 'full' },
           { path: 'formularios', component: Formularios },
           { path: 'usuarios', component: UsuariosComponent },
+          { path: 'roles', component: RolesAdminComponent },
           { path: 'sliders', component: SlidersComponent },
           { path: 'menu', component: MenuAdminComponent },
           { path: 'admin-multimedia', component: AdminMultimediaComponent },
@@ -34,6 +36,7 @@ export const routes: Routes = [
       },
       { path: 'formularios', redirectTo: 'administracion/formularios', pathMatch: 'full' },
       { path: 'usuarios', redirectTo: 'administracion/usuarios', pathMatch: 'full' },
+      { path: 'roles', redirectTo: 'administracion/roles', pathMatch: 'full' },
       { path: 'sliders', redirectTo: 'administracion/sliders', pathMatch: 'full' },
       { path: 'menu', redirectTo: 'administracion/menu', pathMatch: 'full' },
       { path: 'admin-multimedia', redirectTo: 'administracion/admin-multimedia', pathMatch: 'full' },
