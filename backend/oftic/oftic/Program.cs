@@ -12,6 +12,12 @@ using Servicios.ApiInterfaz;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Kestrel: aumentar límite de tamaño de request para videos (150MB)
+builder.WebHost.ConfigureKestrel(options =>
+{
+    options.Limits.MaxRequestBodySize = 150 * 1024 * 1024; // 150MB
+});
+
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
     {

@@ -86,8 +86,8 @@
               <div class="ui-field ui-col-6">
                 <label class="ui-label">Identificación</label>
                 <div class="ui-input-group">
-                  <input class="ui-control" type="text" [(ngModel)]="searchIdentification" placeholder="Ej: 10203040">
-                  <button class="ui-addon-btn" type="button" (click)="consultarUsuario()" [disabled]="loading">
+                  <input class="ui-control" type="text" [(ngModel)]="searchIdentification" placeholder="Ej: 10203040" (keyup.enter)="consultarUsuario()">
+                  <button class="ui-addon-btn search-btn" type="button" (click)="consultarUsuario()" [disabled]="loading">
                     <i class="fa-solid fa-magnifying-glass"></i>
                   </button>
                 </div>
@@ -236,7 +236,7 @@
           <p>Ingresa la identificación y consulta para administrar datos y permisos.</p>
 
           <div class="empty-search">
-            <input class="ui-control" type="text" [(ngModel)]="searchIdentification" placeholder="Identificación">
+            <input class="ui-control" type="text" [(ngModel)]="searchIdentification" placeholder="Identificación" (keyup.enter)="consultarUsuario()">
             <button class="ui-btn secondary" type="button" (click)="consultarUsuario()" [disabled]="loading">
               <i class="fa-solid fa-magnifying-glass"></i>
               {{ loading ? 'Consultando...' : 'Consultar' }}
