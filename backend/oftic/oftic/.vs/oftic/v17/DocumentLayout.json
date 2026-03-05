@@ -7,8 +7,27 @@
       "RelativeMoniker": "D:0:0:{464113DD-2473-41F4-B020-5703F41595B3}|Api.csproj|solutionrelative:appsettings.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}"
     },
     {
+      "AbsoluteMoniker": "D:0:0:{2A05788F-1A4D-4BAA-8AF9-AFF561D1EE97}|..\\oftic.dl\\Datos.csproj|c:\\users\\dyck.lopez\\source\\repos\\sisgeng\\backend\\oftic\\oftic.dl\\gestion\\dbauthrepository.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{464113DD-2473-41F4-B020-5703F41595B3}|Api.csproj|c:\\users\\dyck.lopez\\source\\repos\\sisgeng\\backend\\oftic\\oftic\\controllers\\menucontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{464113DD-2473-41F4-B020-5703F41595B3}|Api.csproj|solutionrelative:controllers\\menucontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
       "AbsoluteMoniker": "D:0:0:{464113DD-2473-41F4-B020-5703F41595B3}|Api.csproj|c:\\users\\dyck.lopez\\source\\repos\\sisgeng\\backend\\oftic\\oftic\\controllers\\loginvisualcontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
       "RelativeMoniker": "D:0:0:{464113DD-2473-41F4-B020-5703F41595B3}|Api.csproj|solutionrelative:controllers\\loginvisualcontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{464113DD-2473-41F4-B020-5703F41595B3}|Api.csproj|c:\\users\\dyck.lopez\\source\\repos\\sisgeng\\backend\\oftic\\oftic\\controllers\\slidercontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{464113DD-2473-41F4-B020-5703F41595B3}|Api.csproj|solutionrelative:controllers\\slidercontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{464113DD-2473-41F4-B020-5703F41595B3}|Api.csproj|c:\\users\\dyck.lopez\\source\\repos\\sisgeng\\backend\\oftic\\oftic\\controllers\\usuariocontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{464113DD-2473-41F4-B020-5703F41595B3}|Api.csproj|solutionrelative:controllers\\usuariocontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{464113DD-2473-41F4-B020-5703F41595B3}|Api.csproj|c:\\users\\dyck.lopez\\source\\repos\\sisgeng\\backend\\oftic\\oftic\\controllers\\videounidadcontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{464113DD-2473-41F4-B020-5703F41595B3}|Api.csproj|solutionrelative:controllers\\videounidadcontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     }
   ],
   "DocumentGroupContainers": [
@@ -18,21 +37,8 @@
       "DocumentGroups": [
         {
           "DockedHeight": 290,
-          "SelectedChildIndex": 0,
+          "SelectedChildIndex": 8,
           "Children": [
-            {
-              "$type": "Document",
-              "DocumentIndex": 0,
-              "Title": "appsettings.json",
-              "DocumentMoniker": "C:\\Users\\Dyck.lopez\\source\\repos\\sisgeNg\\backend\\oftic\\oftic\\appsettings.json",
-              "RelativeDocumentMoniker": "appsettings.json",
-              "ToolTip": "C:\\Users\\Dyck.lopez\\source\\repos\\sisgeNg\\backend\\oftic\\oftic\\appsettings.json",
-              "RelativeToolTip": "appsettings.json",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAABAAAAARAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001642|",
-              "WhenOpened": "2026-02-26T15:45:42.284Z",
-              "EditorCaption": ""
-            },
             {
               "$type": "Bookmark",
               "Name": "ST:0:0:{d78612c7-9962-4b83-95d9-268046dad23a}"
@@ -48,15 +54,87 @@
             {
               "$type": "Document",
               "DocumentIndex": 1,
+              "Title": "DbAuthRepository.cs",
+              "DocumentMoniker": "C:\\Users\\Dyck.lopez\\source\\repos\\sisgeNg\\backend\\oftic\\oftic.dl\\Gestion\\DbAuthRepository.cs",
+              "RelativeDocumentMoniker": "..\\oftic.dl\\Gestion\\DbAuthRepository.cs",
+              "ToolTip": "C:\\Users\\Dyck.lopez\\source\\repos\\sisgeNg\\backend\\oftic\\oftic.dl\\Gestion\\DbAuthRepository.cs",
+              "RelativeToolTip": "..\\oftic.dl\\Gestion\\DbAuthRepository.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAB8AAAAzAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-03-04T14:58:21.477Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 2,
+              "Title": "MenuController.cs",
+              "DocumentMoniker": "C:\\Users\\Dyck.lopez\\source\\repos\\sisgeNg\\backend\\oftic\\oftic\\Controllers\\MenuController.cs",
+              "RelativeDocumentMoniker": "Controllers\\MenuController.cs",
+              "ToolTip": "C:\\Users\\Dyck.lopez\\source\\repos\\sisgeNg\\backend\\oftic\\oftic\\Controllers\\MenuController.cs",
+              "RelativeToolTip": "Controllers\\MenuController.cs",
+              "ViewState": "AgIAACcAAAAAAAAAAAAiwCcAAAAXAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-03-04T14:55:19.644Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 4,
+              "Title": "SliderController.cs",
+              "DocumentMoniker": "C:\\Users\\Dyck.lopez\\source\\repos\\sisgeNg\\backend\\oftic\\oftic\\Controllers\\SliderController.cs",
+              "RelativeDocumentMoniker": "Controllers\\SliderController.cs",
+              "ToolTip": "C:\\Users\\Dyck.lopez\\source\\repos\\sisgeNg\\backend\\oftic\\oftic\\Controllers\\SliderController.cs",
+              "RelativeToolTip": "Controllers\\SliderController.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-03-04T14:55:19.011Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 6,
+              "Title": "VideoUnidadController.cs",
+              "DocumentMoniker": "C:\\Users\\Dyck.lopez\\source\\repos\\sisgeNg\\backend\\oftic\\oftic\\Controllers\\VideoUnidadController.cs",
+              "RelativeDocumentMoniker": "Controllers\\VideoUnidadController.cs",
+              "ToolTip": "C:\\Users\\Dyck.lopez\\source\\repos\\sisgeNg\\backend\\oftic\\oftic\\Controllers\\VideoUnidadController.cs",
+              "RelativeToolTip": "Controllers\\VideoUnidadController.cs",
+              "ViewState": "AgIAAA0AAAAAAAAAAAAYwA4AAAAPAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-03-04T14:55:13.912Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 5,
+              "Title": "UsuarioController.cs",
+              "DocumentMoniker": "C:\\Users\\Dyck.lopez\\source\\repos\\sisgeNg\\backend\\oftic\\oftic\\Controllers\\UsuarioController.cs",
+              "RelativeDocumentMoniker": "Controllers\\UsuarioController.cs",
+              "ToolTip": "C:\\Users\\Dyck.lopez\\source\\repos\\sisgeNg\\backend\\oftic\\oftic\\Controllers\\UsuarioController.cs",
+              "RelativeToolTip": "Controllers\\UsuarioController.cs",
+              "ViewState": "AgIAAIkAAAAAAAAAAAAowMwAAAAaAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-03-04T14:54:51.159Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "appsettings.json",
+              "DocumentMoniker": "C:\\Users\\Dyck.lopez\\source\\repos\\sisgeNg\\backend\\oftic\\oftic\\appsettings.json",
+              "RelativeDocumentMoniker": "appsettings.json",
+              "ToolTip": "C:\\Users\\Dyck.lopez\\source\\repos\\sisgeNg\\backend\\oftic\\oftic\\appsettings.json",
+              "RelativeToolTip": "appsettings.json",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAABwAAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001642|",
+              "WhenOpened": "2026-02-26T15:45:42.284Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 3,
               "Title": "LoginVisualController.cs",
               "DocumentMoniker": "C:\\Users\\Dyck.lopez\\source\\repos\\sisgeNg\\backend\\oftic\\oftic\\Controllers\\LoginVisualController.cs",
               "RelativeDocumentMoniker": "Controllers\\LoginVisualController.cs",
               "ToolTip": "C:\\Users\\Dyck.lopez\\source\\repos\\sisgeNg\\backend\\oftic\\oftic\\Controllers\\LoginVisualController.cs",
               "RelativeToolTip": "Controllers\\LoginVisualController.cs",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "ViewState": "AgIAAA4AAAAAAAAAAAAowAAAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-02-26T15:41:02.157Z",
-              "EditorCaption": ""
+              "WhenOpened": "2026-02-26T15:41:02.157Z"
             }
           ]
         }
