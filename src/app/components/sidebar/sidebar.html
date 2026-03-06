@@ -1,13 +1,13 @@
 <aside class="sidebar" [class.open]="isOpen()" (click)="$event.stopPropagation()">
   <div class="sidebar-content">
     <div class="sidebar-header">
-      <a href="#" class="header-brand-link">
+      <a routerLink="/home" class="header-brand-link" (click)="closeSidebar()">
         <div class="logo-icon">
           <img [src]="logoUrl" [alt]="systemName" class="header-logo-img">
         </div>
         <span class="logo-name">{{ systemName }}</span>
       </a>
-
+ 
       <button class="btn-close" type="button" (click)="closeSidebar()" aria-label="Cerrar menú">✕</button>
     </div>
 
