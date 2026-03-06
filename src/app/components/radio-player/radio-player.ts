@@ -1,10 +1,11 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 
 @Component({
   selector: 'app-radio-player',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, FormsModule],
   template: `
     <div class="radio-container" [class.expanded]="isExpanded">
       <!-- Botón flotante -->
@@ -36,6 +37,14 @@ import { CommonModule } from '@angular/common';
             {{ isPlaying ? 'EN VIVO' : 'DETENIDO' }}
           </div>
           <div class="radio-station">Policía Nacional de Colombia</div>
+        </div>
+
+        <div class="radio-station-selector">
+          <select [(ngModel)]="selectedStation" (ngModelChange)="onStationChange()" class="station-select">
+            <option *ngFor="let station of stations" [value]="station.id">
+              {{ station.name }}
+            </option>
+          </select>
         </div>
 
         <div class="radio-controls">
@@ -197,6 +206,29 @@ import { CommonModule } from '@angular/common';
       border-radius: 6px;
     }
 
+    .radio-station-selector {
+      margin-bottom: 12px;
+      text-align: center;
+    }
+
+    .station-select {
+      width: 100%;
+      padding: 8px 12px;
+      border-radius: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      background: rgba(255, 255, 255, 0.1);
+      color: #fff;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      outline: none;
+    }
+
+    .station-select option {
+      background: #151b3b;
+      color: #fff;
+    }
+
     .radio-controls { display: flex; justify-content: center; gap: 12px; margin-bottom: 12px; }
 
     .radio-btn {
@@ -239,12 +271,30 @@ export class RadioPlayerComponent implements OnInit, OnDestroy {
   isExpanded = false;
   errorMessage = '';
   private audio: HTMLAudioElement | null = null;
+  selectedStation = 'bogota';
 
-  private readonly streamUrl = 'https://radio.policia.gov.co:8080/inhouse';
+  stations = [
+    { id: 'bogota', name: 'Bogotá', url: 'https://radio.policia.gov.co:8080/inhouse' },
+    { id: 'medellin', name: 'Medellín', url: 'https://radio.policia.gov.co:8080/medellin' }
+  ];
+
+  get currentStationUrl(): string {
+    const station = this.stations.find(s => s.id === this.selectedStation);
+    return station ? station.url : this.stations[0].url;
+  }
 
   ngOnInit(): void {
+    this.initAudio();
+  }
+
+  private initAudio(): void {
+    if (this.audio) {
+      this.audio.pause();
+      this.audio.src = '';
+    }
+
     this.audio = new Audio();
-    this.audio.src = this.streamUrl;
+    this.audio.src = this.currentStationUrl;
     this.audio.volume = 0.75;
 
     this.audio.addEventListener('loadeddata', () => {
@@ -269,6 +319,18 @@ export class RadioPlayerComponent implements OnInit, OnDestroy {
     this.audio.addEventListener('ended', () => {
       this.isPlaying = false;
     });
+  }
+
+  onStationChange(): void {
+    const wasPlaying = this.isPlaying;
+    if (this.audio) {
+      this.audio.pause();
+      this.audio.src = this.currentStationUrl;
+      this.isPlaying = false;
+      if (wasPlaying) {
+        this.audio.play().catch(() => {});
+      }
+    }
   }
 
   ngOnDestroy(): void {
