@@ -447,6 +447,32 @@
     ]
   },
   {
+    "ContainingType": "ofic.Controllers.RadioController",
+    "Method": "GetStatus",
+    "RelativePath": "api/Radio/status",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "ofic.Controllers.RadioController",
+    "Method": "Stream",
+    "RelativePath": "api/Radio/stream",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": [
+      {
+        "Type": "System.Void",
+        "MediaTypes": [],
+        "StatusCode": 200
+      }
+    ]
+  },
+  {
     "ContainingType": "ofic.Controllers.SliderController",
     "Method": "GetAdmin",
     "RelativePath": "api/Slider",

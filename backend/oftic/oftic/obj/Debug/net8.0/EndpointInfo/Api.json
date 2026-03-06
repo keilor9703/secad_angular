@@ -746,6 +746,30 @@
         }
       }
     },
+    "/api/Radio/stream": {
+      "get": {
+        "tags": [
+          "Radio"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/Radio/status": {
+      "get": {
+        "tags": [
+          "Radio"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
     "/api/Slider/Publicos": {
       "get": {
         "tags": [
