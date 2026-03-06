@@ -2181,26 +2181,23 @@
     ]
   },
   "packageFolders": {
-    "C:\\Users\\Dyck.lopez\\.nuget\\packages\\": {},
-    "C:\\Program Files\\DevExpress 25.2\\Components\\Offline Packages": {},
+    "C:\\Users\\wilson.lopezd\\.nuget\\packages\\": {},
     "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages": {}
   },
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "C:\\Users\\Dyck.lopez\\source\\repos\\sisgeNg\\backend\\oftic\\oftic\\Api.csproj",
+      "projectUniqueName": "C:\\Users\\wilson.lopezd\\source\\Repos\\Plantilla%20Angular%2020\\backend\\oftic\\oftic\\Api.csproj",
       "projectName": "Api",
-      "projectPath": "C:\\Users\\Dyck.lopez\\source\\repos\\sisgeNg\\backend\\oftic\\oftic\\Api.csproj",
-      "packagesPath": "C:\\Users\\Dyck.lopez\\.nuget\\packages\\",
-      "outputPath": "C:\\Users\\Dyck.lopez\\source\\repos\\sisgeNg\\backend\\oftic\\oftic\\obj\\",
+      "projectPath": "C:\\Users\\wilson.lopezd\\source\\Repos\\Plantilla%20Angular%2020\\backend\\oftic\\oftic\\Api.csproj",
+      "packagesPath": "C:\\Users\\wilson.lopezd\\.nuget\\packages\\",
+      "outputPath": "C:\\Users\\wilson.lopezd\\Source\\Repos\\Plantilla%20Angular%2020\\backend\\oftic\\oftic\\obj\\",
       "projectStyle": "PackageReference",
       "fallbackFolders": [
-        "C:\\Program Files\\DevExpress 25.2\\Components\\Offline Packages",
         "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
       ],
       "configFilePaths": [
-        "C:\\Users\\Dyck.lopez\\AppData\\Roaming\\NuGet\\NuGet.Config",
-        "C:\\Program Files (x86)\\NuGet\\Config\\DevExpress 25.2.config",
+        "C:\\Users\\wilson.lopezd\\AppData\\Roaming\\NuGet\\NuGet.Config",
         "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
         "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
       ],
@@ -2209,21 +2206,21 @@
       ],
       "sources": {
         "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
-        "C:\\Program Files\\DevExpress 25.2\\Components\\System\\Components\\Packages": {},
+        "C:\\Program Files\\dotnet\\library-packs": {},
         "https://api.nuget.org/v3/index.json": {}
       },
       "frameworks": {
         "net8.0": {
           "targetAlias": "net8.0",
           "projectReferences": {
-            "C:\\Users\\Dyck.lopez\\source\\repos\\sisgeNg\\backend\\oftic\\oftic.bl\\Negocio.csproj": {
-              "projectPath": "C:\\Users\\Dyck.lopez\\source\\repos\\sisgeNg\\backend\\oftic\\oftic.bl\\Negocio.csproj"
+            "C:\\Users\\wilson.lopezd\\source\\Repos\\Plantilla%20Angular%2020\\backend\\oftic\\oftic.bl\\Negocio.csproj": {
+              "projectPath": "C:\\Users\\wilson.lopezd\\source\\Repos\\Plantilla%20Angular%2020\\backend\\oftic\\oftic.bl\\Negocio.csproj"
             },
-            "C:\\Users\\Dyck.lopez\\source\\repos\\sisgeNg\\backend\\oftic\\oftic.cl\\Comun.csproj": {
-              "projectPath": "C:\\Users\\Dyck.lopez\\source\\repos\\sisgeNg\\backend\\oftic\\oftic.cl\\Comun.csproj"
+            "C:\\Users\\wilson.lopezd\\source\\Repos\\Plantilla%20Angular%2020\\backend\\oftic\\oftic.cl\\Comun.csproj": {
+              "projectPath": "C:\\Users\\wilson.lopezd\\source\\Repos\\Plantilla%20Angular%2020\\backend\\oftic\\oftic.cl\\Comun.csproj"
             },
-            "C:\\Users\\Dyck.lopez\\source\\repos\\sisgeNg\\backend\\oftic\\oftic.sl\\Servicios.csproj": {
-              "projectPath": "C:\\Users\\Dyck.lopez\\source\\repos\\sisgeNg\\backend\\oftic\\oftic.sl\\Servicios.csproj"
+            "C:\\Users\\wilson.lopezd\\source\\Repos\\Plantilla%20Angular%2020\\backend\\oftic\\oftic.sl\\Servicios.csproj": {
+              "projectPath": "C:\\Users\\wilson.lopezd\\source\\Repos\\Plantilla%20Angular%2020\\backend\\oftic\\oftic.sl\\Servicios.csproj"
             }
           }
         }
@@ -2238,7 +2235,7 @@
         "auditLevel": "low",
         "auditMode": "direct"
       },
-      "SdkAnalysisLevel": "9.0.300"
+      "SdkAnalysisLevel": "9.0.200"
     },
     "frameworks": {
       "net8.0": {
@@ -2276,7 +2273,7 @@
             "privateAssets": "all"
           }
         },
-        "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.311/PortableRuntimeIdentifierGraph.json"
+        "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.201/PortableRuntimeIdentifierGraph.json"
       }
     }
   }
