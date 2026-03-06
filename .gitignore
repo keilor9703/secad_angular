@@ -28,6 +28,17 @@ yarn-error.log
 !.vscode/extensions.json
 .history/*
 
+.vs/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.dll
+*.exe
+*.pdb
+bin/
+obj/
+
 # Miscellaneous
 /.angular/cache
 .sass-cache/

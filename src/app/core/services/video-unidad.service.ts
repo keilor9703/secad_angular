@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
-import { Observable } from 'rxjs';
+import { HttpClient, HttpEventType, HttpRequest } from '@angular/common/http';
+import { Observable, timeout, map } from 'rxjs';
 import { environment } from '../../../environments/environment';
 
 export interface VideoUnidadInfo {
@@ -33,6 +33,17 @@ export class VideoUnidadService {
   upload(file: File): Observable<VideoUnidadUploadResponse> {
     const formData = new FormData();
     formData.append('File', file);
-    return this.http.post<VideoUnidadUploadResponse>(`${this.baseUrl}/upload`, formData);
+    const req = new HttpRequest('POST', `${this.baseUrl}/upload`, formData, {
+      reportProgress: true
+    });
+    return this.http.request(req).pipe(
+      timeout(300000),
+      map((event) => {
+        if (event.type === HttpEventType.Response) {
+          return event.body as VideoUnidadUploadResponse;
+        }
+        return { success: false, url: '', fileName: '', sizeBytes: 0, message: 'Cargando...', detail: '' } as VideoUnidadUploadResponse;
+      })
+    );
   }
 }

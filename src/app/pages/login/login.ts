@@ -14,7 +14,7 @@ import { BrandingService } from '../../core/services/branding.service';
   styleUrls: ['./login.scss']
 })
 export class LoginComponent implements OnInit, OnDestroy {
-  systemName = 'SISGE';
+  systemName = 'OFTIC';
   logoUrl = '/escudo.png';
   usuario = '';
   contrasena = '';

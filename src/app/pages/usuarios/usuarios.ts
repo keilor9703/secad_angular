@@ -135,10 +135,12 @@ export class UsuariosComponent {
       error: (err) => {
         this.loading = false;
         this.user = null;
-        this.toast.error(
-          'Consulta fallida',
-          err?.error?.message ?? 'No fue posible consultar el usuario.'
-        );
+        const errorResponse = err?.error;
+        const errorMsg = 
+          errorResponse?.message ?? 
+          (errorResponse?.success === false ? 'Operación fallida' : null) ??
+          'No fue posible consultar el usuario.';
+        this.toast.error('Consulta fallida', errorMsg);
       }
     });
   }
