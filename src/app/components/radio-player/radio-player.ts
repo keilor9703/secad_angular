@@ -275,7 +275,9 @@ export class RadioPlayerComponent implements OnInit, OnDestroy {
 
   stations = [
     { id: 'bogota', name: 'Bogotá', url: 'https://radio.policia.gov.co:8080/inhouse' },
-    { id: 'medellin', name: 'Medellín', url: 'https://radio.policia.gov.co:8080/medellin' }
+    { id: 'medellin', name: 'Medellín', url: 'https://radio.policia.gov.co:8080/medellin' },
+    { id: 'cali', name: 'Cali', url: 'https://radio.policia.gov.co:8080/Cali' },
+    { id: 'santamarta', name: 'Santamarta', url: 'https://radio.policia.gov.co:8080/santamarta' }
   ];
 
   get currentStationUrl(): string {

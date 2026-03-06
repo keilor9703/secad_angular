@@ -8,12 +8,14 @@
   width: 100%;
   height: var(--footer-height, 56px);
   box-sizing: border-box;
+  position: relative;
   background: var(--policia-gradiente-principal);
   box-shadow: var(--ui-shadow);
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 0 30px;
+  gap: 16px;
   z-index: 900;
 
   &::before {
@@ -44,12 +46,79 @@
   }
 }
 
-/* --- Contenido izquierdo (Optimized) --- */
 .footer-left {
   display: flex;
-  align-items: center;
-  gap: 12px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
   position: relative;
+  z-index: 1;
+  min-width: 320px;
+}
+
+.radio-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.radio-label {
+  color: #fff;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.2px;
+}
+
+.radio-play {
+  width: 30px;
+  height: 30px;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background var(--transition-speed) ease, transform var(--transition-speed) ease;
+}
+
+.radio-play:hover {
+  transform: translateY(-1px);
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.radio-select {
+  min-width: 130px;
+  height: 30px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.2);
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0 10px;
+  outline: none;
+}
+
+.radio-select option {
+  color: #111827;
+}
+
+.radio-error {
+  color: #fde68a;
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+
+.footer-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
   z-index: 1;
 }
 
@@ -85,7 +154,6 @@
   text-transform: uppercase;
 }
 
-/* --- Contenido derecho (Optimized with existing button styles) --- */
 .footer-right {
   display: flex;
   align-items: center;
@@ -116,18 +184,41 @@
   font-weight: 700;
 }
 
-/* --- RESPONSIVE (Optimized) --- */
 @media (max-width: 768px) {
   .modern-footer {
     padding: 0 15px;
+    gap: 10px;
   }
 
-  .footer-right {
+  .footer-center {
+    position: static;
+    transform: none;
+    flex: 1;
+    justify-content: center;
+  }
+
+  .footer-left {
+    min-width: 0;
+  }
+
+  .radio-label {
     display: none;
   }
 
+  .radio-select {
+    min-width: 100px;
+  }
+
+  .footer-right {
+    gap: 6px;
+  }
+
+  .footer-link {
+    padding: 4px 8px;
+  }
+
   .footer-title {
-    font-size: 0.85rem;
+    font-size: 0.8rem;
   }
 }
 

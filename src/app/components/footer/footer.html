@@ -1,19 +1,35 @@
 <footer class="modern-footer">
   <div class="footer-left">
+    <div class="radio-bar">
+      <span class="radio-label">Radio Policia</span>
+
+      <button class="radio-play" type="button" (click)="togglePlay()" [title]="isPlaying ? 'Pausar radio' : 'Reproducir radio'">
+        <i class="fa-solid" [class.fa-play]="!isPlaying" [class.fa-pause]="isPlaying"></i>
+      </button>
+
+      <select class="radio-select" [(ngModel)]="selectedStation" (ngModelChange)="onStationChange()">
+        <option *ngFor="let station of stations" [value]="station.id">{{ station.name }}</option>
+      </select>
+    </div>
+
+    <div class="radio-error" *ngIf="errorMessage">
+      {{ errorMessage }}
+    </div>
+  </div>
+
+  <div class="footer-center">
     <span class="footer-dot" aria-hidden="true"></span>
 
     <div class="footer-text">
-      <div class="footer-title">Sistema de gestión de Policía</div>
-      <div class="footer-meta">© 2026 OFTIC • {{ systemName }} • Versión 1</div>
+      <div class="footer-title">Sistema de gestion de Policia</div>
+      <div class="footer-meta">&copy; 2026 OFTIC � {{ systemName }} � Version 1</div>
     </div>
   </div>
 
   <div class="footer-right">
-    <!-- USAMOS EL LINK EXISTENTE -->
     <a class="footer-link" href="#" (click)="$event.preventDefault(); openSupport()">Soporte</a>
-    <span class="footer-sep">•</span>
+    <span class="footer-sep">�</span>
     <a class="footer-link" href="#" (click)="$event.preventDefault(); openPolicy()">Privacidad</a>
-    
   </div>
 </footer>
 

@@ -12,8 +12,18 @@ import { BrandingService } from '../../core/services/branding.service';
 })
 export class FooterComponent implements OnDestroy {
   systemName = 'SISGE';
+  isPlaying = false;
+  errorMessage = '';
+  selectedStation = 'bogota';
+  private audio: HTMLAudioElement | null = null;
 
   supportOpen = false;
+  policyOpen = false;
+
+  stations = [
+    { id: 'bogota', name: 'Bogota', url: 'https://radio.policia.gov.co:8080/inhouse' },
+    { id: 'medellin', name: 'Medellin', url: 'https://radio.policia.gov.co:8080/medellin' }
+  ];
 
   supportForm = {
     tipo: 'Incidente (error)',
@@ -26,6 +36,7 @@ export class FooterComponent implements OnDestroy {
 
   constructor(private brandingService: BrandingService) {
     this.loadBranding();
+    this.initAudio();
   }
 
   private loadBranding(): void {
@@ -49,7 +60,9 @@ export class FooterComponent implements OnDestroy {
 
   closeSupport(): void {
     this.supportOpen = false;
-    document.body.classList.remove('ui-modal-open');
+    if (!this.policyOpen) {
+      document.body.classList.remove('ui-modal-open');
+    }
   }
 
   onFilesSelected(event: Event): void {
@@ -82,20 +95,77 @@ export class FooterComponent implements OnDestroy {
       adjuntos: []
     };
   }
-  policyOpen = false;
 
-openPolicy(): void {
-  this.policyOpen = true;
-  document.body.classList.add('ui-modal-open');
-}
-
-closePolicy(): void {
-  this.policyOpen = false;
-
-  if (!this.supportOpen) {
-    document.body.classList.remove('ui-modal-open');
+  get currentStationUrl(): string {
+    const station = this.stations.find((s) => s.id === this.selectedStation);
+    return station ? station.url : this.stations[0].url;
   }
-}
+
+  private initAudio(): void {
+    this.audio = new Audio();
+    this.audio.src = this.currentStationUrl;
+    this.audio.volume = 0.75;
+
+    this.audio.addEventListener('playing', () => {
+      this.isPlaying = true;
+      this.errorMessage = '';
+    });
+
+    this.audio.addEventListener('pause', () => {
+      this.isPlaying = false;
+    });
+
+    this.audio.addEventListener('error', () => {
+      this.isPlaying = false;
+      this.errorMessage = 'No se pudo conectar con la radio.';
+    });
+
+    this.audio.addEventListener('ended', () => {
+      this.isPlaying = false;
+    });
+  }
+
+  onStationChange(): void {
+    if (!this.audio) return;
+
+    const wasPlaying = this.isPlaying;
+    this.audio.pause();
+    this.audio.src = this.currentStationUrl;
+    this.isPlaying = false;
+
+    if (wasPlaying) {
+      this.audio.play().catch(() => {
+        this.errorMessage = 'No se pudo reproducir esta emisora.';
+      });
+    }
+  }
+
+  togglePlay(): void {
+    if (!this.audio) return;
+
+    if (this.isPlaying) {
+      this.audio.pause();
+      return;
+    }
+
+    this.errorMessage = '';
+    this.audio.play().catch(() => {
+      this.errorMessage = 'No se pudo iniciar la radio.';
+    });
+  }
+
+  openPolicy(): void {
+    this.policyOpen = true;
+    document.body.classList.add('ui-modal-open');
+  }
+
+  closePolicy(): void {
+    this.policyOpen = false;
+
+    if (!this.supportOpen) {
+      document.body.classList.remove('ui-modal-open');
+    }
+  }
 
 
  
@@ -103,10 +173,21 @@ closePolicy(): void {
   onEsc(): void {
     if (this.supportOpen) {
       this.closeSupport();
+      return;
+    }
+
+    if (this.policyOpen) {
+      this.closePolicy();
     }
   }
 
   ngOnDestroy(): void {
+    if (this.audio) {
+      this.audio.pause();
+      this.audio.src = '';
+      this.audio = null;
+    }
+
     document.body.classList.remove('ui-modal-open');
   }
 }

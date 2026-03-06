@@ -8,8 +8,8 @@
 /* --- SHELL DEL SISTEMA --- */
 .app-shell {
   min-height: 100vh;
-  background: #f3f6fb;
   display: flex;
+  background: var(--bg-app);
 }
 
 .app-sidebar{
@@ -27,13 +27,10 @@
 .shell {
   flex: 1;
   min-height: 100vh;
-  margin-left: 0; 
+  margin-left: 0;
   display: flex;
   flex-direction: column;
-  transition: none;
   position: relative;
-  overflow-x: hidden;
-  overflow-y: visible;
   padding-top: var(--header-height, 70px);
 }
 .app-backdrop{
@@ -51,10 +48,11 @@
 
 .main {
   flex: 1;
-  min-height: 100vh;
-  overflow-y: auto;
   display: flex;
   flex-direction: column;
+  overflow-y: auto;
+  min-height: calc(100vh - var(--header-height, 70px) - var(--footer-height, 56px));
+  padding-bottom: 10px;
 }
 
 .content {
@@ -67,12 +65,20 @@
   backdrop-filter: blur(8px);
   position: relative;
   padding: 10px;
+  padding-bottom: 70px;
 }
 
 app-footer {
-  display: block;
-  margin-top: auto;
+  flex-shrink: 0;
   width: 100%;
+  background: var(--bg-card);
+}
+
+.app-footer-fixed {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  z-index: 100;
 }
 
 .app-shell.menu-open .main{
