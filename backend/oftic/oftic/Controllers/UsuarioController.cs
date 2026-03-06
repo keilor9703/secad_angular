@@ -86,6 +86,21 @@ namespace ofic.Controllers
                 // Consultar empleado
                 var empleado = await _apiWebToken.GetFuncionarioAsync(tokenPip, identificacion);
 
+                if (empleado is null)
+                {
+                    return NotFound(new { message = "No se encontró información del funcionario." });
+                }
+
+                // Validar situación laboral
+                var situacionLaboral = (empleado.situacionLaboral ?? string.Empty).Trim().ToUpperInvariant();
+                if (situacionLaboral != "LABORANDO")
+                {
+                    return BadRequest(new { 
+                        success = false, 
+                        message = $"Usuario no está en situación laboral 'Laborando'. Situación actual: '{empleado.situacionLaboral ?? "No reportada"}'" 
+                    });
+                }
+
                 // Persistir automáticamente en DB local si no existe.
                 // No debe romper la consulta principal si falla la persistencia local.
                 if (empleado is not null)
