@@ -1,0 +1,113 @@
+<header class="modern-header">
+    <!-- Logo y Marca -->
+    <!-- <div class="header-brand">
+        <div class="logo-container">
+            <img src="SEGEN-escudo.png" alt="Policía Nacional" class="logo">
+           
+        </div>
+        <div class="brand-info">
+            <h1 class="brand-title">Policía Nacional</h1>
+            <span class="brand-subtitle">SISGE</span>
+        </div>
+    </div> -->
+
+  
+     <button class="menu-trigger" type="button" (click)="toggleMenu()">
+        <i class="fa-solid fa-bars"></i>
+        <span>Ver menú</span>
+    </button>
+    <!-- Barra de Búsqueda -->
+    <div class="header-search">
+        <i class="fa-solid fa-magnifying-glass search-icon"></i>
+        <input 
+            type="text" 
+            placeholder="Buscar..."
+            [(ngModel)]="searchQuery"
+            (keyup.enter)="onSearch()"
+            class="search-input"
+        >
+        <button class="search-btn" (click)="onSearch()">
+            <i class="fa-solid fa-search"></i>
+        </button>
+    </div>
+
+    <!-- Notificaciones -->
+    <div class="header-notifications">
+        <button 
+            *ngFor="let notif of notifications"
+            class="notification-btn"
+            [class]="'notification-' + notif.color"
+            (click)="onNotificationClick(notif)"
+            [title]="notif.tooltip"
+        >
+            <i [class]="'fa-solid ' + notif.icon"></i>
+            <span class="notification-badge" *ngIf="notif.count > 0">
+                {{ notif.count > 9 ? '9+' : notif.count }}
+            </span>
+        </button>
+    </div>
+
+    <!-- Usuario -->
+    <div class="header-user">
+        <div class="user-info" (click)="onProfileClick()">
+            <div class="user-avatar">
+                <img *ngIf="userPhotoUrl; else userIconTpl" [src]="userPhotoUrl" alt="Foto usuario" class="user-avatar-img">
+                <ng-template #userIconTpl>
+                  <i class="fa-solid fa-user"></i>
+                </ng-template>
+            </div>
+            <div class="user-details">
+                <span class="user-name">{{ userName }}</span>
+                <span class="user-role">{{ userRole }}</span>
+            </div>
+            <i class="fa-solid fa-chevron-down"></i>
+        </div>
+
+        <!-- Dropdown Menu (opcional) -->
+        <div class="user-dropdown">
+            <a href="#" class="dropdown-item" (click)="$event.preventDefault(); openProfileModal()">
+                <i class="fa-solid fa-user-circle"></i>
+                Mi Perfil
+            </a>
+            <a routerLink="/administracion/usuarios" class="dropdown-item">
+                <i class="fa-solid fa-cog"></i>
+                Configuración
+            </a>
+            <div class="dropdown-divider"></div>
+            <a (click)="onLogout()" class="dropdown-item logout">
+                <i class="fa-solid fa-sign-out-alt"></i>
+                Cerrar Sesión
+            </a>
+        </div>
+    </div>
+</header>
+
+<div class="profile-modal-backdrop" *ngIf="profileModalOpen" (click)="closeProfileModal()">
+  <div class="profile-modal" (click)="$event.stopPropagation()">
+    <div class="profile-modal__head">
+      <h3>Mi Perfil</h3>
+      <button type="button" class="close-btn" (click)="closeProfileModal()">✕</button>
+    </div>
+
+    <div class="profile-modal__body" *ngIf="!profileLoading; else loadingTpl">
+      <div class="profile-photo">
+        <img *ngIf="userPhotoUrl; else profileIconTpl" [src]="userPhotoUrl" alt="Foto de perfil">
+        <ng-template #profileIconTpl>
+          <i class="fa-solid fa-user"></i>
+        </ng-template>
+      </div>
+
+      <div class="profile-fields">
+        <div><strong>Grado:</strong> {{ perfil?.grado || 'Sin información' }}</div>
+        <div><strong>Nombre:</strong> {{ perfil?.nombreCompleto || userName }}</div>
+        <div><strong>Cargo:</strong> {{ perfil?.cargo || 'Sin información' }}</div>
+        <div><strong>Situación laboral:</strong> {{ perfil?.situacionLaboral || 'Sin información' }}</div>
+        <div><strong>Tiempo servicio:</strong> {{ perfil?.tiempoServicio || 'Sin información' }}</div>
+      </div>
+    </div>
+
+    <ng-template #loadingTpl>
+      <div class="profile-modal__loading">Cargando perfil...</div>
+    </ng-template>
+  </div>
+</div>

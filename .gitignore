@@ -1,42 +1,60 @@
-# See https://docs.github.com/get-started/getting-started-with-git/ignoring-files for more about ignoring files.
+# =====================
+# FRONTEND (Angular)
+# =====================
+frontend/dist/
+frontend/tmp/
+frontend/out-tsc/
+frontend/bazel-out/
+frontend/node_modules/
+frontend/.angular/
+frontend/coverage/
+frontend/typings/
+frontend/publish/
+frontend/*.tar.gz
+frontend/.sass-cache/
+frontend/connect.lock
+frontend/libpeerconnection.log
+frontend/testem.log
 
-# Compiled output
-/dist
-/tmp
-/out-tsc
-/bazel-out
+# =====================
+# BACKEND (.NET 8)
+# =====================
+backend/oftic/oftic/bin/
+backend/oftic/oftic/obj/
+backend/oftic/oftic.bl/bin/
+backend/oftic/oftic.bl/obj/
+backend/oftic/oftic.cl/bin/
+backend/oftic/oftic.cl/obj/
+backend/oftic/oftic.dl/bin/
+backend/oftic/oftic.dl/obj/
+backend/oftic/oftic.sl/bin/
+backend/oftic/oftic.sl/obj/
+backend/**/*.user
+backend/**/*.suo
+backend/**/.vs/
+backend/**/uploads/
+backend/**/appsettings.Development.json
 
-# Node
-/node_modules
-npm-debug.log
-yarn-error.log
-
-# IDEs and editors
+# =====================
+# IDEs y editores
+# =====================
 .idea/
-.project
-.classpath
-.c9/
-*.launch
-.settings/
-*.sublime-workspace
-
-# Visual Studio Code
 .vscode/*
 !.vscode/settings.json
 !.vscode/tasks.json
 !.vscode/launch.json
 !.vscode/extensions.json
-.history/*
+.history/
 
-# Miscellaneous
-/.angular/cache
-.sass-cache/
-/connect.lock
-/coverage
-/libpeerconnection.log
-testem.log
-/typings
+# =====================
+# Logs y temporales
+# =====================
+*.log
+npm-debug.log
+yarn-error.log
 
-# System files
+# =====================
+# Sistema operativo
+# =====================
 .DS_Store
 Thumbs.db
