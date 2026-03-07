@@ -1,0 +1,103 @@
+<div class="accessibility-menu">
+  <!-- Botón Modo Oscuro -->
+  <button 
+    class="accessibility-btn dark-mode-btn"
+    [class.active]="isDarkMode"
+    (click)="toggleDarkMode()"
+    title="Modo oscuro"
+    aria-label="Activar o desactivar modo oscuro">
+    <span class="icon" [attr.aria-hidden]="true">
+      <svg *ngIf="!isDarkMode" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <!-- Icono Sol -->
+        <circle cx="12" cy="12" r="5"></circle>
+        <line x1="12" y1="1" x2="12" y2="3"></line>
+        <line x1="12" y1="21" x2="12" y2="23"></line>
+        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+        <line x1="1" y1="12" x2="3" y2="12"></line>
+        <line x1="21" y1="12" x2="23" y2="12"></line>
+        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+      </svg>
+      <svg *ngIf="isDarkMode" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <!-- Icono Luna -->
+        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+      </svg>
+    </span>
+    <span class="tooltip">{{ isDarkMode ? 'Modo claro' : 'Modo oscuro' }}</span>
+  </button>
+
+  <!-- Botón Aumentar Letra -->
+  <button 
+    class="accessibility-btn font-size-btn"
+    [class.disabled]="isFontSizeLarge"
+    (click)="increaseFontSize()"
+    [disabled]="isFontSizeLarge"
+    title="Aumentar tamaño de letra"
+    aria-label="Aumentar tamaño de letra">
+    <span class="icon" [attr.aria-hidden]="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <!-- Icono A+ -->
+        <text x="6" y="16" font-size="16" font-weight="bold"></text>
+        <text x="14" y="16" font-size="14" font-weight="bold"></text>
+      </svg>
+      <span style="position: absolute; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: bold;">A+</span>
+    </span>
+    <span class="tooltip">Aumentar letra</span>
+  </button>
+
+  <!-- Botón Disminuir Letra -->
+  <button 
+    class="accessibility-btn font-size-btn"
+    [class.disabled]="isFontSizeSmall"
+    (click)="decreaseFontSize()"
+    [disabled]="isFontSizeSmall"
+    title="Disminuir tamaño de letra"
+    aria-label="Disminuir tamaño de letra">
+    <span class="icon" [attr.aria-hidden]="true">
+      <span style="position: absolute; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: bold;">A−</span>
+    </span>
+    <span class="tooltip">Disminuir letra</span>
+  </button>
+
+  <!-- Botón Voz a Texto -->
+  <button 
+    class="accessibility-btn speech-to-text-btn"
+    [class.active]="isListening"
+    [class.disabled]="!speechToTextAvailable"
+    (click)="toggleSpeechToText()"
+    [disabled]="!speechToTextAvailable"
+    title="Voz a texto"
+    aria-label="Convertir voz a texto">
+    <span class="icon" [attr.aria-hidden]="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <!-- Icono Micrófono -->
+        <path d="M12 1a3 3 0 0 0-3 3v12a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
+        <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+        <line x1="12" y1="19" x2="12" y2="23"></line>
+        <line x1="8" y1="23" x2="16" y2="23"></line>
+      </svg>
+    </span>
+    <span class="tooltip">{{ isListening ? 'Escuchando...' : 'Voz a texto' }}</span>
+  </button>
+
+  <!-- Botón Texto a Voz -->
+  <button 
+    class="accessibility-btn text-to-speech-btn "
+    [class.active]="isSpeaking"
+    [class.disabled]="!textToSpeechAvailable"
+    (click)="toggleTextToSpeech()"
+    [disabled]="!textToSpeechAvailable"
+    title="Texto a voz"
+    aria-label="Convertir texto a voz">
+    <span class="icon" [attr.aria-hidden]="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <!-- Icono Altavoz -->
+        <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+        <path d="M15.54 8.46a6.5 6.5 0 0 1 0 9.07"></path>
+        <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
+      </svg>
+    </span>
+    <span class="tooltip">{{ isSpeaking ? 'Leyendo...' : 'Texto a voz' }}</span>
+  </button>
+</div>

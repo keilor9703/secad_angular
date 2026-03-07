@@ -49,6 +49,166 @@
   --btn-shadow: 0 10px 20px rgba(2, 6, 23, .12);
   --btn-shadow-sm: 0 6px 14px rgba(2, 6, 23, .14);
   --btn-ring: 0 0 0 4px rgba(8, 166, 203, .18);
+
+  /* --- Menu de Accesibilidad --- */
+  --font-size-scale: 1;
+}
+
+/* --- Tema Oscuro --- */
+html.dark-mode {
+  color-scheme: dark;
+
+  /* Paleta Institucional - Modo Oscuro */
+  --policia-oscuro: #0f1927;
+  --policia-medio: #141e35;
+  --policia-claro: #3a6bb8;
+  --policia-cielo: #08a6cb;
+  --bg-sidebar: #0f1927;
+  --bg-header: #141e35;
+  --ui-surface: #1e2840;
+  --ui-text: #e4e7eb;
+  --ui-border: rgba(200, 200, 200, 0.1);
+  --ui-muted: #9ca3af;
+  --policia-neutral-claro: rgba(200, 200, 200, 0.2);
+
+  body {
+    background: #0a0f1b;
+    color: var(--ui-text);
+  }
+
+  /* Layout Principal */
+  .app-shell {
+    background-color: #0f1927;
+  }
+
+  .main {
+    background-color: #0a0f1b;
+  }
+
+  /* Contenido Principal */
+  .content {
+    background: rgba(30, 40, 64, 0.8);
+    border-color: var(--ui-border);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+  }
+
+  /* Componentes UI */
+  .ui-panel {
+    background: var(--ui-surface);
+    border-color: var(--ui-border);
+  }
+
+  .ui-panel__head {
+    background: #252f45;
+    border-bottom-color: var(--ui-border);
+  }
+
+  /* Formularios */
+  input, textarea, select {
+    background: #252f45;
+    color: var(--ui-text);
+    border-color: var(--ui-border);
+
+    &:focus {
+      border-color: var(--policia-cielo);
+      background: #2a3450;
+    }
+
+    &::placeholder {
+      color: #7a8290;
+    }
+  }
+
+  /* Enlaces */
+  a {
+    color: var(--policia-cielo);
+
+    &:hover {
+      color: var(--policia-acento);
+    }
+  }
+
+  /* Botones genéricos */
+  button:not([class*="btn-primary"]):not([class*="btn-success"]):not([class*="btn-danger"]) {
+    background: #252f45;
+    color: var(--ui-text);
+    border-color: var(--ui-border);
+
+    &:hover {
+      background: #2a3450;
+    }
+  }
+
+  /* Tablas */
+  table {
+    background: var(--ui-surface);
+    border-color: var(--ui-border);
+  }
+
+  thead {
+    background: #252f45;
+  }
+
+  tbody tr {
+    border-color: var(--ui-border);
+
+    &:hover {
+      background: #252f45;
+    }
+  }
+
+  /* Separadores */
+  hr, .divider {
+    border-color: var(--ui-border);
+  }
+
+  /* Dropdowns y selectores */
+  .dropdown, .select {
+    background: #252f45;
+    color: var(--ui-text);
+    border-color: var(--ui-border);
+  }
+
+  /* Modales y overlays */
+  .modal {
+    background: var(--ui-surface);
+    color: var(--ui-text);
+  }
+
+  .modal-header {
+    background: #252f45;
+    border-color: var(--ui-border);
+  }
+
+  /* Cards */
+  .card {
+    background: var(--ui-surface);
+    border-color: var(--ui-border);
+  }
+
+  /* Alertas y notificaciones */
+  .alert {
+    background: #252f45;
+    color: var(--ui-text);
+    border-color: var(--ui-border);
+  }
+
+  /* Scroll */
+  ::-webkit-scrollbar {
+    background: #0f1927;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: #141e35;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: #2a3450;
+
+    &:hover {
+      background: #3a4560;
+    }
+  }
 }
 
 /* --- RESET Y BASE --- */
@@ -67,6 +227,8 @@ body {
   overflow-x: hidden;
   color: var(--policia-neutral-oscuro);
   min-height: 100vh;
+  font-size: calc(16px * var(--font-size-scale));
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 /* Soporte íconos Font Awesome */
