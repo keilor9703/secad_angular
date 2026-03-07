@@ -1,6 +1,7 @@
 {
   "format": 1,
   "restore": {
+<<<<<<< HEAD
     "C:\\Users\\wilson.lopezd\\source\\repos\\backend\\oftic\\oftic.dl\\Datos.csproj": {}
   },
   "projects": {
@@ -12,6 +13,19 @@
         "projectPath": "C:\\Users\\wilson.lopezd\\source\\repos\\backend\\oftic\\oftic.cl\\Comun.csproj",
         "packagesPath": "C:\\Users\\wilson.lopezd\\.nuget\\packages\\",
         "outputPath": "C:\\Users\\wilson.lopezd\\source\\repos\\backend\\oftic\\oftic.cl\\obj\\",
+=======
+    "C:\\Users\\wilson.lopezd\\source\\Repos\\Plantilla%20Angular%2020\\backend\\oftic\\oftic.dl\\Datos.csproj": {}
+  },
+  "projects": {
+    "C:\\Users\\wilson.lopezd\\source\\Repos\\Plantilla%20Angular%2020\\backend\\oftic\\oftic.cl\\Comun.csproj": {
+      "version": "1.0.0",
+      "restore": {
+        "projectUniqueName": "C:\\Users\\wilson.lopezd\\source\\Repos\\Plantilla%20Angular%2020\\backend\\oftic\\oftic.cl\\Comun.csproj",
+        "projectName": "Comun",
+        "projectPath": "C:\\Users\\wilson.lopezd\\source\\Repos\\Plantilla%20Angular%2020\\backend\\oftic\\oftic.cl\\Comun.csproj",
+        "packagesPath": "C:\\Users\\wilson.lopezd\\.nuget\\packages\\",
+        "outputPath": "C:\\Users\\wilson.lopezd\\Source\\Repos\\Plantilla%20Angular%2020\\backend\\oftic\\oftic.cl\\obj\\",
+>>>>>>> b926ad35ec0a8d64ca9c8cda2661ff31226e9a87
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
@@ -45,7 +59,7 @@
           "auditLevel": "low",
           "auditMode": "direct"
         },
-        "SdkAnalysisLevel": "9.0.300"
+        "SdkAnalysisLevel": "9.0.200"
       },
       "frameworks": {
         "net8.0": {
@@ -72,10 +86,11 @@
               "privateAssets": "all"
             }
           },
-          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.311/PortableRuntimeIdentifierGraph.json"
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.201/PortableRuntimeIdentifierGraph.json"
         }
       }
     },
+<<<<<<< HEAD
     "C:\\Users\\wilson.lopezd\\source\\repos\\backend\\oftic\\oftic.dl\\Datos.csproj": {
       "version": "1.0.0",
       "restore": {
@@ -84,6 +99,16 @@
         "projectPath": "C:\\Users\\wilson.lopezd\\source\\repos\\backend\\oftic\\oftic.dl\\Datos.csproj",
         "packagesPath": "C:\\Users\\wilson.lopezd\\.nuget\\packages\\",
         "outputPath": "C:\\Users\\wilson.lopezd\\source\\repos\\backend\\oftic\\oftic.dl\\obj\\",
+=======
+    "C:\\Users\\wilson.lopezd\\source\\Repos\\Plantilla%20Angular%2020\\backend\\oftic\\oftic.dl\\Datos.csproj": {
+      "version": "1.0.0",
+      "restore": {
+        "projectUniqueName": "C:\\Users\\wilson.lopezd\\source\\Repos\\Plantilla%20Angular%2020\\backend\\oftic\\oftic.dl\\Datos.csproj",
+        "projectName": "Datos",
+        "projectPath": "C:\\Users\\wilson.lopezd\\source\\Repos\\Plantilla%20Angular%2020\\backend\\oftic\\oftic.dl\\Datos.csproj",
+        "packagesPath": "C:\\Users\\wilson.lopezd\\.nuget\\packages\\",
+        "outputPath": "C:\\Users\\wilson.lopezd\\Source\\Repos\\Plantilla%20Angular%2020\\backend\\oftic\\oftic.dl\\obj\\",
+>>>>>>> b926ad35ec0a8d64ca9c8cda2661ff31226e9a87
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
@@ -105,8 +130,13 @@
           "net8.0": {
             "targetAlias": "net8.0",
             "projectReferences": {
+<<<<<<< HEAD
               "C:\\Users\\wilson.lopezd\\source\\repos\\backend\\oftic\\oftic.cl\\Comun.csproj": {
                 "projectPath": "C:\\Users\\wilson.lopezd\\source\\repos\\backend\\oftic\\oftic.cl\\Comun.csproj"
+=======
+              "C:\\Users\\wilson.lopezd\\source\\Repos\\Plantilla%20Angular%2020\\backend\\oftic\\oftic.cl\\Comun.csproj": {
+                "projectPath": "C:\\Users\\wilson.lopezd\\source\\Repos\\Plantilla%20Angular%2020\\backend\\oftic\\oftic.cl\\Comun.csproj"
+>>>>>>> b926ad35ec0a8d64ca9c8cda2661ff31226e9a87
               }
             }
           }
@@ -121,7 +151,7 @@
           "auditLevel": "low",
           "auditMode": "direct"
         },
-        "SdkAnalysisLevel": "9.0.300"
+        "SdkAnalysisLevel": "9.0.200"
       },
       "frameworks": {
         "net8.0": {
@@ -152,7 +182,7 @@
               "privateAssets": "all"
             }
           },
-          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.311/PortableRuntimeIdentifierGraph.json"
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.201/PortableRuntimeIdentifierGraph.json"
         }
       }
     }

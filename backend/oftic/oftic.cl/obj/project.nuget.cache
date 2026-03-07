@@ -1,8 +1,14 @@
 {
   "version": 2,
+<<<<<<< HEAD
   "dgSpecHash": "0GmuHnM1sz8=",
   "success": true,
   "projectFilePath": "C:\\Users\\wilson.lopezd\\source\\repos\\backend\\oftic\\oftic.cl\\Comun.csproj",
+=======
+  "dgSpecHash": "AhvZLpYuYh8=",
+  "success": true,
+  "projectFilePath": "C:\\Users\\wilson.lopezd\\source\\Repos\\Plantilla%20Angular%2020\\backend\\oftic\\oftic.cl\\Comun.csproj",
+>>>>>>> b926ad35ec0a8d64ca9c8cda2661ff31226e9a87
   "expectedPackageFiles": [
     "C:\\Users\\wilson.lopezd\\.nuget\\packages\\microsoft.extensions.caching.abstractions\\10.0.2\\microsoft.extensions.caching.abstractions.10.0.2.nupkg.sha512",
     "C:\\Users\\wilson.lopezd\\.nuget\\packages\\microsoft.extensions.caching.memory\\10.0.2\\microsoft.extensions.caching.memory.10.0.2.nupkg.sha512",
