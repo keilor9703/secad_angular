@@ -1,6 +1,7 @@
 <footer class="modern-footer">
   <div class="footer-left">
     <div class="radio-bar">
+      <img class="radio-logo" src="imagenes/radio-policia-bogota.svg" alt="Logo Radio Policia Bogota">
       <span class="radio-label">Radio Policia</span>
 
       <button class="radio-play" type="button" (click)="togglePlay()" [title]="isPlaying ? 'Pausar radio' : 'Reproducir radio'">
@@ -22,13 +23,13 @@
 
     <div class="footer-text">
       <div class="footer-title">Sistema de gestion de Policia</div>
-      <div class="footer-meta">&copy; 2026 OFTIC • {{ systemName }} • Version 1</div>
+      <div class="footer-meta">&copy; 2026 OFTIC - {{ systemName }} - Version 1</div>
     </div>
   </div>
 
   <div class="footer-right">
     <a class="footer-link" href="#" (click)="$event.preventDefault(); openSupport()">Soporte</a>
-    <span class="footer-sep">•</span>
+    <span class="footer-sep">ï¿½</span>
     <a class="footer-link" href="#" (click)="$event.preventDefault(); openPolicy()">Privacidad</a>
   </div>
 </footer>

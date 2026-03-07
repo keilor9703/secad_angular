@@ -21,8 +21,18 @@ export class FooterComponent implements OnDestroy {
   policyOpen = false;
 
   stations = [
-    { id: 'bogota', name: 'Bogota', url: 'https://radio.policia.gov.co:8080/inhouse' },
-    { id: 'medellin', name: 'Medellin', url: 'https://radio.policia.gov.co:8080/medellin' }
+{ id: 'armenia', name: 'Armenia', url: 'https://radio.policia.gov.co:8080/Armenia' },
+{ id: 'bogota', name: 'Bogota', url: 'https://radio.policia.gov.co:8080/inhouse' },
+{ id: 'cali', name: 'Cali', url: 'https://radio.policia.gov.co:8080/cali' },
+{ id: 'florencia', name: 'Florencia', url: 'https://radio.policia.gov.co:8080/Florencia' },
+{ id: 'ibague', name: 'Ibague', url: 'https://radio.policia.gov.co:8080/Ibague' },
+{ id: 'leticia', name: 'Leticia', url: 'https://radio.policia.gov.co:8080/Leticia' },
+{ id: 'manizales', name: 'Manizales', url: 'https://radio.policia.gov.co:8080/Manizales' },
+{ id: 'medellin', name: 'Medellin', url: 'https://radio.policia.gov.co:8080/medellin' },
+{ id: 'mocoa', name: 'Mocoa', url: 'https://radio.policia.gov.co:8080/Mocoa' },
+{ id: 'moniquira', name: 'Moniquira', url: 'https://radio.policia.gov.co:8080/Moniquira' },
+{ id: 'santamarta', name: 'Santa Marta', url: 'https://radio.policia.gov.co:8080/santamarta' },
+{ id: 'tunja', name: 'Tunja', url: 'https://radio.policia.gov.co:8080/tunja' },
   ];
 
   supportForm = {
