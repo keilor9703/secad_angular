@@ -29,9 +29,13 @@ export class AdminMultimediaComponent implements OnInit {
   brandingLoading = false;
   brandingSaving = false;
   brandingUploading = false;
-  brandingSystemName = 'SISGE';
+  brandingUploadingFavicon = false;
+  brandingSistema = 'SISGE';
+  brandingNombreSistema = 'SISGE';
   brandingLogoFileName: string | null = null;
   brandingLogoUrl: string | null = null;
+  brandingFaviconFileName: string | null = null;
+  brandingFaviconUrl: string | null = null;
 
   constructor(
     private videoService: VideoUnidadService,
@@ -246,9 +250,12 @@ export class AdminMultimediaComponent implements OnInit {
     this.brandingLoading = true;
     this.brandingService.getAdminConfig().subscribe({
       next: (cfg) => {
-        this.brandingSystemName = (cfg?.systemName ?? 'SISGE').trim() || 'SISGE';
+        this.brandingSistema = (cfg?.sistema ?? 'SISGE').trim() || 'SISGE';
+        this.brandingNombreSistema = (cfg?.nombreSistema ?? cfg?.systemName ?? 'SISGE').trim() || 'SISGE';
         this.brandingLogoFileName = cfg?.logoFileName ?? null;
         this.brandingLogoUrl = cfg?.logoUrl ?? null;
+        this.brandingFaviconFileName = cfg?.faviconFileName ?? null;
+        this.brandingFaviconUrl = cfg?.faviconUrl ?? null;
         this.brandingLoading = false;
       },
       error: (err) => {
@@ -297,17 +304,72 @@ export class AdminMultimediaComponent implements OnInit {
     });
   }
 
+  onBrandingFaviconSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const file = input.files && input.files.length > 0 ? input.files[0] : null;
+    if (!file) {
+      return;
+    }
+
+    const allowed = ['image/x-icon', 'image/vnd.microsoft.icon', 'image/png', 'image/svg+xml', 'image/webp'];
+    if (!allowed.includes(file.type)) {
+      this.toast.warning('Marca del sistema', 'Formato invÃ¡lido. Use ICO, PNG, WEBP o SVG.');
+      input.value = '';
+      return;
+    }
+
+    if (file.size > 2 * 1024 * 1024) {
+      this.toast.warning('Marca del sistema', 'El favicon excede 2MB.');
+      input.value = '';
+      return;
+    }
+
+    this.brandingUploadingFavicon = true;
+    this.brandingService.uploadFavicon(file).subscribe({
+      next: (resp) => {
+        this.brandingUploadingFavicon = false;
+        if (!resp?.success) {
+          this.toast.warning('Marca del sistema', resp?.message || 'No fue posible cargar el favicon.');
+          return;
+        }
+        this.brandingFaviconFileName = resp.fileName;
+        this.brandingFaviconUrl = resp.faviconUrl ?? null;
+        this.toast.success('Marca del sistema', resp.message || 'Favicon cargado correctamente.');
+      },
+      error: (err) => {
+        this.brandingUploadingFavicon = false;
+        this.toast.error('Marca del sistema', err?.error?.detail ?? err?.error?.message ?? 'Error cargando favicon.');
+      }
+    });
+  }
+
   saveBrandingConfig(): void {
-    const systemName = (this.brandingSystemName ?? '').trim();
-    if (!systemName) {
-      this.toast.warning('Marca del sistema', 'El nombre del sistema es obligatorio.');
+    const sistema = (this.brandingSistema ?? '').trim();
+    const nombreSistema = (this.brandingNombreSistema ?? '').trim();
+
+    if (!sistema) {
+      this.toast.warning('Marca del sistema', 'El campo Sistema es obligatorio.');
+      return;
+    }
+    if (sistema.length > 10) {
+      this.toast.warning('Marca del sistema', 'El campo Sistema solo permite hasta 10 caracteres.');
+      return;
+    }
+    if (!nombreSistema) {
+      this.toast.warning('Marca del sistema', 'El campo Nombre del sistema es obligatorio.');
+      return;
+    }
+    if (nombreSistema.length > 50) {
+      this.toast.warning('Marca del sistema', 'Nombre del sistema solo permite hasta 50 caracteres.');
       return;
     }
 
     this.brandingSaving = true;
     this.brandingService.saveConfig({
-      systemName,
-      logoFileName: this.brandingLogoFileName
+      sistema,
+      nombreSistema,
+      logoFileName: this.brandingLogoFileName,
+      faviconFileName: this.brandingFaviconFileName
     }).subscribe({
       next: (resp) => {
         this.brandingSaving = false;

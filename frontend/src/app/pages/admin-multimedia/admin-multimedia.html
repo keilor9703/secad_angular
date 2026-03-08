@@ -163,29 +163,56 @@
     <div class="ui-panel__body" *ngIf="!brandingPanelMinimized">
       <div class="login-visual-grid">
         <article class="tab-card form-card">
-          <div class="list-loading" *ngIf="brandingLoading">Cargando configuración de marca...</div>
+          <div class="list-loading" *ngIf="brandingLoading">Cargando configuracion de marca...</div>
 
           <div class="ui-field">
-            <label class="ui-label">Nombre del sistema</label>
+            <label class="ui-label">Sigla del sistema</label>
+            <small class="meta">Maximo 10 caracteres.</small>
             <input
               class="ui-control"
               type="text"
-              maxlength="80"
-              [(ngModel)]="brandingSystemName"
+              maxlength="10"
+              [(ngModel)]="brandingSistema"
               placeholder="Ej: SISGE">
+            
+          </div>
+
+          <div class="ui-field">
+            <label class="ui-label">Nombre del sistema</label>
+            <small class="meta">Maximo 50 caracteres.</small>
+            <input
+              class="ui-control"
+              type="text"
+              maxlength="50"
+              [(ngModel)]="brandingNombreSistema"
+              placeholder="Ej: Sistema de Gestion">
+            
           </div>
 
           <div class="ui-field">
             <label class="ui-label">Logo del sistema</label>
+            <small class="meta">Formatos: JPG, PNG, WEBP o SVG. Maximo 5MB.</small>
             <input
               class="ui-control"
               type="file"
               accept=".jpg,.jpeg,.png,.webp,.svg,image/*"
               (change)="onBrandingLogoSelected($event)">
-            <small class="meta">Formatos: JPG, PNG, WEBP o SVG. Máximo 5MB.</small>
+            
+          </div>
+
+          <div class="ui-field">
+            <label class="ui-label">Favicon</label>
+             <small class="meta">Formatos: ICO, PNG, WEBP o SVG. Maximo 50Kb.</small>
+            <input
+              class="ui-control"
+              type="file"
+              accept=".ico,.png,.webp,.svg,image/x-icon,image/vnd.microsoft.icon,image/png,image/webp,image/svg+xml"
+              (change)="onBrandingFaviconSelected($event)">
+           
           </div>
 
           <div class="list-loading" *ngIf="brandingUploading">Cargando logo...</div>
+          <div class="list-loading" *ngIf="brandingUploadingFavicon">Cargando favicon...</div>
 
           <div class="tab-actions">
             <button class="ui-btn primary" type="button" (click)="saveBrandingConfig()" [disabled]="brandingSaving">
@@ -197,15 +224,27 @@
 
         <article class="tab-card list-card">
           <h3 class="sub-title">Vista previa</h3>
-          <div class="news-state" *ngIf="!brandingLogoUrl">No hay logo configurado.</div>
+          <div class="news-state" *ngIf="!brandingLogoUrl && !brandingFaviconUrl">No hay marca configurada.</div>
 
           <div class="login-item" *ngIf="brandingLogoUrl">
             <div class="login-item__preview">
               <img [src]="brandingLogoUrl" alt="Logo del sistema">
             </div>
             <div class="login-item__content">
-              <div><strong>Nombre:</strong> {{ brandingSystemName }}</div>
-              <small class="meta">Archivo: {{ brandingLogoFileName || 'N/D' }}</small>
+              <div><strong>Sistema:</strong> {{ brandingSistema }}</div>
+              <div><strong>Nombre del sistema:</strong> {{ brandingNombreSistema }}</div>
+              <small class="meta">Archivo logo: {{ brandingLogoFileName || 'N/D' }}</small>
+              <small class="meta">Archivo favicon: {{ brandingFaviconFileName || 'N/D' }}</small>
+            </div>
+          </div>
+
+          <div class="login-item" *ngIf="brandingFaviconUrl">
+            <div class="login-item__preview">
+              <img [src]="brandingFaviconUrl" alt="Favicon del sistema">
+            </div>
+            <div class="login-item__content">
+              <div><strong>Favicon actual</strong></div>
+              <small class="meta">Archivo favicon: {{ brandingFaviconFileName || 'N/D' }}</small>
             </div>
           </div>
         </article>

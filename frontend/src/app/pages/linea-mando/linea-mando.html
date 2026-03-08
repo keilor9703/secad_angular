@@ -1,0 +1,198 @@
+<section class="home-view">
+  <!-- PANEL: FORMULARIO -->
+  <div class="ui-panel">
+    <div class="ui-panel__head">
+      <div class="ui-panel__title">
+        <i class="fa-solid fa-user-gear"></i>
+        {{ modoEdicion ? 'Editar' : 'Agregar' }} Línea de Mando
+      </div>
+    </div>
+
+    <div class="ui-panel__body">
+      <!-- Buscar por identificación -->
+       <div class="ui-grid" *ngIf="!modoEdicion">
+          <div class="ui-field ui-col-6">
+            <label class="ui-label">Buscar Funcionario por Cédula</label>
+            <div style="display: flex; gap: 0;">
+              <input 
+                class="ui-control" 
+                type="text" 
+                [(ngModel)]="searchIdentificacion"
+                placeholder="Ingrese número de identificación y presione Enter"
+                [disabled]="searchingFuncionario"
+                (keyup.enter)="onSearchEnter($event)"
+                style="border-radius: var(--ui-radius-sm) 0 0 var(--ui-radius-sm); flex: 1;"
+              >
+              <button 
+                class="ui-btn primary" 
+                type="button" 
+                (click)="buscarFuncionario()"
+                [disabled]="searchingFuncionario"
+                style="border-radius: 0 var(--ui-radius-sm) var(--ui-radius-sm) 0; white-space: nowrap;"
+              >
+                <i class="fa-solid fa-magnifying-glass"></i>
+                {{ searchingFuncionario ? 'Buscando...' : 'Buscar' }}
+              </button>
+            </div>
+          </div>
+        </div>
+      <!-- <div class="ui-grid" *ngIf="!modoEdicion">
+        <div class="ui-field ui-col-6">
+          <label class="ui-label">Buscar Funcionario por Cédula</label>
+          <input 
+            class="ui-control" 
+            type="text" 
+            [(ngModel)]="searchIdentificacion"
+            placeholder="Ingrese número de identificación y presione Enter"
+            [disabled]="searchingFuncionario"
+            (keyup.enter)="onSearchEnter($event)"
+          >
+        </div>
+        <div class="ui-field ui-col-4" style="display: flex; align-items: flex-end;">
+          <button 
+            class="ui-btn primary" 
+            type="button" 
+            (click)="buscarFuncionario()"
+            [disabled]="searchingFuncionario"
+          >
+            <i class="fa-solid fa-magnifying-glass"></i>
+            {{ searchingFuncionario ? 'Buscando...' : 'Buscar' }}
+          </button>
+        </div>
+      </div> -->
+
+      <!-- Datos del funcionario encontrado -->
+      <div class="funcionario-panel" *ngIf="hayFuncionario">
+        <div class="funcionario-foto">
+          <div class="foto-container">
+            <img [src]="fotoPreview || 'imagenes/policia.jpg'" alt="Foto">
+          </div>
+          <div style="margin-top: 10px;">
+            <input 
+              type="file" 
+              accept="image/*" 
+              (change)="onFileSelected($event)"
+              style="display: none;"
+              #fileInput
+            >
+            <button class="ui-btn outline sm" type="button" (click)="fileInput.click()">
+              <i class="fa-solid fa-upload"></i> Cambiar
+            </button>
+          </div>
+        </div>
+
+        <div class="funcionario-datos">
+          <div class="ui-grid">
+            <div class="ui-field ui-col-4">
+              <label class="ui-label">Identificación *</label>
+              <input class="ui-control" type="text" [(ngModel)]="formData.identificacion" placeholder="Número de identificación">
+            </div>
+
+            <div class="ui-field ui-col-4">
+              <label class="ui-label">Nombre(s) *</label>
+              <input class="ui-control" type="text" [(ngModel)]="formData.nombre" placeholder="Nombre">
+            </div>
+
+            <div class="ui-field ui-col-4">
+              <label class="ui-label">Apellido(s)</label>
+              <input class="ui-control" type="text" [(ngModel)]="formData.apellidos" placeholder="Apellidos">
+            </div>
+
+            <div class="ui-field ui-col-4">
+              <label class="ui-label">Grado</label>
+              <input class="ui-control" type="text" [(ngModel)]="formData.grado" placeholder="Grado">
+            </div>
+
+            <div class="ui-field ui-col-4">
+              <label class="ui-label">Cargo (API)</label>
+              <input class="ui-control" type="text" [(ngModel)]="formData.cargo" placeholder="Cargo" readonly>
+            </div>
+
+            <div class="ui-field ui-col-4">
+              <label class="ui-label">Peso *</label>
+              <select class="ui-control" [(ngModel)]="formData.peso">
+                <option value="">Seleccione...</option>
+                <option *ngFor="let peso of pesoOpciones" [value]="peso.id">
+                  {{ peso.nombre }}
+                </option>
+              </select>
+            </div>
+
+            <div class="ui-field ui-col-4">
+              <label class="ui-label">Orden</label>
+              <input class="ui-control" type="number" [(ngModel)]="formData.orden" min="1">
+            </div>
+
+            <div class="ui-field ui-col-4">
+              <label class="ui-label">Unidad</label>
+              <input class="ui-control" type="text" [(ngModel)]="formData.unidad" placeholder="Unidad">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Mensaje cuando no hay funcionario -->
+      <div class="no-funcionario" *ngIf="!hayFuncionario && !modoEdicion">
+        <i class="fa-solid fa-user-plus"></i>
+        <p>Busque un funcionario por número de identificación para agregar a la línea de mando</p>
+      </div>
+
+      <!-- Botones -->
+      <div class="ui-toolbar" *ngIf="hayFuncionario">
+        <button class="ui-btn primary" type="button" (click)="guardar()" [disabled]="saving">
+          <i class="fa-solid fa-floppy-disk"></i>
+          {{ saving ? 'Guardando...' : (modoEdicion ? 'Actualizar' : 'Guardar') }}
+        </button>
+        <button class="ui-btn outline" type="button" (click)="limpiarForm()">
+          <i class="fa-solid fa-xmark"></i> Cancelar
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- PANEL: LISTADO -->
+  <div class="ui-panel">
+    <div class="ui-panel__head">
+      <div class="ui-panel__title">
+        <i class="fa-solid fa-user-group"></i>
+        Línea de Mando Configurada
+      </div>
+      <div class="ui-panel__actions">
+        <span class="ui-badge info">Registros: {{ listaLineaMando.length }}</span>
+      </div>
+    </div>
+
+    <div class="ui-panel__body">
+      <div *ngIf="loading" style="text-align: center; padding: 40px;">
+        <i class="fa-solid fa-spinner fa-spin"></i> Cargando...
+      </div>
+
+      <div *ngIf="!loading && listaLineaMando.length === 0" style="text-align: center; padding: 40px; color: #666;">
+        No hay registros de línea de mando. Busque un funcionario y agréguelo.
+      </div>
+
+      <div class="linea-mando-grid" *ngIf="!loading && listaLineaMando.length > 0">
+        <article class="cmd-item" *ngFor="let item of listaLineaMando">
+          <div class="cmd-photo-lg" style="width: 100%; height: 180px; border-radius: 10px; overflow: hidden;">
+            <img [src]="getFotoUrl(item)" [alt]="getNombreCompletoItem(item)" style="width: 100%; height: 100%; object-fit: cover;">
+          </div>
+          <div class="cmd-name" style="margin-top: 10px;">{{ getNombreCompletoItem(item) }}</div>
+          <div class="cmd-grade" style="margin-top: 4px;">{{ item.grado }}</div>
+          <div style="color: #666; font-size: 12px; margin-top: 2px;">{{ item.cargo }}</div>
+          <div style="color: #888; font-size: 11px; margin-top: 2px;">{{ item.unidad }}</div>
+          <div style="margin-top: 10px; display: flex; gap: 8px;">
+            <button class="ui-mini-btn" type="button" title="Editar" (click)="editar(item)">
+              <i class="fa-solid fa-pen"></i>
+            </button>
+            <button class="ui-mini-btn danger" type="button" title="Eliminar" (click)="eliminar(item)">
+              <i class="fa-solid fa-trash"></i>
+            </button>
+          </div>
+          <div style="margin-top: 8px;">
+            <span class="ui-badge info">Orden: {{ item.orden }}</span>
+          </div>
+        </article>
+      </div>
+    </div>
+  </div>
+</section>
