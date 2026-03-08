@@ -79,6 +79,8 @@ html.dark-mode {
   color: var(--ui-text);
   }  
 
+  
+
   /* Layout Principal */
   .app-shell {
     background-color: #0f1927;
@@ -119,6 +121,19 @@ html.dark-mode {
     color: var(--ui-text);
   }
 
+  .ui-panel__subtitle {
+    color: var(--policia-acento);
+  }  
+  
+  .tab-card {
+    color: var(--policia-acento);  
+  }
+
+  .tab-card h3 {  
+    color: var(--ui-text) !important; 
+  }
+
+  
   
 
   /* Formularios */
@@ -342,6 +357,8 @@ html.dark-mode {
   .ui-feature-card__text {
     color: var(--ui-muted);
   }
+
+  
 
 
   /* Tabs */
@@ -627,6 +644,8 @@ html.dark-mode {
     background: var(--policia-cielo);
     color: #0a0f1b;
   }
+
+  
 
 
 
