@@ -58,23 +58,26 @@
 html.dark-mode {
   color-scheme: dark;
 
-  /* Paleta Institucional - Modo Oscuro */
-  --policia-oscuro: #0f1927;
-  --policia-medio: #141e35;
-  --policia-claro: #3a6bb8;
-  --policia-cielo: #08a6cb;
-  --bg-sidebar: #0f1927;
+  /* Paleta Institucional - Modo Oscuro Adaptada */
+  
+
+  /* Aliases Semánticos */
+  
   --bg-header: #141e35;
   --ui-surface: #1e2840;
   --ui-text: #e4e7eb;
   --ui-border: rgba(200, 200, 200, 0.1);
   --ui-muted: #9ca3af;
-  --policia-neutral-claro: rgba(200, 200, 200, 0.2);
 
+  /* Body */
   body {
     background: #0a0f1b;
     color: var(--ui-text);
   }
+
+  .meta {
+  color: var(--ui-text);
+  }  
 
   /* Layout Principal */
   .app-shell {
@@ -85,6 +88,10 @@ html.dark-mode {
     background-color: #0a0f1b;
   }
 
+  .shell {
+    background-color: #0a0f1b;
+  }
+
   /* Contenido Principal */
   .content {
     background: rgba(30, 40, 64, 0.8);
@@ -92,16 +99,27 @@ html.dark-mode {
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
   }
 
-  /* Componentes UI */
+  /* Componentes UI Panel */
   .ui-panel {
     background: var(--ui-surface);
     border-color: var(--ui-border);
   }
 
   .ui-panel__head {
-    background: #252f45;
+    background: var(--policia-gradiente-deep);
     border-bottom-color: var(--ui-border);
+    color: var(--ui-text);
   }
+
+  .ui-panel__title {
+    color: var(--ui-text);
+  }
+
+  .ui-panel__body {
+    color: var(--ui-text);
+  }
+
+  
 
   /* Formularios */
   input, textarea, select {
@@ -117,36 +135,146 @@ html.dark-mode {
     &::placeholder {
       color: #7a8290;
     }
+
+    &:disabled {
+      background: #1e2840;
+      color: #7a8290;
+    }
+  }
+
+  /* Labels */
+  label {
+    color: var(--ui-text);
   }
 
   /* Enlaces */
-  a {
-    color: var(--policia-cielo);
+  .a {
+    color: var(--ui-text);
 
+    &:hover {
+      color: var(--policia-acento);
+    }
+    &:visited {
+      color: var(--policia-cielo);
+    }
+  }
+  
+  .breadcrumb-current, .breadcrumb-link {
+    color: var(--policia-cielo);
     &:hover {
       color: var(--policia-acento);
     }
   }
 
   /* Botones genéricos */
-  button:not([class*="btn-primary"]):not([class*="btn-success"]):not([class*="btn-danger"]) {
+  button:not([class*="btn-primary"]):not([class*="btn-success"]):not([class*="btn-danger"]):not([class*="btn-warning"]) {
     background: #252f45;
     color: var(--ui-text);
     border-color: var(--ui-border);
 
     &:hover {
       background: #2a3450;
+      border-color: var(--policia-cielo);
+    }
+
+    &:disabled {
+      background: #1e2840;
+      color: #7a8290;
     }
   }
 
+  /* UI Buttons */
+  .ui-btn {
+    &:not(.ui-btn--primary):not(.ui-btn--success):not(.ui-btn--danger):not(.ui-btn--warning) {
+      background: #252f45;
+      color: var(--ui-text);
+      border-color: var(--ui-border);
+
+      &:hover {
+        background: #2a3450;
+      }
+
+      &:disabled {
+        background: #1e2840;
+        color: #7a8290;
+      }
+    }
+
+    &.ui-btn--primary {
+      background: var(--policia-cielo);
+      color: #0a0f1b;
+
+      &:hover {
+        background: #06849b;
+      }
+    }
+  }
+
+  /* Checkboxes */
+  .ui-check__box {
+    background: #252f45;
+    border-color: var(--ui-border);
+
+    &:checked {
+      background: var(--policia-cielo);
+      border-color: var(--policia-cielo);
+    }
+  }
+
+  .ui-check__text {
+    color: var(--ui-text);
+  }
+
   /* Tablas */
+  .ui-table-wrap {
+    color: var(--ui-text);
+  }
+
+  .ui-table {
+    background: var(--ui-surface);
+    border-color: var(--ui-border);
+
+    th {
+      background: #252f45;
+      color: var(--ui-text);
+      border-color: var(--ui-border);
+    }
+
+    td {
+      border-color: var(--ui-border);
+      color: var(--ui-text);
+    }
+
+    tbody tr {
+      &:hover {
+        background: #252f45;
+      }
+    }
+  }
+
   table {
     background: var(--ui-surface);
     border-color: var(--ui-border);
+    color: var(--ui-text);
+
+    th {
+      background: #252f45;
+      color: var(--ui-text);
+      border-color: var(--ui-border);
+    }
+
+    td {
+      border-color: var(--ui-border);
+    }
+
+    tbody tr:hover {
+      background: #252f45;
+    }
   }
 
   thead {
     background: #252f45;
+    color: var(--ui-text);
   }
 
   tbody tr {
@@ -155,6 +283,192 @@ html.dark-mode {
     &:hover {
       background: #252f45;
     }
+  }
+
+  /* Badges */
+  .ui-badge {
+    background: #252f45;
+    color: var(--ui-text);
+    border-color: var(--ui-border);
+  }
+
+  /* Cards */
+  .ui-card {
+    background: var(--ui-surface);
+    border-color: var(--ui-border);
+    color: var(--ui-text);
+  }
+
+  .ui-card__head {
+    background: var(--policia-gradiente-deep);
+    border-bottom-color: var(--ui-border);
+  }
+
+  .ui-card__title {
+    color: var(--ui-text);
+  }
+
+  .ui-imgcard {
+    background: var(--ui-surface);
+    border-color: var(--ui-border);
+
+    &:hover {
+      border-color: var(--policia-cielo);
+    }
+  }
+
+  .ui-imgcard__title {
+    color: var(--ui-text);
+  }
+
+  .ui-imgcard__text {
+    color: var(--ui-muted);
+  }
+
+  .ui-feature-card {
+    background: var(--ui-surface);
+    border-color: var(--ui-border);
+
+    &:hover {
+      border-color: var(--policia-cielo);
+      background: #252f45;
+    }
+  }
+
+  .ui-feature-card__title {
+    color: var(--ui-text);
+  }
+
+  .ui-feature-card__text {
+    color: var(--ui-muted);
+  }
+
+
+  /* Tabs */
+  .ui-tabs__tab {
+    color: var(--ui-muted);
+    border-color: transparent;
+
+    &:hover {
+      color: var(--ui-text);
+    }
+  }
+
+  .ui-tabs__radio:checked + .ui-tabs__tab {
+    color: var(--ui-text);
+    border-color: var(--policia-cielo);
+  }
+
+  .ui-tabs__panels {
+    background: var(--ui-surface);
+    color: var(--ui-text);
+  }
+
+  /* Accordion */
+  .ui-acc__summary {
+    background: var(--policia-gradiente-deep);
+    color: var(--ui-text);
+    border-color: var(--ui-border);
+
+    &:hover {
+      background: var(--policia-gradiente-deep);
+      filter: brightness(1.1);
+    }
+  }
+
+  .ui-acc__content {
+    background: var(--ui-surface);
+    color: var(--ui-text);
+    border-color: var(--ui-border);
+  }
+
+  /* Modales */
+  .ui-modal__dialog {
+    background: var(--ui-surface);
+    color: var(--ui-text);
+  }
+
+  .ui-modal__head {
+    background: var(--policia-gradiente-deep);
+    border-bottom-color: var(--ui-border);
+    color: var(--ui-text);
+  }
+
+  .ui-modal__title {
+    color: var(--ui-text);
+  }
+
+  .ui-modal__body {
+    color: var(--ui-text);
+  }
+
+  .ui-modal__foot {
+    border-top-color: var(--ui-border);
+    background: #1e2840;
+  }
+
+  /* Toasts - Notificaciones */
+  .ui-toast {
+    background: #252f45;
+    border-color: var(--ui-border);
+    color: var(--ui-text);
+
+    &.ui-toast--success {
+      border-left-color: #10b981;
+    }
+
+    &.ui-toast--error {
+      border-left-color: #ef4444;
+    }
+
+    &.ui-toast--warning {
+      border-left-color: #f59e0b;
+    }
+
+    &.ui-toast--info {
+      border-left-color: #3b82f6;
+    }
+  }
+
+  .ui-toast__title {
+    color: var(--ui-text);
+  }
+
+  .ui-toast__text {
+    color: var(--ui-muted);
+  }
+
+  .ui-toast__close {
+    color: var(--ui-muted);
+
+    &:hover {
+      color: var(--ui-text);
+    }
+  }
+
+  /* Alerts - Alertas */
+  .ui-alert__dialog {
+    background: var(--ui-surface);
+    border-color: var(--ui-border);
+  }
+
+  .ui-alert__title {
+    color: var(--ui-text);
+  }
+
+  .ui-alert__text {
+    color: var(--ui-muted);
+  }
+
+  .ui-alert__foot {
+    border-top-color: var(--ui-border);
+    background: #252f45;
+  }
+
+  .alert {
+    background: #252f45;
+    color: var(--ui-text);
+    border-color: var(--ui-border);
   }
 
   /* Separadores */
@@ -169,33 +483,92 @@ html.dark-mode {
     border-color: var(--ui-border);
   }
 
-  /* Modales y overlays */
+  .dropdown-item{
+    background: var(--policia-oscuro);
+    color: var(--ui-text);
+  }
+
+  /* Custom Cards and Components */
+  .stat-card {
+    background: #252f45;
+    border-color: var(--policia-cielo);
+    color: var(--ui-text);
+  }
+
+  .card-view {
+    background: #252f45;
+    border-color: var(--policia-acento);
+    color: var(--ui-text);
+  }
+
+  .news-card,
+  .news-date,
+  .news-title,
+  .news-lead,
+  .news-link {
+    background: var(--policia-oscuro);
+    color: var(--ui-text);
+  }
+
+  .cmd-card {
+    background: #252f45;
+    border-color: var(--ui-border);
+    color: var(--ui-text);
+
+    &:hover {
+      border-color: var(--policia-cielo);
+      background: #2a3450;
+    }
+  }
+
+  .cmd-photo {
+    border-color: var(--ui-border);
+  }
+
+  .cmd-name {
+    color: var(--ui-text);
+  }
+
+  .cmd-role {
+    color: var(--ui-muted);
+  }
+
+  /* Upload */
+  .ui-upload {
+    border-color: var(--ui-border);
+    background: #252f45;
+
+    &:hover {
+      border-color: var(--policia-cielo);
+      background: #2a3450;
+    }
+  }
+
+  .ui-upload__hint {
+    color: var(--ui-muted);
+  }
+
+  /* Toolbar */
+  .ui-toolbar {
+    background: #252f45;
+    border-color: var(--ui-border);
+  }
+
+  /* Modales */
   .modal {
     background: var(--ui-surface);
     color: var(--ui-text);
   }
 
   .modal-header {
-    background: #252f45;
+    background: var(--policia-gradiente-deep);
     border-color: var(--ui-border);
-  }
-
-  /* Cards */
-  .card {
-    background: var(--ui-surface);
-    border-color: var(--ui-border);
-  }
-
-  /* Alertas y notificaciones */
-  .alert {
-    background: #252f45;
     color: var(--ui-text);
-    border-color: var(--ui-border);
   }
 
-  /* Scroll */
+  /* Scroll bars */
   ::-webkit-scrollbar {
-    background: #0f1927;
+    background: #0a0f1b;
   }
 
   ::-webkit-scrollbar-track {
@@ -209,7 +582,58 @@ html.dark-mode {
       background: #3a4560;
     }
   }
+
+  /* Home Page Components - Dark Mode */
+  .card-body {
+    background: var(--ui-surface);
+    color: var(--ui-text);  }
+
+  .cmd-item {
+    background: var(--policia-oscuro);
+    border-color: var(--ui-border);
+    color: var(--ui-text);
+
+    &:hover {
+      border-color: rgba(8, 166, 203, .28);
+      background: #252f45;
+    }
+  }
+
+  .spotlight-card {
+    background: var(--policia-oscuro);
+    border-color: var(--ui-border);
+    color: var(--ui-text);
+
+    &:hover {
+      background: #252f45;
+    }
+  }
+
+  .spotlight-name{
+    color: var(--ui-text);
+  }  
+
+  .spotlight-mini {
+    color: var(--ui-muted);
+  }
+
+  /* Text selection */
+  ::selection {
+    background: var(--policia-cielo);
+    color: #0a0f1b;
+  }
+
+  ::-moz-selection {
+    background: var(--policia-cielo);
+    color: #0a0f1b;
+  }
+
+
+
+  
 }
+/* --- FIN MODO OSCURO --- */
+
 
 /* --- RESET Y BASE --- */
 * {
