@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # =====================
 # FRONTEND (Angular)
 # =====================
@@ -40,12 +41,53 @@ backend/**/appsettings.Development.json
 # =====================
 .idea/
 .vscode/*
+=======
+# ========== ANGULAR ==========
+/dist
+/out-tsc
+/tmp
+/node_modules
+.angular/
+.cache/
+*.ngfactory.ts
+*.ngstyle.ts
+
+# Environment files con secretos (personal)
+src/environments/environment.*.local.ts
+
+# ========== .NET / VISUAL STUDIO ==========
+**/bin/
+**/obj/
+*.dll
+*.exe
+*.pdb
+*.exe.config
+*.dll.config
+*.user
+*.suo
+*.userprefs
+*.pidb.meta
+*.booproj
+*.sln.docstates
+.vs/
+.publish/
+/wwwroot/
+artifacts/
+packages/
+*.nupkg
+project.lock.json
+
+# ========== IDEs ==========
+# VS Code
+.vscode/
+>>>>>>> LopezDeAlba
 !.vscode/settings.json
 !.vscode/tasks.json
 !.vscode/launch.json
 !.vscode/extensions.json
 .history/
 
+<<<<<<< HEAD
 # =====================
 # Logs y temporales
 # =====================
@@ -58,3 +100,77 @@ yarn-error.log
 # =====================
 .DS_Store
 Thumbs.db
+=======
+# Visual Studio
+*.sln.iml
+.idea/
+
+# ========== SYSTEM / MISC ==========
+.DS_Store
+Thumbs.db
+*.log
+logs/
+TestResults/
+*.trx
+*.coverage
+.husky/
+
+# ========== LOCAL SECRETS ==========
+*.env.local
+*.local.*
+
+# # See https://docs.github.com/get-started/getting-started-with-git/ignoring-files for more about ignoring files.
+
+# # Compiled output
+# /dist
+# /tmp
+# /out-tsc
+# /bazel-out
+
+# # Node
+# /node_modules
+# npm-debug.log
+# yarn-error.log
+
+# # IDEs and editors
+# .idea/
+# .project
+# .classpath
+# .c9/
+# *.launch
+# .settings/
+# *.sublime-workspace
+
+# # Visual Studio Code
+# .vscode/*
+# !.vscode/settings.json
+# !.vscode/tasks.json
+# !.vscode/launch.json
+# !.vscode/extensions.json
+# .history/*
+
+# .vs/
+# *.suo
+# *.user
+# *.userosscache
+# *.sln.docstates
+# *.dll
+# *.exe
+# *.pdb
+# bin/
+# obj/
+
+# # Miscellaneous
+# /.angular/cache
+# .sass-cache/
+# /connect.lock
+# /coverage
+# /libpeerconnection.log
+# testem.log
+# /typings
+
+# # System files
+# .DS_Store
+# Thumbs.db
+
+>>>>>>> LopezDeAlba
