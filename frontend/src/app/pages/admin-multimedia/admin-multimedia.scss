@@ -26,14 +26,14 @@
 .sub-title {
   margin: 0 0 10px;
   color: var(--policia-oscuro);
-  font-size: 14px;
+  font-size: calc(14px * var(--font-size-scale));
   font-weight: 900;
 }
 
 .tab-card h3 {
   margin: 0 0 12px;
   color: var(--policia-oscuro);
-  font-size: 16px;
+  font-size: calc(16px * var(--font-size-scale));
   font-weight: 900;
 }
 
@@ -50,7 +50,7 @@
 }
 
 .meta {
-  font-size: 12px;
+  font-size: calc(12px * var(--font-size-scale));
   color: rgba(83, 86, 90, .95);
 }
 
@@ -59,7 +59,7 @@
 }
 
 .list-loading {
-  font-size: 13px;
+  font-size: calc(13px * var(--font-size-scale));
   color: rgba(83, 86, 90, .95);
 }
 
