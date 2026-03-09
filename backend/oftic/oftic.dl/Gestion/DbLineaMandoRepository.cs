@@ -112,16 +112,21 @@ namespace Datos.Gestion
                 cmd.Parameters.Add("p_cargo", OracleDbType.Varchar2, 100).Value = (request.Cargo ?? string.Empty).Length > 100 ? (request.Cargo ?? string.Empty).Substring(0, 100) : (request.Cargo ?? string.Empty);
                 cmd.Parameters.Add("p_peso", OracleDbType.Varchar2, 10).Value = (request.Peso ?? string.Empty).Length > 10 ? (request.Peso ?? string.Empty).Substring(0, 10) : (request.Peso ?? string.Empty);
                 cmd.Parameters.Add("p_unidad", OracleDbType.Varchar2, 200).Value = (request.Unidad ?? string.Empty).Length > 200 ? (request.Unidad ?? string.Empty).Substring(0, 200) : (request.Unidad ?? string.Empty);
-                
-                if (!string.IsNullOrEmpty(request.FotoBase64))
+
+                var fotoNormalizada = NormalizeBase64(request.FotoBase64);
+                if (!string.IsNullOrEmpty(fotoNormalizada))
                 {
-                    cmd.Parameters.Add("p_foto_base64", OracleDbType.Clob).Value = request.FotoBase64;
+                    var clobParam = new OracleParameter("p_foto_base64", OracleDbType.Clob);
+                    clobParam.Value = fotoNormalizada;
+                    cmd.Parameters.Add(clobParam);
                 }
                 else
                 {
-                    cmd.Parameters.Add("p_foto_base64", OracleDbType.Clob).Value = DBNull.Value;
+                    var clobParam = new OracleParameter("p_foto_base64", OracleDbType.Clob);
+                    clobParam.Value = DBNull.Value;
+                    cmd.Parameters.Add(clobParam);
                 }
-                
+
                 cmd.Parameters.Add("p_orden", OracleDbType.Int32).Value = request.Orden;
                 
                 var usuarioStr = usuarioAuditoria.ToString();
@@ -130,14 +135,35 @@ namespace Datos.Gestion
                 cmd.Parameters.Add("p_usuario_auditoria", OracleDbType.Varchar2, 50).Value = usuarioStr.Length > 50 ? usuarioStr.Substring(0, 50) : usuarioStr;
                 cmd.Parameters.Add("p_maquina_auditoria", OracleDbType.Varchar2, 100).Value = maquinaStr.Length > 100 ? maquinaStr.Substring(0, 100) : maquinaStr;
 
-                cmd.Parameters.Add("p_id", OracleDbType.Int64, ParameterDirection.Output);
-                cmd.Parameters.Add("p_success", OracleDbType.Int32, ParameterDirection.Output);
-                cmd.Parameters.Add("p_message", OracleDbType.Varchar2, 4000, ParameterDirection.Output);
+                //cmd.Parameters.Add("p_id", OracleDbType.Int64, ParameterDirection.Output);
+                //cmd.Parameters.Add("p_success", OracleDbType.Int32, ParameterDirection.Output);
+                //cmd.Parameters.Add("p_message", OracleDbType.Varchar2, 4000, ParameterDirection.Output);
+                // Parámetros OUTPUT en el mismo orden que el stored procedure
+                OracleParameter pId = new OracleParameter("p_id", OracleDbType.Int64);
+                pId.Direction = ParameterDirection.Output;
+                cmd.Parameters.Add(pId);
+
+                OracleParameter pSuccess = new OracleParameter("p_success", OracleDbType.Int32);
+                pSuccess.Direction = ParameterDirection.Output;
+                cmd.Parameters.Add(pSuccess);
+
+                OracleParameter pMessage = new OracleParameter("p_message", OracleDbType.Varchar2);
+                pMessage.Direction = ParameterDirection.Output;
+                pMessage.Size = 4000;
+                cmd.Parameters.Add(pMessage);
 
                 await cmd.ExecuteNonQueryAsync(ct);
 
-                result.Id = cmd.Parameters["p_id"].Value != null ? Convert.ToInt64(cmd.Parameters["p_id"].Value) : 0;
-                result.Success = cmd.Parameters["p_success"].Value != null && Convert.ToInt32(cmd.Parameters["p_success"].Value) == 1;
+                //result.Id = cmd.Parameters["p_id"].Value != null ? Convert.ToInt64(cmd.Parameters["p_id"].Value) : 0;
+                //result.Success = cmd.Parameters["p_success"].Value != null && Convert.ToInt32(cmd.Parameters["p_success"].Value) == 1;
+                //result.Message = cmd.Parameters["p_message"].Value?.ToString() ?? string.Empty;
+                // DESPUÉS - cast correcto para OracleDecimal
+                var pIdVal = (Oracle.ManagedDataAccess.Types.OracleDecimal)cmd.Parameters["p_id"].Value;
+                result.Id = pIdVal.IsNull ? 0 : (long)pIdVal;
+
+                var pSuccessVal = (Oracle.ManagedDataAccess.Types.OracleDecimal)cmd.Parameters["p_success"].Value;
+                result.Success = !pSuccessVal.IsNull && (int)pSuccessVal == 1;
+
                 result.Message = cmd.Parameters["p_message"].Value?.ToString() ?? string.Empty;
 
                 if (result.Success)
@@ -191,12 +217,13 @@ namespace Datos.Gestion
                 cmd.Parameters.Add("p_apellidos", OracleDbType.Varchar2, 100).Value = (request.Apellidos ?? string.Empty).Length > 100 ? (request.Apellidos ?? string.Empty).Substring(0, 100) : (request.Apellidos ?? string.Empty);
                 cmd.Parameters.Add("p_grado", OracleDbType.Varchar2, 50).Value = (request.Grado ?? string.Empty).Length > 50 ? (request.Grado ?? string.Empty).Substring(0, 50) : (request.Grado ?? string.Empty);
                 cmd.Parameters.Add("p_cargo", OracleDbType.Varchar2, 100).Value = (request.Cargo ?? string.Empty).Length > 100 ? (request.Cargo ?? string.Empty).Substring(0, 100) : (request.Cargo ?? string.Empty);
-                cmd.Parameters.Add("p_peso", OracleDbType.Varchar2, 10).Value = (request.Peso ?? string.Empty).Length > 10 ? (request.Peso ?? string.Empty).Substring(0, 10) : (request.Peso ?? string.Empty);
+                cmd.Parameters.Add("p_peso", OracleDbType.Varchar2, 100).Value = (request.Peso ?? string.Empty).Length > 10 ? (request.Peso ?? string.Empty).Substring(0, 10) : (request.Peso ?? string.Empty);
                 cmd.Parameters.Add("p_unidad", OracleDbType.Varchar2, 200).Value = (request.Unidad ?? string.Empty).Length > 200 ? (request.Unidad ?? string.Empty).Substring(0, 200) : (request.Unidad ?? string.Empty);
                 
-                if (!string.IsNullOrEmpty(request.FotoBase64))
+                var fotoNormalizada = NormalizeBase64(request.FotoBase64);
+                if (!string.IsNullOrEmpty(fotoNormalizada))
                 {
-                    cmd.Parameters.Add("p_foto_base64", OracleDbType.Clob).Value = request.FotoBase64;
+                    cmd.Parameters.Add("p_foto_base64", OracleDbType.Clob).Value = fotoNormalizada;
                 }
                 else
                 {
@@ -211,12 +238,21 @@ namespace Datos.Gestion
                 cmd.Parameters.Add("p_usuario_auditoria", OracleDbType.Varchar2, 50).Value = usuarioStrU.Length > 50 ? usuarioStrU.Substring(0, 50) : usuarioStrU;
                 cmd.Parameters.Add("p_maquina_auditoria", OracleDbType.Varchar2, 100).Value = maquinaStrU.Length > 100 ? maquinaStrU.Substring(0, 100) : maquinaStrU;
 
-                cmd.Parameters.Add("p_success", OracleDbType.Int32, ParameterDirection.Output);
-                cmd.Parameters.Add("p_message", OracleDbType.Varchar2, 4000, ParameterDirection.Output);
+                // Reemplaza los OUTPUT así:
+                OracleParameter pSuccess = new OracleParameter("p_success", OracleDbType.Int32);
+                pSuccess.Direction = ParameterDirection.Output;
+                cmd.Parameters.Add(pSuccess);
+
+                OracleParameter pMessage = new OracleParameter("p_message", OracleDbType.Varchar2);
+                pMessage.Direction = ParameterDirection.Output;
+                pMessage.Size = 4000;
+                cmd.Parameters.Add(pMessage);
 
                 await cmd.ExecuteNonQueryAsync(ct);
 
-                result.Success = cmd.Parameters["p_success"].Value != null && Convert.ToInt32(cmd.Parameters["p_success"].Value) == 1;
+                // Lectura correcta con OracleDecimal
+                var pSuccessVal = (Oracle.ManagedDataAccess.Types.OracleDecimal)cmd.Parameters["p_success"].Value;
+                result.Success = !pSuccessVal.IsNull && (int)pSuccessVal == 1;
                 result.Message = cmd.Parameters["p_message"].Value?.ToString() ?? string.Empty;
 
                 if (result.Success)
@@ -268,12 +304,20 @@ namespace Datos.Gestion
                 cmd.Parameters.Add("p_usuario_auditoria", OracleDbType.Varchar2, 50).Value = usuarioStrD.Length > 50 ? usuarioStrD.Substring(0, 50) : usuarioStrD;
                 cmd.Parameters.Add("p_maquina_auditoria", OracleDbType.Varchar2, 100).Value = maquinaStrD.Length > 100 ? maquinaStrD.Substring(0, 100) : maquinaStrD;
 
-                cmd.Parameters.Add("p_success", OracleDbType.Int32, ParameterDirection.Output);
-                cmd.Parameters.Add("p_message", OracleDbType.Varchar2, 4000, ParameterDirection.Output);
+                OracleParameter pSuccess = new OracleParameter("p_success", OracleDbType.Int32);
+                pSuccess.Direction = ParameterDirection.Output;
+                cmd.Parameters.Add(pSuccess);
+
+                OracleParameter pMessage = new OracleParameter("p_message", OracleDbType.Varchar2);
+                pMessage.Direction = ParameterDirection.Output;
+                pMessage.Size = 4000;
+                cmd.Parameters.Add(pMessage);
 
                 await cmd.ExecuteNonQueryAsync(ct);
 
-                result.Success = cmd.Parameters["p_success"].Value != null && Convert.ToInt32(cmd.Parameters["p_success"].Value) == 1;
+                // Reemplaza la lectura:
+                var pSuccessVal = (Oracle.ManagedDataAccess.Types.OracleDecimal)cmd.Parameters["p_success"].Value;
+                result.Success = !pSuccessVal.IsNull && (int)pSuccessVal == 1;
                 result.Message = cmd.Parameters["p_message"].Value?.ToString() ?? string.Empty;
 
                 if (result.Success)
@@ -317,6 +361,23 @@ namespace Datos.Gestion
                 Orden = reader.IsDBNull(reader.GetOrdinal("ORDEN")) ? 1 : reader.GetInt32(reader.GetOrdinal("ORDEN")),
                 Vigente = reader.IsDBNull(reader.GetOrdinal("VIGENTE")) ? 1 : reader.GetInt32(reader.GetOrdinal("VIGENTE"))
             };
+        }
+
+        private static string? NormalizeBase64(string? raw)
+        {
+            if (string.IsNullOrWhiteSpace(raw))
+            {
+                return null;
+            }
+
+            var value = raw.Trim();
+            var commaIdx = value.IndexOf(',');
+            if (value.StartsWith("data:", StringComparison.OrdinalIgnoreCase) && commaIdx > -1)
+            {
+                value = value[(commaIdx + 1)..];
+            }
+
+            return value;
         }
     }
 }

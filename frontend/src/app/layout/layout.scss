@@ -48,15 +48,7 @@ html.dark-mode {
   overflow-x: hidden;
   overflow-y: auto;
   padding-top: var(--header-height, 70px);
-  padding-bottom: var(--footer-height, 56px);
-}
-.app-backdrop{
-  position: fixed;
-  inset: 0;
-  z-index: 1150; /* debajo del sidebar (1200) */
-  background: rgba(0,0,0,.55);
-  backdrop-filter: blur(3px);
-  -webkit-backdrop-filter: blur(3px);
+  padding-bottom: 0;
 }
 
 .shell.shell-expanded {
@@ -68,6 +60,7 @@ html.dark-mode {
   overflow-y: auto;
   display: flex;
   flex-direction: column;
+  min-height: 0;
 }
 
 .content {

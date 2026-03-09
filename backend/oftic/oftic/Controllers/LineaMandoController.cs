@@ -53,7 +53,12 @@ namespace Api.Controllers
         {
             try
             {
-                _logger.LogInformation("LineaMando Create - Request: {@Request}", request);
+                _logger.LogInformation(
+                    "LineaMando Create - Identificacion={Identificacion}, Nombre={Nombre}, FotoLen={FotoLen}",
+                    request?.Identificacion,
+                    request?.Nombre,
+                    request?.FotoBase64?.Length ?? 0
+                );
                 
                 var (usuario, maquina) = ObtenerAuditoria();
                 
