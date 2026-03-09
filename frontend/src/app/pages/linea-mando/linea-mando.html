@@ -36,32 +36,7 @@
             </div>
           </div>
         </div>
-      <!-- <div class="ui-grid" *ngIf="!modoEdicion">
-        <div class="ui-field ui-col-6">
-          <label class="ui-label">Buscar Funcionario por Cédula</label>
-          <input 
-            class="ui-control" 
-            type="text" 
-            [(ngModel)]="searchIdentificacion"
-            placeholder="Ingrese número de identificación y presione Enter"
-            [disabled]="searchingFuncionario"
-            (keyup.enter)="onSearchEnter($event)"
-          >
-        </div>
-        <div class="ui-field ui-col-4" style="display: flex; align-items: flex-end;">
-          <button 
-            class="ui-btn primary" 
-            type="button" 
-            (click)="buscarFuncionario()"
-            [disabled]="searchingFuncionario"
-          >
-            <i class="fa-solid fa-magnifying-glass"></i>
-            {{ searchingFuncionario ? 'Buscando...' : 'Buscar' }}
-          </button>
-        </div>
-      </div> -->
-
-      <!-- Datos del funcionario encontrado -->
+            <!-- Datos del funcionario encontrado -->
       <div class="funcionario-panel" *ngIf="hayFuncionario">
         <div class="funcionario-foto">
           <div class="foto-container">
@@ -85,26 +60,26 @@
           <div class="ui-grid">
             <div class="ui-field ui-col-4">
               <label class="ui-label">Identificación *</label>
-              <input class="ui-control" type="text" [(ngModel)]="formData.identificacion" placeholder="Número de identificación">
+              <input class="ui-control" type="text" [(ngModel)]="formData.identificacion" placeholder="Número de identificación"readonly>
             </div>
 
             <div class="ui-field ui-col-4">
               <label class="ui-label">Nombre(s) *</label>
-              <input class="ui-control" type="text" [(ngModel)]="formData.nombre" placeholder="Nombre">
+              <input class="ui-control" type="text" [(ngModel)]="formData.nombre" placeholder="Nombre" readonly>
             </div>
 
             <div class="ui-field ui-col-4">
               <label class="ui-label">Apellido(s)</label>
-              <input class="ui-control" type="text" [(ngModel)]="formData.apellidos" placeholder="Apellidos">
+              <input class="ui-control" type="text" [(ngModel)]="formData.apellidos" placeholder="Apellidos" readonly>
             </div>
 
             <div class="ui-field ui-col-4">
               <label class="ui-label">Grado</label>
-              <input class="ui-control" type="text" [(ngModel)]="formData.grado" placeholder="Grado">
+              <input class="ui-control" type="text" [(ngModel)]="formData.grado" placeholder="Grado" readonly>
             </div>
 
             <div class="ui-field ui-col-4">
-              <label class="ui-label">Cargo (API)</label>
+              <label class="ui-label">Cargo</label>
               <input class="ui-control" type="text" [(ngModel)]="formData.cargo" placeholder="Cargo" readonly>
             </div>
 
@@ -125,7 +100,7 @@
 
             <div class="ui-field ui-col-4">
               <label class="ui-label">Unidad</label>
-              <input class="ui-control" type="text" [(ngModel)]="formData.unidad" placeholder="Unidad">
+              <input class="ui-control" type="text" [(ngModel)]="formData.unidad" placeholder="Unidad" readonly> 
             </div>
           </div>
         </div>
