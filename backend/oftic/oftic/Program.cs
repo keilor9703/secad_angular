@@ -110,6 +110,9 @@ builder.Services.AddSwaggerGen(options =>
 builder.Services.AddScoped<IDbAuthRepository, DbAuthRepository>();
 builder.Services.AddScoped<IJwtService, JwtService>();
 
+builder.Services.AddScoped<IDbLineaMandoService, DbLineaMandoService>();
+builder.Services.AddScoped<IDbLineaMandoRepository, DbLineaMandoRepository>();
+
 var app = builder.Build();
 
 var uploadsRoot = Path.Combine(app.Environment.ContentRootPath, "uploads", "sliders");
