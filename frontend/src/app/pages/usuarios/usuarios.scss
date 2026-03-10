@@ -52,7 +52,7 @@
 
 .profile-name {
   margin-top: 10px;
-  font-size: 17px;
+  font-size: calc(17px * var(--font-size-scale));
   color: var(--policia-oscuro);
   font-weight: 900;
 }
@@ -60,7 +60,7 @@
 .profile-role {
   margin-top: 2px;
   color: rgba(83, 86, 90, .95);
-  font-size: 12px;
+  font-size: calc(12px * var(--font-size-scale));
   font-weight: 700;
 }
 
@@ -78,7 +78,7 @@
 .state-box__label {
   display: block;
   text-align: left;
-  font-size: 10px;
+  font-size: calc(10px * var(--font-size-scale));
   text-transform: uppercase;
   letter-spacing: .7px;
   color: rgba(83, 86, 90, .9);
@@ -90,7 +90,7 @@
   text-align: left;
   margin-top: 2px;
   color: #15803d;
-  font-size: 12px;
+  font-size: calc(12px * var(--font-size-scale));
   font-weight: 900;
 }
 

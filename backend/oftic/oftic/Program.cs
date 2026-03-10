@@ -110,8 +110,12 @@ builder.Services.AddSwaggerGen(options =>
 builder.Services.AddScoped<IDbAuthRepository, DbAuthRepository>();
 builder.Services.AddScoped<IJwtService, JwtService>();
 
+
 builder.Services.AddScoped<IDbLineaMandoService, DbLineaMandoService>();
 builder.Services.AddScoped<IDbLineaMandoRepository, DbLineaMandoRepository>();
+
+builder.Services.AddScoped<IDbDominioService, DbDominioService>();
+builder.Services.AddScoped<IDbDominioRepository, DbDominioRepository>();
 
 var app = builder.Build();
 

@@ -71,7 +71,7 @@
 
 .radio-label {
   color: #fff;
-  font-size: 0.78rem;
+  font-size: calc(0.78rem * var(--font-size-scale));
   font-weight: 800;
   letter-spacing: 0.2px;
 }
@@ -102,7 +102,7 @@
   border-radius: 10px;
   background: rgba(0, 0, 0, 0.2);
   color: #fff;
-  font-size: 0.75rem;
+  font-size: calc(0.75rem * var(--font-size-scale));
   font-weight: 700;
   padding: 0 10px;
   outline: none;
@@ -114,7 +114,7 @@
 
 .radio-error {
   color: #fde68a;
-  font-size: 0.68rem;
+  font-size: calc(0.68rem * var(--font-size-scale));
   font-weight: 700;
 }
 
@@ -146,7 +146,7 @@
 
 .footer-title {
   color: #fff;
-  font-size: 0.9rem;
+  font-size: calc(0.9rem * var(--font-size-scale));
   font-weight: 700;
   margin: 0;
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
@@ -155,7 +155,7 @@
 .footer-meta {
   margin-top: 2px;
   color: var(--policia-cielo);
-  font-size: 0.7rem;
+  font-size: calc(0.7rem * var(--font-size-scale));
   font-weight: 600;
   letter-spacing: 0.3px;
   text-transform: uppercase;
@@ -174,7 +174,7 @@
 .footer-link {
   color: rgba(255, 255, 255, 0.9);
   text-decoration: none;
-  font-size: 0.75rem;
+  font-size: calc(0.75rem * var(--font-size-scale));
   font-weight: 600;
   padding: 6px 12px;
   border-radius: var(--ui-radius-sm);
@@ -230,14 +230,14 @@
   }
 
   .footer-title {
-    font-size: 0.8rem;
+    font-size: calc(0.8rem * var(--font-size-scale));
   }
 }
 
 /* --- POLICY TEXT (Optimized with existing typography) --- */
 .ui-policy {
   color: var(--policia-neutral-medio);
-  font-size: 14px;
+  font-size: calc(14px * var(--font-size-scale));
   line-height: 1.55;
 }
 
@@ -265,7 +265,7 @@
   padding: 2px 6px;
   border-radius: var(--ui-radius-sm);
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-  font-size: 12px;
+  font-size: calc(12px * var(--font-size-scale));
 }
 
 .ui-policy__hr {

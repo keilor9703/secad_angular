@@ -1,10 +1,46 @@
 import { Injectable } from '@angular/core';
 import { BehaviorSubject, Observable } from 'rxjs';
 
+/**
+ * Estado de configuración de accesibilidad
+ * 
+ * SISTEMA DE ESCALADO DE FUENTES:
+ * ================================
+ * fontSize: Nivel numérico de 0 a 6
+ *   - 0: Muy pequeño (0.75x)
+ *   - 1: Pequeño (0.85x)
+ *   - 2: Normal/Default (1.0x) ← DEFECTO
+ *   - 3: Mediano (1.15x)
+ *   - 4: Grande (1.3x)
+ *   - 5: Muy grande (1.5x)
+ *   - 6: Extra grande (1.75x)
+ * 
+ * INTEGRACIÓN AUTOMÁTICA:
+ * =======================
+ * Este servicio modifica la variable CSS --font-size-scale en :root
+ * Cualquier componente que use calc(Npx * var(--font-size-scale))
+ * responderá automáticamente a los cambios de accesibilidad.
+ * 
+ * PARA COMPONENTES NUEVOS:
+ * ========================
+ * 1. Usa calc() en tus estilos SCSS:
+ *    font-size: calc(14px * var(--font-size-scale));
+ * 
+ * 2. O simplemente hereda del body si no necesitas tamaño específico:
+ *    (el body ya tiene font-size con calc aplicado)
+ * 
+ * 3. NUNCA uses !important en font-size (bloqueará la accesibilidad)
+ */
 export interface AccessibilityState {
   darkMode: boolean;
-  fontSize: 'small' | 'normal' | 'large';
+  fontSize: number; // 0-6, donde 0=más pequeño, 2=normal, 6=más grande
 }
+
+// Constantes para los niveles de escala de fuente
+const FONT_SIZE_SCALES = [0.75, 0.85, 1, 1.15, 1.3, 1.5, 1.75];
+const DEFAULT_FONT_LEVEL = 2; // nivel normal (escala 1.0)
+const MIN_FONT_LEVEL = 0;
+const MAX_FONT_LEVEL = 6;
 
 @Injectable({
   providedIn: 'root'
@@ -14,7 +50,7 @@ export class AccessibilityService {
   
   private defaultState: AccessibilityState = {
     darkMode: false,
-    fontSize: 'normal'
+    fontSize: DEFAULT_FONT_LEVEL
   };
 
   private accessibilitySubject = new BehaviorSubject<AccessibilityState>(this.loadSettings());
@@ -27,8 +63,37 @@ export class AccessibilityService {
   private loadSettings(): AccessibilityState {
     try {
       const saved = localStorage.getItem(this.STORAGE_KEY);
-      return saved ? JSON.parse(saved) : this.defaultState;
-    } catch {
+      if (!saved) {
+        return this.defaultState;
+      }
+      
+      const parsed = JSON.parse(saved);
+      
+      // Migración: convertir valores antiguos string a numéricos
+      if (typeof parsed.fontSize === 'string') {
+        const oldToNew: Record<string, number> = {
+          'small': 1,
+          'normal': 2,
+          'large': 3
+        };
+        parsed.fontSize = oldToNew[parsed.fontSize] ?? DEFAULT_FONT_LEVEL;
+      }
+      
+      // Validar que fontSize sea un número válido entre 0-6
+      if (typeof parsed.fontSize !== 'number' || 
+          parsed.fontSize < MIN_FONT_LEVEL || 
+          parsed.fontSize > MAX_FONT_LEVEL) {
+        parsed.fontSize = DEFAULT_FONT_LEVEL;
+      }
+      
+      // Garantizar que darkMode sea booleano
+      if (typeof parsed.darkMode !== 'boolean') {
+        parsed.darkMode = false;
+      }
+      
+      return parsed;
+    } catch (error) {
+      console.warn('Error al cargar configuración de accesibilidad, usando defaults:', error);
       return this.defaultState;
     }
   }
@@ -55,13 +120,10 @@ export class AccessibilityService {
     htmlElement.style.setProperty('--font-size-scale', this.getFontSizeScale(state.fontSize));
   }
 
-  private getFontSizeScale(fontSize: 'small' | 'normal' | 'large'): string {
-    const scales: Record<'small' | 'normal' | 'large', string> = {
-      small: '0.85',
-      normal: '1',
-      large: '1.25'
-    };
-    return scales[fontSize];
+  private getFontSizeScale(fontSize: number): string {
+    // Validar que el nivel esté en rango
+    const level = Math.max(MIN_FONT_LEVEL, Math.min(MAX_FONT_LEVEL, Math.floor(fontSize)));
+    return FONT_SIZE_SCALES[level].toString();
   }
 
   toggleDarkMode(): void {
@@ -75,32 +137,33 @@ export class AccessibilityService {
 
   increaseFontSize(): void {
     const currentState = this.accessibilitySubject.value;
-    const sizeMap: Record<'small' | 'normal' | 'large', 'normal' | 'large' | 'large'> = {
-      small: 'normal',
-      normal: 'large',
-      large: 'large'
-    };
-    const newState = {
-      ...currentState,
-      fontSize: sizeMap[currentState.fontSize]
-    };
-    if (newState.fontSize !== currentState.fontSize) {
+    if (currentState.fontSize < MAX_FONT_LEVEL) {
+      const newState = {
+        ...currentState,
+        fontSize: currentState.fontSize + 1
+      };
       this.updateSettings(newState);
     }
   }
 
   decreaseFontSize(): void {
     const currentState = this.accessibilitySubject.value;
-    const sizeMap: Record<'small' | 'normal' | 'large', 'small' | 'small' | 'normal'> = {
-      small: 'small',
-      normal: 'small',
-      large: 'normal'
-    };
-    const newState = {
-      ...currentState,
-      fontSize: sizeMap[currentState.fontSize]
-    };
-    if (newState.fontSize !== currentState.fontSize) {
+    if (currentState.fontSize > MIN_FONT_LEVEL) {
+      const newState = {
+        ...currentState,
+        fontSize: currentState.fontSize - 1
+      };
+      this.updateSettings(newState);
+    }
+  }
+
+  setFontSize(level: number): void {
+    if (level >= MIN_FONT_LEVEL && level <= MAX_FONT_LEVEL) {
+      const currentState = this.accessibilitySubject.value;
+      const newState = {
+        ...currentState,
+        fontSize: level
+      };
       this.updateSettings(newState);
     }
   }

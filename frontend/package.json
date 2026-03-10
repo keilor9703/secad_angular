@@ -6,7 +6,8 @@
     "start": "ng serve --proxy-config proxy.conf.json",
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
-    "test": "ng test"
+    "test": "ng test",
+    "check:a11y": "powershell -ExecutionPolicy Bypass -File ./check-accessibility.ps1"
   },
   "prettier": {
     "printWidth": 100,
