@@ -119,5 +119,24 @@ namespace Negocio.Gestion
 
             return await _repository.DeleteAsync(id, usuarioAuditoria, maquinaAuditoria, ct);
         }
+
+        public async Task<DtoLineaMandoResult> SetVigenteAsync(long id, int vigente, long usuarioAuditoria, string maquinaAuditoria, CancellationToken ct)
+        {
+            if (id <= 0)
+            {
+                return new DtoLineaMandoResult
+                {
+                    Success = false,
+                    Message = "ID inválido"
+                };
+            }
+
+            if (vigente == 0)
+            {
+                return await _repository.DeleteAsync(id, usuarioAuditoria, maquinaAuditoria, ct);
+            }
+
+            return await _repository.SetVigenteAsync(id, vigente, usuarioAuditoria, maquinaAuditoria, ct);
+        }
     }
 }

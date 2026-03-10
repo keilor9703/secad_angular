@@ -81,12 +81,41 @@ namespace Api.Controllers
             }
         }
 
+        //[HttpPut("{id:long}")]
+        //public async Task<ActionResult> Update(long id, [FromBody] DtoLineaMandoRequest request)
+        //{
+        //    var (usuario, maquina) = ObtenerAuditoria();
+
+        //    var result = await _service.UpdateAsync(id, request, usuario, maquina, CancellationToken.None);
+
+        //    if (!result.Success)
+        //    {
+        //        return BadRequest(new { success = false, message = result.Message });
+        //    }
+
+        //    return Ok(new { success = true, message = result.Message });
+        //}
         [HttpPut("{id:long}")]
         public async Task<ActionResult> Update(long id, [FromBody] DtoLineaMandoRequest request)
         {
             var (usuario, maquina) = ObtenerAuditoria();
-
             var result = await _service.UpdateAsync(id, request, usuario, maquina, CancellationToken.None);
+
+            _logger.LogInformation("Update result - ID: {Id}, Success: {Success}, Message: {Message}",
+                id, result.Success, result.Message); // ← agrega esto
+
+            if (!result.Success)
+            {
+                return BadRequest(new { success = false, message = result.Message });
+            }
+            return Ok(new { success = true, message = result.Message });
+        }
+        [HttpDelete("{id:long}")]
+        public async Task<ActionResult> Delete(long id)
+        {
+            var (usuario, maquina) = ObtenerAuditoria();
+
+            var result = await _service.DeleteAsync(id, usuario, maquina, CancellationToken.None);
 
             if (!result.Success)
             {
@@ -96,12 +125,12 @@ namespace Api.Controllers
             return Ok(new { success = true, message = result.Message });
         }
 
-        [HttpDelete("{id:long}")]
-        public async Task<ActionResult> Delete(long id)
+        [HttpPut("{id:long}/vigente")]
+        public async Task<ActionResult> SetVigente(long id, [FromBody] DtoVigenteRequest request)
         {
             var (usuario, maquina) = ObtenerAuditoria();
 
-            var result = await _service.DeleteAsync(id, usuario, maquina, CancellationToken.None);
+            var result = await _service.SetVigenteAsync(id, request.Vigente, usuario, maquina, CancellationToken.None);
 
             if (!result.Success)
             {

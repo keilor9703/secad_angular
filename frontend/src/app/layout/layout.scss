@@ -18,7 +18,8 @@ html.dark-mode {
 
 /* --- SHELL DEL SISTEMA --- */
 .app-shell {
-  min-height: 100vh;
+  height: 100vh;
+  overflow: hidden;
   background: var(--app-shell-bg);
   display: flex;
   flex-direction: column;
@@ -39,14 +40,14 @@ html.dark-mode {
 
 .shell {
   flex: 1;
-  min-height: 100vh;
+  height: 100vh;
   margin-left: 0; 
   display: flex;
   flex-direction: column;
   transition: none;
   position: relative;
   overflow-x: hidden;
-  overflow-y: auto;
+  overflow-y: hidden;
   padding-top: var(--header-height, 70px);
   padding-bottom: 0;
 }
@@ -61,6 +62,7 @@ html.dark-mode {
   display: flex;
   flex-direction: column;
   min-height: 0;
+  padding-bottom: var(--footer-height, 56px);
 }
 
 .content {
@@ -84,6 +86,19 @@ html.dark-mode {
   z-index: 100;
 }
 
+.app-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(8, 14, 28, 0.42);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  z-index: 1150;
+}
+
 .app-shell.menu-open .main{
   overflow: hidden !important;
+}
+
+.app-shell.menu-open ~ app-accessibility-menu {
+  pointer-events: none;
 }

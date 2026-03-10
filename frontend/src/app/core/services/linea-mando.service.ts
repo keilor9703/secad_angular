@@ -64,4 +64,8 @@ export class LineaMandoService {
   delete(id: number): Observable<DtoLineaMandoResult> {
     return this.http.delete<DtoLineaMandoResult>(`${this.baseUrl}/${id}`);
   }
+
+  setVigente(id: number, vigente: number): Observable<DtoLineaMandoResult> {
+    return this.http.put<DtoLineaMandoResult>(`${this.baseUrl}/${id}/vigente`, { vigente });
+  }
 }

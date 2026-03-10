@@ -405,6 +405,7 @@ h3.title-cards {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
     gap: 12px;
+    grid-auto-rows: 1fr;
 }
 
 @media (max-width: 980px) {
@@ -412,6 +413,9 @@ h3.title-cards {
 }
 
 .spotlight-card {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
     border: 1px solid var(--ui-border);
     border-radius: var(--ui-radius);
     padding: 12px;
@@ -453,7 +457,7 @@ h3.title-cards {
 .spotlight-person {
     display: flex;
     gap: 12px;
-    align-items: center;
+    align-items: flex-start;
 }
 
 .spotlight-avatar {
@@ -469,12 +473,24 @@ h3.title-cards {
     font-weight: 1000;
     color: var(--policia-oscuro);
     line-height: 1.2;
+    min-height: 34px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .spotlight-role {
     color: var(--policia-neutral-medio);
     font-size: 13px;
     margin-top: 2px;
+    min-height: 32px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .spotlight-group {
@@ -580,7 +596,7 @@ h3.title-cards {
 
 .card-body {
     padding: 14px;
-    height: 350px;
+    height: 480px;
     background: var(--policia-neutral-claro);
 }
 
@@ -589,7 +605,8 @@ h3.title-cards {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
     gap: 12px;
-    align-items: start;
+    align-items: stretch;
+    grid-auto-rows: 1fr;
 }
 
 @media (max-width: 1100px) {
@@ -601,12 +618,15 @@ h3.title-cards {
 }
 
 .cmd-item {
+    display: flex;
+    flex-direction: column;
     text-align: center;
     border-radius: var(--ui-radius);
     padding: 12px;
     border: 1px solid var(--ui-border);
     background: rgba(255, 255, 255, .86);
-    height: 330px;
+    min-height: 380px;
+    height: 100%;
     box-shadow: var(--ui-shadow-sm);
     transition: transform var(--transition-speed), box-shadow var(--transition-speed), border-color var(--transition-speed);
 }
@@ -619,28 +639,108 @@ h3.title-cards {
 
 .cmd-photo-lg {
     width: 100%;
-    aspect-ratio: 1 / 1;
+    aspect-ratio: 3 / 4;
     object-fit: cover;
     border-radius: var(--ui-radius-sm);
     border: 1px solid var(--ui-border);
     background: rgba(21, 27, 59, .04);
     box-shadow: var(--ui-shadow-sm);
-    margin-bottom: 10px;
+    margin-bottom: 12px;
+}
+
+.cmd-photo-btn {
+    display: block;
+    width: 100%;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    cursor: zoom-in;
+    flex: 0 0 auto;
 }
 
 .cmd-name {
-    font-weight: 1000;
+    margin-top: 6px;
+    font-weight: 700;
     color: var(--policia-oscuro);
     font-size: 13px;
     line-height: 1.15;
-    height: 37px;
+    min-height: 30px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .cmd-grade {
-    margin-top: 14px;
+    margin-top: 2px;
     color: var(--policia-neutral-medio);
     font-size: 12px;
     line-height: 1.15;
+    font-weight: 400;
+    min-height: 28px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.cmd-role {
+    margin-top: 6px;
+    color: var(--policia-medio);
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1.15;
+    min-height: auto;
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+}
+
+.ui-modal__dialog--lightbox {
+    width: min(560px, 94vw);
+}
+
+.cmd-lightbox {
+    display: grid;
+    gap: 14px;
+}
+
+.cmd-lightbox__img {
+    width: 100%;
+    max-height: 78vh;
+    object-fit: contain;
+    border-radius: var(--ui-radius-sm);
+    border: 1px solid var(--ui-border);
+    background: rgba(21, 27, 59, .07);
+}
+
+.cmd-lightbox__meta {
+    text-align: center;
+}
+
+.cmd-lightbox__grade {
+    color: var(--policia-neutral-medio);
+    font-size: 14px;
+    font-weight: 400;
+    line-height: 1.2;
+}
+
+.cmd-lightbox__name {
+    margin-top: 6px;
+    color: var(--policia-oscuro);
+    font-size: 18px;
+    font-weight: 800;
+    line-height: 1.2;
+}
+
+.cmd-lightbox__role {
+    margin-top: 6px;
+    color: var(--policia-medio);
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 1.2;
 }
 
 /* --- MODAL NEWS (Optimized) --- */
