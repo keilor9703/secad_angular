@@ -81,7 +81,7 @@
 
 .brand-title {
   color: white;
-  font-size: 1.1rem;
+  font-size: calc(1.1rem * var(--font-size-scale));
   font-weight: 700;
   margin: 0;
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
@@ -89,7 +89,7 @@
 
 .brand-subtitle {
   color: var(--policia-cielo);
-  font-size: 0.75rem;
+  font-size: calc(0.75rem * var(--font-size-scale));
   font-weight: 600;
   letter-spacing: 2px;
   text-transform: uppercase;
@@ -123,7 +123,7 @@
   .search-icon {
     color: rgba(255, 255, 255, 0.7);
     margin-right: 12px;
-    font-size: 16px;
+    font-size: calc(16px * var(--font-size-scale));
   }
 
   .search-input {
@@ -131,7 +131,7 @@
     border: none;
     background: transparent;
     color: white;
-    font-size: 14px;
+    font-size: calc(14px * var(--font-size-scale));
     outline: none;
     padding: 12px 0;
 
@@ -152,7 +152,7 @@
     justify-content: center;
     cursor: pointer;
     transition: all var(--transition-speed) ease;
-    margin-left: 10px;
+    margin-left: 0 !important;
 
     &:hover {
       transform: scale(1.1);
@@ -178,7 +178,7 @@
   backdrop-filter: blur(10px);
   border-radius: var(--ui-radius-sm);
   color: white;
-  font-size: 15px;
+  font-size: calc(15px * var(--font-size-scale));
   cursor: pointer;
   transition: all var(--transition-speed) ease;
   display: flex;
@@ -200,7 +200,7 @@
     right: -5px;
     background: var(--ui-badge-danger, #ef4444);
     color: white;
-    font-size: 10px;
+    font-size: calc(10px * var(--font-size-scale));
     font-weight: bold;
     min-width: 20px;
     height: 20px;
@@ -259,7 +259,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 18px;
+  font-size: calc(18px * var(--font-size-scale));
   font-weight: 800;
   box-shadow: 0 4px 12px rgba(205, 255, 0, 0.3);
   overflow: hidden;
@@ -303,7 +303,7 @@
 .profile-modal__head h3 {
   margin: 0 auto;
   color: #cdff00;
-  font-size: 16px;
+  font-size: calc(16px * var(--font-size-scale));
   font-weight: 800;
 }
 
@@ -311,7 +311,7 @@
   border: 0;
   background: transparent;
   cursor: pointer;
-  font-size: 16px;
+  font-size: calc(16px * var(--font-size-scale));
   color: rgba(255, 255, 255, 0.9);
 }
 
@@ -349,7 +349,7 @@
   display: grid;
   gap: 8px;
   color: rgba(255, 255, 255, 0.92);
-  font-size: 14px;
+  font-size: calc(14px * var(--font-size-scale));
 }
 
 .profile-fields strong {
@@ -358,7 +358,7 @@
 
 .profile-modal__loading {
   padding: 20px 16px;
-  font-size: 14px;
+  font-size: calc(14px * var(--font-size-scale));
   color: rgba(255, 255, 255, 0.9);
 }
 
@@ -371,21 +371,21 @@
 
 .user-name {
   color: white;
-  font-size: 14px;
+  font-size: calc(14px * var(--font-size-scale));
   font-weight: 600;
   line-height: 1;
 }
 
 .user-role {
   color: rgba(255, 255, 255, 0.7);
-  font-size: 11px;
+  font-size: calc(11px * var(--font-size-scale));
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
 
 .user-info i.fa-chevron-down {
   color: rgba(255, 255, 255, 0.7);
-  font-size: 12px;
+  font-size: calc(12px * var(--font-size-scale));
   transition: transform var(--transition-speed) ease;
 }
 
@@ -422,7 +422,7 @@
   padding: 12px 20px;
   color: var(--policia-oscuro);
   text-decoration: none;
-  font-size: 14px;
+  font-size: calc(14px * var(--font-size-scale));
   transition: all 0.2s ease;
   cursor: pointer;
 
@@ -451,7 +451,7 @@
 
 /* --- RESPONSIVE --- */
 @media (max-width: 1024px) {
-  .brand-title { font-size: 1rem; }
+  .brand-title { font-size: calc(1rem * var(--font-size-scale)); }
   .header-search { flex: 0 1 350px; }
 }
 
@@ -464,7 +464,7 @@
   .notification-btn { 
     width: 40px; 
     height: 40px; 
-    font-size: 16px; 
+    font-size: calc(16px * var(--font-size-scale)); 
   }
   .header-notifications .notification-btn:nth-child(n+3) { display: none; }
 
@@ -476,7 +476,7 @@
   .user-avatar {
     width: 34px;
     height: 34px;
-    font-size: 15px;
+    font-size: calc(15px * var(--font-size-scale));
   }
 }
 .menu-trigger{

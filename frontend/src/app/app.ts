@@ -5,6 +5,7 @@ import { Subscription } from 'rxjs';
 
 import { ToastService, ToastType } from './core/services/toast.service';
 import { AlertService, AlertType } from './core/services/alert.service';
+import { BrandingService } from './core/services/branding.service';
 
 @Component({
   selector: 'app-root',
@@ -38,7 +39,8 @@ export class AppComponent implements OnDestroy {
 
   constructor(
     private toastService: ToastService,
-    private alertService: AlertService
+    private alertService: AlertService,
+    private brandingService: BrandingService
   ) {
     // Escucha TOAST global
     this.toastSub = this.toastService.toast$.subscribe(t => {
@@ -66,6 +68,33 @@ export class AppComponent implements OnDestroy {
       // Bloquear scroll del fondo mientras esté la alerta
       document.body.classList.add('ui-modal-open');
     });
+
+    this.brandingService.getPublicConfig().subscribe({
+      next: (cfg) => {
+        this.applyFavicon(cfg?.faviconUrl ?? null);
+        this.applyDocumentTitle(cfg?.sistema ?? cfg?.systemName ?? null);
+      },
+      error: () => {}
+    });
+  }
+
+  private applyDocumentTitle(sigla: string | null): void {
+    const title = (sigla ?? '').trim();
+    document.title = title || 'SISGE';
+  }
+
+  private applyFavicon(faviconUrl: string | null): void {
+    if (!faviconUrl) return;
+    const link = document.querySelector<HTMLLinkElement>('link[rel=\"icon\"]');
+    if (link) {
+      link.href = faviconUrl;
+      return;
+    }
+
+    const newLink = document.createElement('link');
+    newLink.rel = 'icon';
+    newLink.href = faviconUrl;
+    document.head.appendChild(newLink);
   }
 
   // ===== TOAST API =====

@@ -41,6 +41,11 @@ WITH roles_vigentes AS (
        AND (rua.fecha_fin IS NULL OR TRUNC(rua.fecha_fin) >= TRUNC(SYSDATE))
 ),
 menus_asignados AS (
+    -- Si el usuario tiene rol 1 (super administrador), obtiene todo el menú.
+    SELECT DISTINCT m.id_menu
+      FROM ctr_menu m
+     WHERE EXISTS (SELECT 1 FROM roles_vigentes rv WHERE rv.id_rol = 1)
+    UNION
     SELECT DISTINCT mr.id_menu
       FROM ctr_menu_roles mr
       JOIN roles_vigentes rv ON rv.id_rol = mr.id_rol

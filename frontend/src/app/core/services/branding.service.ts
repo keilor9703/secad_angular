@@ -4,18 +4,23 @@ import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
 
 export interface BrandingPublicConfig {
+  sistema?: string;
+  nombreSistema?: string;
   systemName: string;
   logoUrl?: string | null;
+  faviconUrl?: string | null;
 }
 
 export interface BrandingAdminConfig extends BrandingPublicConfig {
   logoFileName?: string | null;
+  faviconFileName?: string | null;
 }
 
 export interface BrandingUploadResponse {
   success: boolean;
   fileName: string;
   logoUrl: string;
+  faviconUrl?: string;
   message: string;
   detail?: string;
 }
@@ -40,7 +45,13 @@ export class BrandingService {
     return this.http.post<BrandingUploadResponse>(`${this.baseUrl}/upload-logo`, formData);
   }
 
-  saveConfig(payload: { systemName: string; logoFileName?: string | null }): Observable<{ success: boolean; message: string; detail?: string }> {
+  uploadFavicon(file: File): Observable<BrandingUploadResponse> {
+    const formData = new FormData();
+    formData.append('File', file);
+    return this.http.post<BrandingUploadResponse>(`${this.baseUrl}/upload-favicon`, formData);
+  }
+
+  saveConfig(payload: { sistema: string; nombreSistema: string; logoFileName?: string | null; faviconFileName?: string | null }): Observable<{ success: boolean; message: string; detail?: string }> {
     return this.http.post<{ success: boolean; message: string; detail?: string }>(`${this.baseUrl}/save-config`, payload);
   }
 }

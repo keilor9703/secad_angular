@@ -4,6 +4,7 @@ import { RouterLink } from '@angular/router';
 import { DtoSliders, SliderService } from '../../core/services/slider.service';
 import { HomeService, HomeStats } from '../../core/services/home.service';
 import { VideoUnidadService } from '../../core/services/video-unidad.service';
+import { DtoLineaMando, LineaMandoService } from '../../core/services/linea-mando.service';
 
 type NewsTag = 'Comunicado' | 'Servicio' | 'Importante';
 
@@ -35,21 +36,27 @@ export class HomeComponent implements OnInit, OnDestroy {
   currentBannerIndex = 0;
   private bannerTimer: ReturnType<typeof setInterval> | null = null;
   videoUnidadUrl = '';
+  lineaMando: DtoLineaMando[] = [];
+  lineaMandoLightboxOpen = false;
+  lineaMandoLightboxItem: DtoLineaMando | null = null;
 
   constructor(
     private sliderService: SliderService,
     private homeService: HomeService,
-    private videoUnidadService: VideoUnidadService
+    private videoUnidadService: VideoUnidadService,
+    private lineaMandoService: LineaMandoService
   ) {}
 
   ngOnInit(): void {
     this.loadBanners();
     this.loadStats();
     this.loadVideoUnidad();
+    this.loadLineaMando();
   }
 
   ngOnDestroy(): void {
     this.stopBannerRotation();
+    document.body.classList.remove('ui-modal-open');
   }
 
   private loadBanners(): void {
@@ -96,6 +103,71 @@ export class HomeComponent implements OnInit, OnDestroy {
         this.videoUnidadUrl = '';
       }
     });
+  }
+
+  private loadLineaMando(): void {
+    this.lineaMandoService.getAll().subscribe({
+      next: (items) => {
+        this.lineaMando = (items ?? [])
+          .filter((x) => Number(x?.vigente ?? 1) === 1)
+          .sort((a, b) => Number(a?.orden ?? 0) - Number(b?.orden ?? 0));
+      },
+      error: () => {
+        this.lineaMando = [];
+      }
+    });
+  }
+
+  getLineaMandoFotoUrl(item: DtoLineaMando): string {
+    const fotoBase64 = item?.fotoBase64?.trim();
+    if (!fotoBase64) {
+      return 'imagenes/policia.jpg';
+    }
+
+    if (fotoBase64.startsWith('data:')) {
+      return fotoBase64;
+    }
+
+    return `data:image/jpeg;base64,${fotoBase64}`;
+  }
+
+  getLineaMandoNombre(item: DtoLineaMando): string {
+    return `${item?.nombre ?? ''} ${item?.apellidos ?? ''}`.trim();
+  }
+
+  getLineaMandoCargoDisplay(item: DtoLineaMando): string {
+    const rawCargo = (item?.cargo ?? '').trim();
+    return rawCargo ? this.toTitleCase(rawCargo) : 'Sin cargo';
+  }
+
+  private toTitleCase(value: string): string {
+    return value
+      .toLowerCase()
+      .split(/\s+/)
+      .filter(Boolean)
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
+  }
+
+  openLineaMandoLightbox(item: DtoLineaMando): void {
+    this.lineaMandoLightboxItem = item;
+    this.lineaMandoLightboxOpen = true;
+    this.syncBodyModalClass();
+  }
+
+  closeLineaMandoLightbox(): void {
+    this.lineaMandoLightboxOpen = false;
+    this.lineaMandoLightboxItem = null;
+    this.syncBodyModalClass();
+  }
+
+  private syncBodyModalClass(): void {
+    if (this.newsModalOpen || this.lineaMandoLightboxOpen) {
+      document.body.classList.add('ui-modal-open');
+      return;
+    }
+
+    document.body.classList.remove('ui-modal-open');
   }
 
   goToBanner(index: number): void {
@@ -252,17 +324,24 @@ export class HomeComponent implements OnInit, OnDestroy {
   openNews(item: NewsItem): void {
     this.selectedNews = item;
     this.newsModalOpen = true;
-    document.body.classList.add('ui-modal-open');
+    this.syncBodyModalClass();
   }
 
   closeNews(): void {
     this.newsModalOpen = false;
     this.selectedNews = null;
-    document.body.classList.remove('ui-modal-open');
+    this.syncBodyModalClass();
   }
 
   @HostListener('document:keydown.escape')
   onEsc(): void {
-    if (this.newsModalOpen) this.closeNews();
+    if (this.lineaMandoLightboxOpen) {
+      this.closeLineaMandoLightbox();
+      return;
+    }
+
+    if (this.newsModalOpen) {
+      this.closeNews();
+    }
   }
 }

@@ -301,8 +301,8 @@ ORDER BY descripcion";
                     AsDbValue(request.username ?? request.identificacion);
                 cmd.Parameters.Add("P_Identificacion", OracleDbType.Varchar2).Value =
                     AsDbValue(request.identificacion);
-                cmd.Parameters.Add("P_Email", OracleDbType.Varchar2).Value =
-                    AsDbValue(request.email);
+                //cmd.Parameters.Add("P_Email", OracleDbType.Varchar2).Value =
+                //    AsDbValue(request.email);
                 cmd.Parameters.Add("P_GradAlfabetico", OracleDbType.Varchar2).Value =
                     AsRequiredDbValue(request.gradAlfabetico, "N/A");
                 cmd.Parameters.Add("P_Apellidos", OracleDbType.Varchar2).Value =

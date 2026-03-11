@@ -298,27 +298,35 @@ onItemTap(item: MenuItem, ev: MouseEvent) {
       return '/administracion/roles';
     }
     if (normalized === '/video-unidad') {
-      return '/administracion/admin-multimedia';
+      return '/administracion/configuracion-sistema';
     }
     if (normalized === '/configuracion-imagen-sitio') {
-      return '/administracion/admin-multimedia';
+      return '/administracion/configuracion-sistema';
     }
     if (normalized === '/admin-multimedia') {
-      return '/administracion/admin-multimedia';
+      return '/administracion/configuracion-sistema';
+    }
+    if (normalized === '/configuracion-sistema') {
+      return '/administracion/configuracion-sistema';
+    }
+    if (normalized === '/linea-mando') {
+      return '/administracion/linea-mando';
     }
     return normalized;
   }
 
   private normalizeLabel(label: string, route: string): string {
     if (
+      route === '/administracion/configuracion-sistema' ||
       route === '/administracion/admin-multimedia' ||
       route === '/administracion/video-unidad' ||
       route === '/administracion/configuracion-imagen-sitio' ||
+      route === '/configuracion-sistema' ||
       route === '/video-unidad' ||
       route === '/configuracion-imagen-sitio' ||
       route === '/admin-multimedia'
     ) {
-      return 'Configuración imagen del sitio';
+      return 'Configuracion sistema';
     }
     return label;
   }
@@ -382,6 +390,8 @@ onItemTap(item: MenuItem, ev: MouseEvent) {
       route === '/formularios' ||
       route === '/usuarios' ||
       route === '/roles' ||
+      route === '/linea-mando' ||
+      route === '/configuracion-sistema' ||
       route === '/video-unidad' ||
       route === '/configuracion-imagen-sitio' ||
       route === '/admin-multimedia'

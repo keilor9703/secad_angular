@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
+using ofic.Security;
 using System.Security.Claims;
 
 namespace ofic.Controllers
@@ -85,10 +86,18 @@ public class SliderController : ControllerBase
                 {
                     return BadRequest(new { success = false, message = "Título requerido" });
                 }
+                if (!SecurityGuards.IsSafeText(request.titulo, 120))
+                {
+                    return BadRequest(new { success = false, message = "Título con caracteres no permitidos." });
+                }
 
                 if (string.IsNullOrWhiteSpace(request.urlImagen))
                 {
                     return BadRequest(new { success = false, message = "URL de imagen requerida" });
+                }
+                if (SecurityGuards.HasPotentialHtml(request.urlImagen))
+                {
+                    return BadRequest(new { success = false, message = "URL de imagen inválida." });
                 }
 
                 if (request.orden <= 0)
@@ -136,8 +145,7 @@ public class SliderController : ControllerBase
                 return StatusCode(500, new
                 {
                     success = false,
-                    message = "Error al guardar slider",
-                    detail = ex.Message
+                    message = "Error al guardar slider"
                 });
             }
         }
@@ -166,6 +174,10 @@ public class SliderController : ControllerBase
                 {
                     return BadRequest(new { success = false, message = "Formato inválido. Use JPG, PNG o WEBP." });
                 }
+                if (!SecurityGuards.HasValidImageSignature(file, extension))
+                {
+                    return BadRequest(new { success = false, message = "Firma de archivo inválida para imagen." });
+                }
 
                 var uploadsDir = _bannerRootPath;
                 Directory.CreateDirectory(uploadsDir);
@@ -193,8 +205,7 @@ public class SliderController : ControllerBase
                 return StatusCode(500, new
                 {
                     success = false,
-                    message = "Error cargando imagen",
-                    detail = ex.Message
+                    message = "Error cargando imagen"
                 });
             }
         }
@@ -288,8 +299,7 @@ public class SliderController : ControllerBase
                 return StatusCode(500, new
                 {
                     success = false,
-                    message = "Error al actualizar estado del slider",
-                    detail = ex.Message
+                    message = "Error al actualizar estado del slider"
                 });
             }
         }

@@ -18,9 +18,11 @@ html.dark-mode {
 
 /* --- SHELL DEL SISTEMA --- */
 .app-shell {
-  min-height: 100vh;
+  height: 100vh;
+  overflow: hidden;
   background: var(--app-shell-bg);
   display: flex;
+  flex-direction: column;
   transition: background-color 0.3s ease;
 }
 
@@ -38,23 +40,16 @@ html.dark-mode {
 
 .shell {
   flex: 1;
-  min-height: 100vh;
+  height: 100vh;
   margin-left: 0; 
   display: flex;
   flex-direction: column;
   transition: none;
   position: relative;
   overflow-x: hidden;
-  overflow-y: visible;
+  overflow-y: hidden;
   padding-top: var(--header-height, 70px);
-}
-.app-backdrop{
-  position: fixed;
-  inset: 0;
-  z-index: 1150; /* debajo del sidebar (1200) */
-  background: rgba(0,0,0,.55);
-  backdrop-filter: blur(3px);
-  -webkit-backdrop-filter: blur(3px);
+  padding-bottom: 0;
 }
 
 .shell.shell-expanded {
@@ -63,10 +58,11 @@ html.dark-mode {
 
 .main {
   flex: 1;
-  min-height: 100vh;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
+  min-height: 0;
+  padding-bottom: var(--footer-height, 56px);
 }
 
 .content {
@@ -82,12 +78,27 @@ html.dark-mode {
   transition: background-color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
 }
 
-app-footer {
-  display: block;
-  margin-top: auto;
+.app-footer-fixed {
+  position: fixed;
+  bottom: 0;
+  left: 0;
   width: 100%;
+  z-index: 100;
+}
+
+.app-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(8, 14, 28, 0.42);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  z-index: 1150;
 }
 
 .app-shell.menu-open .main{
   overflow: hidden !important;
+}
+
+.app-shell.menu-open ~ app-accessibility-menu {
+  pointer-events: none;
 }

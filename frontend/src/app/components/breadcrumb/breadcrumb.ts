@@ -85,9 +85,10 @@ export class BreadcrumbComponent {
     '/administracion/formularios': 'Formularios',
     '/administracion/sliders': 'Sliders',
     '/administracion/menu': 'Menú',
-    '/administracion/admin-multimedia': 'Multimedia',
-    '/administracion/video-unidad': 'Video Unidad',
-    '/administracion/configuracion-imagen-sitio': 'Configuración Imagen',
+    '/administracion/configuracion-sistema': 'Configuración Sistema',
+    '/administracion/admin-multimedia': 'Configuración Sistema',
+    '/administracion/video-unidad': 'Configuración Sistema',
+    '/administracion/configuracion-imagen-sitio': 'Configuración Sistema',
     '/noticias': 'Noticias'
   };
 

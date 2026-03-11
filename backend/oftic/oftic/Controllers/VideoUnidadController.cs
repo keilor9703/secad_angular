@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
+using ofic.Security;
 
 namespace ofic.Controllers
 {
@@ -125,6 +126,10 @@ namespace ofic.Controllers
                 {
                     return BadRequest(new { success = false, message = "Formato inválido. Use MP4, WEBM, OGG o MOV." });
                 }
+                if (!SecurityGuards.HasValidVideoSignature(file, extension))
+                {
+                    return BadRequest(new { success = false, message = "Firma de archivo inválida para video." });
+                }
 
                 Directory.CreateDirectory(_videoRootPath);
 
@@ -154,7 +159,7 @@ namespace ofic.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error cargando video de unidad");
-                return StatusCode(500, new { success = false, message = "Error cargando video.", detail = ex.Message });
+                return StatusCode(500, new { success = false, message = "Error cargando video." });
             }
         }
 

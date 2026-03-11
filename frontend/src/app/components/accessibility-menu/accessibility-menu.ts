@@ -19,7 +19,7 @@ import { takeUntil } from 'rxjs/operators';
 export class AccessibilityMenuComponent implements OnInit, OnDestroy {
   accessibility: AccessibilityState = {
     darkMode: false,
-    fontSize: 'normal'
+    fontSize: 2 // nivel por defecto (normal)
   };
 
   isListening = false;
@@ -100,10 +100,19 @@ export class AccessibilityMenuComponent implements OnInit, OnDestroy {
   }
 
   get isFontSizeSmall(): boolean {
-    return this.accessibility.fontSize === 'small';
+    return this.accessibility.fontSize === 0;
   }
 
   get isFontSizeLarge(): boolean {
-    return this.accessibility.fontSize === 'large';
+    return this.accessibility.fontSize === 6;
+  }
+
+  get currentFontLevel(): string {
+    return `${this.accessibility.fontSize + 1}/7`;
+  }
+
+  get fontSizeLabel(): string {
+    const labels = ['Muy pequeña', 'Pequeña', 'Normal', 'Mediana', 'Grande', 'Muy grande', 'Extra grande'];
+    return labels[this.accessibility.fontSize] || 'Normal';
   }
 }
