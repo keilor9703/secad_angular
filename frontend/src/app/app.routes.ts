@@ -5,7 +5,7 @@ import { Formularios } from './pages/formularios/formularios';
 import { UsuariosComponent } from './pages/usuarios/usuarios';
 import { SlidersComponent } from './pages/sliders/sliders';
 import { MenuAdminComponent } from './pages/menu-admin/menu-admin';
-import { AdminMultimediaComponent } from './pages/admin-multimedia/admin-multimedia';
+import { ConfiguracionSistemaComponent } from './pages/configuracion-sistema/configuracion-sistema';
 import { RolesAdminComponent } from './pages/roles-admin/roles-admin';
 import { LayoutComponent } from './layout/layout';
 import { Noticias } from './pages/noticias/noticias';
@@ -31,9 +31,10 @@ export const routes: Routes = [
         { path: 'roles', component: RolesAdminComponent },
         { path: 'sliders', component: SlidersComponent },
         { path: 'menu', component: MenuAdminComponent },
-        { path: 'admin-multimedia', component: AdminMultimediaComponent },
-        { path: 'video-unidad', component: AdminMultimediaComponent },
-        { path: 'configuracion-imagen-sitio', component: AdminMultimediaComponent },
+        { path: 'configuracion-sistema', component: ConfiguracionSistemaComponent },
+        { path: 'admin-multimedia', redirectTo: 'configuracion-sistema', pathMatch: 'full' },
+        { path: 'video-unidad', redirectTo: 'configuracion-sistema', pathMatch: 'full' },
+        { path: 'configuracion-imagen-sitio', redirectTo: 'configuracion-sistema', pathMatch: 'full' },
         { path: 'linea-mando', component: LineaMandoAdminComponent }
       ]
     },
@@ -42,9 +43,10 @@ export const routes: Routes = [
       { path: 'roles', redirectTo: 'administracion/roles', pathMatch: 'full' },
       { path: 'sliders', redirectTo: 'administracion/sliders', pathMatch: 'full' },
       { path: 'menu', redirectTo: 'administracion/menu', pathMatch: 'full' },
-      { path: 'admin-multimedia', redirectTo: 'administracion/admin-multimedia', pathMatch: 'full' },
-      { path: 'video-unidad', redirectTo: 'administracion/video-unidad', pathMatch: 'full' },
-      { path: 'configuracion-imagen-sitio', redirectTo: 'administracion/configuracion-imagen-sitio', pathMatch: 'full' },
+      { path: 'configuracion-sistema', redirectTo: 'administracion/configuracion-sistema', pathMatch: 'full' },
+      { path: 'admin-multimedia', redirectTo: 'administracion/configuracion-sistema', pathMatch: 'full' },
+      { path: 'video-unidad', redirectTo: 'administracion/configuracion-sistema', pathMatch: 'full' },
+      { path: 'configuracion-imagen-sitio', redirectTo: 'administracion/configuracion-sistema', pathMatch: 'full' },
       { path: 'linea-mando', redirectTo: 'administracion/linea-mando', pathMatch: 'full' },
       { path: 'noticias', component: Noticias },
     ]

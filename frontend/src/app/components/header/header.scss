@@ -152,7 +152,7 @@
     justify-content: center;
     cursor: pointer;
     transition: all var(--transition-speed) ease;
-    margin-left: 10px;
+    margin-left: 0 !important;
 
     &:hover {
       transform: scale(1.1);

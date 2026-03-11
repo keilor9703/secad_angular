@@ -56,6 +56,7 @@ export class HomeComponent implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.stopBannerRotation();
+    document.body.classList.remove('ui-modal-open');
   }
 
   private loadBanners(): void {
