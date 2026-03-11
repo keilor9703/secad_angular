@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
+using ofic.Security;
 using System.Text.Json;
 
 namespace ofic.Controllers
@@ -205,6 +206,10 @@ namespace ofic.Controllers
                 {
                     return BadRequest(new { success = false, message = "Formato inválido. Use JPG, PNG o WEBP." });
                 }
+                if (!SecurityGuards.HasValidImageSignature(file, extension))
+                {
+                    return BadRequest(new { success = false, message = "Firma de archivo inválida para imagen." });
+                }
 
                 EnsureStorage();
                 var safeName = $"login-{Guid.NewGuid():N}{extension}";
@@ -226,7 +231,7 @@ namespace ofic.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error cargando imagen visual de login");
-                return StatusCode(500, new { success = false, message = "Error cargando imagen.", detail = ex.Message });
+                return StatusCode(500, new { success = false, message = "Error cargando imagen." });
             }
         }
 
@@ -254,6 +259,8 @@ namespace ofic.Controllers
                     })
                     .Where(x => !string.IsNullOrWhiteSpace(x.file))
                     .Where(x => AllowedExtensions.Contains(Path.GetExtension(x.file)))
+                    .Where(x => SecurityGuards.IsSafeText(x.title, 120))
+                    .Where(x => SecurityGuards.IsSafeText(x.subtitle, 200))
                     .ToList();
 
                 var fileSet = Directory.GetFiles(_rootPath)
@@ -278,7 +285,7 @@ namespace ofic.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error guardando configuración visual del login");
-                return StatusCode(500, new { success = false, message = "Error guardando configuración.", detail = ex.Message });
+                return StatusCode(500, new { success = false, message = "Error guardando configuración." });
             }
         }
 
@@ -319,7 +326,7 @@ namespace ofic.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error eliminando imagen visual del login");
-                return StatusCode(500, new { success = false, message = "Error eliminando imagen.", detail = ex.Message });
+                return StatusCode(500, new { success = false, message = "Error eliminando imagen." });
             }
         }
 

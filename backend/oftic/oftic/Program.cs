@@ -35,8 +35,15 @@ builder.Services.AddCors(options =>
 });
 
 // JWT Authentication
-var jwtKey = "EstaEsUnaClaveSecretaMuyLargaParaJWT2024!";
-var jwtIssuer = "oftic.api";
+var jwtKey = builder.Configuration["Jwt:Key"];
+var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? "oftic.api";
+var jwtAudience = builder.Configuration["Jwt:Audience"] ?? jwtIssuer;
+
+if (string.IsNullOrWhiteSpace(jwtKey) || jwtKey.Length < 32)
+{
+    throw new InvalidOperationException(
+        "Configuracion insegura: Jwt:Key no configurada o demasiado corta. Defina una clave de al menos 32 caracteres en appsettings o variables de entorno.");
+}
 
 builder.Services.AddAuthentication("Bearer")
     .AddJwtBearer("Bearer", options =>
@@ -48,7 +55,7 @@ builder.Services.AddAuthentication("Bearer")
             ValidateLifetime = true,
             ValidateIssuerSigningKey = true,
             ValidIssuer = jwtIssuer,
-            ValidAudience = jwtIssuer,
+            ValidAudience = jwtAudience,
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey))
         };
     });
