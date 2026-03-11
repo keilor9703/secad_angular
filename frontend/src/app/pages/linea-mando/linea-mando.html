@@ -80,7 +80,7 @@
 
             <div class="ui-field ui-col-4">
               <label class="ui-label">Cargo</label>
-              <input class="ui-control" type="text" [(ngModel)]="formData.cargo" placeholder="Cargo" readonly>
+              <input class="ui-control" type="text" [(ngModel)]="formData.cargo" placeholder="Cargo">
             </div>
 
             <div class="ui-field ui-col-4">
@@ -146,27 +146,53 @@
         No hay registros de línea de mando. Busque un funcionario y agréguelo.
       </div>
 
-      <div class="linea-mando-grid" *ngIf="!loading && listaLineaMando.length > 0">
-        <article class="cmd-item" *ngFor="let item of listaLineaMando">
-          <div class="cmd-photo-lg" style="width: 100%; height: 180px; border-radius: 10px; overflow: hidden;">
-            <img [src]="getFotoUrl(item)" [alt]="getNombreCompletoItem(item)" style="width: 100%; height: 100%; object-fit: cover;">
-          </div>
-          <div class="cmd-name" style="margin-top: 10px;">{{ getNombreCompletoItem(item) }}</div>
-          <div class="cmd-grade" style="margin-top: 4px;">{{ item.grado }}</div>
-          <div style="color: #666; font-size: 12px; margin-top: 2px;">{{ item.cargo }}</div>
-          <div style="color: #888; font-size: 11px; margin-top: 2px;">{{ item.unidad }}</div>
-          <div style="margin-top: 10px; display: flex; gap: 8px;">
-            <button class="ui-mini-btn" type="button" title="Editar" (click)="editar(item)">
-              <i class="fa-solid fa-pen"></i>
-            </button>
-            <button class="ui-mini-btn danger" type="button" title="Eliminar" (click)="eliminar(item)">
-              <i class="fa-solid fa-trash"></i>
-            </button>
-          </div>
-          <div style="margin-top: 8px;">
-            <span class="ui-badge info">Orden: {{ item.orden }}</span>
-          </div>
-        </article>
+      <!-- Tabla de Línea de Mando -->
+      <div class="ui-table-wrap" *ngIf="!loading && listaLineaMando.length > 0">
+        <table class="ui-table">
+          <thead>
+            <tr>
+              <th style="width: 60px;">Orden</th>
+              <th>Funcionario</th>
+              <th>Cargo</th>
+              <th>Unidad</th>
+              <th style="width: 100px;">Estado</th>
+              <th style="width: 100px;">Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let item of listaLineaMando">
+              <td style="text-align: center;">
+                <span class="ui-badge info">{{ item.orden }}</span>
+              </td>
+              <td>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                  <img [src]="getFotoUrl(item)" alt="Foto" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 2px solid #ddd;">
+                  <div>
+                    <div style="font-weight: 600;">{{ item.grado }} {{ item.nombre }} {{ item.apellidos }}</div>
+                    <div style="font-size: 11px; color: #666;">{{ item.identificacion }}</div>
+                  </div>
+                </div>
+              </td>
+              <td>
+                <span class="ui-badge primary">{{ item.peso }}</span>
+              </td>
+              <td>{{ item.unidad }}</td>
+              <td style="text-align: center;">
+                <span class="ui-badge" [class.success]="item.vigente === 1" [class.warning]="item.vigente !== 1">
+                  {{ item.vigente === 1 ? 'Activo' : 'Inactivo' }}
+                </span>
+              </td>
+              <td style="text-align: center;">
+                <button class="ui-mini-btn" type="button" title="Editar" (click)="editar(item)" *ngIf="item.vigente === 1">
+                  <i class="fa-solid fa-pen"></i>
+                </button>
+                <button class="ui-mini-btn danger" type="button" title="Eliminar" (click)="eliminar(item)" *ngIf="item.vigente === 1">
+                  <i class="fa-solid fa-trash"></i>
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </div>
     </div>
   </div>

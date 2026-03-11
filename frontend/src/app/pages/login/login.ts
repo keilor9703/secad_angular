@@ -72,8 +72,8 @@ export class LoginComponent implements OnInit, OnDestroy {
   private loadBranding(): void {
     this.brandingService.getPublicConfig().subscribe({
       next: (cfg) => {
-        const name = (cfg?.systemName ?? '').trim();
-        this.systemName = name || 'SISGE';
+        const sigla = (cfg?.sistema ?? cfg?.systemName ?? '').trim();
+        this.systemName = sigla || 'SISGE';
         this.logoUrl = (cfg?.logoUrl ?? '').trim() || '/escudo.png';
       },
       error: () => {

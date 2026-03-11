@@ -7,13 +7,13 @@ import { BrandingService } from '../../core/services/branding.service';
 import { ToastService } from '../../core/services/toast.service';
 
 @Component({
-  selector: 'app-admin-multimedia',
+  selector: 'app-configuracion-sistema',
   standalone: true,
   imports: [CommonModule, FormsModule],
-  templateUrl: './admin-multimedia.html',
-  styleUrls: ['./admin-multimedia.scss']
+  templateUrl: './configuracion-sistema.html',
+  styleUrls: ['./configuracion-sistema.scss']
 })
-export class AdminMultimediaComponent implements OnInit {
+export class ConfiguracionSistemaComponent implements OnInit {
   videoPanelMinimized = false;
   loginPanelMinimized = false;
   brandingPanelMinimized = false;
@@ -74,7 +74,7 @@ export class AdminMultimediaComponent implements OnInit {
         this.loading = false;
         this.info = null;
         this.previewUrl = '';
-        this.toast.error('Configuración imagen del sitio', err?.error?.message ?? 'No fue posible consultar el video actual.');
+        this.toast.error('Configuracion sistema', err?.error?.message ?? 'No fue posible consultar el video actual.');
       }
     });
   }
@@ -88,13 +88,13 @@ export class AdminMultimediaComponent implements OnInit {
 
     const allowed = ['video/mp4', 'video/webm', 'video/ogg', 'video/quicktime'];
     if (!allowed.includes(file.type)) {
-      this.toast.warning('Configuración imagen del sitio', 'Formato inválido. Use MP4, WEBM, OGG o MOV.');
+      this.toast.warning('Configuracion sistema', 'Formato inválido. Use MP4, WEBM, OGG o MOV.');
       input.value = '';
       return;
     }
 
     if (file.size > 100 * 1024 * 1024) {
-      this.toast.warning('Configuración imagen del sitio', 'El archivo excede 100MB.');
+      this.toast.warning('Configuracion sistema', 'El archivo excede 100MB.');
       input.value = '';
       return;
     }
@@ -104,15 +104,15 @@ export class AdminMultimediaComponent implements OnInit {
       next: (resp) => {
         this.uploading = false;
         if (!resp?.success) {
-          this.toast.warning('Configuración imagen del sitio', resp?.message || 'No fue posible cargar el video.');
+          this.toast.warning('Configuracion sistema', resp?.message || 'No fue posible cargar el video.');
           return;
         }
-        this.toast.success('Configuración imagen del sitio', resp.message || 'Video cargado correctamente.');
+        this.toast.success('Configuracion sistema', resp.message || 'Video cargado correctamente.');
         this.loadCurrent();
       },
       error: (err) => {
         this.uploading = false;
-        this.toast.error('Configuración imagen del sitio', err?.error?.detail ?? err?.error?.message ?? 'Error cargando video.');
+        this.toast.error('Configuracion sistema', err?.error?.detail ?? err?.error?.message ?? 'Error cargando video.');
       }
     });
   }

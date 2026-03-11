@@ -93,11 +93,12 @@ namespace ofic.Controllers
 
                 // Validar situación laboral
                 var situacionLaboral = (empleado.situacionLaboral ?? string.Empty).Trim().ToUpperInvariant();
-                if (situacionLaboral != "LABORANDO")
+                if (situacionLaboral != "LABORANDO" && situacionLaboral != "COMISION DEL SERVICIO")
                 {
-                    return BadRequest(new { 
-                        success = false, 
-                        message = $"Usuario no está en situación laboral 'Laborando'. Situación actual: '{empleado.situacionLaboral ?? "No reportada"}'" 
+                    return BadRequest(new
+                    {
+                        success = false,
+                        message = $"Usuario no está en situación laboral válida. Situación actual: '{empleado.situacionLaboral ?? "No reportada"}'. Solo se permiten 'LABORANDO' o 'COMISIÓN DEL SERVICIO'."
                     });
                 }
 

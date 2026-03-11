@@ -12,9 +12,10 @@ import { BrandingService } from '../../core/services/branding.service';
 })
 export class FooterComponent implements OnDestroy {
   systemName = 'SISGE';
+  systemDisplayName = 'Sistema de gestion de Policia';
   isPlaying = false;
   errorMessage = '';
-  selectedStation = 'bogota';
+  selectedStation = 'prueba';
   private audio: HTMLAudioElement | null = null;
 
   supportOpen = false;
@@ -33,6 +34,7 @@ export class FooterComponent implements OnDestroy {
 { id: 'moniquira', name: 'Moniquira', url: 'https://radio.policia.gov.co:8080/Moniquira' },
 { id: 'santamarta', name: 'Santa Marta', url: 'https://radio.policia.gov.co:8080/santamarta' },
 { id: 'tunja', name: 'Tunja', url: 'https://radio.policia.gov.co:8080/tunja' },
+{ id: 'prueba', name: 'Prueba', url: 'https://live.truckers.fm/' },
   ];
 
   supportForm = {
@@ -52,11 +54,14 @@ export class FooterComponent implements OnDestroy {
   private loadBranding(): void {
     this.brandingService.getPublicConfig().subscribe({
       next: (cfg) => {
-        const name = (cfg?.systemName ?? '').trim();
-        this.systemName = name || 'SISGE';
+        const sigla = (cfg?.sistema ?? cfg?.systemName ?? '').trim();
+        const nombre = (cfg?.nombreSistema ?? '').trim();
+        this.systemName = sigla || 'OFTIC';
+        this.systemDisplayName = nombre || 'Sistema de gestion de Policia';
       },
       error: () => {
-        this.systemName = 'SISGE';
+        this.systemName = 'OFTIC';
+        this.systemDisplayName = 'Sistema de gestion de Policia';
       }
     });
   }

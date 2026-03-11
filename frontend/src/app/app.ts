@@ -70,9 +70,17 @@ export class AppComponent implements OnDestroy {
     });
 
     this.brandingService.getPublicConfig().subscribe({
-      next: (cfg) => this.applyFavicon(cfg?.faviconUrl ?? null),
+      next: (cfg) => {
+        this.applyFavicon(cfg?.faviconUrl ?? null);
+        this.applyDocumentTitle(cfg?.sistema ?? cfg?.systemName ?? null);
+      },
       error: () => {}
     });
+  }
+
+  private applyDocumentTitle(sigla: string | null): void {
+    const title = (sigla ?? '').trim();
+    document.title = title || 'SISGE';
   }
 
   private applyFavicon(faviconUrl: string | null): void {

@@ -98,8 +98,8 @@ export class HeaderComponent implements OnInit {
   private loadBranding(): void {
     this.brandingService.getPublicConfig().subscribe({
       next: (cfg) => {
-        const name = (cfg?.systemName ?? '').trim();
-        this.userRole = name || 'SISGE';
+        const sigla = (cfg?.sistema ?? cfg?.systemName ?? '').trim();
+        this.userRole = sigla || 'SISGE';
       },
       error: () => {
         this.userRole = 'SISGE';

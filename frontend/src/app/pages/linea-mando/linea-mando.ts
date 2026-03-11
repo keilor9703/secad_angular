@@ -120,7 +120,7 @@ export class LineaMandoAdminComponent implements OnInit {
           orden: this.listaLineaMando.length + 1
         };
         
-        this.fotoPreview = resp.fotoBase64 ?? null;
+        this.fotoPreview = this.getFotoUrlFromBase64(resp.fotoBase64);
         this.fotoCambiada = false;
         this.hayFuncionario = true;
         this.searchingFuncionario = false;
@@ -223,7 +223,7 @@ export class LineaMandoAdminComponent implements OnInit {
       fotoBase64: item.fotoBase64,
       orden: item.orden
     };
-    this.fotoPreview = item.fotoBase64;
+    this.fotoPreview = this.getFotoUrlFromBase64(item.fotoBase64);
     this.fotoCambiada = false;
     this.hayFuncionario = true;
   }
@@ -244,11 +244,41 @@ export class LineaMandoAdminComponent implements OnInit {
       return;
     }
 
+    const existenteMismoPeso = this.listaLineaMando.find(item => 
+      item.peso === this.formData.peso && 
+      item.vigente === 1 && 
+      item.idLineaMando !== (this.idEditando ?? 0)
+    );
+
+    if (existenteMismoPeso && !this.modoEdicion) {
+      const confirmado = confirm(
+        `Ya existe un registro activo con el cargo "${this.formData.peso}" (${existenteMismoPeso.grado} ${existenteMismoPeso.nombre}).\n\n` +
+        `¿Está seguro que desea reemplazarlo?\n\n` +
+        `El registro anterior pasará a estado Inactivo.`
+      );
+      
+      if (!confirmado) {
+        return;
+      }
+      
+      this.sustituirRegistro(existenteMismoPeso.idLineaMando);
+      return;
+    }
+
     if (!this.validarPesoUnico()) {
       return;
     }
 
+    this.ejecutarGuardado();
+  }
+
+  ejecutarGuardado(): void {
     this.saving = true;
+
+    let fotoBase64: string | null = this.formData.fotoBase64;
+    if (!this.fotoCambiada) {
+      fotoBase64 = this.modoEdicion ? this.formData.fotoBase64 : null;
+    }
 
     const request: DtoLineaMandoRequest = {
       identificacion: this.formData.identificacion || '',
@@ -258,7 +288,7 @@ export class LineaMandoAdminComponent implements OnInit {
       cargo: this.formData.cargo || '',
       peso: this.formData.peso || '',
       unidad: this.formData.unidad || '',
-      fotoBase64: this.formData.fotoBase64,
+      fotoBase64: fotoBase64,
       orden: Number(this.formData.orden) || 1
     };
 
@@ -304,7 +334,7 @@ export class LineaMandoAdminComponent implements OnInit {
       return;
     }
 
-    this.lineaMandoService.delete(item.idLineaMando).subscribe({
+    this.lineaMandoService.setVigente(item.idLineaMando, 0).subscribe({
       next: (resp) => {
         if (resp.success) {
           this.toast.success('Eliminar', resp.message);
@@ -319,6 +349,25 @@ export class LineaMandoAdminComponent implements OnInit {
     });
   }
 
+  sustituirRegistro(idAnterior: number): void {
+    this.saving = true;
+
+    this.lineaMandoService.setVigente(idAnterior, 0).subscribe({
+      next: (resp) => {
+        if (resp.success) {
+          this.ejecutarGuardado();
+        } else {
+          this.saving = false;
+          this.toast.error('Sustituir', 'Error al inactivar registro anterior');
+        }
+      },
+      error: () => {
+        this.saving = false;
+        this.toast.error('Sustituir', 'Error al inactivar registro anterior');
+      }
+    });
+  }
+
   getNombreCompleto(): string {
     return `${this.formData.nombre} ${this.formData.apellidos}`.trim();
   }
@@ -327,10 +376,14 @@ export class LineaMandoAdminComponent implements OnInit {
     return `${item.nombre} ${item.apellidos}`.trim();
   }
 
+  private getFotoUrlFromBase64(fotoBase64: string | null): string {
+    if (!fotoBase64) return 'imagenes/policia.jpg';
+    const base64 = fotoBase64.trim();
+    if (base64.startsWith('data:')) return base64;
+    return 'data:image/jpeg;base64,' + base64;
+  }
+
   getFotoUrl(item: DtoLineaMando): string {
-    if (item.fotoBase64) {
-      return item.fotoBase64;
-    }
-    return 'imagenes/policia.jpg';
+    return this.getFotoUrlFromBase64(item.fotoBase64);
   }
 }
