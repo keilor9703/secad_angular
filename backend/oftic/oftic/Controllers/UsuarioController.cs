@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Comun.Dtos;
 using Datos.Interfaz;
@@ -41,10 +41,10 @@ namespace ofic.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "Falló ObtenerTokenPipAsync; se intentará fallback con PostPipToken.");
+                _logger.LogWarning(ex, "FallÃ³ ObtenerTokenPipAsync; se intentarÃ¡ fallback con PostPipToken.");
             }
 
-            // Fallback robusto: usa credenciales técnicas de appsettings contra PostPipToken.
+            // Fallback robusto: usa credenciales tÃ©cnicas de appsettings contra PostPipToken.
             var usuarioPip = _configuration["ApiSettings:UsuarioPip"] ?? string.Empty;
             var clavePip = _configuration["ApiSettings:ClavePip"] ?? string.Empty;
             if (string.IsNullOrWhiteSpace(usuarioPip) || string.IsNullOrWhiteSpace(clavePip))
@@ -59,7 +59,7 @@ namespace ofic.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "Falló fallback GetTokenAsync con credenciales técnicas.");
+                _logger.LogWarning(ex, "FallÃ³ fallback GetTokenAsync con credenciales tÃ©cnicas.");
             }
 
             return string.Empty;
@@ -72,10 +72,10 @@ namespace ofic.Controllers
             {
                 if (string.IsNullOrEmpty(identificacion))
                 {
-                    return BadRequest(new { message = "Identificación requerida" });
+                    return BadRequest(new { message = "IdentificaciÃ³n requerida" });
                 }
 
-                // Obtener token técnico de API externa configurado en ApiSettings.
+                // Obtener token tÃ©cnico de API externa configurado en ApiSettings.
                 var tokenPip = await GetTechnicalTokenAsync(HttpContext.RequestAborted);
                 
                 if (string.IsNullOrEmpty(tokenPip))
@@ -88,21 +88,21 @@ namespace ofic.Controllers
 
                 if (empleado is null)
                 {
-                    return NotFound(new { message = "No se encontró información del funcionario." });
+                    return NotFound(new { message = "No se encontrÃ³ informaciÃ³n del funcionario." });
                 }
 
-                // Validar situación laboral
+                // Validar situaciÃ³n laboral
                 var situacionLaboral = (empleado.situacionLaboral ?? string.Empty).Trim().ToUpperInvariant();
                 if (situacionLaboral != "LABORANDO" && situacionLaboral != "COMISION DEL SERVICIO")
                 {
                     return BadRequest(new
                     {
                         success = false,
-                        message = $"Usuario no está en situación laboral válida. Situación actual: '{empleado.situacionLaboral ?? "No reportada"}'. Solo se permiten 'LABORANDO' o 'COMISIÓN DEL SERVICIO'."
+                        message = $"Usuario no estÃ¡ en situaciÃ³n laboral vÃ¡lida. SituaciÃ³n actual: '{empleado.situacionLaboral ?? "No reportada"}'. Solo se permiten 'LABORANDO' o 'COMISIÃ“N DEL SERVICIO'."
                     });
                 }
 
-                // Persistir automáticamente en DB local si no existe.
+                // Persistir automÃ¡ticamente en DB local si no existe.
                 // No debe romper la consulta principal si falla la persistencia local.
                 if (empleado is not null)
                 {
@@ -157,7 +157,7 @@ namespace ofic.Controllers
             {
                 if (string.IsNullOrEmpty(identificacion))
                 {
-                    return BadRequest(new { message = "Identificación requerida" });
+                    return BadRequest(new { message = "IdentificaciÃ³n requerida" });
                 }
 
                 var tokenPip = await GetTechnicalTokenAsync(HttpContext.RequestAborted);
@@ -199,7 +199,7 @@ namespace ofic.Controllers
 
                 if (string.IsNullOrWhiteSpace(identificacion))
                 {
-                    return NotFound(new { message = "No se encontró identificación para el usuario autenticado." });
+                    return NotFound(new { message = "No se encontrÃ³ identificaciÃ³n para el usuario autenticado." });
                 }
 
                 var tokenPip = await GetTechnicalTokenAsync(HttpContext.RequestAborted);
@@ -239,7 +239,7 @@ namespace ofic.Controllers
 
                 if (string.IsNullOrWhiteSpace(identificacion))
                 {
-                    return NotFound(new { message = "No se encontró identificación para el usuario autenticado." });
+                    return NotFound(new { message = "No se encontrÃ³ identificaciÃ³n para el usuario autenticado." });
                 }
 
                 var tokenPip = await GetTechnicalTokenAsync(HttpContext.RequestAborted);
@@ -251,7 +251,7 @@ namespace ofic.Controllers
                 var empleado = await _apiWebToken.GetFuncionarioAsync(tokenPip, identificacion.Trim());
                 if (empleado is null)
                 {
-                    return NotFound(new { message = "No se encontró información de perfil." });
+                    return NotFound(new { message = "No se encontrÃ³ informaciÃ³n de perfil." });
                 }
 
                 var nombreCompleto = $"{(empleado.nombres ?? string.Empty).Trim()} {(empleado.apellidos ?? string.Empty).Trim()}".Trim();
@@ -283,7 +283,7 @@ namespace ofic.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error consultando catálogo de roles");
+                _logger.LogError(ex, "Error consultando catÃ¡logo de roles");
                 return StatusCode(500, new { message = "Error al consultar roles" });
             }
         }
@@ -315,7 +315,7 @@ namespace ofic.Controllers
             {
                 if (request is null || string.IsNullOrWhiteSpace(request.identificacion))
                 {
-                    return BadRequest(new { success = false, message = "Identificación requerida" });
+                    return BadRequest(new { success = false, message = "IdentificaciÃ³n requerida" });
                 }
 
                 var usuarioAuditoria = await ResolveUsuarioAuditoriaAsync(
@@ -361,8 +361,7 @@ namespace ofic.Controllers
                 return StatusCode(500, new
                 {
                     success = false,
-                    message = "Error al guardar usuario",
-                    detail = ex.Message
+                    message = "Error al guardar usuario"
                 });
             }
         }
@@ -372,7 +371,7 @@ namespace ofic.Controllers
             string? identificacionRequest,
             CancellationToken ct)
         {
-            // Requisito funcional: auditar con cédula (no id interno).
+            // Requisito funcional: auditar con cÃ©dula (no id interno).
             var cedula =
                 user?.Claims?.FirstOrDefault(c =>
                     c.Type == "identificacion" ||
@@ -385,7 +384,7 @@ namespace ofic.Controllers
                 return cedula.Trim();
             }
 
-            // Si no viene cédula como claim, resolver por username del JWT en CTR_USUARIOS.
+            // Si no viene cÃ©dula como claim, resolver por username del JWT en CTR_USUARIOS.
             var username =
                 user?.Identity?.Name
                 ?? user?.Claims?.FirstOrDefault(c =>
@@ -404,11 +403,11 @@ namespace ofic.Controllers
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogWarning(ex, "No se pudo resolver cédula del usuario logueado desde DB. username={Username}", username);
+                    _logger.LogWarning(ex, "No se pudo resolver cÃ©dula del usuario logueado desde DB. username={Username}", username);
                 }
             }
 
-            // Fallback final: identificación del usuario objetivo.
+            // Fallback final: identificaciÃ³n del usuario objetivo.
             if (!string.IsNullOrWhiteSpace(identificacionRequest))
             {
                 return identificacionRequest.Trim();
@@ -429,7 +428,7 @@ namespace ofic.Controllers
 
                 if (string.IsNullOrWhiteSpace(request.justificacion))
                 {
-                    return BadRequest(new { success = false, message = "Justificación requerida" });
+                    return BadRequest(new { success = false, message = "JustificaciÃ³n requerida" });
                 }
 
                 if (string.IsNullOrWhiteSpace(request.fechaFin))
@@ -439,7 +438,7 @@ namespace ofic.Controllers
 
                 if (!DateTime.TryParse(request.fechaFin, out var fechaFin))
                 {
-                    return BadRequest(new { success = false, message = "Fecha fin inválida" });
+                    return BadRequest(new { success = false, message = "Fecha fin invÃ¡lida" });
                 }
 
                 request.fechaFin = fechaFin.ToString("yyyy-MM-dd");
@@ -469,7 +468,7 @@ namespace ofic.Controllers
 
                 if (idUsuario <= 0)
                 {
-                    return BadRequest(new { success = false, message = "No se encontró el usuario para asignar el rol." });
+                    return BadRequest(new { success = false, message = "No se encontrÃ³ el usuario para asignar el rol." });
                 }
 
                 var usuarioAuditoria = await ResolveUsuarioAuditoriaAsync(
@@ -515,8 +514,7 @@ namespace ofic.Controllers
                 return StatusCode(500, new
                 {
                     success = false,
-                    message = "Error al asignar rol",
-                    detail = ex.Message
+                    message = "Error al asignar rol"
                 });
             }
         }
@@ -526,7 +524,7 @@ namespace ofic.Controllers
         {
             try
             {
-                // Aquí eliminarías de tu BD
+                // AquÃ­ eliminarÃ­as de tu BD
                 return Ok(new { success = true, message = "Rol eliminado correctamente" });
             }
             catch (Exception ex)
@@ -546,7 +544,7 @@ namespace ofic.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error consultando administración de roles");
+                _logger.LogError(ex, "Error consultando administraciÃ³n de roles");
                 return StatusCode(500, new { success = false, message = "Error al consultar roles." });
             }
         }
@@ -558,7 +556,7 @@ namespace ofic.Controllers
             {
                 if (request is null)
                 {
-                    return BadRequest(new { success = false, message = "Payload inválido." });
+                    return BadRequest(new { success = false, message = "Payload invÃ¡lido." });
                 }
 
                 var usuarioAuditoria = await ResolveUsuarioAuditoriaAsync(
@@ -603,8 +601,7 @@ namespace ofic.Controllers
                 return StatusCode(500, new
                 {
                     success = false,
-                    message = "Error al guardar rol",
-                    detail = ex.Message
+                    message = "Error al guardar rol"
                 });
             }
         }
@@ -616,7 +613,7 @@ namespace ofic.Controllers
             {
                 if (idRol <= 0)
                 {
-                    return BadRequest(new { success = false, message = "Id de rol inválido." });
+                    return BadRequest(new { success = false, message = "Id de rol invÃ¡lido." });
                 }
 
                 var usuarioAuditoria = await ResolveUsuarioAuditoriaAsync(
@@ -662,10 +659,10 @@ namespace ofic.Controllers
                 return StatusCode(500, new
                 {
                     success = false,
-                    message = "Error al actualizar estado del rol",
-                    detail = ex.Message
+                    message = "Error al actualizar estado del rol"
                 });
             }
         }
     }
 }
+

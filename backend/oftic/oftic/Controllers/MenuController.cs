@@ -1,4 +1,4 @@
-using Comun.Dtos.Menu;
+﻿using Comun.Dtos.Menu;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Datos.Interfaz;
@@ -30,7 +30,7 @@ namespace Api.Controllers
         }
 
         [HttpGet("by-user/{idUsuario:long}")]
-        [AllowAnonymous]
+        [Authorize]
         public async Task<ActionResult<List<DtoMenuItem>>> GetByUser(long idUsuario, CancellationToken ct)
         {
             var menu = await GetMenuForUserAsync(idUsuario, ct);
@@ -77,12 +77,12 @@ namespace Api.Controllers
 
                 if (string.IsNullOrWhiteSpace(request.Descripcion))
                 {
-                    return BadRequest(new { success = false, message = "Descripción requerida." });
+                    return BadRequest(new { success = false, message = "DescripciÃ³n requerida." });
                 }
 
                 if (request.Posicion < 0)
                 {
-                    return BadRequest(new { success = false, message = "Posición inválida." });
+                    return BadRequest(new { success = false, message = "PosiciÃ³n invÃ¡lida." });
                 }
 
                 if (string.IsNullOrWhiteSpace(request.Tipo))
@@ -108,8 +108,8 @@ namespace Api.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error guardando menú.");
-                return StatusCode(500, new { success = false, message = "Error guardando menú", detail = ex.Message });
+                _logger.LogError(ex, "Error guardando menÃº.");
+                return StatusCode(500, new { success = false, message = "Error guardando menÃº" });
             }
         }
 
@@ -124,8 +124,8 @@ namespace Api.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error consultando catálogo de roles para menú.");
-                return StatusCode(500, new { success = false, message = "Error consultando catálogo de roles.", detail = ex.Message });
+                _logger.LogError(ex, "Error consultando catÃ¡logo de roles para menÃº.");
+                return StatusCode(500, new { success = false, message = "Error consultando catÃ¡logo de roles." });
             }
         }
 
@@ -137,7 +137,7 @@ namespace Api.Controllers
             {
                 if (idMenu <= 0)
                 {
-                    return BadRequest(new { success = false, message = "Id de menú inválido." });
+                    return BadRequest(new { success = false, message = "Id de menÃº invÃ¡lido." });
                 }
 
                 var roles = await _service.GetRolesByMenuAsync(idMenu, ct);
@@ -145,8 +145,8 @@ namespace Api.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error consultando roles por menú. idMenu={IdMenu}", idMenu);
-                return StatusCode(500, new { success = false, message = "Error consultando roles por menú.", detail = ex.Message });
+                _logger.LogError(ex, "Error consultando roles por menÃº. idMenu={IdMenu}", idMenu);
+                return StatusCode(500, new { success = false, message = "Error consultando roles por menÃº." });
             }
         }
 
@@ -158,12 +158,12 @@ namespace Api.Controllers
             {
                 if (idMenu <= 0)
                 {
-                    return BadRequest(new { success = false, message = "Id de menú inválido." });
+                    return BadRequest(new { success = false, message = "Id de menÃº invÃ¡lido." });
                 }
 
                 if (request is null || request.IdRol <= 0)
                 {
-                    return BadRequest(new { success = false, message = "Id de rol inválido." });
+                    return BadRequest(new { success = false, message = "Id de rol invÃ¡lido." });
                 }
 
                 var userId = await ResolveUsuarioAuditoriaAsync(ct);
@@ -179,8 +179,8 @@ namespace Api.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error asignando rol a menú. idMenu={IdMenu}", idMenu);
-                return StatusCode(500, new { success = false, message = "Error asignando rol a menú.", detail = ex.Message });
+                _logger.LogError(ex, "Error asignando rol a menÃº. idMenu={IdMenu}", idMenu);
+                return StatusCode(500, new { success = false, message = "Error asignando rol a menÃº." });
             }
         }
 
@@ -192,7 +192,7 @@ namespace Api.Controllers
             {
                 if (idMenu <= 0 || idRol <= 0)
                 {
-                    return BadRequest(new { success = false, message = "Parámetros inválidos." });
+                    return BadRequest(new { success = false, message = "ParÃ¡metros invÃ¡lidos." });
                 }
 
                 var userId = await ResolveUsuarioAuditoriaAsync(ct);
@@ -208,8 +208,8 @@ namespace Api.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error eliminando asignación menú-rol. idMenu={IdMenu}, idRol={IdRol}", idMenu, idRol);
-                return StatusCode(500, new { success = false, message = "Error eliminando asignación menú-rol.", detail = ex.Message });
+                _logger.LogError(ex, "Error eliminando asignaciÃ³n menÃº-rol. idMenu={IdMenu}, idRol={IdRol}", idMenu, idRol);
+                return StatusCode(500, new { success = false, message = "Error eliminando asignaciÃ³n menÃº-rol." });
             }
         }
 
@@ -221,7 +221,7 @@ namespace Api.Controllers
             {
                 if (idRol <= 0)
                 {
-                    return BadRequest(new { success = false, message = "Id de rol inválido." });
+                    return BadRequest(new { success = false, message = "Id de rol invÃ¡lido." });
                 }
 
                 var menus = await _service.GetMenusByRolAsync(idRol, ct);
@@ -229,8 +229,8 @@ namespace Api.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error consultando menús por rol. idRol={IdRol}", idRol);
-                return StatusCode(500, new { success = false, message = "Error consultando menús por rol.", detail = ex.Message });
+                _logger.LogError(ex, "Error consultando menÃºs por rol. idRol={IdRol}", idRol);
+                return StatusCode(500, new { success = false, message = "Error consultando menÃºs por rol." });
             }
         }
 
@@ -242,12 +242,12 @@ namespace Api.Controllers
             {
                 if (idRol <= 0)
                 {
-                    return BadRequest(new { success = false, message = "Id de rol inválido." });
+                    return BadRequest(new { success = false, message = "Id de rol invÃ¡lido." });
                 }
 
                 if (request is null || request.IdMenu <= 0)
                 {
-                    return BadRequest(new { success = false, message = "Id de menú inválido." });
+                    return BadRequest(new { success = false, message = "Id de menÃº invÃ¡lido." });
                 }
 
                 var userId = await ResolveUsuarioAuditoriaAsync(ct);
@@ -263,8 +263,8 @@ namespace Api.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error asignando menú a rol. idRol={IdRol}", idRol);
-                return StatusCode(500, new { success = false, message = "Error asignando menú a rol.", detail = ex.Message });
+                _logger.LogError(ex, "Error asignando menÃº a rol. idRol={IdRol}", idRol);
+                return StatusCode(500, new { success = false, message = "Error asignando menÃº a rol." });
             }
         }
 
@@ -276,7 +276,7 @@ namespace Api.Controllers
             {
                 if (idRol <= 0 || idMenu <= 0)
                 {
-                    return BadRequest(new { success = false, message = "Parámetros inválidos." });
+                    return BadRequest(new { success = false, message = "ParÃ¡metros invÃ¡lidos." });
                 }
 
                 var userId = await ResolveUsuarioAuditoriaAsync(ct);
@@ -292,8 +292,8 @@ namespace Api.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error eliminando asignación rol-menú. idRol={IdRol}, idMenu={IdMenu}", idRol, idMenu);
-                return StatusCode(500, new { success = false, message = "Error eliminando asignación rol-menú.", detail = ex.Message });
+                _logger.LogError(ex, "Error eliminando asignaciÃ³n rol-menÃº. idRol={IdRol}, idMenu={IdMenu}", idRol, idMenu);
+                return StatusCode(500, new { success = false, message = "Error eliminando asignaciÃ³n rol-menÃº." });
             }
         }
 
@@ -305,7 +305,7 @@ namespace Api.Controllers
             {
                 if (idMenu <= 0)
                 {
-                    return BadRequest(new { success = false, message = "Id de menú inválido." });
+                    return BadRequest(new { success = false, message = "Id de menÃº invÃ¡lido." });
                 }
 
                 if (request is null || request.Vigente is not 0 and not 1)
@@ -326,8 +326,8 @@ namespace Api.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error actualizando estado de menú.");
-                return StatusCode(500, new { success = false, message = "Error actualizando estado", detail = ex.Message });
+                _logger.LogError(ex, "Error actualizando estado de menÃº.");
+                return StatusCode(500, new { success = false, message = "Error actualizando estado" });
             }
         }
 
@@ -372,7 +372,7 @@ namespace Api.Controllers
             {
                 var adminMenu = await _service.GetAdminMenuAsync(ct);
                 var filtered = adminMenu.Where(x => x.Vigente == 1).ToList();
-                _logger.LogInformation("Regla superusuario aplicada para idUsuario {IdUsuario}. Menú admin vigente: {Count}", idUsuario, filtered.Count);
+                _logger.LogInformation("Regla superusuario aplicada para idUsuario {IdUsuario}. MenÃº admin vigente: {Count}", idUsuario, filtered.Count);
                 return filtered;
             }
 
@@ -409,3 +409,4 @@ namespace Api.Controllers
         }
     }
 }
+

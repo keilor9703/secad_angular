@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.StaticFiles;
+using Microsoft.Extensions.Hosting;
+using ofic.Security;
 using System.Text.Json;
 
 namespace ofic.Controllers
@@ -30,19 +32,18 @@ namespace ofic.Controllers
     [Route("api/[controller]")]
     public class BrandingController : ControllerBase
     {
-        private const string RootPath = @"C:\SISGE\branding";
         private const string ConfigName = "config.json";
         private const long MaxLogoBytes = 5 * 1024 * 1024;
         private const long MaxFaviconBytes = 2 * 1024 * 1024;
 
         private static readonly HashSet<string> AllowedLogoExtensions = new(StringComparer.OrdinalIgnoreCase)
         {
-            ".jpg", ".jpeg", ".png", ".webp", ".svg"
+            ".jpg", ".jpeg", ".png", ".webp"
         };
 
         private static readonly HashSet<string> AllowedFaviconExtensions = new(StringComparer.OrdinalIgnoreCase)
         {
-            ".ico", ".png", ".webp", ".svg"
+            ".ico", ".png", ".webp"
         };
 
         private static readonly JsonSerializerOptions JsonOptions = new()
@@ -52,10 +53,14 @@ namespace ofic.Controllers
         };
 
         private readonly ILogger<BrandingController> _logger;
+        private readonly string _rootPath;
+        private readonly string _configPath;
 
-        public BrandingController(ILogger<BrandingController> logger)
+        public BrandingController(ILogger<BrandingController> logger, IHostEnvironment env)
         {
             _logger = logger;
+            _rootPath = ResolveStoragePath(env.ContentRootPath);
+            _configPath = Path.Combine(_rootPath, ConfigName);
         }
 
         [HttpGet("config")]
@@ -167,6 +172,10 @@ namespace ofic.Controllers
                 {
                     return BadRequest(new { success = false, message = "El campo Sistema solo permite hasta 10 caracteres." });
                 }
+                if (!SecurityGuards.IsSafeText(sistema, 10))
+                {
+                    return BadRequest(new { success = false, message = "El campo Sistema contiene caracteres no permitidos." });
+                }
 
                 if (string.IsNullOrWhiteSpace(nombreSistema))
                 {
@@ -176,6 +185,10 @@ namespace ofic.Controllers
                 {
                     return BadRequest(new { success = false, message = "Nombre del sistema solo permite hasta 50 caracteres." });
                 }
+                if (!SecurityGuards.IsSafeText(nombreSistema, 50))
+                {
+                    return BadRequest(new { success = false, message = "Nombre del sistema contiene caracteres no permitidos." });
+                }
 
                 cfg.sistema = sistema;
                 cfg.nombreSistema = nombreSistema;
@@ -183,7 +196,7 @@ namespace ofic.Controllers
                 if (!string.IsNullOrWhiteSpace(request.logoFileName))
                 {
                     var safeLogo = Path.GetFileName(request.logoFileName.Trim());
-                    var exists = System.IO.File.Exists(Path.Combine(RootPath, safeLogo));
+                    var exists = System.IO.File.Exists(Path.Combine(_rootPath, safeLogo));
                     if (!exists)
                     {
                         return BadRequest(new { success = false, message = "El logo indicado no existe." });
@@ -194,7 +207,7 @@ namespace ofic.Controllers
                 if (!string.IsNullOrWhiteSpace(request.faviconFileName))
                 {
                     var safeFavicon = Path.GetFileName(request.faviconFileName.Trim());
-                    var exists = System.IO.File.Exists(Path.Combine(RootPath, safeFavicon));
+                    var exists = System.IO.File.Exists(Path.Combine(_rootPath, safeFavicon));
                     if (!exists)
                     {
                         return BadRequest(new { success = false, message = "El favicon indicado no existe." });
@@ -208,7 +221,7 @@ namespace ofic.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error guardando configuracion branding");
-                return StatusCode(500, new { success = false, message = "Error guardando configuracion branding.", detail = ex.Message });
+                return StatusCode(500, new { success = false, message = "Error guardando configuracion branding." });
             }
         }
 
@@ -229,7 +242,7 @@ namespace ofic.Controllers
                     return BadRequest(new { message = $"Formato de {assetType} invalido." });
                 }
 
-                var fullPath = Path.Combine(RootPath, safe);
+                var fullPath = Path.Combine(_rootPath, safe);
                 if (!System.IO.File.Exists(fullPath))
                 {
                     return NotFound();
@@ -275,12 +288,16 @@ namespace ofic.Controllers
                 {
                     return BadRequest(new { success = false, message = "Formato invalido para el archivo." });
                 }
+                if (!SecurityGuards.HasValidImageSignature(file, extension))
+                {
+                    return BadRequest(new { success = false, message = "Firma de archivo invalida para la imagen." });
+                }
 
                 EnsureStorage();
                 var cfg = ReadConfig();
 
                 var fileName = $"{assetPrefix}-{Guid.NewGuid():N}{extension}";
-                var fullPath = Path.Combine(RootPath, fileName);
+                var fullPath = Path.Combine(_rootPath, fileName);
                 await using (var stream = new FileStream(fullPath, FileMode.Create))
                 {
                     await file.CopyToAsync(stream);
@@ -307,62 +324,69 @@ namespace ofic.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error cargando {AssetPrefix} branding", assetPrefix);
-                return StatusCode(500, new { success = false, message = $"Error cargando {assetPrefix}.", detail = ex.Message });
+                return StatusCode(500, new { success = false, message = $"Error cargando {assetPrefix}." });
             }
         }
 
-        private static void EnsureStorage()
+        private void EnsureStorage()
         {
-            Directory.CreateDirectory(RootPath);
+            Directory.CreateDirectory(_rootPath);
         }
 
-        private static string ConfigPath => Path.Combine(RootPath, ConfigName);
-
-        private static BrandingConfig ReadConfig()
+        private BrandingConfig ReadConfig()
         {
-            if (System.IO.File.Exists(ConfigPath))
+            if (System.IO.File.Exists(_configPath))
             {
-                var json = System.IO.File.ReadAllText(ConfigPath);
-                var cfg = JsonSerializer.Deserialize<BrandingConfig>(json, JsonOptions);
-                if (cfg is not null)
+                try
                 {
-                    try
+                    var json = System.IO.File.ReadAllText(_configPath);
+                    var cfg = JsonSerializer.Deserialize<BrandingConfig>(json, JsonOptions);
+                    if (cfg is not null)
                     {
-                        using var doc = JsonDocument.Parse(json);
-                        var root = doc.RootElement;
-                        var hasNombreSistema = root.TryGetProperty("nombreSistema", out _);
-                        if (!hasNombreSistema && root.TryGetProperty("systemName", out var legacySystemName))
+                        try
                         {
-                            cfg.nombreSistema = legacySystemName.GetString() ?? "SISGE";
+                            using var doc = JsonDocument.Parse(json);
+                            var root = doc.RootElement;
+                            var hasNombreSistema = root.TryGetProperty("nombreSistema", out _);
+                            if (!hasNombreSistema && root.TryGetProperty("systemName", out var legacySystemName))
+                            {
+                                cfg.nombreSistema = legacySystemName.GetString() ?? "SISGE";
+                            }
                         }
-                    }
-                    catch
-                    {
-                        // If legacy parse fails, fallback defaults below keep config usable.
-                    }
+                        catch
+                        {
+                            // If legacy parse fails, fallback defaults below keep config usable.
+                        }
 
-                    cfg.sistema = string.IsNullOrWhiteSpace(cfg.sistema) ? "SISGE" : cfg.sistema.Trim();
-                    if (cfg.sistema.Length > 10)
-                    {
-                        cfg.sistema = cfg.sistema[..10];
-                    }
+                        cfg.sistema = string.IsNullOrWhiteSpace(cfg.sistema) ? "SISGE" : cfg.sistema.Trim();
+                        if (cfg.sistema.Length > 10)
+                        {
+                            cfg.sistema = cfg.sistema[..10];
+                        }
 
-                    cfg.nombreSistema = string.IsNullOrWhiteSpace(cfg.nombreSistema) ? "SISGE" : cfg.nombreSistema.Trim();
-                    if (cfg.nombreSistema.Length > 50)
-                    {
-                        cfg.nombreSistema = cfg.nombreSistema[..50];
-                    }
+                        cfg.nombreSistema = string.IsNullOrWhiteSpace(cfg.nombreSistema) ? "SISGE" : cfg.nombreSistema.Trim();
+                        if (cfg.nombreSistema.Length > 50)
+                        {
+                            cfg.nombreSistema = cfg.nombreSistema[..50];
+                        }
 
-                    cfg.logoFileName = string.IsNullOrWhiteSpace(cfg.logoFileName) ? null : Path.GetFileName(cfg.logoFileName);
-                    cfg.faviconFileName = string.IsNullOrWhiteSpace(cfg.faviconFileName) ? null : Path.GetFileName(cfg.faviconFileName);
-                    return cfg;
+                        cfg.logoFileName = string.IsNullOrWhiteSpace(cfg.logoFileName) ? null : Path.GetFileName(cfg.logoFileName);
+                        cfg.faviconFileName = string.IsNullOrWhiteSpace(cfg.faviconFileName) ? null : Path.GetFileName(cfg.faviconFileName);
+                        return cfg;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "No fue posible leer branding config en {ConfigPath}. Se aplicaran valores por defecto.", _configPath);
+                    // If file is corrupt, keep service working with defaults.
+                    // Next save operation rewrites a valid config.
                 }
             }
 
             return new BrandingConfig();
         }
 
-        private static void WriteConfig(BrandingConfig config)
+        private void WriteConfig(BrandingConfig config)
         {
             var safe = new BrandingConfig
             {
@@ -382,7 +406,30 @@ namespace ofic.Controllers
             }
 
             var json = JsonSerializer.Serialize(safe, JsonOptions);
-            System.IO.File.WriteAllText(ConfigPath, json);
+            System.IO.File.WriteAllText(_configPath, json);
+        }
+
+        private static string ResolveStoragePath(string contentRootPath)
+        {
+            var configured = Environment.GetEnvironmentVariable("SISGE_BRANDING_PATH");
+            if (!string.IsNullOrWhiteSpace(configured))
+            {
+                return Path.GetFullPath(configured);
+            }
+
+            // Backward-compatibility: previous Windows-like relative folder accidentally created in Linux publish.
+            var legacyFolder = Path.Combine(contentRootPath, @"C:\SISGE\branding");
+            if (Directory.Exists(legacyFolder))
+            {
+                return legacyFolder;
+            }
+
+            if (OperatingSystem.IsWindows())
+            {
+                return @"C:\SISGE\branding";
+            }
+
+            return "/opt/oftic/uploads/branding";
         }
 
         private static string? BuildLogoUrl(string? fileName)
@@ -407,7 +454,7 @@ namespace ofic.Controllers
             return $"/api/Branding/favicon/{Uri.EscapeDataString(safe)}";
         }
 
-        private static void TryDeleteAsset(string? fileName)
+        private void TryDeleteAsset(string? fileName)
         {
             if (string.IsNullOrWhiteSpace(fileName))
             {
@@ -415,7 +462,7 @@ namespace ofic.Controllers
             }
 
             var safe = Path.GetFileName(fileName);
-            var fullPath = Path.Combine(RootPath, safe);
+            var fullPath = Path.Combine(_rootPath, safe);
             if (System.IO.File.Exists(fullPath))
             {
                 System.IO.File.Delete(fullPath);
