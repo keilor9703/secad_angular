@@ -1,4 +1,5 @@
 ﻿using Comun.Dtos.Dominio;
+using Comun.Dtos.LineasMando;
 using Datos.Interfaz;
 using Negocio.Interfaz;
 using System;
@@ -47,6 +48,50 @@ namespace Negocio.Gestion
             }
 
             return await _repository.CreateAsync(request, usuarioAuditoria, maquinaAuditoria, ct);
+        }
+        public async Task<DtoDominioResult> UpdateAsync(long id, DtoDominioRequest request, long usuarioAuditoria, string maquinaAuditoria, CancellationToken ct)
+        {
+            if (id <= 0)
+            {
+                return new DtoDominioResult
+                {
+                    Success = false,
+                    Message = "ID inválido"
+                };
+            }
+
+            if (request == null)
+            {
+                return new DtoDominioResult
+                {
+                    Success = false,
+                    Message = "Los datos son requeridos"
+                };
+            }
+
+            if (string.IsNullOrWhiteSpace(request.Identificacion))
+            {
+                return new DtoDominioResult
+                {
+                    Success = false,
+                    Message = "El dominio es requerido"
+                };
+            }
+
+            return await _repository.UpdateAsync(id, request, usuarioAuditoria, maquinaAuditoria, ct);
+        }
+        public async Task<DtoDominioResult> DeletelogicalAsync(long id, long usuarioAuditoria, string maquinaAuditoria, CancellationToken ct)
+        {
+            if (id <= 0)
+            {
+                return new DtoDominioResult
+                {
+                    Success = false,
+                    Message = "ID inválido"
+                };
+            }
+
+            return await _repository.DeletelogicalAsync(id, usuarioAuditoria, maquinaAuditoria, ct);
         }
     }
 }

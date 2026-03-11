@@ -1,4 +1,5 @@
 ﻿using Comun.Dtos.Dominio;
+using Comun.Dtos.LineasMando;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Negocio.Interfaz;
@@ -53,6 +54,37 @@ namespace Api.Controllers
                 return StatusCode(500, new { success = false, message = $"Error: {ex.Message}", detail = ex.ToString() });
             }
         }
+        
+        [HttpPut("{id:long}")]
+        public async Task<ActionResult> Update(long id, [FromBody] DtoDominioRequest request)
+        {
+            var (usuario, maquina) = ObtenerAuditoria();
+
+            var result = await _service.UpdateAsync(id, request, usuario, maquina, CancellationToken.None);
+
+            if (!result.Success)
+            {
+                return BadRequest(new { success = false, message = result.Message });
+            }
+
+            return Ok(new { success = true, message = result.Message });
+        }
+
+        [HttpDelete("{id:long}")]
+        public async Task<ActionResult> Delete(long id)
+        {
+            var (usuario, maquina) = ObtenerAuditoria();
+
+            var result = await _service.DeletelogicalAsync(id, usuario, maquina, CancellationToken.None);
+
+            if (!result.Success)
+            {
+                return BadRequest(new { success = false, message = result.Message });
+            }
+
+            return Ok(new { success = true, message = result.Message });
+        }
+
 
         private (long usuario, string maquina) ObtenerAuditoria()
         {
