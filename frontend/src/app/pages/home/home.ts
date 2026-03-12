@@ -1,10 +1,10 @@
-import { Component, HostListener, OnDestroy, OnInit } from '@angular/core';
+﻿import { Component, HostListener, OnDestroy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
-import { DtoSliders, SliderService } from '../../core/services/slider.service';
+import { DtoSliders, SliderService } from '../../core/services/administracion/slider.service';
 import { HomeService, HomeStats } from '../../core/services/home.service';
-import { VideoUnidadService } from '../../core/services/video-unidad.service';
-import { DtoLineaMando, LineaMandoService } from '../../core/services/linea-mando.service';
+import { VideoUnidadService } from '../../core/services/administracion/video-unidad.service';
+import { DtoLineaMando, LineaMandoService } from '../../core/services/administracion/linea-mando.service';
 
 type NewsTag = 'Comunicado' | 'Servicio' | 'Importante';
 
@@ -241,7 +241,7 @@ export class HomeComponent implements OnInit, OnDestroy {
       return raw;
     }
 
-    // Si viene solo el nombre de archivo, apuntamos a la carpeta pública de sliders.
+    // Si viene solo el nombre de archivo, apuntamos a la carpeta pÃºblica de sliders.
     if (/^[^/]+\.(jpg|jpeg|png|webp)$/i.test(normalized)) {
       return `/api/Slider/Image/${encodeURIComponent(normalized)}`;
     }
@@ -293,7 +293,7 @@ export class HomeComponent implements OnInit, OnDestroy {
       id: 1,
       date: '15 Ene 2026',
       tag: 'Comunicado',
-      title: 'Actualización del sistema SISGE',
+      title: 'ActualizaciÃ³n del sistema SISGE',
       lead: 'Se implementaron mejoras de rendimiento y ajustes visuales en formularios y turnos de pago.',
       content: 'Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry\'s standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book. It has survived not only five centuries, but also the leap into electronic typesetting, remaining essentially unchanged. It was popularised in the 1960s with the release of Letraset sheets containing Lorem Ipsum passages, and more recently with desktop publishing software like Aldus PageMaker including versions of Lorem Ipsum.',
       image: 'imagenes/noticia1.jpg'
@@ -302,8 +302,8 @@ export class HomeComponent implements OnInit, OnDestroy {
       id: 2,
       date: '12 Ene 2026',
       tag: 'Servicio',
-      title: 'Nueva guía para radicación',
-      lead: 'Consulta el paso a paso actualizado para radicar y validar documentos en el módulo judicial.',
+      title: 'Nueva guÃ­a para radicaciÃ³n',
+      lead: 'Consulta el paso a paso actualizado para radicar y validar documentos en el mÃ³dulo judicial.',
       content: 'Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry\'s standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book. It has survived not only five centuries, but also the leap into electronic typesetting, remaining essentially unchanged. It was popularised in the 1960s with the release of Letraset sheets containing Lorem Ipsum passages, and more recently with desktop publishing software like Aldus PageMaker including versions of Lorem Ipsum.',
       image: 'imagenes/noticia2.jpg'
     },
@@ -312,7 +312,7 @@ export class HomeComponent implements OnInit, OnDestroy {
       date: '08 Ene 2026',
       tag: 'Importante',
       title: 'Ventana de mantenimiento',
-      lead: 'El sistema tendrá una ventana programada el fin de semana para actualización de seguridad.',
+      lead: 'El sistema tendrÃ¡ una ventana programada el fin de semana para actualizaciÃ³n de seguridad.',
       content: 'Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry\'s standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book. It has survived not only five centuries, but also the leap into electronic typesetting, remaining essentially unchanged. It was popularised in the 1960s with the release of Letraset sheets containing Lorem Ipsum passages, and more recently with desktop publishing software like Aldus PageMaker including versions of Lorem Ipsum.',
       image: 'imagenes/noticia3.jpg'
     }
@@ -345,3 +345,4 @@ export class HomeComponent implements OnInit, OnDestroy {
     }
   }
 }
+

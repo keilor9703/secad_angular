@@ -1,15 +1,15 @@
-import { Routes } from '@angular/router';
+﻿import { Routes } from '@angular/router';
 import { LoginComponent } from './pages/login/login';
 import { HomeComponent } from './pages/home/home';
-import { Formularios } from './pages/formularios/formularios';
-import { UsuariosComponent } from './pages/usuarios/usuarios';
-import { SlidersComponent } from './pages/sliders/sliders';
-import { MenuAdminComponent } from './pages/menu-admin/menu-admin';
-import { ConfiguracionSistemaComponent } from './pages/configuracion-sistema/configuracion-sistema';
-import { RolesAdminComponent } from './pages/roles-admin/roles-admin';
+import { Formularios } from './pages/administracion/formularios/formularios';
+import { UsuariosComponent } from './pages/administracion/usuarios/usuarios';
+import { SlidersComponent } from './pages/administracion/sliders/sliders';
+import { MenuAdminComponent } from './pages/administracion/menu-admin/menu-admin';
+import { ConfiguracionSistemaComponent } from './pages/administracion/configuracion-sistema/configuracion-sistema';
+import { RolesAdminComponent } from './pages/administracion/roles-admin/roles-admin';
 import { LayoutComponent } from './layout/layout';
 import { Noticias } from './pages/noticias/noticias';
-import { LineaMandoAdminComponent } from './pages/linea-mando/linea-mando';
+import { LineaMandoAdminComponent } from './pages/administracion/linea-mando/linea-mando';
 import { authGuard } from './core/auth/auth.guard';
 
 export const routes: Routes = [
@@ -53,3 +53,4 @@ export const routes: Routes = [
   },
   { path: '**', redirectTo: 'login' }
 ];
+

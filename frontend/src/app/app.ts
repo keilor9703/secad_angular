@@ -1,11 +1,11 @@
-import { CommonModule } from '@angular/common';
+﻿import { CommonModule } from '@angular/common';
 import { Component, HostListener, OnDestroy } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 import { Subscription } from 'rxjs';
 
 import { ToastService, ToastType } from './core/services/toast.service';
 import { AlertService, AlertType } from './core/services/alert.service';
-import { BrandingService } from './core/services/branding.service';
+import { BrandingService } from './core/services/administracion/branding.service';
 
 @Component({
   selector: 'app-root',
@@ -65,7 +65,7 @@ export class AppComponent implements OnDestroy {
         okText: a.okText ?? 'OK'
       };
 
-      // Bloquear scroll del fondo mientras esté la alerta
+      // Bloquear scroll del fondo mientras estÃ© la alerta
       document.body.classList.add('ui-modal-open');
     });
 
@@ -122,3 +122,4 @@ export class AppComponent implements OnDestroy {
     document.body.classList.remove('ui-modal-open');
   }
 }
+

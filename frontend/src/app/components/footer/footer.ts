@@ -1,7 +1,7 @@
-import { Component, HostListener, OnDestroy } from '@angular/core';
+﻿import { Component, HostListener, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { BrandingService } from '../../core/services/branding.service';
+import { BrandingService } from '../../core/services/administracion/branding.service';
 
 @Component({
   selector: 'app-footer',
@@ -88,7 +88,7 @@ export class FooterComponent implements OnDestroy {
 
   submitSupport(): void {
     if (!this.supportForm.asunto.trim() || !this.supportForm.descripcion.trim()) {
-      alert('Completa Asunto y Descripción.');
+      alert('Completa Asunto y DescripciÃ³n.');
       return;
     }
 
@@ -206,3 +206,4 @@ export class FooterComponent implements OnDestroy {
     document.body.classList.remove('ui-modal-open');
   }
 }
+
