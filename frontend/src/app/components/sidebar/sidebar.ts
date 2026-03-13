@@ -312,6 +312,9 @@ onItemTap(item: MenuItem, ev: MouseEvent) {
     if (normalized === '/linea-mando') {
       return '/administracion/linea-mando';
     }
+    if (normalized === '/radio') {
+      return '/administracion/radio';
+    }
     return normalized;
   }
 
@@ -391,6 +394,7 @@ onItemTap(item: MenuItem, ev: MouseEvent) {
       route === '/usuarios' ||
       route === '/roles' ||
       route === '/linea-mando' ||
+      route === '/radio' ||
       route === '/configuracion-sistema' ||
       route === '/video-unidad' ||
       route === '/configuracion-imagen-sitio' ||

@@ -10,6 +10,8 @@ import { RolesAdminComponent } from './pages/administracion/roles-admin/roles-ad
 import { LayoutComponent } from './layout/layout';
 import { Noticias } from './pages/noticias/noticias';
 import { LineaMandoAdminComponent } from './pages/administracion/linea-mando/linea-mando';
+import { AdministracionInicioComponent } from './pages/administracion/administracion-inicio/administracion-inicio';
+import { RadioAdminComponent } from './pages/administracion/radio/radio';
 import { authGuard } from './core/auth/auth.guard';
 
 export const routes: Routes = [
@@ -25,7 +27,8 @@ export const routes: Routes = [
 {
       path: 'administracion',
       children: [
-        { path: '', redirectTo: 'usuarios', pathMatch: 'full' },
+        { path: '', component: AdministracionInicioComponent },
+        { path: 'inicio', component: AdministracionInicioComponent },
         { path: 'formularios', component: Formularios },
         { path: 'usuarios', component: UsuariosComponent },
         { path: 'roles', component: RolesAdminComponent },
@@ -35,7 +38,8 @@ export const routes: Routes = [
         { path: 'admin-multimedia', redirectTo: 'configuracion-sistema', pathMatch: 'full' },
         { path: 'video-unidad', redirectTo: 'configuracion-sistema', pathMatch: 'full' },
         { path: 'configuracion-imagen-sitio', redirectTo: 'configuracion-sistema', pathMatch: 'full' },
-        { path: 'linea-mando', component: LineaMandoAdminComponent }
+        { path: 'linea-mando', component: LineaMandoAdminComponent },
+        { path: 'radio', component: RadioAdminComponent }
       ]
     },
       { path: 'formularios', redirectTo: 'administracion/formularios', pathMatch: 'full' },
@@ -48,6 +52,7 @@ export const routes: Routes = [
       { path: 'video-unidad', redirectTo: 'administracion/configuracion-sistema', pathMatch: 'full' },
       { path: 'configuracion-imagen-sitio', redirectTo: 'administracion/configuracion-sistema', pathMatch: 'full' },
       { path: 'linea-mando', redirectTo: 'administracion/linea-mando', pathMatch: 'full' },
+      { path: 'radio', redirectTo: 'administracion/radio', pathMatch: 'full' },
       { path: 'noticias', component: Noticias },
     ]
   },

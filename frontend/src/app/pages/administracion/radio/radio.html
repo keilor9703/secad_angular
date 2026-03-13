@@ -1,0 +1,149 @@
+<section class="radio-admin-page" *ngIf="visible">
+  <div class="ui-panel">
+    <div class="ui-panel__head">
+      <div class="ui-panel__title">
+        <i class="fa-solid fa-radio"></i>
+        Administración de Emisoras
+      </div>
+
+      <div class="ui-panel__actions ui-window-controls">
+        <button class="ui-icon-btn ui-win-btn is-min" type="button" title="Minimizar" (click)="toggleMinimize()">
+          <i class="fa-solid fa-minus"></i>
+        </button>
+        <button class="ui-icon-btn ui-win-btn is-close" type="button" title="Cerrar" (click)="closePanel()">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+    </div>
+
+    <div class="ui-panel__body" *ngIf="!minimized">
+      <div class="form-toggle-bar">
+        <button class="ui-btn primary" type="button" *ngIf="!showForm" (click)="abrirFormularioCreacion()">
+          <i class="fa-solid fa-plus"></i>
+          Agregar emisora
+        </button>
+      </div>
+
+      <article class="tab-card form-card" *ngIf="showForm" [class.is-editing]="editingId !== null">
+        <div class="edit-mode-badge" *ngIf="editingId !== null">
+          <i class="fa-solid fa-pen-to-square"></i>
+          Modo edición
+        </div>
+        <h3>{{ editingId ? 'Editar emisora' : 'Nueva emisora' }}</h3>
+
+        <div class="ui-grid">
+          <div class="ui-field ui-col-6">
+            <label class="ui-label">Nombre</label>
+            <input class="ui-control" type="text" maxlength="150" [(ngModel)]="form.nombre">
+          </div>
+
+          <div class="ui-field ui-col-6">
+            <label class="ui-label">URL stream</label>
+            <input class="ui-control" type="text" maxlength="500" [(ngModel)]="form.streamUrl">
+          </div>
+
+          <div class="ui-field ui-col-6">
+            <label class="ui-label">Logo (PNG o SVG)</label>
+            <input
+              class="ui-control"
+              type="file"
+              accept=".png,.svg,image/png,image/svg+xml"
+              (change)="onLogoSelected($event)"
+            >
+            <small class="meta">Máximo 200KB.</small>
+            <div class="list-loading" *ngIf="uploadingLogo">Cargando logo...</div>
+          </div>
+
+          <div class="ui-field ui-col-3">
+            <label class="ui-label">Orden</label>
+            <input class="ui-control" type="number" min="0" [(ngModel)]="form.orden">
+          </div>
+
+          <div class="ui-field ui-col-3">
+            <label class="ui-label">Activo</label>
+            <select class="ui-control" [(ngModel)]="form.activo">
+              <option [ngValue]="1">Sí</option>
+              <option [ngValue]="0">No</option>
+            </select>
+          </div>
+
+          <div class="ui-field ui-col-12">
+            <div class="tab-actions">
+              <button class="ui-btn secondary" type="button" (click)="nuevo()">Limpiar</button>
+              <button class="ui-btn primary" type="button" (click)="guardar()" [disabled]="saving">
+                <i class="fa-solid fa-floppy-disk"></i>
+                {{ saving ? 'Guardando...' : 'Guardar' }}
+              </button>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <article class="tab-card list-card">
+        <h3>Emisoras registradas</h3>
+
+        <div class="list-loading" *ngIf="loading">Cargando emisoras...</div>
+
+        <div class="ui-table-wrap" *ngIf="!loading && emisoras.length > 0">
+          <table class="ui-table">
+            <thead>
+              <tr>
+                <th style="width:70px;">Logo</th>
+                <th>Nombre</th>
+                <th>URL Stream</th>
+                <th style="width:90px;">Orden</th>
+                <th style="width:100px;">Estado</th>
+                <th style="width:260px;">Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let item of emisoras">
+                <td>
+                  <div class="logo-mini" *ngIf="item.logoUrl; else noLogo">
+                    <img [src]="item.logoUrl || ''" alt="Logo emisora">
+                  </div>
+                  <ng-template #noLogo>
+                    <span class="meta">-</span>
+                  </ng-template>
+                </td>
+                <td>{{ item.nombre }}</td>
+                <td class="stream-cell">{{ item.streamUrl }}</td>
+                <td>{{ item.orden }}</td>
+                <td>
+                  <span class="ui-badge" [class.success]="item.activo === 1" [class.warning]="item.activo === 0">
+                    {{ item.activo === 1 ? 'Activo' : 'Inactivo' }}
+                  </span>
+                </td>
+                <td>
+                  <div class="row-actions">
+                    <button class="row-icon-btn edit has-tooltip" type="button" title="Editar" data-tooltip="Editar" (click)="editar(item)">
+                      <i class="fa-solid fa-pen-to-square"></i>
+                    </button>
+                    <button
+                      class="row-icon-btn toggle has-tooltip"
+                      [class.activate]="item.activo === 0"
+                      [class.deactivate]="item.activo === 1"
+                      type="button"
+                      [title]="item.activo === 1 ? 'Desactivar' : 'Activar'"
+                      [attr.data-tooltip]="item.activo === 1 ? 'Desactivar' : 'Activar'"
+                      (click)="cambiarEstado(item)"
+                    >
+                      <i class="fa-solid" [class.fa-toggle-off]="item.activo === 1" [class.fa-toggle-on]="item.activo === 0"></i>
+                    </button>
+                    <button class="row-icon-btn delete has-tooltip" type="button" title="Eliminar" data-tooltip="Eliminar" (click)="eliminar(item)">
+                      <i class="fa-solid fa-trash-can"></i>
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="news-state" *ngIf="!loading && emisoras.length === 0">
+          No hay emisoras registradas.
+        </div>
+      </article>
+    </div>
+  </div>
+</section>
