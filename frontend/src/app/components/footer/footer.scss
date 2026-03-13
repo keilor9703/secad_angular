@@ -74,6 +74,10 @@
   font-size: calc(0.78rem * var(--font-size-scale));
   font-weight: 800;
   letter-spacing: 0.2px;
+  max-width: 220px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .radio-play {
@@ -209,7 +213,7 @@
   }
 
   .radio-label {
-    display: none;
+    max-width: 100px;
   }
 
   .radio-logo {

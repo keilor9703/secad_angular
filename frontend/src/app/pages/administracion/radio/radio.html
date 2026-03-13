@@ -39,7 +39,7 @@
 
           <div class="ui-field ui-col-6">
             <label class="ui-label">URL stream</label>
-            <input class="ui-control" type="text" maxlength="500" [(ngModel)]="form.streamUrl">
+            <input class="ui-control" type="text" maxlength="500" [(ngModel)]="form.streamUrl" (ngModelChange)="onFormStreamChange($event)">
           </div>
 
           <div class="ui-field ui-col-6">
@@ -69,6 +69,13 @@
 
           <div class="ui-field ui-col-12">
             <div class="tab-actions">
+              <span class="test-badge" [class.testing]="formTestStatus === 'testing'" [class.ok]="formTestStatus === 'ok'" [class.error]="formTestStatus === 'error'">
+                {{ getStatusLabel(formTestStatus) }}
+              </span>
+              <button class="ui-btn outline" type="button" (click)="togglePlayForm()">
+                <i class="fa-solid" [class.fa-play]="!isFormPlaying()" [class.fa-pause]="isFormPlaying()"></i>
+                {{ isFormPlaying() ? 'Pausar' : 'Play' }}
+              </button>
               <button class="ui-btn secondary" type="button" (click)="nuevo()">Limpiar</button>
               <button class="ui-btn primary" type="button" (click)="guardar()" [disabled]="saving">
                 <i class="fa-solid fa-floppy-disk"></i>
@@ -92,7 +99,7 @@
                 <th>Nombre</th>
                 <th>URL Stream</th>
                 <th style="width:90px;">Orden</th>
-                <th style="width:100px;">Estado</th>
+                <th style="width:120px;">Prueba</th>
                 <th style="width:260px;">Acciones</th>
               </tr>
             </thead>
@@ -110,9 +117,17 @@
                 <td class="stream-cell">{{ item.streamUrl }}</td>
                 <td>{{ item.orden }}</td>
                 <td>
-                  <span class="ui-badge" [class.success]="item.activo === 1" [class.warning]="item.activo === 0">
-                    {{ item.activo === 1 ? 'Activo' : 'Inactivo' }}
-                  </span>
+                  <div class="row-test">
+                    <span class="test-badge sm"
+                      [class.testing]="(rowTestStatus[item.idEmisora] ?? 'idle') === 'testing'"
+                      [class.ok]="(rowTestStatus[item.idEmisora] ?? 'idle') === 'ok'"
+                      [class.error]="(rowTestStatus[item.idEmisora] ?? 'idle') === 'error'">
+                      {{ getStatusLabel(rowTestStatus[item.idEmisora] ?? 'idle') }}
+                    </span>
+                    <button class="row-icon-btn test has-tooltip" type="button" title="Play/Pause" data-tooltip="Play/Pause" (click)="togglePlayFila(item)">
+                      <i class="fa-solid" [class.fa-play]="!isRowPlaying(item.idEmisora)" [class.fa-pause]="isRowPlaying(item.idEmisora)"></i>
+                    </button>
+                  </div>
                 </td>
                 <td>
                   <div class="row-actions">

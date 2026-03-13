@@ -308,6 +308,67 @@ namespace ofic.Controllers
             });
         }
 
+        [HttpGet("validar-stream")]
+        [Authorize]
+        public async Task<IActionResult> ValidarStream([FromQuery] string url)
+        {
+            if (string.IsNullOrWhiteSpace(url))
+            {
+                return BadRequest(new { success = false, active = false, message = "URL requerida." });
+            }
+
+            if (!Uri.TryCreate(url.Trim(), UriKind.Absolute, out var uri) ||
+                (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
+            {
+                return BadRequest(new { success = false, active = false, message = "URL inválida." });
+            }
+
+            try
+            {
+                using var httpClient = new HttpClient
+                {
+                    Timeout = TimeSpan.FromSeconds(10)
+                };
+                httpClient.DefaultRequestHeaders.UserAgent.ParseAdd(
+                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
+
+                using var request = new HttpRequestMessage(HttpMethod.Get, uri);
+                request.Headers.TryAddWithoutValidation("Accept", "audio/mpeg, audio/*, */*");
+
+                using var response = await httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, HttpContext.RequestAborted);
+                if (!response.IsSuccessStatusCode)
+                {
+                    return Ok(new
+                    {
+                        success = false,
+                        active = false,
+                        message = $"Sin señal válida. HTTP {(int)response.StatusCode} ({response.StatusCode})."
+                    });
+                }
+
+                await using var stream = await response.Content.ReadAsStreamAsync(HttpContext.RequestAborted);
+                var buffer = new byte[64];
+                var bytesRead = await stream.ReadAsync(buffer.AsMemory(0, buffer.Length), HttpContext.RequestAborted);
+                var active = bytesRead > 0;
+
+                if (active)
+                {
+                    return Ok(new { success = true, active = true, message = "Se detectó señal de audio." });
+                }
+
+                return Ok(new { success = false, active = false, message = "Sin señal de audio en la respuesta." });
+            }
+            catch (TaskCanceledException)
+            {
+                return Ok(new { success = false, active = false, message = "Tiempo de espera agotado al validar stream." });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error validando stream: {Url}", url);
+                return Ok(new { success = false, active = false, message = "No fue posible validar la emisora." });
+            }
+        }
+
         private (string usuario, string maquina) GetAuditoria()
         {
             var usuario =

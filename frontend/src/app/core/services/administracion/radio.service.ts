@@ -37,6 +37,12 @@ export interface RadioLogoUploadResponse {
   message: string;
 }
 
+export interface RadioStreamValidationResponse {
+  success: boolean;
+  active: boolean;
+  message: string;
+}
+
 @Injectable({ providedIn: 'root' })
 export class RadioService {
   private readonly baseUrl = `${environment.apiBaseUrl}/Radio`;
@@ -76,5 +82,11 @@ export class RadioService {
     const formData = new FormData();
     formData.append('file', file);
     return this.http.post<RadioLogoUploadResponse>(`${this.baseUrl}/upload-logo`, formData);
+  }
+
+  validarStream(url: string): Observable<RadioStreamValidationResponse> {
+    return this.http.get<RadioStreamValidationResponse>(`${this.baseUrl}/validar-stream`, {
+      params: { url }
+    });
   }
 }

@@ -48,6 +48,42 @@
     display: flex;
     gap: 8px;
     flex-wrap: wrap;
+    align-items: center;
+  }
+
+  .test-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 6px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 700;
+    background: #eef2f7;
+    color: #465365;
+    border: 1px solid #d8e0ea;
+  }
+
+  .test-badge.sm {
+    padding: 4px 8px;
+    font-size: 11px;
+  }
+
+  .test-badge.testing {
+    background: #fff5dc;
+    color: #8d6408;
+    border-color: #f0d792;
+  }
+
+  .test-badge.ok {
+    background: #e4f7ea;
+    color: #1f7a36;
+    border-color: #9ed9af;
+  }
+
+  .test-badge.error {
+    background: #fde9e9;
+    color: #a13636;
+    border-color: #e2aaaa;
   }
 
   .logo-mini {
@@ -74,6 +110,12 @@
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
+  }
+
+  .row-test {
+    display: flex;
+    align-items: center;
+    gap: 6px;
   }
 
   .row-icon-btn {
@@ -154,6 +196,10 @@
 
   .row-icon-btn.delete {
     background: linear-gradient(135deg, #eb5757, #c93c3c);
+  }
+
+  .row-icon-btn.test {
+    background: linear-gradient(135deg, #6c7a89, #4f5b67);
   }
 
   .ui-table td {
