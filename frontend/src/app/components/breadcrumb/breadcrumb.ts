@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+﻿import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule, Router, NavigationEnd } from '@angular/router';
 import { filter } from 'rxjs/operators';
@@ -79,16 +79,17 @@ export class BreadcrumbComponent {
 
   private routeLabels: Record<string, string> = {
     '/home': 'Inicio',
-    '/administracion': 'Administración',
+    '/administracion': 'AdministraciÃ³n',
     '/administracion/usuarios': 'Usuarios',
     '/administracion/roles': 'Roles',
     '/administracion/formularios': 'Formularios',
     '/administracion/sliders': 'Sliders',
-    '/administracion/menu': 'Menú',
-    '/administracion/configuracion-sistema': 'Configuración Sistema',
-    '/administracion/admin-multimedia': 'Configuración Sistema',
-    '/administracion/video-unidad': 'Configuración Sistema',
-    '/administracion/configuracion-imagen-sitio': 'Configuración Sistema',
+    '/administracion/radio': 'Emisoras Radio',
+    '/administracion/menu': 'MenÃº',
+    '/administracion/configuracion-sistema': 'ConfiguraciÃ³n Sistema',
+    '/administracion/admin-multimedia': 'ConfiguraciÃ³n Sistema',
+    '/administracion/video-unidad': 'ConfiguraciÃ³n Sistema',
+    '/administracion/configuracion-imagen-sitio': 'ConfiguraciÃ³n Sistema',
     '/noticias': 'Noticias'
   };
 
@@ -137,3 +138,4 @@ export class BreadcrumbComponent {
       .replace(/\b\w/g, (c) => c.toUpperCase());
   }
 }
+

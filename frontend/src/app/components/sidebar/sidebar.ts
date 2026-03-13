@@ -1,10 +1,10 @@
-import { Component, HostBinding, HostListener, OnInit } from '@angular/core';
+﻿import { Component, HostBinding, HostListener, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { SidebarService } from '../../services/sidebar';
-import { MenuService, DbMenuItem } from '../../core/services/menu.service';
+import { MenuService, DbMenuItem } from '../../core/services/administracion/menu.service';
 import { AuthService } from '../../core/auth/auth.service';
-import { BrandingService } from '../../core/services/branding.service';
+import { BrandingService } from '../../core/services/administracion/branding.service';
 
 interface SubMenuItem {
   id: number;
@@ -218,10 +218,10 @@ onItemTap(item: MenuItem, ev: MouseEvent) {
     const active = normalized.filter(x => !!x.descripcion && x.vigente === 1);
     const byId = new Map(active.map(x => [x.idMenu, x]));
 
-    // Soporta 3 esquemas de raíz:
+    // Soporta 3 esquemas de raÃ­z:
     // 1) idPadre=0
     // 2) padre no presente
-    // 3) raíz técnica con autoreferencia (idPadre === idMenu), p.ej. RAIZ.
+    // 3) raÃ­z tÃ©cnica con autoreferencia (idPadre === idMenu), p.ej. RAIZ.
     const selfRootIds = new Set(
       active.filter(x => x.idPadre === x.idMenu).map(x => x.idMenu)
     );
@@ -229,7 +229,7 @@ onItemTap(item: MenuItem, ev: MouseEvent) {
     const parents = active
       .filter(x => {
         if (selfRootIds.size > 0) {
-          // Si existe raíz técnica, los padres reales son sus hijos directos.
+          // Si existe raÃ­z tÃ©cnica, los padres reales son sus hijos directos.
           return selfRootIds.has(x.idPadre) && !selfRootIds.has(x.idMenu);
         }
         return !x.idPadre || x.idPadre === 0 || !byId.has(x.idPadre);
@@ -266,7 +266,7 @@ onItemTap(item: MenuItem, ev: MouseEvent) {
         } as MenuItem;
       }
 
-      // Si no hay hijos y no hay ruta, no se renderiza (nodo contenedor huérfano).
+      // Si no hay hijos y no hay ruta, no se renderiza (nodo contenedor huÃ©rfano).
       if (!route) {
         return null;
       }
@@ -312,6 +312,9 @@ onItemTap(item: MenuItem, ev: MouseEvent) {
     if (normalized === '/linea-mando') {
       return '/administracion/linea-mando';
     }
+    if (normalized === '/radio') {
+      return '/administracion/radio';
+    }
     return normalized;
   }
 
@@ -344,13 +347,13 @@ onItemTap(item: MenuItem, ev: MouseEvent) {
     const adminSubmenu: SubMenuItem[] = [];
 
     for (const item of items) {
-      // Caso menú simple: item directo con ruta de administración.
+      // Caso menÃº simple: item directo con ruta de administraciÃ³n.
       if (item.route && this.isAdministrationRoute(item.route)) {
         adminSubmenu.push({ id: item.id, label: item.label, route: item.route });
         continue;
       }
 
-      // Caso menú con submenús: separa los de administración.
+      // Caso menÃº con submenÃºs: separa los de administraciÃ³n.
       if (item.submenu?.length) {
         const adminSubs = item.submenu.filter((sub) => this.isAdministrationRoute(sub.route));
         const normalSubs = item.submenu.filter((sub) => !this.isAdministrationRoute(sub.route));
@@ -376,7 +379,7 @@ onItemTap(item: MenuItem, ev: MouseEvent) {
       kept.unshift({
         id: 999001,
         icon: 'fa-solid fa-user-shield',
-        label: 'Administración',
+        label: 'AdministraciÃ³n',
         submenu: dedupedAdmin.sort((a, b) => a.label.localeCompare(b.label))
       });
     }
@@ -391,6 +394,7 @@ onItemTap(item: MenuItem, ev: MouseEvent) {
       route === '/usuarios' ||
       route === '/roles' ||
       route === '/linea-mando' ||
+      route === '/radio' ||
       route === '/configuracion-sistema' ||
       route === '/video-unidad' ||
       route === '/configuracion-imagen-sitio' ||
@@ -425,3 +429,4 @@ onItemTap(item: MenuItem, ev: MouseEvent) {
   }
   
 }
+

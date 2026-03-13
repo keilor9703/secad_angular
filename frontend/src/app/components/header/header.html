@@ -1,12 +1,12 @@
-<header class="modern-header">
+﻿<header class="modern-header">
     <!-- Logo y Marca -->
     <!-- <div class="header-brand">
         <div class="logo-container">
-            <img src="SEGEN-escudo.png" alt="Policía Nacional" class="logo">
+            <img src="SEGEN-escudo.png" alt="PolicÃ­a Nacional" class="logo">
            
         </div>
         <div class="brand-info">
-            <h1 class="brand-title">Policía Nacional</h1>
+            <h1 class="brand-title">PolicÃ­a Nacional</h1>
             <span class="brand-subtitle">SISGE</span>
         </div>
     </div> -->
@@ -14,9 +14,9 @@
   
      <button class="menu-trigger" type="button" (click)="toggleMenu()">
         <i class="fa-solid fa-bars"></i>
-        <span>Ver menú</span>
+        <span>Ver menÃº</span>
     </button>
-    <!-- Barra de Búsqueda -->
+    <!-- Barra de BÃºsqueda -->
     <div class="header-search">
         <!-- <i class="fa-solid fa-magnifying-glass search-icon"></i> -->
         <input 
@@ -69,14 +69,14 @@
                 <i class="fa-solid fa-user-circle"></i>
                 Mi Perfil
             </a>
-            <a routerLink="/administracion/usuarios" class="dropdown-item">
+            <a routerLink="/administracion" class="dropdown-item">
                 <i class="fa-solid fa-cog"></i>
-                Configuración
+                ConfiguraciÃ³n
             </a>
             <div class="dropdown-divider"></div>
             <a (click)="onLogout()" class="dropdown-item logout">
                 <i class="fa-solid fa-sign-out-alt"></i>
-                Cerrar Sesión
+                Cerrar SesiÃ³n
             </a>
         </div>
     </div>
@@ -86,7 +86,7 @@
   <div class="profile-modal" (click)="$event.stopPropagation()">
     <div class="profile-modal__head">
       <h3>Mi Perfil</h3>
-      <button type="button" class="close-btn" (click)="closeProfileModal()">✕</button>
+      <button type="button" class="close-btn" (click)="closeProfileModal()">âœ•</button>
     </div>
 
     <div class="profile-modal__body" *ngIf="!profileLoading; else loadingTpl">
@@ -98,11 +98,11 @@
       </div>
 
       <div class="profile-fields">
-        <div><strong>Grado:</strong> {{ perfil?.grado || 'Sin información' }}</div>
+        <div><strong>Grado:</strong> {{ perfil?.grado || 'Sin informaciÃ³n' }}</div>
         <div><strong>Nombre:</strong> {{ perfil?.nombreCompleto || userName }}</div>
-        <div><strong>Cargo:</strong> {{ perfil?.cargo || 'Sin información' }}</div>
-        <div><strong>Situación laboral:</strong> {{ perfil?.situacionLaboral || 'Sin información' }}</div>
-        <div><strong>Tiempo servicio:</strong> {{ perfil?.tiempoServicio || 'Sin información' }}</div>
+        <div><strong>Cargo:</strong> {{ perfil?.cargo || 'Sin informaciÃ³n' }}</div>
+        <div><strong>SituaciÃ³n laboral:</strong> {{ perfil?.situacionLaboral || 'Sin informaciÃ³n' }}</div>
+        <div><strong>Tiempo servicio:</strong> {{ perfil?.tiempoServicio || 'Sin informaciÃ³n' }}</div>
       </div>
     </div>
 
@@ -111,3 +111,4 @@
     </ng-template>
   </div>
 </div>
+

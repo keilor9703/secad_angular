@@ -1,10 +1,10 @@
-import { Component, OnDestroy, OnInit } from '@angular/core';
+﻿import { Component, OnDestroy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
 import { AuthService } from '../../core/auth/auth.service';
-import { LoginVisualPublicItem, LoginVisualService } from '../../core/services/login-visual.service';
-import { BrandingService } from '../../core/services/branding.service';
+import { LoginVisualPublicItem, LoginVisualService } from '../../core/services/administracion/login-visual.service';
+import { BrandingService } from '../../core/services/administracion/branding.service';
 
 @Component({
   selector: 'app-login',
@@ -113,7 +113,7 @@ export class LoginComponent implements OnInit, OnDestroy {
     this.errorMessage = '';
 
     if (!this.usuario?.trim() || !this.contrasena?.trim()) {
-      this.errorMessage = 'Debe diligenciar usuario y contraseña.';
+      this.errorMessage = 'Debe diligenciar usuario y contraseÃ±a.';
       return;
     }
 
@@ -122,7 +122,7 @@ export class LoginComponent implements OnInit, OnDestroy {
     this.loginTimeoutHandle = setTimeout(() => {
       if (this.isLoading) {
         this.isLoading = false;
-        this.errorMessage = 'La autenticación está tardando demasiado. Intente nuevamente.';
+        this.errorMessage = 'La autenticaciÃ³n estÃ¡ tardando demasiado. Intente nuevamente.';
       }
     }, 35000);
 
@@ -136,12 +136,12 @@ export class LoginComponent implements OnInit, OnDestroy {
           return;
         }
 
-        this.errorMessage = resp?.mensaje ?? resp?.message ?? 'No fue posible iniciar sesión.';
+        this.errorMessage = resp?.mensaje ?? resp?.message ?? 'No fue posible iniciar sesiÃ³n.';
       },
       error: (err) => {
         clearTimeout(this.loginTimeoutHandle);
         this.isLoading = false;
-        this.errorMessage = err?.error?.mensaje ?? err?.error?.message ?? 'Error de conexión con el servicio de autenticación.';
+        this.errorMessage = err?.error?.mensaje ?? err?.error?.message ?? 'Error de conexiÃ³n con el servicio de autenticaciÃ³n.';
       }
     });
   }
@@ -150,3 +150,4 @@ export class LoginComponent implements OnInit, OnDestroy {
     this.showPassword = !this.showPassword;
   }
 }
+
