@@ -2,13 +2,14 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 
 namespace Comun.Dtos.Dominio
 {
     public class DtoDominio
     {
-        public long IdLineaMandoxxxx { get; set; }
+        public long IdDominio { get; set; }
         public string Descripcion { get; set; } = string.Empty;
         public long IdPadre { get; set; }
         public long Vigente { get; set; }
@@ -18,13 +19,21 @@ namespace Comun.Dtos.Dominio
 
     public class DtoDominioRequest
     {
+        [JsonPropertyName("Identificacion")]
         public string Identificacion { get; set; } = string.Empty;
+        [JsonPropertyName("Nombre")]
         public string Nombre { get; set; } = string.Empty;
+        [JsonPropertyName("Cargo")]
         public string Cargo { get; set; } = string.Empty;
+        [JsonPropertyName("Descripcion")]
         public string Descripcion { get; set; } = string.Empty;
+        [JsonPropertyName("IdPadre")]
         public long IdPadre { get; set; }
+        [JsonPropertyName("Vigente")]
         public long Vigente { get; set; }
+        [JsonPropertyName("Abreviatura")]
         public string Abreviatura { get; set; } = string.Empty;
+        [JsonPropertyName("Observacion")]
         public string Observacion { get; set; } = string.Empty;
 
     }

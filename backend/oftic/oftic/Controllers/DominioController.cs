@@ -21,6 +21,12 @@ namespace Api.Controllers
             _service = service;
             _logger = logger;
         }
+        [HttpGet]
+        public async Task<ActionResult> GetAll()
+        {
+            var result = await _service.GetAllAsync(CancellationToken.None);
+            return Ok(result);
+        }
 
         [HttpPost]
         public async Task<ActionResult> Create([FromBody] DtoDominioRequest request)
@@ -28,7 +34,7 @@ namespace Api.Controllers
             try
             {
                 _logger.LogInformation(
-                    "LineaMando Create - Identificacion={Identificacion}, Nombre={Nombre}",
+                    "Dominio Create - Identificacion={Identificacion}, Nombre={Nombre}",
                     request?.Identificacion,
                     request?.Nombre
                     
@@ -36,7 +42,7 @@ namespace Api.Controllers
 
                 var (usuario, maquina) = ObtenerAuditoria();
 
-                _logger.LogInformation("LineaMando Create - Auditoria: usuario={Usuario}, maquina={Maquina}", usuario, maquina);
+                _logger.LogInformation("Dominio Create - Auditoria: usuario={Usuario}, maquina={Maquina}", usuario, maquina);
 
                 var result = await _service.CreateAsync(request, usuario, maquina, CancellationToken.None);
 

@@ -24,27 +24,28 @@ namespace Datos.Gestion
             _logger = logger;
         }
 
-        //public async Task<List<DtoDominio>> GetAllAsync(CancellationToken ct)
-        //{
-        //    var result = new List<DtoDominio>();
+        public async Task<List<DtoDominio>> GetAllAsync(CancellationToken ct)
+        {
+            var result = new List<DtoDominio>();
 
-        //    await using var conn = new OracleConnection(_cs);
-        //    await conn.OpenAsync(ct);
+            await using var conn = new OracleConnection(_cs);
+            await conn.OpenAsync(ct);
 
-        //    await using var cmd = conn.CreateCommand();
-        //    cmd.BindByName = true;
-        //    cmd.CommandType = CommandType.StoredProcedure;
-        //    cmd.CommandText = "PK_ADMINISTRACION.P_INS_UPD_DOMINIOS";
-        //    cmd.Parameters.Add("p_cursor", OracleDbType.RefCursor).Direction = ParameterDirection.Output;
+            await using var cmd = conn.CreateCommand();
+            cmd.BindByName = true;
+            cmd.CommandType = CommandType.StoredProcedure;
+            cmd.CommandText = "PK_ADMINISTRACION.P_GET_ALL_DOMINIO";
+            cmd.Parameters.Add("p_cursor", OracleDbType.RefCursor).Direction = ParameterDirection.Output;
 
-        //    await using var reader = await cmd.ExecuteReaderAsync(ct);
-        //    while (await reader.ReadAsync(ct))
-        //    {
-        //        result.Add(MapLineaMando(reader));
-        //    }
+            await using var reader = await cmd.ExecuteReaderAsync(ct);
+            
+            while (await reader.ReadAsync(ct))
+            {
+                result.Add(MapDominio(reader));
+            }
 
-        //    return result;
-        //}
+            return result;
+        }
 
         //public async Task<DtoDominio?> GetByIdAsync(long id, CancellationToken ct)
         //{
@@ -316,22 +317,20 @@ namespace Datos.Gestion
             return result;
         }
 
-        //private static DtoDominio MapLineaMando(OracleDataReader reader)
-        //{
-        //    return new DtoDominio
-        //    {
-        //        IdLineaMando = reader.GetInt64(reader.GetOrdinal("ID_LINEA_MANDO")),
-        //        Identificacion = reader.IsDBNull(reader.GetOrdinal("IDENTIFICACION")) ? string.Empty : reader.GetString(reader.GetOrdinal("IDENTIFICACION")),
-        //        Nombre = reader.IsDBNull(reader.GetOrdinal("NOMBRE")) ? string.Empty : reader.GetString(reader.GetOrdinal("NOMBRE")),
-        //        Apellidos = reader.IsDBNull(reader.GetOrdinal("APELLIDOS")) ? string.Empty : reader.GetString(reader.GetOrdinal("APELLIDOS")),
-        //        Grado = reader.IsDBNull(reader.GetOrdinal("GRADO")) ? string.Empty : reader.GetString(reader.GetOrdinal("GRADO")),
-        //        Cargo = reader.IsDBNull(reader.GetOrdinal("CARGO")) ? string.Empty : reader.GetString(reader.GetOrdinal("CARGO")),
-        //        Peso = reader.IsDBNull(reader.GetOrdinal("PESO")) ? string.Empty : reader.GetString(reader.GetOrdinal("PESO")),
-        //        Unidad = reader.IsDBNull(reader.GetOrdinal("UNIDAD")) ? string.Empty : reader.GetString(reader.GetOrdinal("UNIDAD")),
-        //        FotoBase64 = reader.IsDBNull(reader.GetOrdinal("FOTO_BASE64")) ? null : reader.GetString(reader.GetOrdinal("FOTO_BASE64")),
-        //        Orden = reader.IsDBNull(reader.GetOrdinal("ORDEN")) ? 1 : reader.GetInt32(reader.GetOrdinal("ORDEN")),
-        //        Vigente = reader.IsDBNull(reader.GetOrdinal("VIGENTE")) ? 1 : reader.GetInt32(reader.GetOrdinal("VIGENTE"))
-        //    };
-        //}
+
+        private static DtoDominio MapDominio(OracleDataReader reader)
+        {
+            return new DtoDominio
+            {
+
+                IdDominio = reader.IsDBNull(reader.GetOrdinal("ID_DOMINIO"))? 0 : reader.GetInt64(reader.GetOrdinal("ID_DOMINIO")),
+                Descripcion = reader.IsDBNull(reader.GetOrdinal("DESCRIPCION")) ? string.Empty : reader.GetString(reader.GetOrdinal("DESCRIPCION")),
+                IdPadre = reader.GetInt64(reader.GetOrdinal("ID_PADRE")),
+                Abreviatura = reader.IsDBNull(reader.GetOrdinal("ABREVIATURA")) ? string.Empty : reader.GetString(reader.GetOrdinal("ABREVIATURA")),
+                Observacion = reader.IsDBNull(reader.GetOrdinal("OBSERVACION")) ? string.Empty : reader.GetString(reader.GetOrdinal("OBSERVACION")),
+                Vigente = reader.IsDBNull(reader.GetOrdinal("VIGENTE")) ? 1 : reader.GetInt32(reader.GetOrdinal("VIGENTE"))
+            };
+        }
+        
     }
 }

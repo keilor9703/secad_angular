@@ -18,6 +18,10 @@ namespace Negocio.Gestion
         {
             _repository = repository;
         }
+        public async Task<List<DtoDominio>> GetAllAsync(CancellationToken ct)
+        {
+            return await _repository.GetAllAsync(ct);
+        }
         public async Task<DtoDominioResult> CreateAsync(DtoDominioRequest request, long usuarioAuditoria, string maquinaAuditoria, CancellationToken ct)
         {
             if (request == null)
