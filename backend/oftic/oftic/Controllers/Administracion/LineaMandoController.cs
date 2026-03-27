@@ -1,5 +1,6 @@
 ﻿using Comun.Dtos.LineasMando;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Mvc;
 using Negocio.Interfaz;
 using System.Security.Claims;
@@ -9,7 +10,7 @@ namespace Api.Controllers.Administracion
 {
     [ApiController]
     [Route("api/[controller]")]
-    [Authorize]
+    [EnableCors("PublicCors")]
     public class LineaMandoController : ControllerBase
     {
         private readonly IDbLineaMandoService _service;

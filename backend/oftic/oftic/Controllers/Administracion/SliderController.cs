@@ -1,6 +1,7 @@
-﻿using Comun.Dtos.Sliders;
+using Comun.Dtos.Sliders;
 using Datos.Interfaz;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.Extensions.Configuration;
@@ -17,9 +18,9 @@ namespace ofic.Controllers.Administracion
 
     [ApiController]
     [Route("api/[controller]")]
-    [Authorize]
-public class SliderController : ControllerBase
-{
+    [EnableCors("PublicCors")]
+    public class SliderController : ControllerBase
+    {
     private readonly IDbSliders _dbSliders;
     private readonly IDbUsuarioRepository _dbUsuarioRepository;
     private readonly ILogger<SliderController> _logger;

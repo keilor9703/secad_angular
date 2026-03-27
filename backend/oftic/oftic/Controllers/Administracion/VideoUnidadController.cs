@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.Extensions.Configuration;
@@ -14,6 +15,7 @@ namespace ofic.Controllers.Administracion
 
     [ApiController]
     [Route("api/[controller]")]
+    [EnableCors("PublicCors")]
     public class VideoUnidadController : ControllerBase
     {
         private const long MaxVideoBytes = 100 * 1024 * 1024; // 100MB

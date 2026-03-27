@@ -1,0 +1,57 @@
+version: '3.8'
+
+services:
+  # Backend API .NET 8
+  backend:
+    build:
+      context: ..
+      dockerfile: docker/backend/Dockerfile
+    container_name: sisge-api
+    ports:
+      - "5000:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ConnectionStrings__Oracle=your-oracle-connection-string
+      - Jwt__Key=YourSuperSecretKeyAtLeast32Characters!
+      - Jwt__Issuer=oftic.api
+      - Jwt__Audience=oftic.api
+      - Storage__SliderPath=/app/uploads/sliders
+      - Storage__RadioLogoPath=/app/uploads/radio
+    volumes:
+      - backend-uploads:/app/uploads
+    restart: unless-stopped
+    networks:
+      - sisge-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Frontend Angular con Nginx
+  frontend:
+    build:
+      context: ..
+      dockerfile: docker/frontend/Dockerfile
+    container_name: sisge-frontend
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on:
+      - backend
+    restart: unless-stopped
+    networks:
+      - sisge-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  backend-uploads:
+    driver: local
+
+networks:
+  sisge-network:
+    driver: bridge

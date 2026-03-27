@@ -2,6 +2,7 @@
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
+import { DomSanitizer, SafeHtml, SafeUrl } from '@angular/platform-browser';
 import { ToastService } from '../../../core/services/toast.service';
 import { LineaMandoService, DtoLineaMando, DtoLineaMandoRequest } from '../../../core/services/administracion/linea-mando.service';
 import { UsuarioAdminService } from '../../../core/services/administracion/usuario-admin.service';
@@ -54,7 +55,8 @@ export class LineaMandoAdminComponent implements OnInit {
   constructor(
     private toast: ToastService,
     private lineaMandoService: LineaMandoService,
-    private usuarioAdminService: UsuarioAdminService
+    private usuarioAdminService: UsuarioAdminService,
+    private sanitizer: DomSanitizer
   ) {}
 
   ngOnInit(): void {
@@ -157,14 +159,29 @@ export class LineaMandoAdminComponent implements OnInit {
     const input = event.target as HTMLInputElement;
     if (input.files && input.files[0]) {
       const file = input.files[0];
+      
       if (file.size > 2 * 1024 * 1024) {
         this.toast.warning('Foto', 'El archivo no puede superar 2MB');
         return;
       }
+
+      const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+      const isValidType = validTypes.includes(file.type);
+      
+      if (!isValidType) {
+        this.toast.warning('Foto', 'Solo se permiten archivos de imagen (JPG, PNG, GIF, WEBP)');
+        return;
+      }
+
       const reader = new FileReader();
       reader.onload = () => {
-        this.fotoPreview = reader.result as string;
-        this.formData.fotoBase64 = reader.result as string;
+        const result = reader.result as string;
+        if (!result.startsWith('data:image/')) {
+          this.toast.warning('Foto', 'El archivo seleccionado no es una imagen válida');
+          return;
+        }
+        this.fotoPreview = result;
+        this.formData.fotoBase64 = result;
         this.fotoCambiada = true;
       };
       reader.readAsDataURL(file);
@@ -373,7 +390,23 @@ export class LineaMandoAdminComponent implements OnInit {
   }
 
   getNombreCompletoItem(item: DtoLineaMando): string {
-    return `${item.nombre} ${item.apellidos}`.trim();
+    return this.sanitizeText(`${item.nombre} ${item.apellidos}`.trim());
+  }
+
+  getGradoItem(item: DtoLineaMando): string {
+    return this.sanitizeText(item.grado);
+  }
+
+  getIdentificacionItem(item: DtoLineaMando): string {
+    return this.sanitizeText(item.identificacion);
+  }
+
+  getUnidadItem(item: DtoLineaMando): string {
+    return this.sanitizeText(item.unidad);
+  }
+
+  getPesoItem(item: DtoLineaMando): string {
+    return this.sanitizeText(item.peso);
   }
 
   private getFotoUrlFromBase64(fotoBase64: string | null): string {
@@ -381,6 +414,16 @@ export class LineaMandoAdminComponent implements OnInit {
     const base64 = fotoBase64.trim();
     if (base64.startsWith('data:')) return base64;
     return 'data:image/jpeg;base64,' + base64;
+  }
+
+  private sanitizeText(text: string | null | undefined): string {
+    if (!text) return '';
+    return String(text)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#x27;');
   }
 
   getFotoUrl(item: DtoLineaMando): string {
