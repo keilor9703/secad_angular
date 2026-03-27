@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.Extensions.Hosting;
@@ -30,6 +31,7 @@ namespace ofic.Controllers.Administracion
 
     [ApiController]
     [Route("api/[controller]")]
+    [EnableCors("PublicCors")]
     public class BrandingController : ControllerBase
     {
         private const string ConfigName = "config.json";

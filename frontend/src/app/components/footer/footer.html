@@ -4,7 +4,7 @@
       <img class="radio-logo" [src]="currentStationLogo" [alt]="'Logo ' + currentStationLabel">
       <span class="radio-label">{{ currentStationLabel }}</span>
 
-      <button class="radio-play" type="button" (click)="togglePlay()" [title]="isPlaying ? 'Pausar radio' : 'Reproducir radio'">
+      <button class="radio-play" [class.is-playing]="isPlaying" type="button" (click)="togglePlay()" [title]="isPlaying ? 'Pausar radio' : 'Reproducir radio'">
         <i class="fa-solid" [class.fa-play]="!isPlaying" [class.fa-pause]="isPlaying"></i>
       </button>
 

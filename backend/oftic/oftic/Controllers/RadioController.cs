@@ -18,6 +18,7 @@ namespace ofic.Controllers
 
     [ApiController]
     [Route("api/[controller]")]
+    [EnableCors("PublicCors")]
     public class RadioController : ControllerBase
     {
         private const string RadioStreamUrl = "https://radio.policia.gov.co:8080/inhouse";
