@@ -12,16 +12,16 @@ RUN npm ci
 COPY . .
 
 # Construir la aplicación Angular
-RUN npm run build
+RUN npm run build -- --configuration=production
 
 # Etapa 2: Servir con Nginx
 FROM nginx:alpine AS runtime
 
 # Copiar archivos de build de Angular
-COPY --from=build /app/dist/policiadev-app /usr/share/nginx/html
+COPY --from=build /app/dist/policiadev-app/browser /usr/share/nginx/html
 
 # Copiar configuración de Nginx
-COPY docker/frontend/nginx.conf /etc/nginx/conf.d/default.conf
+COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 # Exponer puerto 80
 EXPOSE 80
