@@ -1,4 +1,4 @@
-﻿import { Routes } from '@angular/router';
+import { Routes } from '@angular/router';
 import { LoginComponent } from './pages/login/login';
 import { HomeComponent } from './pages/home/home';
 import { Formularios } from './pages/administracion/formularios/formularios';
@@ -12,6 +12,7 @@ import { Noticias } from './pages/noticias/noticias';
 import { LineaMandoAdminComponent } from './pages/administracion/linea-mando/linea-mando';
 import { AdministracionInicioComponent } from './pages/administracion/administracion-inicio/administracion-inicio';
 import { RadioAdminComponent } from './pages/administracion/radio/radio';
+import { DominioAdminComponent } from './pages/administracion/dominio/dominio';
 import { authGuard } from './core/auth/auth.guard';
 
 export const routes: Routes = [
@@ -39,7 +40,8 @@ export const routes: Routes = [
         { path: 'video-unidad', redirectTo: 'configuracion-sistema', pathMatch: 'full' },
         { path: 'configuracion-imagen-sitio', redirectTo: 'configuracion-sistema', pathMatch: 'full' },
         { path: 'linea-mando', component: LineaMandoAdminComponent },
-        { path: 'radio', component: RadioAdminComponent }
+        { path: 'radio', component: RadioAdminComponent },
+        { path: 'dominio', component: DominioAdminComponent }
       ]
     },
       { path: 'formularios', redirectTo: 'administracion/formularios', pathMatch: 'full' },
@@ -53,6 +55,7 @@ export const routes: Routes = [
       { path: 'configuracion-imagen-sitio', redirectTo: 'administracion/configuracion-sistema', pathMatch: 'full' },
       { path: 'linea-mando', redirectTo: 'administracion/linea-mando', pathMatch: 'full' },
       { path: 'radio', redirectTo: 'administracion/radio', pathMatch: 'full' },
+      { path: 'dominio', redirectTo: 'administracion/dominio', pathMatch: 'full' },
       { path: 'noticias', component: Noticias },
     ]
   },

@@ -33,21 +33,12 @@ namespace Negocio.Gestion
                 };
             }
 
-            if (string.IsNullOrWhiteSpace(request.Identificacion))
+            if (string.IsNullOrWhiteSpace(request.Descripcion))
             {
                 return new DtoDominioResult
                 {
                     Success = false,
-                    Message = "La identificación es requerida"
-                };
-            }
-
-            if (string.IsNullOrWhiteSpace(request.Nombre))
-            {
-                return new DtoDominioResult
-                {
-                    Success = false,
-                    Message = "El nombre es requerido"
+                    Message = "La descripción es requerida"
                 };
             }
 
@@ -73,12 +64,12 @@ namespace Negocio.Gestion
                 };
             }
 
-            if (string.IsNullOrWhiteSpace(request.Identificacion))
+            if (string.IsNullOrWhiteSpace(request.Descripcion))
             {
                 return new DtoDominioResult
                 {
                     Success = false,
-                    Message = "El dominio es requerido"
+                    Message = "La descripción es requerida"
                 };
             }
 

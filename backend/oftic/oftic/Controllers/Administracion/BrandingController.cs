@@ -155,13 +155,18 @@ namespace ofic.Controllers.Administracion
         {
             try
             {
+                _logger.LogInformation("SaveConfig iniciado - RootPath: {RootPath}, ConfigPath: {ConfigPath}", _rootPath, _configPath);
+
                 if (request is null)
                 {
                     return BadRequest(new { success = false, message = "Payload requerido." });
                 }
 
                 EnsureStorage();
+                _logger.LogInformation("EnsureStorage completado");
+                
                 var cfg = ReadConfig();
+                _logger.LogInformation("ReadConfig completado - Sistema: {Sistema}", cfg?.sistema);
 
                 var sistema = (request.sistema ?? cfg.sistema ?? "SISGE").Trim();
                 var nombreSistema = (request.nombreSistema ?? cfg.nombreSistema ?? "SISGE").Trim();
@@ -218,11 +223,14 @@ namespace ofic.Controllers.Administracion
                 }
 
                 WriteConfig(cfg);
+                _logger.LogInformation("WriteConfig completado");
+
+                _logger.LogInformation("SaveConfig exitoso");
                 return Ok(new { success = true, message = "Configuracion de marca guardada correctamente." });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error guardando configuracion branding");
+                _logger.LogError(ex, "Error guardando configuracion branding - Path: {RootPath}", _rootPath);
                 return StatusCode(500, new { success = false, message = "Error guardando configuracion branding." });
             }
         }
@@ -390,25 +398,36 @@ namespace ofic.Controllers.Administracion
 
         private void WriteConfig(BrandingConfig config)
         {
-            var safe = new BrandingConfig
+            try
             {
-                sistema = string.IsNullOrWhiteSpace(config.sistema) ? "SISGE" : config.sistema.Trim(),
-                nombreSistema = string.IsNullOrWhiteSpace(config.nombreSistema) ? "SISGE" : config.nombreSistema.Trim(),
-                logoFileName = string.IsNullOrWhiteSpace(config.logoFileName) ? null : Path.GetFileName(config.logoFileName),
-                faviconFileName = string.IsNullOrWhiteSpace(config.faviconFileName) ? null : Path.GetFileName(config.faviconFileName)
-            };
+                EnsureStorage();
+                
+                var safe = new BrandingConfig
+                {
+                    sistema = string.IsNullOrWhiteSpace(config.sistema) ? "SISGE" : config.sistema.Trim(),
+                    nombreSistema = string.IsNullOrWhiteSpace(config.nombreSistema) ? "SISGE" : config.nombreSistema.Trim(),
+                    logoFileName = string.IsNullOrWhiteSpace(config.logoFileName) ? null : Path.GetFileName(config.logoFileName),
+                    faviconFileName = string.IsNullOrWhiteSpace(config.faviconFileName) ? null : Path.GetFileName(config.faviconFileName)
+                };
 
-            if (safe.sistema.Length > 10)
-            {
-                safe.sistema = safe.sistema[..10];
-            }
-            if (safe.nombreSistema.Length > 50)
-            {
-                safe.nombreSistema = safe.nombreSistema[..50];
-            }
+                if (safe.sistema.Length > 10)
+                {
+                    safe.sistema = safe.sistema[..10];
+                }
+                if (safe.nombreSistema.Length > 50)
+                {
+                    safe.nombreSistema = safe.nombreSistema[..50];
+                }
 
-            var json = JsonSerializer.Serialize(safe, JsonOptions);
-            System.IO.File.WriteAllText(_configPath, json);
+                var json = JsonSerializer.Serialize(safe, JsonOptions);
+                System.IO.File.WriteAllText(_configPath, json);
+                _logger.LogInformation("WriteConfig exitoso en {Path}", _configPath);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "WriteConfig fallido - Path: {Path}", _configPath);
+                throw;
+            }
         }
 
         private static string ResolveStoragePath(string contentRootPath)
