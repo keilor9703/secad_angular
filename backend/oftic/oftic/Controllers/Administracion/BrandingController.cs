@@ -155,18 +155,13 @@ namespace ofic.Controllers.Administracion
         {
             try
             {
-                _logger.LogInformation("SaveConfig iniciado - RootPath: {RootPath}, ConfigPath: {ConfigPath}", _rootPath, _configPath);
-
                 if (request is null)
                 {
                     return BadRequest(new { success = false, message = "Payload requerido." });
                 }
 
                 EnsureStorage();
-                _logger.LogInformation("EnsureStorage completado");
-                
                 var cfg = ReadConfig();
-                _logger.LogInformation("ReadConfig completado - Sistema: {Sistema}", cfg?.sistema);
 
                 var sistema = (request.sistema ?? cfg.sistema ?? "SISGE").Trim();
                 var nombreSistema = (request.nombreSistema ?? cfg.nombreSistema ?? "SISGE").Trim();
@@ -223,9 +218,6 @@ namespace ofic.Controllers.Administracion
                 }
 
                 WriteConfig(cfg);
-                _logger.LogInformation("WriteConfig completado");
-
-                _logger.LogInformation("SaveConfig exitoso");
                 return Ok(new { success = true, message = "Configuracion de marca guardada correctamente." });
             }
             catch (Exception ex)
@@ -421,11 +413,10 @@ namespace ofic.Controllers.Administracion
 
                 var json = JsonSerializer.Serialize(safe, JsonOptions);
                 System.IO.File.WriteAllText(_configPath, json);
-                _logger.LogInformation("WriteConfig exitoso en {Path}", _configPath);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "WriteConfig fallido - Path: {Path}", _configPath);
+                _logger.LogError(ex, "Error guardando configuracion branding");
                 throw;
             }
         }
