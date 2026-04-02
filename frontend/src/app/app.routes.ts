@@ -13,6 +13,7 @@ import { LineaMandoAdminComponent } from './pages/administracion/linea-mando/lin
 import { AdministracionInicioComponent } from './pages/administracion/administracion-inicio/administracion-inicio';
 import { RadioAdminComponent } from './pages/administracion/radio/radio';
 import { DominioAdminComponent } from './pages/administracion/dominio/dominio';
+import { VideoInstitucionalComponent } from './pages/administracion/video-institucional/video-institucional';
 import { authGuard } from './core/auth/auth.guard';
 
 export const routes: Routes = [
@@ -41,7 +42,8 @@ export const routes: Routes = [
         { path: 'configuracion-imagen-sitio', redirectTo: 'configuracion-sistema', pathMatch: 'full' },
         { path: 'linea-mando', component: LineaMandoAdminComponent },
         { path: 'radio', component: RadioAdminComponent },
-        { path: 'dominio', component: DominioAdminComponent }
+        { path: 'dominio', component: DominioAdminComponent },
+        { path: 'video-institucional', component: VideoInstitucionalComponent }
       ]
     },
       { path: 'formularios', redirectTo: 'administracion/formularios', pathMatch: 'full' },

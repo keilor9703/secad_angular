@@ -134,6 +134,12 @@ builder.Services.AddScoped<IDbRadioRepository, DbRadioRepository>();
 builder.Services.AddScoped<IDbDominioService, DbDominioService>();
 builder.Services.AddScoped<IDbDominioRepository, DbDominioRepository>();
 
+builder.Services.AddScoped<IDbVideoService, DbVideoService>();
+builder.Services.AddScoped<IDbVideoRepository, DbVideoRepository>();
+
+builder.Services.AddScoped<IDbVideoInstitucionalService, DbVideoInstitucionalService>();
+builder.Services.AddScoped<IDbVideoInstitucionalRepository, DbVideoInstitucionalRepository>();
+
 var app = builder.Build();
 
 var uploadsRoot = Path.Combine(app.Environment.ContentRootPath, "uploads", "sliders");

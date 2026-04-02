@@ -21,6 +21,10 @@ export class ConfiguracionSistemaComponent implements OnInit {
   uploading = false;
   info: VideoUnidadInfo | null = null;
   previewUrl = '';
+  selectedVideoFile: File | null = null;
+  selectedVideoPreviewUrl = '';
+  videoDescripcion = '';
+  videoObservaciones = '';
   loginLoading = false;
   loginSaving = false;
   loginUploading = false;
@@ -88,7 +92,7 @@ export class ConfiguracionSistemaComponent implements OnInit {
 
     const allowed = ['video/mp4', 'video/webm', 'video/ogg', 'video/quicktime'];
     if (!allowed.includes(file.type)) {
-      this.toast.warning('Configuracion sistema', 'Formato invÃ¡lido. Use MP4, WEBM, OGG o MOV.');
+      this.toast.warning('Configuracion sistema', 'Formato inválido. Use MP4, WEBM, OGG o MOV.');
       input.value = '';
       return;
     }
@@ -99,8 +103,28 @@ export class ConfiguracionSistemaComponent implements OnInit {
       return;
     }
 
+    this.selectedVideoFile = file;
+    this.selectedVideoPreviewUrl = URL.createObjectURL(file);
+  }
+
+  saveVideo(): void {
+    if (!this.selectedVideoFile) {
+      this.toast.warning('Configuracion sistema', 'Seleccione un archivo de video.');
+      return;
+    }
+
+    const descripcion = (this.videoDescripcion ?? '').trim();
+    if (!descripcion) {
+      this.toast.warning('Configuracion sistema', 'La descripción del video es obligatoria.');
+      return;
+    }
+
     this.uploading = true;
-    this.videoService.upload(file).subscribe({
+    this.videoService.upload(
+      this.selectedVideoFile,
+      descripcion,
+      (this.videoObservaciones ?? '').trim() || undefined
+    ).subscribe({
       next: (resp) => {
         this.uploading = false;
         if (!resp?.success) {
@@ -108,6 +132,10 @@ export class ConfiguracionSistemaComponent implements OnInit {
           return;
         }
         this.toast.success('Configuracion sistema', resp.message || 'Video cargado correctamente.');
+        this.selectedVideoFile = null;
+        this.selectedVideoPreviewUrl = '';
+        this.videoDescripcion = '';
+        this.videoObservaciones = '';
         this.loadCurrent();
       },
       error: (err) => {
