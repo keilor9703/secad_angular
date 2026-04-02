@@ -782,6 +782,258 @@ h3.title-cards {
     font-size: 13.5px;
 }
 
+/* ==========================================
+   NUEVO LAYOUT: MULTIMEDIA GRID
+   ========================================== */
+.home-multimedia-grid {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 16px;
+    margin-bottom: 30px;
+}
+
+@media (max-width: 1024px) {
+    .home-multimedia-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.multimedia-section {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    height: 100%;
+}
+
+.news-section {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+/* --- Clases utilitarias --- */
+.rounded-xl {
+    border-radius: 16px;
+    overflow: hidden;
+}
+
+.shadow-subtle {
+    box-shadow: 0 2px 12px rgba(21, 27, 59, 0.08);
+}
+
+/* --- Video Institucional --- */
+.video-institutional-wrapper {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    background: rgba(21, 27, 59, 0.04);
+    margin: 0 10px 10px;
+    padding: 10px;
+    box-sizing: border-box;
+}
+
+.video-iframe {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+}
+
+.video-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: var(--policia-neutral-medio);
+    text-align: center;
+    padding: 20px;
+}
+
+.video-placeholder i {
+    font-size: 48px;
+    margin-bottom: 10px;
+    opacity: 0.5;
+}
+
+.video-placeholder p {
+    margin: 0;
+    font-size: 14px;
+}
+
+.video-placeholder.small {
+    height: 200px;
+}
+
+.video-placeholder.small i {
+    font-size: 32px;
+}
+
+/* --- Fila Multimedia (Video Unidad + Redes) --- */
+.multimedia-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+}
+
+@media (max-width: 768px) {
+    .multimedia-row {
+        grid-template-columns: 1fr;
+    }
+}
+
+.video-unidad-col .video-box {
+    margin: 0 10px 10px;
+}
+
+/* --- Hub de Redes Sociales --- */
+.social-hub {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    padding: 10px;
+    margin: 0 10px 10px;
+}
+
+.social-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 12px;
+    border-radius: 12px;
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 13px;
+    color: white;
+    background: var(--social-color, var(--policia-medio));
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.social-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.social-btn i {
+    font-size: 18px;
+}
+
+.social-btn[style*="--social-color:#1877F2"] {
+    background: #1877F2;
+}
+
+.social-btn[style*="--social-color:#000000"],
+.social-btn[style*="--social-color:#000"] {
+    background: #000000;
+}
+
+.social-btn[style*="--social-color:#E4405F"],
+.social-btn[style*="--social-color:#C13584"] {
+    background: linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888);
+}
+
+.social-btn[style*="--social-color:#FF0000"] {
+    background: #FF0000;
+}
+
+/* --- NEWS con nuevos estilos --- */
+.news-section-card {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+.news-section .news-list {
+    flex: 1;
+    overflow-y: auto;
+    max-height: none;
+}
+
+/* Botón Ver todas */
+.btn-ver-todas {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    background: transparent;
+    border: 1px solid var(--policia-medio);
+    border-radius: 20px;
+    color: var(--policia-medio);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all var(--transition-speed);
+    white-space: nowrap;
+}
+
+.btn-ver-todas:hover {
+    background: var(--policia-medio);
+    color: white;
+}
+
+.btn-ver-todas i {
+    font-size: 12px;
+}
+
+/* Video Institucional padding */
+.video-inst-card {
+    padding: 20px;
+    border-radius: 20px;
+}
+
+.video-inst-card h3.title-cards {
+    margin-bottom: 15px;
+}
+
+.video-inst-card hr {
+    margin-bottom: 15px;
+}
+
+.video-inst-card .video-institutional-wrapper {
+    padding: 0;
+    margin: 0;
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.video-unidad-col,
+.social-col {
+    padding: 20px;
+    border-radius: 20px;
+}
+
+.video-unidad-col h3.title-cards,
+.social-col h3.title-cards {
+    margin-bottom: 15px;
+}
+
+.video-unidad-col hr,
+.social-col hr {
+    margin-bottom: 15px;
+}
+
+/* Ajuste de altura para igualar con multimedia */
+.news-section {
+    display: flex;
+    flex-direction: column;
+}
+
+.news-section .card-view {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.news-section .news-head {
+    flex-shrink: 0;
+}
+
+.news-section .news-list {
+    flex: 1;
+}
+
 /* --- RESPONSIVE DESIGN --- */
 @media (max-width: 768px) {
     .main-slider {
