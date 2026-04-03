@@ -4,24 +4,22 @@ set -euo pipefail
 # Usage:
 #   sudo ./deploy_linux.sh
 # Optional env vars:
-#   API_SERVICE=oftic-api.service
 #   API_DIR=/opt/oftic/api
 #   WWW_DIR=/opt/oftic/www
 #   BACKUP_DIR=/opt/oftic/backups
 #   API_TAR=/tmp/api-release.tar.gz
 #   WEB_TAR=/tmp/web-release.tar.gz
 
-API_SERVICE="${API_SERVICE:-oftic-api.service}"
 API_DIR="${API_DIR:-/opt/oftic/api}"
 WWW_DIR="${WWW_DIR:-/opt/oftic/www}"
 BASE_DIR="$(dirname "$API_DIR")"
 BACKUP_DIR="${BACKUP_DIR:-$BASE_DIR/backups}"
 API_TAR="${API_TAR:-/tmp/api-release.tar.gz}"
 WEB_TAR="${WEB_TAR:-/tmp/web-release.tar.gz}"
+PORT="${PORT:-8088}"
 STAMP="$(date +%F_%H%M%S)"
 
 echo "== SISGE deploy (Linux) =="
-echo "Service:   $API_SERVICE"
 echo "API dir:   $API_DIR"
 echo "WEB dir:   $WWW_DIR"
 echo "API tar:   $API_TAR"
@@ -54,14 +52,17 @@ tar -czf "$BACKUP_DIR/api_$STAMP.tar.gz" -C "$API_DIR" .
 tar -czf "$BACKUP_DIR/www_$STAMP.tar.gz" -C "$WWW_DIR" .
 
 echo
-echo "[2/7] Deteniendo servicio API..."
-systemctl stop "$API_SERVICE"
+echo "[2/7] Deteniendo API (matando proceso dotnet)..."
+pkill -9 -f "Api.dll" || true
+fuser -k $PORT/tcp 2>/dev/null || true
+sleep 2
 
 echo
 echo "[3/7] Limpiando API (preserva appsettings*.json y uploads)..."
 find "$API_DIR" -mindepth 1 -maxdepth 1 \
   ! -name 'appsettings.json' \
   ! -name 'appsettings.Development.json' \
+  ! -name 'appsettings.Production.json' \
   ! -name 'uploads' \
   -exec rm -rf {} +
 
@@ -80,9 +81,14 @@ chown -R root:root "$API_DIR" "$WWW_DIR"
 chmod -R 755 "$API_DIR" "$WWW_DIR"
 
 echo
-echo "[7/7] Iniciando servicio API..."
-systemctl start "$API_SERVICE"
-systemctl status "$API_SERVICE" --no-pager -n 40
+echo "[7/7] Iniciando API..."
+cd "$API_DIR"
+nohup /usr/bin/dotnet Api.dll --urls "http://0.0.0.0:$PORT" > nohup.out 2>&1 &
+sleep 3
+
+echo
+echo "Verificando API..."
+curl -s http://localhost:$PORT/api/Noticia/activas > /dev/null && echo "API OK" || echo "API FALLO"
 
 echo
 echo "Deploy finalizado."
