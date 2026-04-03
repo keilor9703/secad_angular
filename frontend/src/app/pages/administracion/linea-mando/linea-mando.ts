@@ -34,8 +34,8 @@ export class LineaMandoAdminComponent implements OnInit {
   hayFuncionario = false;
 
   pesoOpciones: CargoOpcion[] = [
-    { id: 'Director PolicÃ­a', nombre: 'Director PolicÃ­a' },
-    { id: 'Subdirector PolicÃ­a', nombre: 'Subdirector PolicÃ­a' },
+    { id: 'Director Policía', nombre: 'Director Policía' },
+    { id: 'Subdirector Policía', nombre: 'Subdirector Policía' },
     { id: 'Jefe Unidad', nombre: 'Jefe Unidad' },
     { id: 'Mando Ejecutivo', nombre: 'Mando Ejecutivo' }
   ];
@@ -72,7 +72,7 @@ export class LineaMandoAdminComponent implements OnInit {
       },
       error: () => {
         this.loading = false;
-        this.toast.error('Error', 'No se pudo cargar la lÃ­nea de mando');
+        this.toast.error('Error', 'No se pudo cargar la línea de mando');
       }
     });
   }
@@ -85,7 +85,7 @@ export class LineaMandoAdminComponent implements OnInit {
   buscarFuncionario(): void {
     const doc = this.searchIdentificacion.trim();
     if (!doc) {
-      this.toast.warning('Buscar', 'Ingrese un nÃºmero de identificaciÃ³n');
+      this.toast.warning('Buscar', 'Ingrese un número de identificación');
       return;
     }
 
@@ -98,7 +98,7 @@ export class LineaMandoAdminComponent implements OnInit {
         
         if (!func || !func.nombres) {
           this.searchingFuncionario = false;
-          this.toast.warning('Buscar', 'No se encontrÃ³ funcionario con esa identificaciÃ³n');
+          this.toast.warning('Buscar', 'No se encontró funcionario con esa identificación');
           return;
         }
 
@@ -106,7 +106,7 @@ export class LineaMandoAdminComponent implements OnInit {
         
         if (!activo) {
           this.searchingFuncionario = false;
-          this.toast.warning('Buscar', 'El usuario estÃ¡ inactivo en el sistema');
+          this.toast.warning('Buscar', 'El usuario está inactivo en el sistema');
           return;
         }
 
@@ -148,7 +148,7 @@ export class LineaMandoAdminComponent implements OnInit {
     );
 
     if (existentes.length > 0) {
-      this.toast.warning('Peso', `Ya existe un ${pesoActual} activo en la lÃ­nea de mando`);
+      this.toast.warning('Peso', `Ya existe un ${pesoActual} activo en la línea de mando`);
       return false;
     }
 
@@ -247,7 +247,7 @@ export class LineaMandoAdminComponent implements OnInit {
 
   guardar(): void {
     if (!this.formData.identificacion) {
-      this.toast.warning('Guardar', 'La identificaciÃ³n es requerida');
+      this.toast.warning('Guardar', 'La identificación es requerida');
       return;
     }
 
@@ -270,8 +270,8 @@ export class LineaMandoAdminComponent implements OnInit {
     if (existenteMismoPeso && !this.modoEdicion) {
       const confirmado = confirm(
         `Ya existe un registro activo con el cargo "${this.formData.peso}" (${existenteMismoPeso.grado} ${existenteMismoPeso.nombre}).\n\n` +
-        `Â¿EstÃ¡ seguro que desea reemplazarlo?\n\n` +
-        `El registro anterior pasarÃ¡ a estado Inactivo.`
+        `¿Está seguro que desea reemplazarlo?\n\n` +
+        `El registro anterior pasará a estado Inactivo.`
       );
       
       if (!confirmado) {
@@ -347,7 +347,7 @@ export class LineaMandoAdminComponent implements OnInit {
   }
 
   eliminar(item: DtoLineaMando): void {
-    if (!confirm(`Â¿EstÃ¡ seguro de eliminar a ${item.nombre} ${item.apellidos}?`)) {
+    if (!confirm(`¿Está seguro de eliminar a ${item.nombre} ${item.apellidos}?`)) {
       return;
     }
 

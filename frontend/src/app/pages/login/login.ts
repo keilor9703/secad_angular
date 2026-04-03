@@ -113,7 +113,7 @@ export class LoginComponent implements OnInit, OnDestroy {
     this.errorMessage = '';
 
     if (!this.usuario?.trim() || !this.contrasena?.trim()) {
-      this.errorMessage = 'Debe diligenciar usuario y contraseÃ±a.';
+      this.errorMessage = 'Debe diligenciar usuario y contraseña.';
       return;
     }
 
@@ -122,7 +122,7 @@ export class LoginComponent implements OnInit, OnDestroy {
     this.loginTimeoutHandle = setTimeout(() => {
       if (this.isLoading) {
         this.isLoading = false;
-        this.errorMessage = 'La autenticaciÃ³n estÃ¡ tardando demasiado. Intente nuevamente.';
+        this.errorMessage = 'La autenticación está tardando demasiado. Intente nuevamente.';
       }
     }, 35000);
 
@@ -136,12 +136,12 @@ export class LoginComponent implements OnInit, OnDestroy {
           return;
         }
 
-        this.errorMessage = resp?.mensaje ?? resp?.message ?? 'No fue posible iniciar sesiÃ³n.';
+        this.errorMessage = resp?.mensaje ?? resp?.message ?? 'No fue posible iniciar sesión.';
       },
       error: (err) => {
         clearTimeout(this.loginTimeoutHandle);
         this.isLoading = false;
-        this.errorMessage = err?.error?.mensaje ?? err?.error?.message ?? 'Error de conexiÃ³n con el servicio de autenticaciÃ³n.';
+        this.errorMessage = err?.error?.mensaje ?? err?.error?.message ?? 'Error de conexión con el servicio de autenticación.';
       }
     });
   }

@@ -70,7 +70,7 @@ export class MenuAdminComponent implements OnInit {
       },
       error: (err) => {
         this.loading = false;
-        this.toast.error('MenÃº', err?.error?.message ?? 'No fue posible cargar el menÃº.');
+        this.toast.error('Menú', err?.error?.message ?? 'No fue posible cargar el menú.');
       }
     });
   }
@@ -96,17 +96,17 @@ export class MenuAdminComponent implements OnInit {
 
   guardar(): void {
     if (!this.form.descripcion.trim()) {
-      this.toast.warning('MenÃº', 'La descripciÃ³n es obligatoria.');
+      this.toast.warning('Menú', 'La descripción es obligatoria.');
       return;
     }
 
     if (!this.form.tipo.trim()) {
-      this.toast.warning('MenÃº', 'El tipo es obligatorio.');
+      this.toast.warning('Menú', 'El tipo es obligatorio.');
       return;
     }
 
     if (this.form.posicion < 0) {
-      this.toast.warning('MenÃº', 'La posiciÃ³n no puede ser negativa.');
+      this.toast.warning('Menú', 'La posición no puede ser negativa.');
       return;
     }
 
@@ -115,16 +115,16 @@ export class MenuAdminComponent implements OnInit {
       next: (resp) => {
         this.saving = false;
         if (!resp?.success) {
-          this.toast.warning('MenÃº', resp?.message || 'No fue posible guardar.');
+          this.toast.warning('Menú', resp?.message || 'No fue posible guardar.');
           return;
         }
-        this.toast.success('MenÃº', resp.message || 'MenÃº guardado correctamente.');
+        this.toast.success('Menú', resp.message || 'Menú guardado correctamente.');
         this.nuevo();
         this.loadMenu();
       },
       error: (err) => {
         this.saving = false;
-        this.toast.error('MenÃº', err?.error?.detail ?? err?.error?.message ?? 'Error guardando menÃº.');
+        this.toast.error('Menú', err?.error?.detail ?? err?.error?.message ?? 'Error guardando menú.');
       }
     });
   }
@@ -134,14 +134,14 @@ export class MenuAdminComponent implements OnInit {
     this.menuService.setEstadoAdminMenu(item.idMenu, { vigente: nuevoEstado }).subscribe({
       next: (resp) => {
         if (!resp?.success) {
-          this.toast.warning('MenÃº', resp?.message || 'No fue posible actualizar estado.');
+          this.toast.warning('Menú', resp?.message || 'No fue posible actualizar estado.');
           return;
         }
-        this.toast.success('MenÃº', resp.message || 'Estado actualizado.');
+        this.toast.success('Menú', resp.message || 'Estado actualizado.');
         this.loadMenu();
       },
       error: (err) => {
-        this.toast.error('MenÃº', err?.error?.detail ?? err?.error?.message ?? 'Error actualizando estado.');
+        this.toast.error('Menú', err?.error?.detail ?? err?.error?.message ?? 'Error actualizando estado.');
       }
     });
   }
@@ -159,7 +159,7 @@ export class MenuAdminComponent implements OnInit {
       },
       error: (err) => {
         this.rolesCatalog = [];
-        this.toast.error('Roles menÃº', err?.error?.message ?? 'No fue posible cargar el catÃ¡logo de roles.');
+        this.toast.error('Roles menú', err?.error?.message ?? 'No fue posible cargar el catálogo de roles.');
       }
     });
   }
@@ -179,19 +179,19 @@ export class MenuAdminComponent implements OnInit {
       error: (err) => {
         this.rolesAsignados = [];
         this.loadingRoles = false;
-        this.toast.error('Roles menÃº', err?.error?.message ?? 'No fue posible consultar roles del menÃº.');
+        this.toast.error('Roles menú', err?.error?.message ?? 'No fue posible consultar roles del menú.');
       }
     });
   }
 
   asignarRolMenu(): void {
     if (!this.selectedMenuForRoles) {
-      this.toast.warning('Roles menÃº', 'Selecciona un menÃº para gestionar roles.');
+      this.toast.warning('Roles menú', 'Selecciona un menú para gestionar roles.');
       return;
     }
 
     if (!this.selectedRolId || this.selectedRolId <= 0) {
-      this.toast.warning('Roles menÃº', 'Selecciona un rol.');
+      this.toast.warning('Roles menú', 'Selecciona un rol.');
       return;
     }
 
@@ -200,16 +200,16 @@ export class MenuAdminComponent implements OnInit {
       next: (resp) => {
         this.savingRole = false;
         if (!resp?.success) {
-          this.toast.warning('Roles menÃº', resp?.message || 'No fue posible asignar el rol.');
+          this.toast.warning('Roles menú', resp?.message || 'No fue posible asignar el rol.');
           return;
         }
-        this.toast.success('Roles menÃº', resp.message || 'Rol asignado correctamente.');
+        this.toast.success('Roles menú', resp.message || 'Rol asignado correctamente.');
         this.selectedRolId = null;
         this.loadRolesPanel(this.selectedMenuForRoles!.idMenu);
       },
       error: (err) => {
         this.savingRole = false;
-        this.toast.error('Roles menÃº', err?.error?.detail ?? err?.error?.message ?? 'Error asignando rol.');
+        this.toast.error('Roles menú', err?.error?.detail ?? err?.error?.message ?? 'Error asignando rol.');
       }
     });
   }
@@ -222,14 +222,14 @@ export class MenuAdminComponent implements OnInit {
     this.menuService.removeRolFromMenu(this.selectedMenuForRoles.idMenu, item.idRol).subscribe({
       next: (resp) => {
         if (!resp?.success) {
-          this.toast.warning('Roles menÃº', resp?.message || 'No fue posible quitar el rol.');
+          this.toast.warning('Roles menú', resp?.message || 'No fue posible quitar el rol.');
           return;
         }
-        this.toast.success('Roles menÃº', resp.message || 'Rol retirado del menÃº.');
+        this.toast.success('Roles menú', resp.message || 'Rol retirado del menú.');
         this.loadRolesPanel(this.selectedMenuForRoles!.idMenu);
       },
       error: (err) => {
-        this.toast.error('Roles menÃº', err?.error?.detail ?? err?.error?.message ?? 'Error retirando rol.');
+        this.toast.error('Roles menú', err?.error?.detail ?? err?.error?.message ?? 'Error retirando rol.');
       }
     });
   }

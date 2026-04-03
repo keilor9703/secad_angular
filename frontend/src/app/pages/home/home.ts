@@ -313,7 +313,7 @@ export class HomeComponent implements OnInit, OnDestroy {
       return raw;
     }
 
-    // Si viene solo el nombre de archivo, apuntamos a la carpeta pÃºblica de sliders.
+    // Si viene solo el nombre de archivo, apuntamos a la carpeta pública de sliders.
     if (/^[^/]+\.(jpg|jpeg|png|webp)$/i.test(normalized)) {
       return `/api/Slider/Image/${encodeURIComponent(normalized)}`;
     }

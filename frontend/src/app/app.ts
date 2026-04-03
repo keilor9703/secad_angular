@@ -65,7 +65,7 @@ export class AppComponent implements OnDestroy {
         okText: a.okText ?? 'OK'
       };
 
-      // Bloquear scroll del fondo mientras estÃ© la alerta
+      // Bloquear scroll del fondo mientras esté la alerta
       document.body.classList.add('ui-modal-open');
     });
 
