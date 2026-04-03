@@ -141,15 +141,29 @@
           <hr />
           <div class="news-list">
             <article class="news-card" *ngFor="let item of news" (click)="openNews(item)">
-              <div class="news-meta">
-                <span class="news-date">
-                  <i class="fa-regular fa-calendar"></i> {{ item.date }}
-                </span>
-                <span class="news-tag" [class]="item.tag.toLowerCase()">{{ item.tag }}</span>
+              <div class="news-card__img" [style.background-image]="'url(' + item.image + ')'"></div>
+              <div class="news-card__content">
+                <div class="news-meta">
+                  <span class="news-date">
+                    <i class="fa-regular fa-calendar"></i> {{ item.date }}
+                  </span>
+                  <span class="news-tag" [class]="item.tag.toLowerCase()">{{ item.tag }}</span>
+                </div>
+                <h4 class="news-title">{{ item.title }}</h4>
+                <p class="news-lead">{{ item.lead }}</p>
+                <div class="news-footer">
+                  <button 
+                    class="news-like" 
+                    type="button" 
+                    (click)="likeNoticia(item, $event)"
+                    [disabled]="hasLiked(item.id)"
+                    title="Me gusta"
+                  >
+                    <i class="fa-solid fa-heart" [class.liked]="hasLiked(item.id)"></i> {{ item.megusta }}
+                  </button>
+                  <span class="news-link">Leer más <i class="fa-solid fa-arrow-right"></i></span>
+                </div>
               </div>
-              <h4 class="news-title">{{ item.title }}</h4>
-              <p class="news-lead">{{ item.lead }}</p>
-              <span class="news-link">Leer más <i class="fa-solid fa-arrow-right"></i></span>
             </article>
           </div>
         </div>

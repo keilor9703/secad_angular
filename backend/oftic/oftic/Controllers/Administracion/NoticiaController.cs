@@ -137,6 +137,26 @@ namespace ofic.Controllers.Administracion
             }
         }
 
+        [HttpPost("{id:long}/like")]
+        [AllowAnonymous]
+        public async Task<IActionResult> DarLike(long id)
+        {
+            try
+            {
+                var result = await _service.DarLikeAsync(id, CancellationToken.None);
+
+                if (!result.Success)
+                    return BadRequest(new { success = false, message = result.Message });
+
+                return Ok(new { success = true, message = result.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error dando like a noticia {Id}", id);
+                return StatusCode(500, new { success = false, message = "Error dando like." });
+            }
+        }
+
         private (string usuario, string maquina) ObtenerAuditoria()
         {
             var usuario = User.FindFirstValue(ClaimTypes.Name)

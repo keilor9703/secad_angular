@@ -10,4 +10,5 @@ public interface IDbNoticiaRepository
     Task<DtoNoticiaResult> CreateAsync(DtoNoticiaRequest request, string usuario, string maquina, CancellationToken ct);
     Task<DtoNoticiaResult> UpdateAsync(long id, DtoNoticiaRequest request, string usuario, string maquina, CancellationToken ct);
     Task<DtoNoticiaResult> DeleteAsync(long id, string usuario, string maquina, CancellationToken ct);
+    Task<DtoNoticiaResult> DarLikeAsync(long id, CancellationToken ct);
 }

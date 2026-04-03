@@ -48,7 +48,7 @@ namespace ofic.Controllers.Administracion
         }
 
         [HttpGet("current")]
-        [Authorize]
+        [AllowAnonymous]
         public async Task<IActionResult> GetCurrent()
         {
             try
@@ -91,6 +91,33 @@ namespace ofic.Controllers.Administracion
             {
                 _logger.LogError(ex, "Error consultando video actual de unidad");
                 return StatusCode(500, new { message = "Error consultando video actual." });
+            }
+        }
+
+        [HttpGet("public")]
+        [AllowAnonymous]
+        public IActionResult GetPublic()
+        {
+            try
+            {
+                Directory.CreateDirectory(_videoRootPath);
+                var file = GetLatestVideoFile();
+
+                if (file is null)
+                {
+                    return Ok(new { hasVideo = false, url = "" });
+                }
+
+                return Ok(new
+                {
+                    hasVideo = true,
+                    url = $"/api/VideoUnidad/stream?v={file.LastWriteTimeUtc.Ticks}"
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error en GetPublic video");
+                return StatusCode(500, new { hasVideo = false, url = "" });
             }
         }
 

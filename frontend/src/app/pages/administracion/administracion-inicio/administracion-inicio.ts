@@ -71,6 +71,18 @@ export class AdministracionInicioComponent {
       description: 'Administra dominios del sistema, para listas desplegables.',
       route: '/administracion/dominio',
       icon: 'fa fa-refresh fa-spin fa-3x fa-fw'
+    },
+    {
+      title: 'Video Institucional',
+      description: 'Administracion de videos instuitucionales del sistema.',
+      route: '/administracion/video-institucional',
+      icon: 'fa fa-refresh fa-spin fa-3x fa-fw'
+    },
+     {
+      title: 'Administración de noticias',
+      description: 'Administracion de Creación de noticias.',
+      route: '/administracion/noticias',
+      icon: 'fa fa-refresh fa-spin fa-3x fa-fw'
     }
   ];
 }

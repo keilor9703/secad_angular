@@ -48,6 +48,9 @@ public class DtoNoticia
 
     [JsonPropertyName("maquinaModifica")]
     public string? MaquinaModifica { get; set; }
+
+    [JsonPropertyName("megusta")]
+    public long Megusta { get; set; }
 }
 
 public class DtoNoticiaRequest

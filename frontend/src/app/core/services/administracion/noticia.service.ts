@@ -19,6 +19,7 @@ export interface DtoNoticia {
   fechaModifica?: string | null;
   usuarioModifica?: string | null;
   maquinaModifica?: string | null;
+  megusta?: number;
 }
 
 export interface DtoNoticiaRequest {
@@ -79,5 +80,9 @@ export class NoticiaService {
     const formData = new FormData();
     formData.append('file', file);
     return this.http.post<DtoUploadResponse>(`${this.uploadUrl}/imagen`, formData);
+  }
+
+  darLike(id: number): Observable<DtoNoticiaApiResponse> {
+    return this.http.post<DtoNoticiaApiResponse>(`${this.baseUrl}/${id}/like`, {});
   }
 }

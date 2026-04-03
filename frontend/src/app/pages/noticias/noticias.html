@@ -28,7 +28,7 @@
         </div>
 
         <div class="news-list" *ngIf="!isLoading && !hasError && news.length > 0">
-          <article class="news-card" *ngFor="let n of paginatedNews">
+          <article class="news-card" *ngFor="let n of paginatedNews" (click)="openNoticia(n)">
             <div class="news-media">
               <img class="news-img" [src]="getImageUrl(n)" [alt]="n.titulo">
             </div>
@@ -48,8 +48,11 @@
               <p class="news-lead">{{ n.subtitulo }}</p>
 
               <div class="news-foot">
+                <button class="news-like" type="button" (click)="likeNoticia(n, $event)" [disabled]="hasLiked(n.idNoticia)" title="Me gusta">
+                  <i class="fa-solid fa-heart" [class.liked]="hasLiked(n.idNoticia)"></i> {{ n.megusta || 0 }}
+                </button>
                 <span class="news-link">
-                  <a [routerLink]="getNoticiaUrl(n)">Ver más</a> <span class="news-arrow">↗</span>
+                  Ver más <span class="news-arrow">↗</span>
                 </span>
               </div>
             </div>
@@ -107,3 +110,54 @@
     </div>
   </section>
 </main>
+
+<!-- Modal de noticia -->
+<div class="ui-modal" *ngIf="modalOpen" (click)="closeNoticia()">
+  <div class="ui-modal__dialog ui-modal__dialog--news" (click)="$event.stopPropagation()" role="dialog" aria-modal="true">
+    <div class="ui-modal__head">
+      <div class="ui-modal__title">
+        <i class="fa-solid fa-newspaper"></i>
+        Noticia
+      </div>
+      <button class="ui-icon-btn" type="button" (click)="closeNoticia()" aria-label="Cerrar">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+    </div>
+    <div class="ui-modal__body">
+      <div class="news-modal" *ngIf="selectedNoticia">
+        <div class="news-modal__img-container">
+          <img class="news-modal__img" [src]="getImageUrl(selectedNoticia)" [alt]="selectedNoticia.titulo" />
+          <button 
+            class="news-modal__like-btn" 
+            type="button" 
+            (click)="selectedNoticia && likeNoticia(selectedNoticia, $event)"
+            [class.liked]="liked || (selectedNoticia && hasLiked(selectedNoticia.idNoticia))"
+            [disabled]="selectedNoticia && hasLiked(selectedNoticia.idNoticia)"
+            title="Me gusta"
+          >
+            <i class="fa-solid fa-heart"></i>
+          </button>
+        </div>
+        <div class="news-modal__meta">
+          <span class="news-modal__date">
+            <i class="fa-regular fa-calendar"></i> {{ selectedNoticia.fechaCreacion | date:'dd MMM yyyy' }}
+          </span>
+          <span class="news-modal__city">
+            <i class="fa-solid fa-location-dot"></i> {{ selectedNoticia.ciudad }}
+          </span>
+          <span class="news-modal__likes">
+            <i class="fa-solid fa-heart"></i> {{ selectedNoticia.megusta || 0 }}
+          </span>
+        </div>
+        <h3 class="news-modal__title">{{ selectedNoticia.titulo }}</h3>
+        <p class="news-modal__text">{{ selectedNoticia.contenido }}</p>
+      </div>
+    </div>
+    <div class="ui-modal__foot">
+      <button class="news-like" type="button" (click)="selectedNoticia && likeNoticia(selectedNoticia, $event)" title="Me gusta">
+        <i class="fa-solid fa-heart"></i> {{ selectedNoticia?.megusta || 0 }}
+      </button>
+      <button class="ui-btn outline" type="button" (click)="closeNoticia()">Cerrar</button>
+    </div>
+  </div>
+</div>

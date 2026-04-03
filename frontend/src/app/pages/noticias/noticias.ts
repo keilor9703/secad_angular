@@ -1,12 +1,11 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterLink } from '@angular/router';
 import { NoticiaService, DtoNoticia } from '../../core/services/administracion/noticia.service';
 
 @Component({
   selector: 'app-noticias-web',
   standalone: true,
-  imports: [CommonModule, RouterLink],
+  imports: [CommonModule],
   templateUrl: './noticias.html',
   styleUrl: './noticias.scss'
 })
@@ -22,6 +21,10 @@ export class NoticiasWeb implements OnInit {
   totalPages = 0;
 
   news: DtoNoticia[] = [];
+
+  modalOpen = false;
+  selectedNoticia: DtoNoticia | null = null;
+  liked = false;
 
   constructor(private noticiaService: NoticiaService) {}
 
@@ -94,6 +97,57 @@ export class NoticiasWeb implements OnInit {
 
   getNoticiaUrl(noticia: DtoNoticia): string {
     return `/administracion/noticias`;
+  }
+
+  openNoticia(noticia: DtoNoticia): void {
+    this.selectedNoticia = noticia;
+    this.modalOpen = true;
+    document.body.classList.add('modal-open');
+  }
+
+  closeNoticia(): void {
+    this.modalOpen = false;
+    this.selectedNoticia = null;
+    document.body.classList.remove('modal-open');
+  }
+
+  likeNoticia(noticia: DtoNoticia, event: Event): void {
+    event.stopPropagation();
+    
+    const likedNews = this.getLikedNews();
+    if (likedNews.includes(noticia.idNoticia)) {
+      return;
+    }
+    
+    this.liked = true;
+    this.noticiaService.darLike(noticia.idNoticia).subscribe({
+      next: () => {
+        noticia.megusta = (noticia.megusta || 0) + 1;
+        this.saveLikedNews(noticia.idNoticia);
+        setTimeout(() => this.liked = false, 1000);
+      },
+      error: (err) => {
+        console.error('Error dando like:', err);
+        this.liked = false;
+      }
+    });
+  }
+
+  hasLiked(noticiaId: number): boolean {
+    return this.getLikedNews().includes(noticiaId);
+  }
+
+  private getLikedNews(): number[] {
+    const stored = sessionStorage.getItem('likedNews');
+    return stored ? JSON.parse(stored) : [];
+  }
+
+  private saveLikedNews(noticiaId: number): void {
+    const liked = this.getLikedNews();
+    if (!liked.includes(noticiaId)) {
+      liked.push(noticiaId);
+      sessionStorage.setItem('likedNews', JSON.stringify(liked));
+    }
   }
 
   private scrollToTop(): void {

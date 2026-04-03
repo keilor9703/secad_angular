@@ -53,6 +53,6 @@ Write-Host "`nArtefactos generados:"
 Write-Host "  API: $apiTar"
 Write-Host "  WEB: $webTar"
 Write-Host "`nComandos de subida:"
-Write-Host "  scp `"$apiTar`" usrcoest@srvsicoedesa:/tmp/"
-Write-Host "  scp `"$webTar`" usrcoest@srvsicoedesa:/tmp/"
+Write-Host "  scp `"$apiTar`" usrcoest@172.28.9.181:/tmp/"
+Write-Host "  scp `"$webTar`" usrcoest@172.28.9.181:/tmp/"
 

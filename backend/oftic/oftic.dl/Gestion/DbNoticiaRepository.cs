@@ -27,39 +27,24 @@ namespace Datos.Gestion
                 await using var conn = new OracleConnection(_cs);
                 await conn.OpenAsync(ct);
 
-                await using var cmd = conn.CreateCommand();
-                cmd.CommandTimeout = 30;
-                cmd.BindByName = true;
-                cmd.CommandType = CommandType.StoredProcedure;
-                cmd.CommandText = "PK_ADMINISTRACION.SP_CONSULTAR_NOTICIAS";
+                const string sql = @"SELECT 
+                    ID_NOTICIA, UNIDAD, TITULO, SECCION, CIUDAD,
+                    IMAGEN_NOTICIA, SUBTITULO, CONTENIDO, VIGENTE,
+                    FECHA_CREACION, USUARIO_CREACION, MAQUINA_CREACION,
+                    FECHA_MODIFICA, USUARIO_MODIFICA, MAQUINA_MODIFICA, MEGUSTA
+                    FROM CTR_NOTICIAS
+                    ORDER BY FECHA_CREACION DESC";
 
-                var pCursor = cmd.Parameters.Add("P_CURSOR", OracleDbType.RefCursor);
-                pCursor.Direction = ParameterDirection.Output;
+                await using var cmd = new OracleCommand(sql, conn);
+                cmd.CommandType = CommandType.Text;
 
-                var pResultado = cmd.Parameters.Add("P_RESULTADO", OracleDbType.Int64);
-                pResultado.Direction = ParameterDirection.Output;
-
-                var pMensaje = cmd.Parameters.Add("P_MENSAJE", OracleDbType.Varchar2, 4000);
-                pMensaje.Direction = ParameterDirection.Output;
-
-                await cmd.ExecuteNonQueryAsync(ct);
-
-                if (pResultado.Value != null && pResultado.Value != DBNull.Value)
+                await using var reader = await cmd.ExecuteReaderAsync(ct);
+                while (await reader.ReadAsync(ct))
                 {
-                    var resultValue = (Oracle.ManagedDataAccess.Types.OracleDecimal)pResultado.Value;
-                    if (resultValue.ToInt64() == 0)
-                    {
-                        await using var reader = ((Oracle.ManagedDataAccess.Types.OracleRefCursor)pCursor.Value).GetDataReader();
-                        while (await reader.ReadAsync(ct))
-                        {
-                            noticias.Add(MapNoticia(reader));
-                        }
-                    }
+                    noticias.Add(MapNoticia(reader));
                 }
-            }
-            catch (OracleException ex)
-            {
-                _logger.LogError(ex, "Error Oracle en GetAllAsync Noticias");
+                
+                _logger.LogInformation("GetAllAsync devolvio {Count} noticias", noticias.Count);
             }
             catch (Exception ex)
             {
@@ -76,45 +61,27 @@ namespace Datos.Gestion
                 await using var conn = new OracleConnection(_cs);
                 await conn.OpenAsync(ct);
 
-                await using var cmd = conn.CreateCommand();
-                cmd.CommandTimeout = 30;
-                cmd.BindByName = true;
-                cmd.CommandType = CommandType.StoredProcedure;
-                cmd.CommandText = "PK_ADMINISTRACION.SP_CONSULTAR_NOTICIA_ID";
+                const string sql = @"SELECT 
+                    ID_NOTICIA, UNIDAD, TITULO, SECCION, CIUDAD,
+                    IMAGEN_NOTICIA, SUBTITULO, CONTENIDO, VIGENTE,
+                    FECHA_CREACION, USUARIO_CREACION, MAQUINA_CREACION,
+                    FECHA_MODIFICA, USUARIO_MODIFICA, MAQUINA_MODIFICA, MEGUSTA
+                    FROM CTR_NOTICIAS
+                    WHERE ID_NOTICIA = :id";
 
-                cmd.Parameters.Add("P_ID_NOTICIA", OracleDbType.Int64).Value = id;
+                await using var cmd = new OracleCommand(sql, conn);
+                cmd.CommandType = CommandType.Text;
+                cmd.Parameters.Add(new OracleParameter("id", id));
 
-                var pCursor = cmd.Parameters.Add("P_CURSOR", OracleDbType.RefCursor);
-                pCursor.Direction = ParameterDirection.Output;
-
-                var pResultado = cmd.Parameters.Add("P_RESULTADO", OracleDbType.Int64);
-                pResultado.Direction = ParameterDirection.Output;
-
-                var pMensaje = cmd.Parameters.Add("P_MENSAJE", OracleDbType.Varchar2, 4000);
-                pMensaje.Direction = ParameterDirection.Output;
-
-                await cmd.ExecuteNonQueryAsync(ct);
-
-                if (pResultado.Value != null && pResultado.Value != DBNull.Value)
+                await using var reader = await cmd.ExecuteReaderAsync(ct);
+                if (await reader.ReadAsync(ct))
                 {
-                    var resultValue = (Oracle.ManagedDataAccess.Types.OracleDecimal)pResultado.Value;
-                    if (resultValue.ToInt64() == 0)
-                    {
-                        await using var reader = ((Oracle.ManagedDataAccess.Types.OracleRefCursor)pCursor.Value).GetDataReader();
-                        if (await reader.ReadAsync(ct))
-                        {
-                            return MapNoticia(reader);
-                        }
-                    }
+                    return MapNoticia(reader);
                 }
-            }
-            catch (OracleException ex)
-            {
-                _logger.LogError(ex, "Error Oracle en GetByIdAsync Noticia {Id}", id);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error general en GetByIdAsync Noticia {Id}", id);
+                _logger.LogError(ex, "Error en GetByIdAsync Noticia {Id}", id);
             }
 
             return null;
@@ -129,35 +96,25 @@ namespace Datos.Gestion
                 await using var conn = new OracleConnection(_cs);
                 await conn.OpenAsync(ct);
 
-                await using var cmd = conn.CreateCommand();
-                cmd.CommandTimeout = 30;
-                cmd.BindByName = true;
-                cmd.CommandType = CommandType.StoredProcedure;
-                cmd.CommandText = "PK_ADMINISTRACION.SP_CONSULTAR_NOTICIAS_ACTIVAS";
+                // Usar consulta directa para pruebas
+                const string sql = @"SELECT 
+                    ID_NOTICIA, UNIDAD, TITULO, SECCION, CIUDAD,
+                    IMAGEN_NOTICIA, SUBTITULO, CONTENIDO, VIGENTE,
+                    FECHA_CREACION, USUARIO_CREACION, MEGUSTA
+                    FROM CTR_NOTICIAS
+                    WHERE VIGENTE = 1
+                    ORDER BY FECHA_CREACION DESC";
 
-                var pCursor = cmd.Parameters.Add("P_CURSOR", OracleDbType.RefCursor);
-                pCursor.Direction = ParameterDirection.Output;
+                await using var cmd = new OracleCommand(sql, conn);
+                cmd.CommandType = CommandType.Text;
 
-                var pResultado = cmd.Parameters.Add("P_RESULTADO", OracleDbType.Int64);
-                pResultado.Direction = ParameterDirection.Output;
-
-                var pMensaje = cmd.Parameters.Add("P_MENSAJE", OracleDbType.Varchar2, 4000);
-                pMensaje.Direction = ParameterDirection.Output;
-
-                await cmd.ExecuteNonQueryAsync(ct);
-
-                if (pResultado.Value != null && pResultado.Value != DBNull.Value)
+                await using var reader = await cmd.ExecuteReaderAsync(ct);
+                while (await reader.ReadAsync(ct))
                 {
-                    var resultValue = (Oracle.ManagedDataAccess.Types.OracleDecimal)pResultado.Value;
-                    if (resultValue.ToInt64() == 0)
-                    {
-                        await using var reader = ((Oracle.ManagedDataAccess.Types.OracleRefCursor)pCursor.Value).GetDataReader();
-                        while (await reader.ReadAsync(ct))
-                        {
-                            noticias.Add(MapNoticiaActiva(reader));
-                        }
-                    }
+                    noticias.Add(MapNoticiaActiva(reader));
                 }
+                
+                _logger.LogInformation("Consulta directa devolvio {Count} noticias", noticias.Count);
             }
             catch (OracleException ex)
             {
@@ -306,6 +263,45 @@ namespace Datos.Gestion
             return result;
         }
 
+        public async Task<DtoNoticiaResult> DarLikeAsync(long id, CancellationToken ct)
+        {
+            var result = new DtoNoticiaResult();
+
+            try
+            {
+                await using var conn = new OracleConnection(_cs);
+                await conn.OpenAsync(ct);
+
+                await using var cmd = conn.CreateCommand();
+                cmd.CommandTimeout = 30;
+                cmd.BindByName = true;
+                cmd.CommandType = CommandType.StoredProcedure;
+                cmd.CommandText = "PK_ADMINISTRACION.SP_LIKE_NOTICIA";
+
+                cmd.Parameters.Add("P_ID_NOTICIA", OracleDbType.Int64).Value = id;
+
+                var pResultado = cmd.Parameters.Add("P_RESULTADO", OracleDbType.Int64);
+                pResultado.Direction = ParameterDirection.Output;
+
+                var pMensaje = cmd.Parameters.Add("P_MENSAJE", OracleDbType.Varchar2, 4000);
+                pMensaje.Direction = ParameterDirection.Output;
+
+                await cmd.ExecuteNonQueryAsync(ct);
+
+                result.Message = pMensaje.Value?.ToString() ?? string.Empty;
+                result.Success = pResultado.Value is Oracle.ManagedDataAccess.Types.OracleDecimal od && od.ToInt64() == 0;
+                result.Id = id;
+            }
+            catch (OracleException ex)
+            {
+                result.Success = false;
+                result.Message = $"Error de base de datos: {ex.Message}";
+                _logger.LogError(ex, "Error Oracle en DarLikeAsync Noticia {Id}", id);
+            }
+
+            return result;
+        }
+
         private static DtoNoticia MapNoticia(OracleDataReader reader)
         {
             return new DtoNoticia
@@ -324,7 +320,8 @@ namespace Datos.Gestion
                 MaquinaCreacion = reader.IsDBNull(reader.GetOrdinal("MAQUINA_CREACION")) ? null : reader.GetString(reader.GetOrdinal("MAQUINA_CREACION")),
                 FechaModifica   = reader.IsDBNull(reader.GetOrdinal("FECHA_MODIFICA")) ? null : reader.GetDateTime(reader.GetOrdinal("FECHA_MODIFICA")),
                 UsuarioModifica = reader.IsDBNull(reader.GetOrdinal("USUARIO_MODIFICA")) ? null : reader.GetString(reader.GetOrdinal("USUARIO_MODIFICA")),
-                MaquinaModifica = reader.IsDBNull(reader.GetOrdinal("MAQUINA_MODIFICA")) ? null : reader.GetString(reader.GetOrdinal("MAQUINA_MODIFICA"))
+                MaquinaModifica = reader.IsDBNull(reader.GetOrdinal("MAQUINA_MODIFICA")) ? null : reader.GetString(reader.GetOrdinal("MAQUINA_MODIFICA")),
+                Megusta         = reader.IsDBNull(reader.GetOrdinal("MEGUSTA")) ? 0 : reader.GetInt64(reader.GetOrdinal("MEGUSTA"))
             };
         }
 
@@ -342,7 +339,8 @@ namespace Datos.Gestion
                 Contenido       = reader.IsDBNull(reader.GetOrdinal("CONTENIDO")) ? null : reader.GetString(reader.GetOrdinal("CONTENIDO")),
                 Vigente         = reader.GetInt32(reader.GetOrdinal("VIGENTE")),
                 FechaCreacion   = reader.GetDateTime(reader.GetOrdinal("FECHA_CREACION")),
-                UsuarioCreacion = reader.GetString(reader.GetOrdinal("USUARIO_CREACION"))
+                UsuarioCreacion = reader.GetString(reader.GetOrdinal("USUARIO_CREACION")),
+                Megusta         = reader.IsDBNull(reader.GetOrdinal("MEGUSTA")) ? 0 : reader.GetInt64(reader.GetOrdinal("MEGUSTA"))
             };
         }
     }

@@ -18,7 +18,8 @@ interface NewsItem {
   title: string;
   lead: string;     
   content: string;  
-  image: string;   
+  image: string;
+  megusta: number;
 }
 
 interface SocialLink {
@@ -92,7 +93,8 @@ export class HomeComponent implements OnInit, OnDestroy {
           title: n.titulo,
           lead: n.subtitulo || '',
           content: n.contenido || '',
-          image: this.getNoticiaImageUrl(n.imagenNoticia)
+          image: this.getNoticiaImageUrl(n.imagenNoticia),
+          megusta: n.megusta || 0
         }));
         console.log('News mapeadas:', this.news);
       },
@@ -380,6 +382,43 @@ export class HomeComponent implements OnInit, OnDestroy {
     this.newsModalOpen = false;
     this.selectedNews = null;
     this.syncBodyModalClass();
+  }
+
+  likeNoticia(item: NewsItem, event: Event): void {
+    event.stopPropagation();
+    
+    const likedNews = this.getLikedNews();
+    if (likedNews.includes(item.id)) {
+      return;
+    }
+    
+    this.noticiaService.darLike(item.id).subscribe({
+      next: () => {
+        item.megusta = (item.megusta || 0) + 1;
+        this.saveLikedNews(item.id);
+      },
+      error: (err) => {
+        console.error('Error dando like:', err);
+      }
+    });
+  }
+
+  hasLiked(noticiaId: number): boolean {
+    const likedNews = this.getLikedNews();
+    return likedNews.includes(noticiaId);
+  }
+
+  private getLikedNews(): number[] {
+    const stored = sessionStorage.getItem('likedNews');
+    return stored ? JSON.parse(stored) : [];
+  }
+
+  private saveLikedNews(noticiaId: number): void {
+    const liked = this.getLikedNews();
+    if (!liked.includes(noticiaId)) {
+      liked.push(noticiaId);
+      sessionStorage.setItem('likedNews', JSON.stringify(liked));
+    }
   }
 
   @HostListener('document:keydown.escape')

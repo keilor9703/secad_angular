@@ -58,6 +58,14 @@ public class DbNoticiaService : IDbNoticiaService
         return await _repository.DeleteAsync(id, usuarioAuditoria, maquinaAuditoria, ct);
     }
 
+    public async Task<DtoNoticiaResult> DarLikeAsync(long id, CancellationToken ct)
+    {
+        if (id <= 0)
+            return new DtoNoticiaResult { Success = false, Message = "ID inválido." };
+
+        return await _repository.DarLikeAsync(id, ct);
+    }
+
     private static DtoNoticiaResult Validate(DtoNoticiaRequest request)
     {
         if (request == null)
