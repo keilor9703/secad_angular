@@ -4,7 +4,7 @@
       <div class="ui-panel__head">
         <div class="ui-panel__title">
           <i class="fa-solid fa-newspaper"></i>
-          Noticias y actividades
+          Noticias y Comunicados
         </div>
 
         <div class="ui-panel__actions ui-window-controls">
@@ -19,7 +19,7 @@
 
       <div class="ui-panel__body" *ngIf="!minimized && !closed">
         <div class="news-state" *ngIf="isLoading">
-          Cargando noticias recientes...
+          Cargando noticias...
         </div>
 
         <div class="news-state error" *ngIf="hasError">
@@ -28,25 +28,28 @@
         </div>
 
         <div class="news-list" *ngIf="!isLoading && !hasError && news.length > 0">
-          <article class="news-card" *ngFor="let n of paginatedNews" (click)="openOriginalNews(n.url)">
+          <article class="news-card" *ngFor="let n of paginatedNews">
             <div class="news-media">
-              <img class="news-img" [src]="n.image" [alt]="n.title">
+              <img class="news-img" [src]="getImageUrl(n)" [alt]="n.titulo">
             </div>
 
             <div class="news-body">
-              <h4 class="news-title">{{ n.title }}</h4>
+              <h4 class="news-title">{{ n.titulo }}</h4>
 
               <div class="news-meta">
                 <span class="news-date">
-                  <i class="fa-regular fa-calendar"></i> {{ n.date }}
+                  <i class="fa-regular fa-calendar"></i> {{ n.fechaCreacion | date:'dd MMM yyyy' }}
+                </span>
+                <span class="news-date">
+                  <i class="fa-solid fa-location-dot"></i> {{ n.ciudad }}
                 </span>
               </div>
 
-              <p class="news-lead">{{ n.lead }}</p>
+              <p class="news-lead">{{ n.subtitulo }}</p>
 
               <div class="news-foot">
                 <span class="news-link">
-                  Ver más <span class="news-arrow">↗</span>
+                  <a [routerLink]="getNoticiaUrl(n)">Ver más</a> <span class="news-arrow">↗</span>
                 </span>
               </div>
             </div>

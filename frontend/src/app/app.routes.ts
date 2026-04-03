@@ -8,7 +8,7 @@ import { MenuAdminComponent } from './pages/administracion/menu-admin/menu-admin
 import { ConfiguracionSistemaComponent } from './pages/administracion/configuracion-sistema/configuracion-sistema';
 import { RolesAdminComponent } from './pages/administracion/roles-admin/roles-admin';
 import { LayoutComponent } from './layout/layout';
-import { Noticias } from './pages/noticias/noticias';
+import { NoticiasWeb } from './pages/noticias/noticias';
 import { LineaMandoAdminComponent } from './pages/administracion/linea-mando/linea-mando';
 import { AdministracionInicioComponent } from './pages/administracion/administracion-inicio/administracion-inicio';
 import { RadioAdminComponent } from './pages/administracion/radio/radio';
@@ -27,6 +27,7 @@ export const routes: Routes = [
     children: [
       { path: '', redirectTo: 'home', pathMatch: 'full' },
       { path: 'home', component: HomeComponent },
+      { path: 'noticias', component: NoticiasWeb },
 {
       path: 'administracion',
       children: [
@@ -61,7 +62,6 @@ export const routes: Routes = [
       { path: 'radio', redirectTo: 'administracion/radio', pathMatch: 'full' },
       { path: 'dominio', redirectTo: 'administracion/dominio', pathMatch: 'full' },
       { path: 'video-institucional', redirectTo: 'administracion/video-institucional', pathMatch: 'full' },
-      { path: 'noticias', redirectTo: 'administracion/noticias', pathMatch: 'full' },
     ]
   },
   { path: '**', redirectTo: 'login' }

@@ -80,7 +80,12 @@ export class HomeComponent implements OnInit, OnDestroy {
       next: (noticias) => {
         console.log('Noticias cargadas:', noticias);
         console.log('Cantidad:', noticias.length);
-        this.news = noticias.map(n => ({
+        // Ordenar por fecha descendente y limitar a 5 noticias más recientes
+        const sorted = noticias.sort((a, b) => 
+          new Date(b.fechaCreacion).getTime() - new Date(a.fechaCreacion).getTime()
+        ).slice(0, 5);
+        
+        this.news = sorted.map(n => ({
           id: n.idNoticia,
           date: new Date(n.fechaCreacion).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' }),
           tag: this.mapSeccionToTag(n.seccion),

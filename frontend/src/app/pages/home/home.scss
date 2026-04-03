@@ -790,6 +790,7 @@ h3.title-cards {
     grid-template-columns: 2fr 1fr;
     gap: 16px;
     margin-bottom: 30px;
+    align-items: start;
 }
 
 @media (max-width: 1024px) {
@@ -809,6 +810,13 @@ h3.title-cards {
     min-width: 0;
     display: flex;
     flex-direction: column;
+    max-height: none;
+    height: 100%;
+}
+
+.news-section .news-list {
+    overflow-y: auto;
+    flex: 1;
 }
 
 /* --- Clases utilitarias --- */
@@ -966,6 +974,8 @@ h3.title-cards {
     cursor: pointer;
     transition: all var(--transition-speed);
     white-space: nowrap;
+    text-decoration: none;
+    margin-right: 10px;
 }
 
 .btn-ver-todas:hover {

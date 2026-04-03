@@ -1,15 +1,16 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { NoticiaCard, NoticiasService } from '../../core/services/noticias.service';
+import { RouterLink } from '@angular/router';
+import { NoticiaService, DtoNoticia } from '../../core/services/administracion/noticia.service';
 
 @Component({
-  selector: 'app-noticias',
+  selector: 'app-noticias-web',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, RouterLink],
   templateUrl: './noticias.html',
   styleUrl: './noticias.scss'
 })
-export class Noticias implements OnInit {
+export class NoticiasWeb implements OnInit {
   minimized = false;
   closed = false;
   isLoading = true;
@@ -20,9 +21,9 @@ export class Noticias implements OnInit {
   itemsPerPage = 8;
   totalPages = 0;
 
-  news: NoticiaCard[] = [];
+  news: DtoNoticia[] = [];
 
-  constructor(private noticiasService: NoticiasService) {}
+  constructor(private noticiaService: NoticiaService) {}
 
   ngOnInit(): void {
     this.loadNoticias();
@@ -33,9 +34,11 @@ export class Noticias implements OnInit {
     this.hasError = false;
     this.errorMessage = '';
 
-    this.noticiasService.getNoticias().subscribe({
+    this.noticiaService.getActivas().subscribe({
       next: (news) => {
-        this.news = news;
+        this.news = news.sort((a, b) => 
+          new Date(b.fechaCreacion).getTime() - new Date(a.fechaCreacion).getTime()
+        );
         this.currentPage = 1;
         this.calculateTotalPages();
         this.isLoading = false;
@@ -43,8 +46,7 @@ export class Noticias implements OnInit {
       error: () => {
         this.isLoading = false;
         this.hasError = true;
-        this.errorMessage =
-          'No fue posible cargar las noticias desde policia.gov.co. Intente nuevamente.';
+        this.errorMessage = 'No fue posible cargar las noticias. Intente nuevamente.';
       }
     });
   }
@@ -53,7 +55,7 @@ export class Noticias implements OnInit {
     this.totalPages = Math.ceil(this.news.length / this.itemsPerPage);
   }
 
-  get paginatedNews(): NoticiaCard[] {
+  get paginatedNews(): DtoNoticia[] {
     const startIndex = (this.currentPage - 1) * this.itemsPerPage;
     const endIndex = startIndex + this.itemsPerPage;
     return this.news.slice(startIndex, endIndex);
@@ -84,8 +86,14 @@ export class Noticias implements OnInit {
     }
   }
 
-  openOriginalNews(url: string): void {
-    window.open(url, '_blank', 'noopener,noreferrer');
+  getImageUrl(noticia: DtoNoticia): string {
+    if (!noticia.imagenNoticia) return 'imagenes/actividades/news2.jpg';
+    if (noticia.imagenNoticia.startsWith('http')) return noticia.imagenNoticia;
+    return `/api/NoticiaUpload/Imagen/${noticia.imagenNoticia.split('/').pop()}`;
+  }
+
+  getNoticiaUrl(noticia: DtoNoticia): string {
+    return `/administracion/noticias`;
   }
 
   private scrollToTop(): void {
