@@ -1,0 +1,134 @@
+<section class="video-inst-page">
+  <div class="ui-panel">
+
+    <div class="ui-panel__head">
+      <div class="ui-panel__title">
+        <i class="fa-brands fa-youtube"></i>
+        Video Institucional
+      </div>
+      <div class="ui-panel__actions ui-window-controls">
+        <button class="ui-icon-btn ui-win-btn is-min" type="button" title="Minimizar"
+          (click)="minimized = !minimized">
+          <i class="fa-solid fa-minus"></i>
+        </button>
+      </div>
+    </div>
+
+    <div class="ui-panel__body" *ngIf="!minimized">
+      <div class="list-loading" *ngIf="loading">Consultando video institucional...</div>
+
+      <div class="video-inst-grid" *ngIf="!loading">
+
+        <!-- Panel izquierdo: formulario -->
+        <article class="tab-card form-card" [class.is-editing]="isEditing">
+
+          <div class="edit-mode-badge" *ngIf="isEditing">
+            <i class="fa-solid fa-pen"></i>
+            {{ current ? 'Editando' : 'Nuevo video' }}
+          </div>
+
+          <!-- Vista actual (sin editar) -->
+          <ng-container *ngIf="!isEditing">
+            <div *ngIf="current; else sinVideo">
+              <h3 class="current-title">{{ current.titulo }}</h3>
+              <p class="meta" *ngIf="current.descripcion">{{ current.descripcion }}</p>
+              <div class="meta mt-2">
+                <div><strong>URL:</strong> <span class="url-text">{{ current.urlYoutube }}</span></div>
+                <div><strong>Registrado por:</strong> {{ current.usuarioCreacion }}</div>
+                <div><strong>Fecha:</strong> {{ current.fechaCreacion | date:'dd/MM/yyyy HH:mm' }}</div>
+              </div>
+              <div class="tab-actions mt-3">
+                <button class="ui-btn primary" type="button" (click)="activarEdicion()">
+                  <i class="fa-solid fa-pen"></i> Editar
+                </button>
+                <button class="ui-btn danger" type="button" (click)="eliminar()" [disabled]="deleting">
+                  <i class="fa-solid fa-trash"></i>
+                  {{ deleting ? 'Eliminando...' : 'Eliminar' }}
+                </button>
+              </div>
+            </div>
+
+            <ng-template #sinVideo>
+              <div class="news-state">No hay video institucional configurado.</div>
+              <div class="tab-actions mt-3">
+                <button class="ui-btn primary" type="button" (click)="activarEdicion()">
+                  <i class="fa-solid fa-plus"></i> Agregar video
+                </button>
+              </div>
+            </ng-template>
+          </ng-container>
+
+          <!-- Formulario de edición -->
+          <ng-container *ngIf="isEditing">
+            <div class="ui-grid">
+              <div class="ui-col-12 ui-field">
+                <label class="ui-label">Título <span class="required">*</span></label>
+                <input
+                  class="ui-control"
+                  type="text"
+                  maxlength="150"
+                  [(ngModel)]="form.titulo"
+                  placeholder="Ej: Video institucional 2025">
+              </div>
+
+              <div class="ui-col-12 ui-field">
+                <label class="ui-label">URL de YouTube <span class="required">*</span></label>
+                <input
+                  class="ui-control"
+                  type="text"
+                  maxlength="500"
+                  [(ngModel)]="form.urlYoutube"
+                  placeholder="https://www.youtube.com/watch?v=...">
+                <small class="meta">Formatos soportados: youtube.com/watch, youtu.be, /shorts/</small>
+              </div>
+
+              <div class="ui-col-12 ui-field">
+                <label class="ui-label">Descripción</label>
+                <textarea
+                  class="ui-control"
+                  rows="3"
+                  maxlength="500"
+                  [(ngModel)]="form.descripcion"
+                  placeholder="Descripción del video (opcional)"></textarea>
+              </div>
+            </div>
+
+            <div class="tab-actions mt-3">
+              <button class="ui-btn primary" type="button" (click)="guardar()" [disabled]="saving">
+                <i class="fa-solid fa-floppy-disk"></i>
+                {{ saving ? 'Guardando...' : 'Guardar' }}
+              </button>
+              <button class="ui-btn secondary" type="button" (click)="cancelar()" [disabled]="saving">
+                Cancelar
+              </button>
+            </div>
+          </ng-container>
+
+        </article>
+
+        <!-- Panel derecho: preview embed -->
+        <article class="tab-card list-card">
+          <h3 class="sub-title">Vista previa</h3>
+
+          <div *ngIf="current?.embedUrl; else sinPreview" class="embed-container">
+            <iframe
+              [src]="current!.embedUrl | safeUrl"
+              frameborder="0"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowfullscreen>
+            </iframe>
+          </div>
+
+          <ng-template #sinPreview>
+            <div class="news-state">
+              <i class="fa-brands fa-youtube fa-2x"></i>
+              <p>Sin video configurado.</p>
+            </div>
+          </ng-template>
+        </article>
+
+      </div>
+    </div>
+
+  </div>
+</section>

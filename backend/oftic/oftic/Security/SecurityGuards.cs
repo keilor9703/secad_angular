@@ -6,8 +6,8 @@ namespace ofic.Security;
 public static class SecurityGuards
 {
     private static readonly Regex SafeTextRegex = new(
-        @"^[\p{L}\p{N}\s\.\,\-\_\(\)\/:]+$",
-        RegexOptions.Compiled | RegexOptions.CultureInvariant);
+        @"^[a-zA-Z0-9\s.,\-_()/:áéíóúÁÉÍÓÚñÑ]+$",
+        RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
     public static bool HasPotentialHtml(string? value)
     {

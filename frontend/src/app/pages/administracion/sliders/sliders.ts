@@ -88,7 +88,7 @@ export class SlidersComponent implements OnInit {
 
   guardar(): void {
     if (!this.form.titulo.trim()) {
-      this.toast.warning('Sliders', 'El tÃ­tulo es obligatorio.');
+      this.toast.warning('Sliders', 'El título es obligatorio.');
       return;
     }
 
@@ -163,7 +163,7 @@ export class SlidersComponent implements OnInit {
 
     const allowed = ['image/jpeg', 'image/png', 'image/webp'];
     if (!allowed.includes(file.type)) {
-      this.toast.warning('Sliders', 'Formato invÃ¡lido. Use JPG, PNG o WEBP.');
+      this.toast.warning('Sliders', 'Formato inválido. Use JPG, PNG o WEBP.');
       input.value = '';
       return;
     }

@@ -34,9 +34,9 @@ namespace Api.Controllers
             try
             {
                 _logger.LogInformation(
-                    "Dominio Create - Identificacion={Identificacion}, Nombre={Nombre}",
-                    request?.Identificacion,
-                    request?.Nombre
+                    "Dominio Create - Descripcion={Descripcion}, IdPadre={IdPadre}",
+                    request?.Descripcion,
+                    request?.IdPadre
                     
                 );
 

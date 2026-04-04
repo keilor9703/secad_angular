@@ -9,6 +9,9 @@ export interface VideoUnidadInfo {
   fileName: string;
   sizeBytes: number;
   lastModifiedUtc?: string | null;
+  idVideo?: number | null;
+  descripcion?: string | null;
+  observaciones?: string | null;
 }
 
 export interface VideoUnidadUploadResponse {
@@ -30,9 +33,11 @@ export class VideoUnidadService {
     return this.http.get<VideoUnidadInfo>(`${this.baseUrl}/current`);
   }
 
-  upload(file: File): Observable<VideoUnidadUploadResponse> {
+  upload(file: File, descripcion?: string, observaciones?: string): Observable<VideoUnidadUploadResponse> {
     const formData = new FormData();
     formData.append('File', file);
+    if (descripcion) formData.append('Descripcion', descripcion);
+    if (observaciones) formData.append('Observaciones', observaciones);
     const req = new HttpRequest('POST', `${this.baseUrl}/upload`, formData, {
       reportProgress: true
     });

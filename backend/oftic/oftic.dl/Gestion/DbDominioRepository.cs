@@ -32,6 +32,7 @@ namespace Datos.Gestion
             await conn.OpenAsync(ct);
 
             await using var cmd = conn.CreateCommand();
+            cmd.CommandTimeout = 30;
             cmd.BindByName = true;
             cmd.CommandType = CommandType.StoredProcedure;
             cmd.CommandText = "PK_ADMINISTRACION.P_GET_ALL_DOMINIO";
@@ -47,49 +48,7 @@ namespace Datos.Gestion
             return result;
         }
 
-        //public async Task<DtoDominio?> GetByIdAsync(long id, CancellationToken ct)
-        //{
-        //    await using var conn = new OracleConnection(_cs);
-        //    await conn.OpenAsync(ct);
-
-        //    await using var cmd = conn.CreateCommand();
-        //    cmd.BindByName = true;
-        //    cmd.CommandType = CommandType.StoredProcedure;
-        //    cmd.CommandText = "PKG_LINEA_MANDO.P_GET_BY_ID";
-        //    cmd.Parameters.Add("p_id_linea_mando", OracleDbType.Int64).Value = id;
-        //    cmd.Parameters.Add("p_cursor", OracleDbType.RefCursor).Direction = ParameterDirection.Output;
-
-        //    await using var reader = await cmd.ExecuteReaderAsync(ct);
-        //    if (await reader.ReadAsync(ct))
-        //    {
-        //        return MapLineaMando(reader);
-        //    }
-
-        //    return null;
-        //}
-
-        //public async Task<DtoDominio?> GetByIdentificacionAsync(string identificacion, CancellationToken ct)
-        //{
-        //    await using var conn = new OracleConnection(_cs);
-        //    await conn.OpenAsync(ct);
-
-        //    await using var cmd = conn.CreateCommand();
-        //    cmd.BindByName = true;
-        //    cmd.CommandType = CommandType.StoredProcedure;
-        //    cmd.CommandText = "PKG_LINEA_MANDO.P_GET_BY_IDENTIFICACION";
-        //    cmd.Parameters.Add("p_identificacion", OracleDbType.Varchar2).Value = identificacion;
-        //    cmd.Parameters.Add("p_cursor", OracleDbType.RefCursor).Direction = ParameterDirection.Output;
-
-        //    await using var reader = await cmd.ExecuteReaderAsync(ct);
-        //    if (await reader.ReadAsync(ct))
-        //    {
-        //        return MapLineaMando(reader);
-        //    }
-
-        //    return null;
-        //}
-
-        public async Task<DtoDominioResult> CreateAsync(DtoDominioRequest request, long usuarioAuditoria, string maquinaAuditoria, CancellationToken ct)
+       public async Task<DtoDominioResult> CreateAsync(DtoDominioRequest request, long usuarioAuditoria, string maquinaAuditoria, CancellationToken ct)
         {
             var result = new DtoDominioResult();
 
@@ -99,10 +58,11 @@ namespace Datos.Gestion
             await using var transaction = await conn.BeginTransactionAsync(ct);
             try
             {
-                _logger.LogInformation("Ejecutando PK_ADMINISTRACION.P_CREATE_DOMINIO con datos: Identificacion={Ident}, Nombre={Nombre}, Cargo={Cargo}",
-                    request.Identificacion, request.Nombre, request.Cargo);
+                _logger.LogInformation("Ejecutando PK_ADMINISTRACION.P_CREATE_DOMINIO con datos: Descripcion={Desc}, IdPadre={IdPadre}, Abreviatura={Abrev}",
+                    request.Descripcion, request.IdPadre, request.Abreviatura);
 
                 await using var cmd = conn.CreateCommand();
+                cmd.CommandTimeout = 30;
                 cmd.Transaction = (OracleTransaction)transaction;
                 cmd.BindByName = true;
                 cmd.CommandType = CommandType.StoredProcedure;
@@ -120,9 +80,7 @@ namespace Datos.Gestion
                 cmd.Parameters.Add("p_usuario_auditoria", OracleDbType.Varchar2, 50).Value = usuarioStr.Length > 50 ? usuarioStr.Substring(0, 50) : usuarioStr;
                 cmd.Parameters.Add("p_maquina_auditoria", OracleDbType.Varchar2, 100).Value = maquinaStr.Length > 100 ? maquinaStr.Substring(0, 100) : maquinaStr;
 
-                //cmd.Parameters.Add("p_id", OracleDbType.Int64, ParameterDirection.Output);
-                //cmd.Parameters.Add("p_success", OracleDbType.Int32, ParameterDirection.Output);
-                //cmd.Parameters.Add("p_message", OracleDbType.Varchar2, 4000, ParameterDirection.Output);
+           
                 // Parámetros OUTPUT en el mismo orden que el stored procedure
                 OracleParameter pId = new OracleParameter("p_id", OracleDbType.Int64);
                 pId.Direction = ParameterDirection.Output;
@@ -139,9 +97,7 @@ namespace Datos.Gestion
 
                 await cmd.ExecuteNonQueryAsync(ct);
 
-                //result.Id = cmd.Parameters["p_id"].Value != null ? Convert.ToInt64(cmd.Parameters["p_id"].Value) : 0;
-                //result.Success = cmd.Parameters["p_success"].Value != null && Convert.ToInt32(cmd.Parameters["p_success"].Value) == 1;
-                //result.Message = cmd.Parameters["p_message"].Value?.ToString() ?? string.Empty;
+               
                 // DESPUÉS - cast correcto para OracleDecimal
                 var pIdVal = (Oracle.ManagedDataAccess.Types.OracleDecimal)cmd.Parameters["p_id"].Value;
                 result.Id = pIdVal.IsNull ? 0 : (long)pIdVal;
@@ -185,13 +141,20 @@ namespace Datos.Gestion
         {
             var result = new DtoDominioResult();
 
-            await using var conn = new OracleConnection(_cs);
-            await conn.OpenAsync(ct);
+            OracleConnection? conn = null;
+            OracleTransaction? transaction = null;
 
-            await using var transaction = await conn.BeginTransactionAsync(ct);
             try
             {
+                conn = new OracleConnection(_cs);
+                await conn.OpenAsync(ct);
+                transaction = (OracleTransaction)(await conn.BeginTransactionAsync(ct));
+
+                _logger.LogInformation("Ejecutando UPDATE DOMINIO ID={Id}, Descripcion={Desc}, IdPadre={IdPadre}, Vigente={Vigente}",
+                    id, request.Descripcion, request.IdPadre, request.Vigente);
+
                 await using var cmd = conn.CreateCommand();
+                cmd.CommandTimeout = 30;
                 cmd.Transaction = (OracleTransaction)transaction;
                 cmd.BindByName = true;
                 cmd.CommandType = CommandType.StoredProcedure;
@@ -200,7 +163,7 @@ namespace Datos.Gestion
                 cmd.Parameters.Add("P_IdDominio", OracleDbType.Int32).Value = id;
                 cmd.Parameters.Add("P_Descripcion", OracleDbType.Varchar2, 100).Value = (request.Descripcion ?? string.Empty).Length > 100 ? (request.Descripcion ?? string.Empty).Substring(0, 100) : (request.Descripcion ?? string.Empty);
                 cmd.Parameters.Add("P_IdPadre", OracleDbType.Int32).Value = request.IdPadre;
-                cmd.Parameters.Add("P_Vigente", OracleDbType.Int32).Value = request.IdPadre;
+                cmd.Parameters.Add("P_Vigente", OracleDbType.Int32).Value = request.Vigente;
                 cmd.Parameters.Add("P_Abreviatura", OracleDbType.Varchar2, 100).Value = (request.Abreviatura ?? string.Empty).Length > 100 ? (request.Abreviatura ?? string.Empty).Substring(0, 100) : (request.Abreviatura ?? string.Empty);
                 cmd.Parameters.Add("P_Observacion", OracleDbType.Varchar2, 100).Value = (request.Observacion ?? string.Empty).Length > 100 ? (request.Observacion ?? string.Empty).Substring(0, 100) : (request.Observacion ?? string.Empty);
                 
@@ -210,7 +173,6 @@ namespace Datos.Gestion
                 cmd.Parameters.Add("p_usuario_auditoria", OracleDbType.Varchar2, 50).Value = usuarioStrU.Length > 50 ? usuarioStrU.Substring(0, 50) : usuarioStrU;
                 cmd.Parameters.Add("p_maquina_auditoria", OracleDbType.Varchar2, 100).Value = maquinaStrU.Length > 100 ? maquinaStrU.Substring(0, 100) : maquinaStrU;
 
-                // Reemplaza los OUTPUT así:
                 OracleParameter pSuccess = new OracleParameter("p_success", OracleDbType.Int32);
                 pSuccess.Direction = ParameterDirection.Output;
                 cmd.Parameters.Add(pSuccess);
@@ -222,7 +184,6 @@ namespace Datos.Gestion
 
                 await cmd.ExecuteNonQueryAsync(ct);
 
-                // Lectura correcta con OracleDecimal
                 var pSuccessVal = (Oracle.ManagedDataAccess.Types.OracleDecimal)cmd.Parameters["p_success"].Value;
                 result.Success = !pSuccessVal.IsNull && (int)pSuccessVal == 1;
                 result.Message = cmd.Parameters["p_message"].Value?.ToString() ?? string.Empty;
@@ -230,23 +191,45 @@ namespace Datos.Gestion
                 if (result.Success)
                 {
                     await transaction.CommitAsync(ct);
+                    _logger.LogInformation("UPDATE Dominio ID={Id} exitoso", id);
                 }
                 else
                 {
                     await transaction.RollbackAsync(ct);
+                    _logger.LogWarning("UPDATE Dominio ID={Id} fallido: {Message}", id, result.Message);
                 }
             }
             catch (OracleException ex)
             {
-                await transaction.RollbackAsync(ct);
+                if (transaction != null)
+                    await transaction.RollbackAsync(ct);
                 result.Success = false;
                 result.Message = $"Error de base de datos: {ex.Message}";
+                _logger.LogError(ex, "Error Oracle en UPDATE Dominio - Code: {Code}", ex.Number);
+            }
+            catch (System.IO.IOException ex)
+            {
+                if (transaction != null)
+                    await transaction.RollbackAsync(ct);
+                result.Success = false;
+                result.Message = $"Error de conexión: {ex.Message}";
+                _logger.LogError(ex, "Error de E/S en UPDATE Dominio");
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync(ct);
+                if (transaction != null)
+                    await transaction.RollbackAsync(ct);
                 result.Success = false;
                 result.Message = $"Error: {ex.Message}";
+                _logger.LogError(ex, "Error general en UPDATE Dominio");
+            }
+            finally
+            {
+                if (conn != null)
+                {
+                    await conn.CloseAsync();
+                    conn.Dispose();
+                }
             }
 
             return result;
@@ -263,6 +246,7 @@ namespace Datos.Gestion
             try
             {
                 await using var cmd = conn.CreateCommand();
+                cmd.CommandTimeout = 30;
                 cmd.Transaction = (OracleTransaction)transaction;
                 cmd.BindByName = true;
                 cmd.CommandType = CommandType.StoredProcedure;

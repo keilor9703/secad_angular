@@ -19,12 +19,6 @@ namespace Comun.Dtos.Dominio
 
     public class DtoDominioRequest
     {
-        [JsonPropertyName("Identificacion")]
-        public string Identificacion { get; set; } = string.Empty;
-        [JsonPropertyName("Nombre")]
-        public string Nombre { get; set; } = string.Empty;
-        [JsonPropertyName("Cargo")]
-        public string Cargo { get; set; } = string.Empty;
         [JsonPropertyName("Descripcion")]
         public string Descripcion { get; set; } = string.Empty;
         [JsonPropertyName("IdPadre")]
@@ -35,7 +29,6 @@ namespace Comun.Dtos.Dominio
         public string Abreviatura { get; set; } = string.Empty;
         [JsonPropertyName("Observacion")]
         public string Observacion { get; set; } = string.Empty;
-
     }
 
     public class DtoDominioResult

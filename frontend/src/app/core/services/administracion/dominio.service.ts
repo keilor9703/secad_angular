@@ -4,18 +4,20 @@ import { Observable } from 'rxjs';
 import { environment } from '../../../../environments/environment';
 
 export interface DtoDominio {
-  IdDominio: number;
-  Descripcion: string;
-  IdPadre: string;
-  Vigente: number;
-  Abreviatura: string;
-  Observacion: string;
+  idDominio: number;
+  descripcion: string;
+  idPadre: number;
+  vigente: number;
+  abreviatura: string;
+  observacion: string;
 }
 
 export interface DtoDominioRequest {
-  IdDominio: number;
+  Identificacion?: string;
+  Nombre?: string;
+  Cargo?: string;
   Descripcion: string;
-  IdPadre: string;
+  IdPadre: number;
   Vigente: number;
   Abreviatura: string;
   Observacion: string;

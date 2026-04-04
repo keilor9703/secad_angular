@@ -134,6 +134,15 @@ builder.Services.AddScoped<IDbRadioRepository, DbRadioRepository>();
 builder.Services.AddScoped<IDbDominioService, DbDominioService>();
 builder.Services.AddScoped<IDbDominioRepository, DbDominioRepository>();
 
+builder.Services.AddScoped<IDbVideoService, DbVideoService>();
+builder.Services.AddScoped<IDbVideoRepository, DbVideoRepository>();
+
+builder.Services.AddScoped<IDbVideoInstitucionalService, DbVideoInstitucionalService>();
+builder.Services.AddScoped<IDbVideoInstitucionalRepository, DbVideoInstitucionalRepository>();
+
+builder.Services.AddScoped<IDbNoticiaService, DbNoticiaService>();
+builder.Services.AddScoped<IDbNoticiaRepository, DbNoticiaRepository>();
+
 var app = builder.Build();
 
 var uploadsRoot = Path.Combine(app.Environment.ContentRootPath, "uploads", "sliders");
@@ -141,6 +150,9 @@ Directory.CreateDirectory(uploadsRoot);
 
 var radioLogosRoot = Path.Combine(app.Environment.ContentRootPath, "uploads", "radio");
 Directory.CreateDirectory(radioLogosRoot);
+
+var noticiasRoot = Path.Combine(app.Environment.ContentRootPath, "uploads", "noticias");
+Directory.CreateDirectory(noticiasRoot);
 
 app.UseCors("DevCors");
 
@@ -160,6 +172,12 @@ app.UseStaticFiles(new StaticFileOptions
 {
     FileProvider = new PhysicalFileProvider(radioLogosRoot),
     RequestPath = "/uploads/radio"
+});
+
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new PhysicalFileProvider(noticiasRoot),
+    RequestPath = "/uploads/noticias"
 });
 
 app.UseAuthentication();

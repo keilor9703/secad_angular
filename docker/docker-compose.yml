@@ -4,49 +4,39 @@ services:
   # Backend API .NET 8
   backend:
     build:
-      context: ..
-      dockerfile: docker/backend/Dockerfile
+      context: ../backend
+      dockerfile: ../docker/backend/Dockerfile
     container_name: sisge-api
     ports:
       - "5000:8080"
     environment:
       - ASPNETCORE_ENVIRONMENT=Production
-      - ConnectionStrings__Oracle=your-oracle-connection-string
+      - ConnectionStrings__Oracle=Data Source=(DESCRIPTION=(ADDRESS_LIST=(ADDRESS=(PROTOCOL=tcp)(HOST=SRVDBDESA.policia.gov.co)(PORT=1521)))(CONNECT_DATA=(SERVER=dedicated)(SERVICE_NAME=TELEPOL_TEST)));User ID=USR_DEV_TEST;Password=Policia2027*+
       - Jwt__Key=YourSuperSecretKeyAtLeast32Characters!
       - Jwt__Issuer=oftic.api
       - Jwt__Audience=oftic.api
       - Storage__SliderPath=/app/uploads/sliders
       - Storage__RadioLogoPath=/app/uploads/radio
+      - SISGE_BRANDING_PATH=/app/uploads/branding
     volumes:
       - backend-uploads:/app/uploads
     restart: unless-stopped
     networks:
       - sisge-network
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
 
   # Frontend Angular con Nginx
   frontend:
     build:
-      context: ..
-      dockerfile: docker/frontend/Dockerfile
+      context: ../frontend
+      dockerfile: ../docker/frontend/Dockerfile
     container_name: sisge-frontend
     ports:
       - "80:80"
-      - "443:443"
     depends_on:
       - backend
     restart: unless-stopped
     networks:
       - sisge-network
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:80"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
 
 volumes:
   backend-uploads:

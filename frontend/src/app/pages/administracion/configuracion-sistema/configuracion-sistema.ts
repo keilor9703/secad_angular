@@ -21,6 +21,10 @@ export class ConfiguracionSistemaComponent implements OnInit {
   uploading = false;
   info: VideoUnidadInfo | null = null;
   previewUrl = '';
+  selectedVideoFile: File | null = null;
+  selectedVideoPreviewUrl = '';
+  videoDescripcion = '';
+  videoObservaciones = '';
   loginLoading = false;
   loginSaving = false;
   loginUploading = false;
@@ -88,7 +92,7 @@ export class ConfiguracionSistemaComponent implements OnInit {
 
     const allowed = ['video/mp4', 'video/webm', 'video/ogg', 'video/quicktime'];
     if (!allowed.includes(file.type)) {
-      this.toast.warning('Configuracion sistema', 'Formato invÃ¡lido. Use MP4, WEBM, OGG o MOV.');
+      this.toast.warning('Configuracion sistema', 'Formato inválido. Use MP4, WEBM, OGG o MOV.');
       input.value = '';
       return;
     }
@@ -99,8 +103,28 @@ export class ConfiguracionSistemaComponent implements OnInit {
       return;
     }
 
+    this.selectedVideoFile = file;
+    this.selectedVideoPreviewUrl = URL.createObjectURL(file);
+  }
+
+  saveVideo(): void {
+    if (!this.selectedVideoFile) {
+      this.toast.warning('Configuracion sistema', 'Seleccione un archivo de video.');
+      return;
+    }
+
+    const descripcion = (this.videoDescripcion ?? '').trim();
+    if (!descripcion) {
+      this.toast.warning('Configuracion sistema', 'La descripción del video es obligatoria.');
+      return;
+    }
+
     this.uploading = true;
-    this.videoService.upload(file).subscribe({
+    this.videoService.upload(
+      this.selectedVideoFile,
+      descripcion,
+      (this.videoObservaciones ?? '').trim() || undefined
+    ).subscribe({
       next: (resp) => {
         this.uploading = false;
         if (!resp?.success) {
@@ -108,6 +132,10 @@ export class ConfiguracionSistemaComponent implements OnInit {
           return;
         }
         this.toast.success('Configuracion sistema', resp.message || 'Video cargado correctamente.');
+        this.selectedVideoFile = null;
+        this.selectedVideoPreviewUrl = '';
+        this.videoDescripcion = '';
+        this.videoObservaciones = '';
         this.loadCurrent();
       },
       error: (err) => {
@@ -137,7 +165,7 @@ export class ConfiguracionSistemaComponent implements OnInit {
       error: (err) => {
         this.loginLoading = false;
         this.loginItems = [];
-        this.toast.error('Visual Login', err?.error?.message ?? 'No fue posible cargar la configuraciÃ³n.');
+        this.toast.error('Visual Login', err?.error?.message ?? 'No fue posible cargar la configuración.');
       }
     });
   }
@@ -151,7 +179,7 @@ export class ConfiguracionSistemaComponent implements OnInit {
 
     const allowed = ['image/jpeg', 'image/png', 'image/webp'];
     if (!allowed.includes(file.type)) {
-      this.toast.warning('Visual Login', 'Formato invÃ¡lido. Use JPG, PNG o WEBP.');
+      this.toast.warning('Visual Login', 'Formato inválido. Use JPG, PNG o WEBP.');
       input.value = '';
       return;
     }
@@ -214,15 +242,15 @@ export class ConfiguracionSistemaComponent implements OnInit {
       next: (resp) => {
         this.loginSaving = false;
         if (!resp?.success) {
-          this.toast.warning('Visual Login', resp?.message || 'No fue posible guardar la configuraciÃ³n.');
+          this.toast.warning('Visual Login', resp?.message || 'No fue posible guardar la configuración.');
           return;
         }
-        this.toast.success('Visual Login', resp.message || 'ConfiguraciÃ³n guardada correctamente.');
+        this.toast.success('Visual Login', resp.message || 'Configuración guardada correctamente.');
         this.loadLoginVisualConfig();
       },
       error: (err) => {
         this.loginSaving = false;
-        this.toast.error('Visual Login', err?.error?.detail ?? err?.error?.message ?? 'Error guardando configuraciÃ³n.');
+        this.toast.error('Visual Login', err?.error?.detail ?? err?.error?.message ?? 'Error guardando configuración.');
       }
     });
   }
@@ -260,7 +288,7 @@ export class ConfiguracionSistemaComponent implements OnInit {
       },
       error: (err) => {
         this.brandingLoading = false;
-        this.toast.error('Marca del sistema', err?.error?.message ?? 'No fue posible cargar la configuraciÃ³n de marca.');
+        this.toast.error('Marca del sistema', err?.error?.message ?? 'No fue posible cargar la configuración de marca.');
       }
     });
   }
@@ -274,7 +302,7 @@ export class ConfiguracionSistemaComponent implements OnInit {
 
     const allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/svg+xml'];
     if (!allowed.includes(file.type)) {
-      this.toast.warning('Marca del sistema', 'Formato invÃ¡lido. Use JPG, PNG, WEBP o SVG.');
+      this.toast.warning('Marca del sistema', 'Formato inválido. Use JPG, PNG, WEBP o SVG.');
       input.value = '';
       return;
     }
@@ -313,7 +341,7 @@ export class ConfiguracionSistemaComponent implements OnInit {
 
     const allowed = ['image/x-icon', 'image/vnd.microsoft.icon', 'image/png', 'image/svg+xml', 'image/webp'];
     if (!allowed.includes(file.type)) {
-      this.toast.warning('Marca del sistema', 'Formato invÃƒÂ¡lido. Use ICO, PNG, WEBP o SVG.');
+      this.toast.warning('Marca del sistema', 'Formato inválido. Use ICO, PNG, WEBP o SVG.');
       input.value = '';
       return;
     }
@@ -374,15 +402,15 @@ export class ConfiguracionSistemaComponent implements OnInit {
       next: (resp) => {
         this.brandingSaving = false;
         if (!resp?.success) {
-          this.toast.warning('Marca del sistema', resp?.message || 'No fue posible guardar la configuraciÃ³n.');
+          this.toast.warning('Marca del sistema', resp?.message || 'No fue posible guardar la configuración.');
           return;
         }
-        this.toast.success('Marca del sistema', resp.message || 'ConfiguraciÃ³n guardada correctamente.');
+        this.toast.success('Marca del sistema', resp.message || 'Configuración guardada correctamente.');
         this.loadBrandingConfig();
       },
       error: (err) => {
         this.brandingSaving = false;
-        this.toast.error('Marca del sistema', err?.error?.detail ?? err?.error?.message ?? 'Error guardando configuraciÃ³n.');
+        this.toast.error('Marca del sistema', err?.error?.detail ?? err?.error?.message ?? 'Error guardando configuración.');
       }
     });
   }

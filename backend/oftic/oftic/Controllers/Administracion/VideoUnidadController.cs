@@ -5,12 +5,17 @@ using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using ofic.Security;
+using Negocio.Interfaz;
+using Comun.Dtos.Videos;
+using System.Security.Claims;
 
 namespace ofic.Controllers.Administracion
 {
     public class DtoVideoUnidadUploadRequest
     {
         public IFormFile? File { get; set; }
+        public string? Descripcion { get; set; }
+        public string? Observaciones { get; set; }
     }
 
     [ApiController]
@@ -25,14 +30,17 @@ namespace ofic.Controllers.Administracion
         };
 
         private readonly ILogger<VideoUnidadController> _logger;
+        private readonly IDbVideoService _videoService;
         private readonly string _videoRootPath;
 
         public VideoUnidadController(
             ILogger<VideoUnidadController> logger,
             IConfiguration configuration,
-            IHostEnvironment environment)
+            IHostEnvironment environment,
+            IDbVideoService videoService)
         {
             _logger = logger;
+            _videoService = videoService;
             _videoRootPath = ResolveStoragePath(
                 configuration,
                 "Storage:VideoPath",
@@ -40,13 +48,18 @@ namespace ofic.Controllers.Administracion
         }
 
         [HttpGet("current")]
-        [Authorize]
-        public IActionResult GetCurrent()
+        [AllowAnonymous]
+        public async Task<IActionResult> GetCurrent()
         {
             try
             {
                 Directory.CreateDirectory(_videoRootPath);
                 var file = GetLatestVideoFile();
+
+                // Consultar metadatos de BD
+                var dbVideos = await _videoService.GetAllAsync(CancellationToken.None);
+                var dbVideo = dbVideos.FirstOrDefault();
+
                 if (file is null)
                 {
                     return Ok(new
@@ -55,7 +68,10 @@ namespace ofic.Controllers.Administracion
                         url = string.Empty,
                         fileName = string.Empty,
                         sizeBytes = 0L,
-                        lastModifiedUtc = (DateTime?)null
+                        lastModifiedUtc = (DateTime?)null,
+                        idVideo = dbVideo?.IdVideo,
+                        descripcion = dbVideo?.Descripcion,
+                        observaciones = dbVideo?.Observaciones
                     });
                 }
 
@@ -65,13 +81,43 @@ namespace ofic.Controllers.Administracion
                     url = $"/api/VideoUnidad/stream?v={file.LastWriteTimeUtc.Ticks}",
                     fileName = file.Name,
                     sizeBytes = file.Length,
-                    lastModifiedUtc = file.LastWriteTimeUtc
+                    lastModifiedUtc = file.LastWriteTimeUtc,
+                    idVideo = dbVideo?.IdVideo,
+                    descripcion = dbVideo?.Descripcion,
+                    observaciones = dbVideo?.Observaciones
                 });
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error consultando video actual de unidad");
                 return StatusCode(500, new { message = "Error consultando video actual." });
+            }
+        }
+
+        [HttpGet("public")]
+        [AllowAnonymous]
+        public IActionResult GetPublic()
+        {
+            try
+            {
+                Directory.CreateDirectory(_videoRootPath);
+                var file = GetLatestVideoFile();
+
+                if (file is null)
+                {
+                    return Ok(new { hasVideo = false, url = "" });
+                }
+
+                return Ok(new
+                {
+                    hasVideo = true,
+                    url = $"/api/VideoUnidad/stream?v={file.LastWriteTimeUtc.Ticks}"
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error en GetPublic video");
+                return StatusCode(500, new { hasVideo = false, url = "" });
             }
         }
 
@@ -149,6 +195,22 @@ namespace ofic.Controllers.Administracion
                     await file.CopyToAsync(stream);
                 }
 
+                // Guardar registro en base de datos
+                var (usuario, maquina) = ObtenerAuditoria();
+                var descripcion = (request?.Descripcion ?? string.Empty).Trim();
+                var dbRequest = new DtoVideoRequest
+                {
+                    Descripcion = string.IsNullOrWhiteSpace(descripcion) ? safeName : descripcion,
+                    Observaciones = (request?.Observaciones ?? string.Empty).Trim() is { Length: > 0 } obs ? obs : null,
+                    RutaVideo = safeName,
+                    Vigente = 1
+                };
+                var dbResult = await _videoService.CreateAsync(dbRequest, usuario, maquina, CancellationToken.None);
+                if (!dbResult.Success)
+                {
+                    _logger.LogWarning("Video guardado en disco pero fallo el registro en BD: {Message}", dbResult.Message);
+                }
+
                 return Ok(new
                 {
                     success = true,
@@ -181,6 +243,20 @@ namespace ofic.Controllers.Administracion
             var configured = configuration[key];
             var path = string.IsNullOrWhiteSpace(configured) ? fallback : configured.Trim();
             return Path.GetFullPath(path);
+        }
+
+        private (string usuario, string maquina) ObtenerAuditoria()
+        {
+            var usuario = User.FindFirstValue(ClaimTypes.Name)
+                ?? User.FindFirstValue("unique_name")
+                ?? User.FindFirstValue("nameid")
+                ?? "sistema";
+
+            var maquina = HttpContext.Connection.RemoteIpAddress?.ToString()
+                ?? Environment.MachineName
+                ?? "N/A";
+
+            return (usuario, maquina);
         }
     }
 }

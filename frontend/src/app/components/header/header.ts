@@ -112,7 +112,7 @@ export class HeaderComponent implements OnInit {
   }
 
   onNotificationClick(notification: Notification): void {
-    console.log('NotificaciÃ³n clickeada:', notification);
+    console.log('Notificación clickeada:', notification);
   }
 
   onProfileClick(): void {
