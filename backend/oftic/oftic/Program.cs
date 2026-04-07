@@ -128,6 +128,10 @@ builder.Services.AddScoped<IJwtService, JwtService>();
 
 builder.Services.AddScoped<IDbLineaMandoService, DbLineaMandoService>();
 builder.Services.AddScoped<IDbLineaMandoRepository, DbLineaMandoRepository>();
+
+builder.Services.AddScoped<IDbPersonajeMesService, DbPersonajeMesService>();
+builder.Services.AddScoped<IDbPersonajeMesRepository, DbPersonajeMesRepository>();
+
 builder.Services.AddScoped<IDbRadioService, DbRadioService>();
 builder.Services.AddScoped<IDbRadioRepository, DbRadioRepository>();
 

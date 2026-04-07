@@ -1,4 +1,4 @@
-using Comun.Dtos.LineasMando;
+﻿using Comun.Dtos.PersonajeMes;
 using Datos.Interfaz;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
@@ -6,25 +6,26 @@ using Oracle.ManagedDataAccess.Client;
 using System;
 using System.Collections.Generic;
 using System.Data;
-using System.Threading;
+using System.Linq;
+using System.Text;
 using System.Threading.Tasks;
 
 namespace Datos.Gestion
 {
-    public class DbLineaMandoRepository : IDbLineaMandoRepository
+    public class DbPersonajeMesRepository : IDbPersonajeMesRepository
     {
         private readonly string _cs;
-        private readonly ILogger<DbLineaMandoRepository> _logger;
+        private readonly ILogger<DbPersonajeMesRepository> _logger;
 
-        public DbLineaMandoRepository(IConfiguration configuration, ILogger<DbLineaMandoRepository> logger)
+        public DbPersonajeMesRepository(IConfiguration configuration, ILogger<DbPersonajeMesRepository> logger)
         {
             _cs = configuration.GetConnectionString("DbOracle")!;
             _logger = logger;
         }
 
-        public async Task<List<DtoLineaMando>> GetAllAsync(CancellationToken ct)
+        public async Task<List<DtoPersonajeMes>> GetAllAsync(CancellationToken ct)
         {
-            var result = new List<DtoLineaMando>();
+            var result = new List<DtoPersonajeMes>();
 
             await using var conn = new OracleConnection(_cs);
             await conn.OpenAsync(ct);
@@ -32,63 +33,20 @@ namespace Datos.Gestion
             await using var cmd = conn.CreateCommand();
             cmd.BindByName = true;
             cmd.CommandType = CommandType.StoredProcedure;
-            cmd.CommandText = "PKG_LINEA_MANDO.P_GET_ALL";
+            cmd.CommandText = "PKG_PERSONAJE_MES.P_GET_ALL";
             cmd.Parameters.Add("p_cursor", OracleDbType.RefCursor).Direction = ParameterDirection.Output;
 
             await using var reader = await cmd.ExecuteReaderAsync(ct);
             while (await reader.ReadAsync(ct))
             {
-                result.Add(MapLineaMando(reader));
+                result.Add(MapPersonajeMes(reader));
             }
 
             return result;
         }
-
-        public async Task<DtoLineaMando?> GetByIdAsync(long id, CancellationToken ct)
+        public async Task<DtoPersonajeMesResult> CreateAsync(DtoPersonajeMesRequest request, long usuarioAuditoria, string maquinaAuditoria, CancellationToken ct)
         {
-            await using var conn = new OracleConnection(_cs);
-            await conn.OpenAsync(ct);
-
-            await using var cmd = conn.CreateCommand();
-            cmd.BindByName = true;
-            cmd.CommandType = CommandType.StoredProcedure;
-            cmd.CommandText = "PKG_LINEA_MANDO.P_GET_BY_ID";
-            cmd.Parameters.Add("p_id_linea_mando", OracleDbType.Int64).Value = id;
-            cmd.Parameters.Add("p_cursor", OracleDbType.RefCursor).Direction = ParameterDirection.Output;
-
-            await using var reader = await cmd.ExecuteReaderAsync(ct);
-            if (await reader.ReadAsync(ct))
-            {
-                return MapLineaMando(reader);
-            }
-
-            return null;
-        }
-
-        public async Task<DtoLineaMando?> GetByIdentificacionAsync(string identificacion, CancellationToken ct)
-        {
-            await using var conn = new OracleConnection(_cs);
-            await conn.OpenAsync(ct);
-
-            await using var cmd = conn.CreateCommand();
-            cmd.BindByName = true;
-            cmd.CommandType = CommandType.StoredProcedure;
-            cmd.CommandText = "PKG_LINEA_MANDO.P_GET_BY_IDENTIFICACION";
-            cmd.Parameters.Add("p_identificacion", OracleDbType.Varchar2).Value = identificacion;
-            cmd.Parameters.Add("p_cursor", OracleDbType.RefCursor).Direction = ParameterDirection.Output;
-
-            await using var reader = await cmd.ExecuteReaderAsync(ct);
-            if (await reader.ReadAsync(ct))
-            {
-                return MapLineaMando(reader);
-            }
-
-            return null;
-        }
-        
-        public async Task<DtoLineaMandoResult> CreateAsync(DtoLineaMandoRequest request, long usuarioAuditoria, string maquinaAuditoria, CancellationToken ct)
-        {
-            var result = new DtoLineaMandoResult();
+            var result = new DtoPersonajeMesResult();
 
             await using var conn = new OracleConnection(_cs);
             await conn.OpenAsync(ct);
@@ -96,29 +54,29 @@ namespace Datos.Gestion
             await using var transaction = await conn.BeginTransactionAsync(ct);
             try
             {
-                _logger.LogInformation("Ejecutando PKG_LINEA_MANDO.P_CREATE con datos: Identificacion={Ident}, Nombre={Nombre}, Cargo={Cargo}",
-                    request.Identificacion, request.Nombre, request.Cargo);
+                _logger.LogInformation("Ejecutando PKG_PERSONAJE_MES.P_CREATE con datos: Identificacion={Ident}, Nombre={Nombre}, Cargo={Cargo}",
+                    request.Identificacion, request.Nombres, request.Cargo);
 
                 await using var cmd = conn.CreateCommand();
                 cmd.Transaction = (OracleTransaction)transaction;
                 cmd.BindByName = true;
                 cmd.CommandType = CommandType.StoredProcedure;
-                cmd.CommandText = "PKG_LINEA_MANDO.P_CREATE";
+                cmd.CommandText = "PKG_PERSONAJE_MES.P_CREATE";
 
                 cmd.Parameters.Add("p_identificacion", OracleDbType.Varchar2, 20).Value = (request.Identificacion ?? string.Empty).Length > 20 ? (request.Identificacion ?? string.Empty).Substring(0, 20) : (request.Identificacion ?? string.Empty);
-                cmd.Parameters.Add("p_nombre", OracleDbType.Varchar2, 100).Value = (request.Nombre ?? string.Empty).Length > 100 ? (request.Nombre ?? string.Empty).Substring(0, 100) : (request.Nombre ?? string.Empty);
+                cmd.Parameters.Add("p_nombres", OracleDbType.Varchar2, 100).Value = (request.Nombres ?? string.Empty).Length > 100 ? (request.Nombres ?? string.Empty).Substring(0, 100) : (request.Nombres ?? string.Empty);
                 cmd.Parameters.Add("p_apellidos", OracleDbType.Varchar2, 100).Value = (request.Apellidos ?? string.Empty).Length > 100 ? (request.Apellidos ?? string.Empty).Substring(0, 100) : (request.Apellidos ?? string.Empty);
                 cmd.Parameters.Add("p_grado", OracleDbType.Varchar2, 50).Value = (request.Grado ?? string.Empty).Length > 50 ? (request.Grado ?? string.Empty).Substring(0, 50) : (request.Grado ?? string.Empty);
                 cmd.Parameters.Add("p_cargo", OracleDbType.Varchar2, 100).Value = (request.Cargo ?? string.Empty).Length > 100 ? (request.Cargo ?? string.Empty).Substring(0, 100) : (request.Cargo ?? string.Empty);
-                cmd.Parameters.Add("p_peso", OracleDbType.Varchar2, 10).Value = (request.Peso ?? string.Empty).Length > 10 ? (request.Peso ?? string.Empty).Substring(0, 10) : (request.Peso ?? string.Empty);
                 cmd.Parameters.Add("p_unidad", OracleDbType.Varchar2, 200).Value = (request.Unidad ?? string.Empty).Length > 200 ? (request.Unidad ?? string.Empty).Substring(0, 200) : (request.Unidad ?? string.Empty);
-
+               
                 var fotoNormalizada = NormalizeBase64(request.FotoBase64);
                 var clobParam = new OracleParameter("p_foto_base64", OracleDbType.Clob);
                 clobParam.Value = !string.IsNullOrEmpty(fotoNormalizada) ? (object)fotoNormalizada : DBNull.Value;
                 cmd.Parameters.Add(clobParam);
 
-                cmd.Parameters.Add("p_orden", OracleDbType.Int32).Value = request.Orden;
+                cmd.Parameters.Add("p_idcategoria", OracleDbType.Int32).Value = request.IdCategoria;
+                cmd.Parameters.Add("p_numeroacta", OracleDbType.Varchar2, 50).Value = (request.NumeroActa ?? string.Empty).Length > 50 ? (request.NumeroActa ?? string.Empty).Substring(0, 50) : (request.NumeroActa ?? string.Empty);
 
                 var usuarioStr = usuarioAuditoria.ToString();
                 var maquinaStr = maquinaAuditoria ?? "N/A";
@@ -151,12 +109,12 @@ namespace Datos.Gestion
                 if (result.Success)
                 {
                     await transaction.CommitAsync(ct);
-                    _logger.LogInformation("Línea de mando creada exitosamente con ID: {Id}", result.Id);
+                    _logger.LogInformation("Personje del mes creado exitosamente con ID: {Id}", result.Id);
                 }
                 else
                 {
                     await transaction.RollbackAsync(ct);
-                    _logger.LogWarning("Error al crear línea de mando: {Message}", result.Message);
+                    _logger.LogWarning("Error al crear personaje del mes: {Message}", result.Message);
                 }
             }
             catch (OracleException ex)
@@ -165,7 +123,7 @@ namespace Datos.Gestion
                 result.Id = 0;
                 result.Success = false;
                 result.Message = $"Error Oracle: {ex.Message}";
-                _logger.LogError(ex, "Error Oracle al crear línea de mando - Code: {Code}, Message: {Message}", ex.Number, ex.Message);
+                _logger.LogError(ex, "Error Oracle al crear personaje del mes - Code: {Code}, Message: {Message}", ex.Number, ex.Message);
             }
             catch (Exception ex)
             {
@@ -173,17 +131,16 @@ namespace Datos.Gestion
                 result.Id = 0;
                 result.Success = false;
                 result.Message = $"Error: {ex.Message}";
-                _logger.LogError(ex, "Error general al crear línea de mando: {Message}", ex.Message);
+                _logger.LogError(ex, "Error general al crear personaje del mes: {Message}", ex.Message);
             }
 
             return result;
         }
-        
-        public async Task<DtoLineaMandoResult> UpdateAsync(long id, DtoLineaMandoRequest request, long usuarioAuditoria, string maquinaAuditoria, CancellationToken ct)
+        public async Task<DtoPersonajeMesResult> UpdateAsync(long id, DtoPersonajeMesRequest request, long usuarioAuditoria, string maquinaAuditoria, CancellationToken ct)
         {
             _logger.LogInformation("UpdateAsync llamado - ID: {Id}, FotoBase64 length: {Length}", id, request.FotoBase64?.Length ?? 0);
 
-            var result = new DtoLineaMandoResult();
+            var result = new DtoPersonajeMesResult();
 
             await using var conn = new OracleConnection(_cs);
             await conn.OpenAsync(ct);
@@ -198,13 +155,12 @@ namespace Datos.Gestion
                 cmd.CommandType = CommandType.StoredProcedure;
                 cmd.CommandText = "PKG_LINEA_MANDO.P_UPDATE";
 
-                cmd.Parameters.Add("p_id_linea_mando", OracleDbType.Int64).Value = id;
+                cmd.Parameters.Add("p_id_personaje_mes", OracleDbType.Int64).Value = id;
                 cmd.Parameters.Add("p_identificacion", OracleDbType.Varchar2, 20).Value = (request.Identificacion ?? string.Empty).Length > 20 ? (request.Identificacion ?? string.Empty).Substring(0, 20) : (request.Identificacion ?? string.Empty);
-                cmd.Parameters.Add("p_nombre", OracleDbType.Varchar2, 100).Value = (request.Nombre ?? string.Empty).Length > 100 ? (request.Nombre ?? string.Empty).Substring(0, 100) : (request.Nombre ?? string.Empty);
+                cmd.Parameters.Add("p_nombres", OracleDbType.Varchar2, 100).Value = (request.Nombres ?? string.Empty).Length > 100 ? (request.Nombres ?? string.Empty).Substring(0, 100) : (request.Nombres ?? string.Empty);
                 cmd.Parameters.Add("p_apellidos", OracleDbType.Varchar2, 100).Value = (request.Apellidos ?? string.Empty).Length > 100 ? (request.Apellidos ?? string.Empty).Substring(0, 100) : (request.Apellidos ?? string.Empty);
                 cmd.Parameters.Add("p_grado", OracleDbType.Varchar2, 50).Value = (request.Grado ?? string.Empty).Length > 50 ? (request.Grado ?? string.Empty).Substring(0, 50) : (request.Grado ?? string.Empty);
                 cmd.Parameters.Add("p_cargo", OracleDbType.Varchar2, 100).Value = (request.Cargo ?? string.Empty).Length > 100 ? (request.Cargo ?? string.Empty).Substring(0, 100) : (request.Cargo ?? string.Empty);
-                cmd.Parameters.Add("p_peso", OracleDbType.Varchar2, 10).Value = (request.Peso ?? string.Empty).Length > 10 ? (request.Peso ?? string.Empty).Substring(0, 10) : (request.Peso ?? string.Empty);
                 cmd.Parameters.Add("p_unidad", OracleDbType.Varchar2, 200).Value = (request.Unidad ?? string.Empty).Length > 200 ? (request.Unidad ?? string.Empty).Substring(0, 200) : (request.Unidad ?? string.Empty);
 
                 var fotoNormalizada = NormalizeBase64(request.FotoBase64);
@@ -215,7 +171,9 @@ namespace Datos.Gestion
                 };
                 cmd.Parameters.Add(clobParam);
 
-                cmd.Parameters.Add("p_orden", OracleDbType.Int32).Value = request.Orden;
+                cmd.Parameters.Add("p_idcategoria", OracleDbType.Int32).Value = request.IdCategoria;
+                cmd.Parameters.Add("p_numeroacta", OracleDbType.Varchar2, 50).Value = (request.NumeroActa ?? string.Empty).Length > 50 ? (request.NumeroActa ?? string.Empty).Substring(0, 50) : (request.NumeroActa ?? string.Empty);
+
 
                 var usuarioStrU = usuarioAuditoria.ToString();
                 var maquinaStrU = maquinaAuditoria ?? "N/A";
@@ -241,12 +199,12 @@ namespace Datos.Gestion
                 if (result.Success)
                 {
                     await transaction.CommitAsync(ct);
-                    _logger.LogInformation("Línea de mando actualizada exitosamente - ID: {Id}", id);
+                    _logger.LogInformation("Personaje del mes actualizada exitosamente - ID: {Id}", id);
                 }
                 else
                 {
                     await transaction.RollbackAsync(ct);
-                    _logger.LogWarning("Error al actualizar línea de mando: {Message}", result.Message);
+                    _logger.LogWarning("Error al actualizar personaje del mes: {Message}", result.Message);
                 }
             }
             catch (OracleException ex)
@@ -267,9 +225,9 @@ namespace Datos.Gestion
             _logger.LogInformation("UpdateAsync result - Success: {Success}, Message: {Message}", result.Success, result.Message);
             return result;
         }
-        public async Task<DtoLineaMandoResult> DeleteAsync(long id, long usuarioAuditoria, string maquinaAuditoria, CancellationToken ct)
+        public async Task<DtoPersonajeMesResult> DeleteAsync(long id, long usuarioAuditoria, string maquinaAuditoria, CancellationToken ct)
         {
-            var result = new DtoLineaMandoResult();
+            var result = new DtoPersonajeMesResult();
 
             await using var conn = new OracleConnection(_cs);
             await conn.OpenAsync(ct);
@@ -281,13 +239,13 @@ namespace Datos.Gestion
                 cmd.Transaction = (OracleTransaction)transaction;
                 cmd.BindByName = true;
                 cmd.CommandType = CommandType.StoredProcedure;
-                cmd.CommandText = "PKG_LINEA_MANDO.P_DELETE";
+                cmd.CommandText = "PKG_PERSONAJE_MES.P_DELETE";
 
-                cmd.Parameters.Add("p_id_linea_mando", OracleDbType.Int64).Value = id;
-                
+                cmd.Parameters.Add("p_id_personaje_mes", OracleDbType.Int64).Value = id;
+
                 var usuarioStrD = usuarioAuditoria.ToString();
                 var maquinaStrD = maquinaAuditoria ?? "N/A";
-                
+
                 cmd.Parameters.Add("p_usuario_auditoria", OracleDbType.Varchar2, 50).Value = usuarioStrD.Length > 50 ? usuarioStrD.Substring(0, 50) : usuarioStrD;
                 cmd.Parameters.Add("p_maquina_auditoria", OracleDbType.Varchar2, 100).Value = maquinaStrD.Length > 100 ? maquinaStrD.Substring(0, 100) : maquinaStrD;
 
@@ -331,10 +289,9 @@ namespace Datos.Gestion
 
             return result;
         }
-
-        public async Task<DtoLineaMandoResult> SetVigenteAsync(long id, int vigente, long usuarioAuditoria, string maquinaAuditoria, CancellationToken ct)
+        public async Task<DtoPersonajeMesResult> SetVigenteAsync(long id, int vigente, long usuarioAuditoria, string maquinaAuditoria, CancellationToken ct)
         {
-            var result = new DtoLineaMandoResult();
+            var result = new DtoPersonajeMesResult();
 
             await using var conn = new OracleConnection(_cs);
             await conn.OpenAsync(ct);
@@ -346,9 +303,9 @@ namespace Datos.Gestion
                 cmd.Transaction = (OracleTransaction)transaction;
                 cmd.BindByName = true;
                 cmd.CommandType = CommandType.StoredProcedure;
-                cmd.CommandText = "PKG_LINEA_MANDO.P_SET_VIGENTE";
+                cmd.CommandText = "PKG_PERSONAJE_MES.P_SET_VIGENTE";
 
-                cmd.Parameters.Add("p_id_linea_mando", OracleDbType.Int64).Value = id;
+                cmd.Parameters.Add("p_id_personaje_mes", OracleDbType.Int64).Value = id;
                 cmd.Parameters.Add("p_vigente", OracleDbType.Int32).Value = vigente;
 
                 var usuarioStrV = usuarioAuditoria.ToString();
@@ -375,7 +332,7 @@ namespace Datos.Gestion
                 if (result.Success)
                 {
                     await transaction.CommitAsync(ct);
-                    _logger.LogInformation("Vigente actualizado para línea de mando {Id}", id);
+                    _logger.LogInformation("Vigente actualizado para personaje del mes {Id}", id);
                 }
                 else
                 {
@@ -401,24 +358,24 @@ namespace Datos.Gestion
             return result;
         }
 
-        private static DtoLineaMando MapLineaMando(OracleDataReader reader)
+
+        private static DtoPersonajeMes MapPersonajeMes(OracleDataReader reader)
         {
-            return new DtoLineaMando
+            return new DtoPersonajeMes
             {
-                IdLineaMando = reader.GetInt64(reader.GetOrdinal("ID_LINEA_MANDO")),
+                IdPersonajeMes = reader.GetInt32(reader.GetOrdinal("ID_PERSONAJE_MES")),
                 Identificacion = reader.IsDBNull(reader.GetOrdinal("IDENTIFICACION")) ? string.Empty : reader.GetString(reader.GetOrdinal("IDENTIFICACION")),
-                Nombre = reader.IsDBNull(reader.GetOrdinal("NOMBRE")) ? string.Empty : reader.GetString(reader.GetOrdinal("NOMBRE")),
+                Nombres = reader.IsDBNull(reader.GetOrdinal("NOMBRES")) ? string.Empty : reader.GetString(reader.GetOrdinal("NOMBRES")),
                 Apellidos = reader.IsDBNull(reader.GetOrdinal("APELLIDOS")) ? string.Empty : reader.GetString(reader.GetOrdinal("APELLIDOS")),
                 Grado = reader.IsDBNull(reader.GetOrdinal("GRADO")) ? string.Empty : reader.GetString(reader.GetOrdinal("GRADO")),
-                Cargo = reader.IsDBNull(reader.GetOrdinal("CARGO")) ? string.Empty : reader.GetString(reader.GetOrdinal("CARGO")),
-                Peso = reader.IsDBNull(reader.GetOrdinal("PESO")) ? string.Empty : reader.GetString(reader.GetOrdinal("PESO")),
+                Cargo = reader.IsDBNull(reader.GetOrdinal("CARGO")) ? string.Empty : reader.GetString(reader.GetOrdinal("CARGO")),                
                 Unidad = reader.IsDBNull(reader.GetOrdinal("UNIDAD")) ? string.Empty : reader.GetString(reader.GetOrdinal("UNIDAD")),
                 FotoBase64 = reader.IsDBNull(reader.GetOrdinal("FOTO_BASE64")) ? null : reader.GetString(reader.GetOrdinal("FOTO_BASE64")),
-                Orden = reader.IsDBNull(reader.GetOrdinal("ORDEN")) ? 1 : reader.GetInt32(reader.GetOrdinal("ORDEN")),
+                IdCategoria = reader.GetInt64(reader.GetOrdinal("ID_CATEGORIA")),
+                NumeroActa = reader.IsDBNull(reader.GetOrdinal("NUMERO_ACTA")) ? string.Empty : reader.GetString(reader.GetOrdinal("NUMERO_ACTA")),
                 Vigente = reader.IsDBNull(reader.GetOrdinal("VIGENTE")) ? 1 : reader.GetInt32(reader.GetOrdinal("VIGENTE"))
             };
         }
-
         private static string? NormalizeBase64(string? raw)
         {
             if (string.IsNullOrWhiteSpace(raw))
@@ -435,5 +392,7 @@ namespace Datos.Gestion
 
             return value;
         }
+
+
     }
 }
