@@ -318,6 +318,7 @@ onItemTap(item: MenuItem, ev: MouseEvent) {
       '/usuarios': '/administracion/usuarios',
       '/roles': '/administracion/roles',
       '/linea-mando': '/administracion/linea-mando',
+      '/personaje-mes': '/administracion/personaje-mes',
       '/radio': '/administracion/radio',
       '/menu': '/administracion/menu',
       '/auditoria': '/administracion/auditoria',
@@ -407,6 +408,7 @@ onItemTap(item: MenuItem, ev: MouseEvent) {
       route === '/usuarios' ||
       route === '/roles' ||
       route === '/linea-mando' ||
+      route === '/personaje-mes' ||
       route === '/radio' ||
       route === '/configuracion-sistema' ||
       route === '/video-unidad' ||

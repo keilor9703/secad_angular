@@ -37,6 +37,30 @@ namespace Datos.Gestion
             cmd.Parameters.Add("p_cursor", OracleDbType.RefCursor).Direction = ParameterDirection.Output;
 
             await using var reader = await cmd.ExecuteReaderAsync(ct);
+
+            var columnasDisponibles = Enumerable.Range(0, reader.FieldCount)
+                .Select(reader.GetName)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            var columnasEsperadas = new[]
+            {
+                "ID_PERSONAJE_MES", "IDENTIFICACION", "NOMBRES", "APELLIDOS", "GRADO",
+                "CARGO", "UNIDAD", "FOTO_MODIFICADA", "ID_CATEGORIA", "NUMERO_ACTA",
+                "VIGENTE", "MES", "ANIO"
+            };
+
+            var columnasFaltantes = columnasEsperadas
+                .Where(col => !columnasDisponibles.Contains(col))
+                .ToArray();
+
+            if (columnasFaltantes.Length > 0)
+            {
+                _logger.LogWarning(
+                    "PKG_PERSONAJE_MES.P_GET_ALL no devolvió todas las columnas esperadas. Faltantes: {Faltantes}. Disponibles: {Disponibles}",
+                    string.Join(", ", columnasFaltantes),
+                    string.Join(", ", columnasDisponibles.OrderBy(c => c)));
+            }
+
             while (await reader.ReadAsync(ct))
             {
                 result.Add(MapPersonajeMes(reader));
@@ -63,26 +87,29 @@ namespace Datos.Gestion
                 cmd.CommandType = CommandType.StoredProcedure;
                 cmd.CommandText = "PKG_PERSONAJE_MES.P_CREATE";
 
+                // ORDEN CORRECTO según la firma del procedimiento Oracle
                 cmd.Parameters.Add("p_identificacion", OracleDbType.Varchar2, 20).Value = (request.Identificacion ?? string.Empty).Length > 20 ? (request.Identificacion ?? string.Empty).Substring(0, 20) : (request.Identificacion ?? string.Empty);
                 cmd.Parameters.Add("p_nombres", OracleDbType.Varchar2, 100).Value = (request.Nombres ?? string.Empty).Length > 100 ? (request.Nombres ?? string.Empty).Substring(0, 100) : (request.Nombres ?? string.Empty);
                 cmd.Parameters.Add("p_apellidos", OracleDbType.Varchar2, 100).Value = (request.Apellidos ?? string.Empty).Length > 100 ? (request.Apellidos ?? string.Empty).Substring(0, 100) : (request.Apellidos ?? string.Empty);
                 cmd.Parameters.Add("p_grado", OracleDbType.Varchar2, 50).Value = (request.Grado ?? string.Empty).Length > 50 ? (request.Grado ?? string.Empty).Substring(0, 50) : (request.Grado ?? string.Empty);
                 cmd.Parameters.Add("p_cargo", OracleDbType.Varchar2, 100).Value = (request.Cargo ?? string.Empty).Length > 100 ? (request.Cargo ?? string.Empty).Substring(0, 100) : (request.Cargo ?? string.Empty);
                 cmd.Parameters.Add("p_unidad", OracleDbType.Varchar2, 200).Value = (request.Unidad ?? string.Empty).Length > 200 ? (request.Unidad ?? string.Empty).Substring(0, 200) : (request.Unidad ?? string.Empty);
-               
-                var fotoNormalizada = NormalizeBase64(request.FotoBase64);
-                var clobParam = new OracleParameter("p_foto_base64", OracleDbType.Clob);
-                clobParam.Value = !string.IsNullOrEmpty(fotoNormalizada) ? (object)fotoNormalizada : DBNull.Value;
-                cmd.Parameters.Add(clobParam);
-
-                cmd.Parameters.Add("p_idcategoria", OracleDbType.Int32).Value = request.IdCategoria;
-                cmd.Parameters.Add("p_numeroacta", OracleDbType.Varchar2, 50).Value = (request.NumeroActa ?? string.Empty).Length > 50 ? (request.NumeroActa ?? string.Empty).Substring(0, 50) : (request.NumeroActa ?? string.Empty);
+                
+                // Nota: p_idcategoria es NUMBER en Oracle (Int64)
+                cmd.Parameters.Add("p_idcategoria", OracleDbType.Int64).Value = (long)request.IdCategoria;
+                cmd.Parameters.Add("p_numero_acta", OracleDbType.Varchar2, 50).Value = (request.NumeroActa ?? string.Empty).Length > 50 ? (request.NumeroActa ?? string.Empty).Substring(0, 50) : (request.NumeroActa ?? string.Empty);
 
                 var usuarioStr = usuarioAuditoria.ToString();
                 var maquinaStr = maquinaAuditoria ?? "N/A";
 
                 cmd.Parameters.Add("p_usuario_auditoria", OracleDbType.Varchar2, 50).Value = usuarioStr.Length > 50 ? usuarioStr.Substring(0, 50) : usuarioStr;
                 cmd.Parameters.Add("p_maquina_auditoria", OracleDbType.Varchar2, 100).Value = maquinaStr.Length > 100 ? maquinaStr.Substring(0, 100) : maquinaStr;
+                
+                // p_foto_modificada va DESPUÉS de los parámetros de auditoría
+                cmd.Parameters.Add("p_foto_modificada", OracleDbType.Varchar2, 200).Value = (request.FotoModificada ?? string.Empty).Length > 200 ? (request.FotoModificada ?? string.Empty).Substring(0, 200) : (request.FotoModificada ?? string.Empty);
+
+                cmd.Parameters.Add("p_mes", OracleDbType.Int32).Value = (long)request.Mes;
+                cmd.Parameters.Add("p_anio", OracleDbType.Int32).Value = (long)request.Anio;
 
                 OracleParameter pId = new OracleParameter("p_id", OracleDbType.Int64);
                 pId.Direction = ParameterDirection.Output;
@@ -138,7 +165,7 @@ namespace Datos.Gestion
         }
         public async Task<DtoPersonajeMesResult> UpdateAsync(long id, DtoPersonajeMesRequest request, long usuarioAuditoria, string maquinaAuditoria, CancellationToken ct)
         {
-            _logger.LogInformation("UpdateAsync llamado - ID: {Id}, FotoBase64 length: {Length}", id, request.FotoBase64?.Length ?? 0);
+            _logger.LogInformation("UpdateAsync llamado - ID: {Id}, FotoModificada length: {Length}", id, request.FotoModificada?.Length ?? 0);
 
             var result = new DtoPersonajeMesResult();
 
@@ -153,7 +180,7 @@ namespace Datos.Gestion
                 cmd.Transaction = (OracleTransaction)transaction;
                 cmd.BindByName = true;
                 cmd.CommandType = CommandType.StoredProcedure;
-                cmd.CommandText = "PKG_LINEA_MANDO.P_UPDATE";
+                cmd.CommandText = "PKG_PERSONAJE_MES.P_UPDATE";
 
                 cmd.Parameters.Add("p_id_personaje_mes", OracleDbType.Int64).Value = id;
                 cmd.Parameters.Add("p_identificacion", OracleDbType.Varchar2, 20).Value = (request.Identificacion ?? string.Empty).Length > 20 ? (request.Identificacion ?? string.Empty).Substring(0, 20) : (request.Identificacion ?? string.Empty);
@@ -162,17 +189,9 @@ namespace Datos.Gestion
                 cmd.Parameters.Add("p_grado", OracleDbType.Varchar2, 50).Value = (request.Grado ?? string.Empty).Length > 50 ? (request.Grado ?? string.Empty).Substring(0, 50) : (request.Grado ?? string.Empty);
                 cmd.Parameters.Add("p_cargo", OracleDbType.Varchar2, 100).Value = (request.Cargo ?? string.Empty).Length > 100 ? (request.Cargo ?? string.Empty).Substring(0, 100) : (request.Cargo ?? string.Empty);
                 cmd.Parameters.Add("p_unidad", OracleDbType.Varchar2, 200).Value = (request.Unidad ?? string.Empty).Length > 200 ? (request.Unidad ?? string.Empty).Substring(0, 200) : (request.Unidad ?? string.Empty);
-
-                var fotoNormalizada = NormalizeBase64(request.FotoBase64);
-                var clobParam = new OracleParameter("p_foto_base64", OracleDbType.Clob)
-                {
-                    Direction = ParameterDirection.Input,
-                    Value = string.IsNullOrEmpty(fotoNormalizada) ? DBNull.Value : fotoNormalizada
-                };
-                cmd.Parameters.Add(clobParam);
-
-                cmd.Parameters.Add("p_idcategoria", OracleDbType.Int32).Value = request.IdCategoria;
-                cmd.Parameters.Add("p_numeroacta", OracleDbType.Varchar2, 50).Value = (request.NumeroActa ?? string.Empty).Length > 50 ? (request.NumeroActa ?? string.Empty).Substring(0, 50) : (request.NumeroActa ?? string.Empty);
+                              
+                cmd.Parameters.Add("p_idcategoria", OracleDbType.Int64).Value = (long)request.IdCategoria;
+                cmd.Parameters.Add("p_numero_acta", OracleDbType.Varchar2, 50).Value = (request.NumeroActa ?? string.Empty).Length > 50 ? (request.NumeroActa ?? string.Empty).Substring(0, 50) : (request.NumeroActa ?? string.Empty);
 
 
                 var usuarioStrU = usuarioAuditoria.ToString();
@@ -180,7 +199,9 @@ namespace Datos.Gestion
 
                 cmd.Parameters.Add("p_usuario_auditoria", OracleDbType.Varchar2, 50).Value = usuarioStrU.Length > 50 ? usuarioStrU.Substring(0, 50) : usuarioStrU;
                 cmd.Parameters.Add("p_maquina_auditoria", OracleDbType.Varchar2, 100).Value = maquinaStrU.Length > 100 ? maquinaStrU.Substring(0, 100) : maquinaStrU;
-
+                cmd.Parameters.Add("p_foto_modificada", OracleDbType.Varchar2, 200).Value = (request.FotoModificada ?? string.Empty).Length > 200 ? (request.FotoModificada ?? string.Empty).Substring(0, 200) : (request.FotoModificada ?? string.Empty);
+                cmd.Parameters.Add("p_mes", OracleDbType.Int32).Value = (long)request.Mes;
+                cmd.Parameters.Add("p_anio", OracleDbType.Int32).Value = (long)request.Anio;
                 OracleParameter pSuccess = new OracleParameter("p_success", OracleDbType.Int32);
                 pSuccess.Direction = ParameterDirection.Output;
                 cmd.Parameters.Add(pSuccess);
@@ -363,36 +384,77 @@ namespace Datos.Gestion
         {
             return new DtoPersonajeMes
             {
-                IdPersonajeMes = reader.GetInt32(reader.GetOrdinal("ID_PERSONAJE_MES")),
-                Identificacion = reader.IsDBNull(reader.GetOrdinal("IDENTIFICACION")) ? string.Empty : reader.GetString(reader.GetOrdinal("IDENTIFICACION")),
-                Nombres = reader.IsDBNull(reader.GetOrdinal("NOMBRES")) ? string.Empty : reader.GetString(reader.GetOrdinal("NOMBRES")),
-                Apellidos = reader.IsDBNull(reader.GetOrdinal("APELLIDOS")) ? string.Empty : reader.GetString(reader.GetOrdinal("APELLIDOS")),
-                Grado = reader.IsDBNull(reader.GetOrdinal("GRADO")) ? string.Empty : reader.GetString(reader.GetOrdinal("GRADO")),
-                Cargo = reader.IsDBNull(reader.GetOrdinal("CARGO")) ? string.Empty : reader.GetString(reader.GetOrdinal("CARGO")),                
-                Unidad = reader.IsDBNull(reader.GetOrdinal("UNIDAD")) ? string.Empty : reader.GetString(reader.GetOrdinal("UNIDAD")),
-                FotoBase64 = reader.IsDBNull(reader.GetOrdinal("FOTO_BASE64")) ? null : reader.GetString(reader.GetOrdinal("FOTO_BASE64")),
-                IdCategoria = reader.GetInt64(reader.GetOrdinal("ID_CATEGORIA")),
-                NumeroActa = reader.IsDBNull(reader.GetOrdinal("NUMERO_ACTA")) ? string.Empty : reader.GetString(reader.GetOrdinal("NUMERO_ACTA")),
-                Vigente = reader.IsDBNull(reader.GetOrdinal("VIGENTE")) ? 1 : reader.GetInt32(reader.GetOrdinal("VIGENTE"))
+                IdPersonajeMes = GetInt64OrDefault(reader, "ID_PERSONAJE_MES"),
+                Identificacion = GetStringOrDefault(reader, "IDENTIFICACION"),
+                Nombres = GetStringOrDefault(reader, "NOMBRES"),
+                Apellidos = GetStringOrDefault(reader, "APELLIDOS"),
+                Grado = GetStringOrDefault(reader, "GRADO"),
+                Cargo = GetStringOrDefault(reader, "CARGO"),
+                Unidad = GetStringOrDefault(reader, "UNIDAD"),
+                FotoModificada = GetNullableStringOrDefault(reader, "FOTO_MODIFICADA"),
+                IdCategoria = GetInt32OrDefault(reader, "ID_CATEGORIA"),
+                NumeroActa = GetStringOrDefault(reader, "NUMERO_ACTA"),
+                Vigente = GetInt32OrDefault(reader, "VIGENTE", 1),
+                Mes = GetInt32OrDefault(reader, "MES"),
+                Anio = GetInt32OrDefault(reader, "ANIO")
             };
         }
-        private static string? NormalizeBase64(string? raw)
+
+        private static bool HasColumn(OracleDataReader reader, string columnName)
         {
-            if (string.IsNullOrWhiteSpace(raw))
+            for (var i = 0; i < reader.FieldCount; i++)
+            {
+                if (string.Equals(reader.GetName(i), columnName, StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private static string GetStringOrDefault(OracleDataReader reader, string columnName, string defaultValue = "")
+        {
+            if (!HasColumn(reader, columnName))
+            {
+                return defaultValue;
+            }
+
+            var ordinal = reader.GetOrdinal(columnName);
+            return reader.IsDBNull(ordinal) ? defaultValue : reader.GetValue(ordinal)?.ToString() ?? defaultValue;
+        }
+
+        private static string? GetNullableStringOrDefault(OracleDataReader reader, string columnName)
+        {
+            if (!HasColumn(reader, columnName))
             {
                 return null;
             }
 
-            var value = raw.Trim();
-            var commaIdx = value.IndexOf(',');
-            if (value.StartsWith("data:", StringComparison.OrdinalIgnoreCase) && commaIdx > -1)
-            {
-                value = value[(commaIdx + 1)..];
-            }
-
-            return value;
+            var ordinal = reader.GetOrdinal(columnName);
+            return reader.IsDBNull(ordinal) ? null : reader.GetValue(ordinal)?.ToString();
         }
 
+        private static int GetInt32OrDefault(OracleDataReader reader, string columnName, int defaultValue = 0)
+        {
+            if (!HasColumn(reader, columnName))
+            {
+                return defaultValue;
+            }
 
+            var ordinal = reader.GetOrdinal(columnName);
+            return reader.IsDBNull(ordinal) ? defaultValue : Convert.ToInt32(reader.GetValue(ordinal));
+        }
+
+        private static long GetInt64OrDefault(OracleDataReader reader, string columnName, long defaultValue = 0)
+        {
+            if (!HasColumn(reader, columnName))
+            {
+                return defaultValue;
+            }
+
+            var ordinal = reader.GetOrdinal(columnName);
+            return reader.IsDBNull(ordinal) ? defaultValue : Convert.ToInt64(reader.GetValue(ordinal));
+        }
     }
 }

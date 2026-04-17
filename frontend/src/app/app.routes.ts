@@ -15,6 +15,7 @@ import { RadioAdminComponent } from './pages/administracion/radio/radio';
 import { DominioAdminComponent } from './pages/administracion/dominio/dominio';
 import { VideoInstitucionalComponent } from './pages/administracion/video-institucional/video-institucional';
 import { NoticiasAdminComponent } from './pages/administracion/noticias/noticias';
+import { PersonajeMesAdminComponent } from './pages/administracion/personaje-mes/personaje-mes';
 import { authGuard } from './core/auth/auth.guard';
 
 export const routes: Routes = [
@@ -46,7 +47,8 @@ export const routes: Routes = [
         { path: 'radio', component: RadioAdminComponent },
         { path: 'dominio', component: DominioAdminComponent },
         { path: 'video-institucional', component: VideoInstitucionalComponent },
-        { path: 'noticias', component: NoticiasAdminComponent }
+        { path: 'noticias', component: NoticiasAdminComponent },
+        { path: 'personaje-mes', component: PersonajeMesAdminComponent }
       ]
     },
       { path: 'formularios', redirectTo: 'administracion/formularios', pathMatch: 'full' },
@@ -62,6 +64,7 @@ export const routes: Routes = [
       { path: 'radio', redirectTo: 'administracion/radio', pathMatch: 'full' },
       { path: 'dominio', redirectTo: 'administracion/dominio', pathMatch: 'full' },
       { path: 'video-institucional', redirectTo: 'administracion/video-institucional', pathMatch: 'full' },
+      { path: 'personaje-mes', redirectTo: 'administracion/personaje-mes', pathMatch: 'full' },
     ]
   },
   { path: '**', redirectTo: 'login' }

@@ -43,6 +43,12 @@ export class AdministracionInicioComponent {
       icon: 'fa-solid fa-sitemap'
     },
     {
+      title: 'Personaje del Mes',
+      description: 'Administra la información destacada, categoría e imagen del personaje del mes.',
+      route: '/administracion/personaje-mes',
+      icon: 'fa-solid fa-user-tie'
+    },
+    {
       title: 'Sliders',
       description: 'Configura banners y piezas visuales del home.',
       route: '/administracion/sliders',

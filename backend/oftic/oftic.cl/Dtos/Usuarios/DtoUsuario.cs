@@ -24,6 +24,8 @@ namespace Comun.Dtos
         public string? funcionarioCodigo { get; set; }
         public string? undeLaborandoCodigo { get; set; }
         public string? codigoCargo { get; set; }
+        public long? idCategoria { get; set; }
+        public string? categoriaDescripcion { get; set; }
         public bool activo { get; set; } = true;
     }
 

@@ -38,7 +38,7 @@ namespace Api.Controllers.Administracion
                     "PersonajeMes Create - Identificacion={Identificacion}, Nombre={Nombre}, FotoLen={FotoLen}",
                     request?.Identificacion,
                     request?.Nombres,
-                    request?.FotoBase64?.Length ?? 0
+                    request?.FotoModificada?.Length ?? 0
                 );
 
                 var (usuario, maquina) = ObtenerAuditoria();

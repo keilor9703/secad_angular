@@ -686,6 +686,7 @@ h3.title-cards {
 .card-body {
     padding: 14px;
     height: 480px;
+    overflow-y: auto;
     background: var(--policia-neutral-claro);
 }
 

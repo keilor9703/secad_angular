@@ -1,9 +1,13 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Comun.Dtos;
+using Comun.Dtos.Dominio;
 using Datos.Interfaz;
+using Negocio.Interfaz;
 using Servicios.ApiInterfaz;
+using System.Globalization;
 using System.Security.Claims;
+using System.Text;
 
 namespace ofic.Controllers.Administracion
 {
@@ -14,17 +18,77 @@ namespace ofic.Controllers.Administracion
     {
         private readonly IApiWebToken _apiWebToken;
         private readonly IDbUsuarioRepository _dbUsuarioRepository;
+        private readonly IDbDominioService _dominioService;
         private readonly ILogger<UsuarioController> _logger;
         private readonly IConfiguration _configuration;
+
+        private static readonly string[] CategoriasPermitidas =
+        {
+            "Oficiales",
+            "Nivel Ejecutivo",
+            "Patrulleros",
+            "Suboficiales",
+            "Agentes",
+            "Estudiantes",
+            "Auxiliares de Policía"
+        };
+
+        private static readonly Dictionary<string, string[]> AliasCategorias = new(StringComparer.OrdinalIgnoreCase)
+        {
+            ["oficiales"] = new[] { "oficiales", "oficial" },
+            ["nivel ejecutivo"] = new[] { "nivel ejecutivo", "ejecutivo" },
+            ["patrulleros"] = new[] { "patrulleros", "patrullero", "patrullero de policia" },
+            ["suboficiales"] = new[] { "suboficiales", "suboficial" },
+            ["agentes"] = new[] { "agentes", "agente" },
+            ["estudiantes"] = new[] { "estudiantes", "estudiante" },
+            ["auxiliares de policia"] = new[] { "auxiliares de policia", "auxiliar de policia", "auxiliares", "auxiliar" }
+        };
+
+        private static readonly (string Grado, string Categoria)[] ReglasGradoCategoria = new (string Grado, string Categoria)[]
+        {
+            ("Teniente General", "Oficiales"),
+            ("Mayor General", "Oficiales"),
+            ("Brigadier General", "Oficiales"),
+            ("Teniente Coronel", "Oficiales"),
+            ("Subteniente", "Oficiales"),
+            ("Coronel", "Oficiales"),
+            ("Capitán", "Oficiales"),
+            ("Teniente", "Oficiales"),
+            ("General", "Oficiales"),
+            ("Mayor", "Oficiales"),
+            ("Subcomisario", "Nivel Ejecutivo"),
+            ("Comisario", "Nivel Ejecutivo"),
+            ("Intendente Jefe", "Nivel Ejecutivo"),
+            ("Subintendente", "Nivel Ejecutivo"),
+            ("Intendente", "Nivel Ejecutivo"),
+            ("Patrullero de Policía", "Patrulleros"),
+            ("Patrullero", "Patrulleros"),
+            ("Sargento Mayor", "Suboficiales"),
+            ("Sargento Primero", "Suboficiales"),
+            ("Sargento Viceprimero", "Suboficiales"),
+            ("Sargento Segundo", "Suboficiales"),
+            ("Cabo Primero", "Suboficiales"),
+            ("Cabo Segundo", "Suboficiales"),
+            ("Auxiliares de Policía", "Auxiliares de Policía"),
+            ("Auxiliar de Policía", "Auxiliares de Policía"),
+            ("Estudiantes", "Estudiantes"),
+            ("Estudiante", "Estudiantes"),
+            ("Agentes", "Agentes"),
+            ("Agente", "Agentes")
+        }
+        .OrderByDescending(item => item.Grado.Length)
+        .ToArray();
 
         public UsuarioController(
             IApiWebToken apiWebToken,
             IDbUsuarioRepository dbUsuarioRepository,
+            IDbDominioService dominioService,
             ILogger<UsuarioController> logger,
             IConfiguration configuration)
         {
             _apiWebToken = apiWebToken;
             _dbUsuarioRepository = dbUsuarioRepository;
+            _dominioService = dominioService;
             _logger = logger;
             _configuration = configuration;
         }
@@ -138,6 +202,18 @@ namespace ofic.Controllers.Administracion
                     {
                         _logger.LogWarning(ex, "No se pudo resolver estado local de usuario. identificacion={Identificacion}, usuario={Usuario}",
                             empleado.identificacion, empleado.usuario);
+                    }
+                }
+
+                if (empleado is not null)
+                {
+                    try
+                    {
+                        await ResolverCategoriaFuncionarioAsync(empleado, HttpContext.RequestAborted);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "No se pudo resolver categoría para el funcionario. identificacion={Identificacion}", empleado.identificacion);
                     }
                 }
 
@@ -662,6 +738,165 @@ namespace ofic.Controllers.Administracion
                     message = "Error al actualizar estado del rol"
                 });
             }
+        }
+
+        private async Task ResolverCategoriaFuncionarioAsync(DtoFuncionario empleado, CancellationToken ct)
+        {
+            var catalogoCategorias = await _dominioService.GetAllAsync(ct);
+            var categoriasPermitidas = (catalogoCategorias ?? new List<DtoDominio>())
+                .Where(item => item.IdPadre == 1 && item.Vigente == 1)
+                .Where(item => EsCategoriaPermitida(item.Descripcion))
+                .OrderBy(item => item.Descripcion)
+                .ToList();
+
+            var categoria = BuscarCategoriaConsultadaEnCatalogo(empleado, categoriasPermitidas)
+                ?? BuscarCategoriaEnCatalogo(empleado, categoriasPermitidas);
+
+            if (categoria is null)
+            {
+                empleado.idCategoria = null;
+                empleado.categoriaDescripcion = null;
+                return;
+            }
+
+            empleado.idCategoria = categoria.IdDominio;
+            empleado.categoriaDescripcion = categoria.Descripcion;
+        }
+
+        private static DtoDominio? BuscarCategoriaConsultadaEnCatalogo(DtoFuncionario empleado, IReadOnlyCollection<DtoDominio> catalogoCategorias)
+        {
+            if (catalogoCategorias.Count == 0)
+            {
+                return null;
+            }
+
+            if (empleado.idCategoria.HasValue && empleado.idCategoria.Value > 0)
+            {
+                var matchById = catalogoCategorias.FirstOrDefault(item => item.IdDominio == empleado.idCategoria.Value);
+                if (matchById is not null)
+                {
+                    return matchById;
+                }
+            }
+
+            if (string.IsNullOrWhiteSpace(empleado.categoriaDescripcion))
+            {
+                return null;
+            }
+
+            foreach (var alias in ObtenerAliasCategoria(empleado.categoriaDescripcion))
+            {
+                var match = catalogoCategorias.FirstOrDefault(
+                    item => NormalizeCategoria(item.Descripcion) == alias);
+
+                if (match is not null)
+                {
+                    return match;
+                }
+            }
+
+            return null;
+        }
+
+        private static DtoDominio? BuscarCategoriaEnCatalogo(DtoFuncionario empleado, IReadOnlyCollection<DtoDominio> catalogoCategorias)
+        {
+            if (catalogoCategorias.Count == 0)
+            {
+                return null;
+            }
+
+            var categoriaEsperada = ObtenerCategoriaPorGrado(empleado.nombreGrado)
+                ?? ObtenerCategoriaPorGrado(empleado.cargo);
+
+            if (string.IsNullOrWhiteSpace(categoriaEsperada))
+            {
+                return null;
+            }
+
+            foreach (var alias in ObtenerAliasCategoria(categoriaEsperada))
+            {
+                var match = catalogoCategorias.FirstOrDefault(
+                    item => NormalizeCategoria(item.Descripcion) == alias);
+
+                if (match is not null)
+                {
+                    return match;
+                }
+            }
+
+            return null;
+        }
+
+        private static string? ObtenerCategoriaPorGrado(string? grado)
+        {
+            var gradoNormalizado = NormalizeText(grado);
+            if (string.IsNullOrWhiteSpace(gradoNormalizado))
+            {
+                return null;
+            }
+
+            foreach (var regla in ReglasGradoCategoria)
+            {
+                var alias = NormalizeText(regla.Grado);
+                if (gradoNormalizado == alias || gradoNormalizado.Contains(alias, StringComparison.Ordinal))
+                {
+                    return regla.Categoria;
+                }
+            }
+
+            return null;
+        }
+
+        private static IEnumerable<string> ObtenerAliasCategoria(string? categoria)
+        {
+            var categoriaNormalizada = NormalizeCategoria(categoria);
+            return AliasCategorias.TryGetValue(categoriaNormalizada, out var alias)
+                ? alias
+                : new[] { categoriaNormalizada };
+        }
+
+        private static bool EsCategoriaPermitida(string? descripcion)
+        {
+            var descripcionNormalizada = NormalizeCategoria(descripcion);
+            return CategoriasPermitidas.Any(item =>
+                ObtenerAliasCategoria(item).Contains(descripcionNormalizada, StringComparer.Ordinal));
+        }
+
+        private static string NormalizeCategoria(string? value)
+        {
+            return NormalizeText(value)
+                .Replace("categoria ", string.Empty, StringComparison.Ordinal)
+                .Trim();
+        }
+
+        private static string NormalizeText(string? value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return string.Empty;
+            }
+
+            var normalized = value.Normalize(NormalizationForm.FormD);
+            var builder = new StringBuilder(normalized.Length);
+
+            foreach (var character in normalized)
+            {
+                var unicodeCategory = CharUnicodeInfo.GetUnicodeCategory(character);
+                if (unicodeCategory == UnicodeCategory.NonSpacingMark)
+                {
+                    continue;
+                }
+
+                builder.Append(char.IsLetterOrDigit(character) || char.IsWhiteSpace(character)
+                    ? character
+                    : ' ');
+            }
+
+            return string.Join(' ', builder
+                .ToString()
+                .Normalize(NormalizationForm.FormC)
+                .ToLowerInvariant()
+                .Split(' ', StringSplitOptions.RemoveEmptyEntries));
         }
     }
 }

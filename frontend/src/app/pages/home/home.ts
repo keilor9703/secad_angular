@@ -6,6 +6,8 @@ import { HomeService, HomeStats } from '../../core/services/home.service';
 import { VideoUnidadService } from '../../core/services/administracion/video-unidad.service';
 import { VideoInstitucionalService } from '../../core/services/administracion/video-institucional.service';
 import { DtoLineaMando, LineaMandoService } from '../../core/services/administracion/linea-mando.service';
+import { DtoPersonajeMes, PersonajeMesService } from '../../core/services/administracion/personaje-mes.service';
+import { DominioService, DtoDominio } from '../../core/services/administracion/dominio.service';
 import { NoticiaService, DtoNoticia } from '../../core/services/administracion/noticia.service';
 import { SafeUrlPipe } from '../../shared/pipes/safe-url.pipe';
 
@@ -47,6 +49,10 @@ export class HomeComponent implements OnInit, OnDestroy {
   private bannerTimer: ReturnType<typeof setInterval> | null = null;
   videoUnidadUrl = '';
   videoInstitucionalUrl = '';
+  personajesMes: DtoPersonajeMes[] = [];
+  categoriasPersonajeMes: DtoDominio[] = [];
+  personajeMesLightboxOpen = false;
+  personajeMesLightboxItem: DtoPersonajeMes | null = null;
   lineaMando: DtoLineaMando[] = [];
   lineaMandoLightboxOpen = false;
   lineaMandoLightboxItem: DtoLineaMando | null = null;
@@ -63,6 +69,8 @@ export class HomeComponent implements OnInit, OnDestroy {
     private homeService: HomeService,
     private videoUnidadService: VideoUnidadService,
     private videoInstitucionalService: VideoInstitucionalService,
+    private personajeMesService: PersonajeMesService,
+    private dominioService: DominioService,
     private lineaMandoService: LineaMandoService,
     private noticiaService: NoticiaService
   ) {}
@@ -72,6 +80,8 @@ export class HomeComponent implements OnInit, OnDestroy {
     this.loadStats();
     this.loadVideoUnidad();
     this.loadVideoInstitucional();
+    this.loadPersonajesMes();
+    this.loadCategoriasPersonajeMes();
     this.loadLineaMando();
     this.loadNoticias();
   }
@@ -184,6 +194,32 @@ export class HomeComponent implements OnInit, OnDestroy {
     });
   }
 
+  private loadPersonajesMes(): void {
+    this.personajeMesService.getAll().subscribe({
+      next: (items) => {
+        this.personajesMes = (items ?? [])
+          .filter((x) => Number(x?.vigente ?? 1) === 1)
+          .sort((a, b) => this.getPersonajeMesNombre(a).localeCompare(this.getPersonajeMesNombre(b)));
+      },
+      error: () => {
+        this.personajesMes = [];
+      }
+    });
+  }
+
+  private loadCategoriasPersonajeMes(): void {
+    this.dominioService.getAll().subscribe({
+      next: (items) => {
+        this.categoriasPersonajeMes = (items ?? [])
+          .filter((item) => Number(item?.idPadre ?? 0) === 1 && Number(item?.vigente ?? 0) === 1)
+          .sort((a, b) => (a?.descripcion ?? '').localeCompare(b?.descripcion ?? ''));
+      },
+      error: () => {
+        this.categoriasPersonajeMes = [];
+      }
+    });
+  }
+
   private loadLineaMando(): void {
     this.lineaMandoService.getAll().subscribe({
       next: (items) => {
@@ -195,6 +231,47 @@ export class HomeComponent implements OnInit, OnDestroy {
         this.lineaMando = [];
       }
     });
+  }
+
+  getPersonajeMesFotoUrl(item: DtoPersonajeMes): string {
+    const raw = (item?.fotoModificada ?? '').trim();
+    if (!raw) {
+      return 'imagenes/policia.jpg';
+    }
+
+    if (
+      raw.startsWith('http://') ||
+      raw.startsWith('https://') ||
+      raw.startsWith('/api/') ||
+      raw.startsWith('data:image/')
+    ) {
+      return raw;
+    }
+
+    const fileName = raw.split('/').filter(Boolean).pop() ?? '';
+    return fileName ? `/api/PersonajeMesUpload/Imagen/${encodeURIComponent(fileName)}` : 'imagenes/policia.jpg';
+  }
+
+  getPersonajeMesNombre(item: DtoPersonajeMes): string {
+    return `${item?.nombres ?? ''} ${item?.apellidos ?? ''}`.replace(/\s+/g, ' ').trim();
+  }
+
+  getPersonajeMesCargoDisplay(item: DtoPersonajeMes): string {
+    const unidad = (item?.unidad ?? '').trim();
+    return unidad ? this.toTitleCase(unidad) : 'Sin unidad';
+  }
+
+  getPersonajeMesCategoriaDisplay(item: DtoPersonajeMes): string {
+    const idCategoria = Number(item?.idCategoria ?? 0);
+    if (!idCategoria) {
+      return 'Sin categoría';
+    }
+
+    const categoria = this.categoriasPersonajeMes.find(
+      (dominio) => Number(dominio?.idDominio ?? 0) === idCategoria
+    );
+
+    return (categoria?.descripcion ?? '').trim() || 'Sin categoría';
   }
 
   getLineaMandoFotoUrl(item: DtoLineaMando): string {
@@ -228,6 +305,18 @@ export class HomeComponent implements OnInit, OnDestroy {
       .join(' ');
   }
 
+  openPersonajeMesLightbox(item: DtoPersonajeMes): void {
+    this.personajeMesLightboxItem = item;
+    this.personajeMesLightboxOpen = true;
+    this.syncBodyModalClass();
+  }
+
+  closePersonajeMesLightbox(): void {
+    this.personajeMesLightboxOpen = false;
+    this.personajeMesLightboxItem = null;
+    this.syncBodyModalClass();
+  }
+
   openLineaMandoLightbox(item: DtoLineaMando): void {
     this.lineaMandoLightboxItem = item;
     this.lineaMandoLightboxOpen = true;
@@ -241,7 +330,7 @@ export class HomeComponent implements OnInit, OnDestroy {
   }
 
   private syncBodyModalClass(): void {
-    if (this.newsModalOpen || this.lineaMandoLightboxOpen) {
+    if (this.newsModalOpen || this.personajeMesLightboxOpen || this.lineaMandoLightboxOpen) {
       document.body.classList.add('ui-modal-open');
       return;
     }
@@ -423,6 +512,11 @@ export class HomeComponent implements OnInit, OnDestroy {
 
   @HostListener('document:keydown.escape')
   onEsc(): void {
+    if (this.personajeMesLightboxOpen) {
+      this.closePersonajeMesLightbox();
+      return;
+    }
+
     if (this.lineaMandoLightboxOpen) {
       this.closeLineaMandoLightbox();
       return;

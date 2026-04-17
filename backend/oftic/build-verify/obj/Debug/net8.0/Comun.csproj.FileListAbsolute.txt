@@ -1,0 +1,5 @@
+c:\Users\wilson.lopezd\source\repos\backend\oftic\build-verify\obj\Debug\net8.0\Comun.csproj.AssemblyReference.cache
+c:\Users\wilson.lopezd\source\repos\backend\oftic\build-verify\obj\Debug\net8.0\Comun.GeneratedMSBuildEditorConfig.editorconfig
+c:\Users\wilson.lopezd\source\repos\backend\oftic\build-verify\obj\Debug\net8.0\Comun.AssemblyInfoInputs.cache
+c:\Users\wilson.lopezd\source\repos\backend\oftic\build-verify\obj\Debug\net8.0\Comun.AssemblyInfo.cs
+c:\Users\wilson.lopezd\source\repos\backend\oftic\build-verify\obj\Debug\net8.0\Comun.csproj.CoreCompileInputs.cache

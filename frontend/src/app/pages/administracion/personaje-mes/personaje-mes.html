@@ -1,1 +1,240 @@
-<p>personaje-mes works!</p>
+<section class="home-view">
+  <div class="ui-panel">
+    <div class="ui-panel__head">
+      <div class="ui-panel__title">
+        <i class="fa-solid fa-user-tie"></i>
+        {{ modoEdicion ? 'Editar' : 'Agregar' }} Personaje del Mes
+      </div>
+      <div class="ui-panel__actions">
+        <button class="ui-btn outline" type="button" (click)="limpiarForm()" [disabled]="saving || uploading">
+          <i class="fa-solid fa-eraser"></i>
+          {{ modoEdicion ? 'Nuevo registro' : 'Limpiar' }}
+        </button>
+      </div>
+    </div>
+
+    <div class="ui-panel__body">
+      <div class="ui-grid" *ngIf="!modoEdicion">
+        <div class="ui-field ui-col-6">
+          <label class="ui-label">Buscar Funcionario por Cédula</label>
+          <div style="display: flex; gap: 0;">
+            <input
+              class="ui-control"
+              type="text"
+              [(ngModel)]="searchIdentificacion"
+              name="searchIdentificacion"
+              placeholder="Ingrese número de identificación y presione Enter"
+              [disabled]="searchingFuncionario"
+              (keyup.enter)="onSearchEnter($event)"
+              style="border-radius: var(--ui-radius-sm) 0 0 var(--ui-radius-sm); flex: 1;" />
+            <button
+              class="ui-btn primary"
+              type="button"
+              (click)="buscarFuncionario()"
+              [disabled]="searchingFuncionario"
+              style="border-radius: 0 var(--ui-radius-sm) var(--ui-radius-sm) 0; white-space: nowrap;">
+              <i class="fa-solid fa-magnifying-glass"></i>
+              {{ searchingFuncionario ? 'Buscando...' : 'Buscar' }}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="funcionario-panel personaje-panel" *ngIf="hayFuncionario">
+        <div class="funcionario-foto">
+          <div class="foto-container">
+            <img [src]="fotoPreview || 'imagenes/policia.jpg'" alt="Foto personaje del mes" />
+          </div>
+
+          <div class="foto-actions">
+            <input
+              type="file"
+              accept=".jpg,.jpeg,.png,.webp,image/*"
+              (change)="onImageSelected($event)"
+              [disabled]="uploading"
+              style="display: none;"
+              #fileInput />
+
+            <button class="ui-btn outline sm" type="button" (click)="fileInput.click()" [disabled]="uploading">
+              <i class="fa-solid" [ngClass]="uploading ? 'fa-circle-notch fa-spin' : 'fa-upload'"></i>
+              {{ uploading ? 'Cargando...' : (formData.FotoModificada ? 'Cambiar' : 'Subir foto') }}
+            </button>
+          </div>
+        </div>
+
+        <div class="funcionario-datos">
+          <div class="ui-grid">
+            <div class="ui-field ui-col-4">
+              <label class="ui-label">Identificación *</label>
+              <input class="ui-control" type="text" [(ngModel)]="formData.identificacion" name="identificacion" placeholder="Número de identificación" readonly />
+            </div>
+
+            <div class="ui-field ui-col-4">
+              <label class="ui-label">Nombres *</label>
+              <input class="ui-control" type="text" [(ngModel)]="formData.nombres" name="nombres" placeholder="Nombres del funcionario" readonly />
+            </div>
+
+            <div class="ui-field ui-col-4">
+              <label class="ui-label">Apellidos</label>
+              <input class="ui-control" type="text" [(ngModel)]="formData.apellidos" name="apellidos" placeholder="Apellidos del funcionario" readonly />
+            </div>
+
+            <div class="ui-field ui-col-4">
+              <label class="ui-label">Grado</label>
+              <input class="ui-control" type="text" [(ngModel)]="formData.grado" name="grado" placeholder="Grado" readonly />
+            </div>
+
+            <div class="ui-field ui-col-4">
+              <label class="ui-label">Cargo *</label>
+              <input class="ui-control" type="text" [(ngModel)]="formData.cargo" name="cargo" placeholder="Cargo" />
+            </div>
+
+            <div class="ui-field ui-col-4">
+              <label class="ui-label">Unidad *</label>
+              <input class="ui-control" type="text" [(ngModel)]="formData.unidad" name="unidad" placeholder="Unidad" readonly />
+            </div>
+
+            <div class="ui-field ui-col-4">
+              <label class="ui-label">Categoría asignada *</label>
+              <select class="ui-control" [(ngModel)]="formData.IdCategoria" name="idCategoria" [disabled]="true">
+                <option [ngValue]="0">
+                  {{ categoriaNoReconocida ? 'Categoría consultada sin equivalencia válida' : 'Categoría asignada automáticamente' }}
+                </option>
+                <option *ngFor="let categoria of categorias" [ngValue]="categoria.idDominio">
+                  {{ categoria.descripcion }}
+                </option>
+              </select>
+              <small *ngIf="categoriaDetectada && !categoriaNoReconocida" style="display: block; margin-top: 4px; color: #64748b;">
+                La categoría se asigna automáticamente con la información consultada del funcionario.
+              </small>
+              <small *ngIf="categoriaNoReconocida" style="display: block; margin-top: 4px; color: #dc2626;">
+                La categoría consultada no pertenece a una categoría habilitada.
+              </small>
+            </div>
+
+            <div class="ui-field ui-col-4">
+              <label class="ui-label">Número de acta *</label>
+              <input class="ui-control" type="text" [(ngModel)]="formData.NumeroActa" name="numeroActa" placeholder="Número de acta" />
+            </div>
+
+            <div class="ui-field ui-col-4">
+              <label class="ui-label">Mes *</label>
+              <select class="ui-control" [(ngModel)]="formData.Mes" name="mes">
+                <option [ngValue]="0">Seleccione...</option>
+                <option *ngFor="let mes of meses" [ngValue]="mes.value">
+                  {{ mes.label }}
+                </option>
+              </select>
+            </div>
+
+            <div class="ui-field ui-col-4">
+              <label class="ui-label">Año *</label>
+              <select class="ui-control" [(ngModel)]="formData.Anio" name="anio">
+                <option [ngValue]="0">Seleccione...</option>
+                <option *ngFor="let anio of aniosDisponibles" [ngValue]="anio">
+                  {{ anio }}
+                </option>
+              </select>
+            </div>
+
+            <div class="ui-field ui-col-4 readonly-field">
+              <label class="ui-label">Ruta imagen</label>
+              <input class="ui-control" type="text" [ngModel]="formData.FotoModificada || 'Sin imagen cargada'" name="fotoModificadaPreview" readonly />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="no-funcionario" *ngIf="!hayFuncionario && !modoEdicion">
+        <i class="fa-solid fa-user-plus"></i>
+        <p>Busque un funcionario por número de identificación para agregarlo como personaje del mes</p>
+      </div>
+
+      <div class="ui-toolbar" *ngIf="hayFuncionario">
+        <button class="ui-btn primary" type="button" (click)="guardar()" [disabled]="saving || uploading">
+          <i class="fa-solid fa-floppy-disk"></i>
+          {{ saving ? 'Guardando...' : (modoEdicion ? 'Actualizar' : 'Guardar') }}
+        </button>
+        <button class="ui-btn outline" type="button" (click)="limpiarForm()" [disabled]="saving">
+          <i class="fa-solid fa-xmark"></i>
+          Cancelar
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="ui-panel">
+    <div class="ui-panel__head">
+      <div class="ui-panel__title">
+        <i class="fa-solid fa-list"></i>
+        Personajes del Mes configurados
+      </div>
+      <div class="ui-panel__actions">
+        <span class="ui-badge info">Registros: {{ personajes.length }}</span>
+      </div>
+    </div>
+
+    <div class="ui-panel__body">
+      <div *ngIf="loading" class="empty-state">
+        <i class="fa-solid fa-circle-notch fa-spin"></i>
+        <p>Cargando personajes del mes...</p>
+      </div>
+
+      <div *ngIf="!loading && personajes.length === 0" class="empty-state">
+        <i class="fa-solid fa-user-tie"></i>
+        <p>No hay registros creados.</p>
+      </div>
+
+      <div class="ui-table-wrap" *ngIf="!loading && personajes.length > 0">
+        <table class="ui-table">
+          <thead>
+            <tr>
+              <th>Funcionario</th>
+              <th>Cargo</th>
+              <th>Categoría</th>
+              <th>Acta</th>
+              <th>Mes</th>
+              <th>Año</th>
+              <th>Unidad</th>
+              <th>Estado</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let item of personajes">
+              <td>
+                <div class="personaje-cell">
+                  <img [src]="getFotoUrl(item)" alt="Foto personaje" class="personaje-thumb" />
+                  <div>
+                    <div class="personaje-name">{{ getNombreCompleto(item) }}</div>
+                    <div class="personaje-meta">{{ item.identificacion }}</div>
+                  </div>
+                </div>
+              </td>
+              <td>{{ item.cargo }}</td>
+              <td>{{ getCategoriaDescripcion(item.idCategoria) }}</td>
+              <td>{{ item.numeroActa }}</td>
+              <td>{{ getMesDescripcion(getMesValue(item)) }}</td>
+              <td>{{ getAnioValue(item) || 'Sin año' }}</td>
+              <td>{{ item.unidad }}</td>
+              <td>
+                <span class="ui-badge" [class.success]="item.vigente === 1" [class.warning]="item.vigente !== 1">
+                  {{ item.vigente === 1 ? 'Activo' : 'Inactivo' }}
+                </span>
+              </td>
+              <td class="acciones-cell">
+                <button class="ui-mini-btn" type="button" title="Editar" (click)="editar(item)">
+                  <i class="fa-solid fa-pen"></i>
+                </button>
+                
+                <button class="ui-mini-btn danger" type="button" title="Eliminar" (click)="eliminar(item)">
+                  <i class="fa-solid fa-trash"></i>
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>

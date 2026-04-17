@@ -21,6 +21,8 @@ export interface DtoFuncionario {
   undeLaborandoCodigo?: string | null;
   codigoCargo?: string | null;
   cargo?: string | null;
+  idCategoria?: number | null;
+  categoriaDescripcion?: string | null;
   activo?: boolean;
 }
 
