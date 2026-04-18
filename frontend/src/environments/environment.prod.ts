@@ -1,4 +1,5 @@
 export const environment = {
-  production: true,
-  apiBaseUrl: '/api'
+  production: false,
+  apiBaseUrl: '/api',
+  mediaBaseUrl: 'http://172.28.9.181:8088'
 };

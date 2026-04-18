@@ -15,6 +15,7 @@ import { RadioAdminComponent } from './pages/administracion/radio/radio';
 import { DominioAdminComponent } from './pages/administracion/dominio/dominio';
 import { VideoInstitucionalComponent } from './pages/administracion/video-institucional/video-institucional';
 import { NoticiasAdminComponent } from './pages/administracion/noticias/noticias';
+import { ModalAdminComponent } from './pages/administracion/modal/modal-admin';
 import { authGuard } from './core/auth/auth.guard';
 
 export const routes: Routes = [
@@ -46,7 +47,8 @@ export const routes: Routes = [
         { path: 'radio', component: RadioAdminComponent },
         { path: 'dominio', component: DominioAdminComponent },
         { path: 'video-institucional', component: VideoInstitucionalComponent },
-        { path: 'noticias', component: NoticiasAdminComponent }
+        { path: 'noticias', component: NoticiasAdminComponent },
+        { path: 'modal', component: ModalAdminComponent }
       ]
     },
       { path: 'formularios', redirectTo: 'administracion/formularios', pathMatch: 'full' },

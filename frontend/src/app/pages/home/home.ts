@@ -8,6 +8,8 @@ import { VideoInstitucionalService } from '../../core/services/administracion/vi
 import { DtoLineaMando, LineaMandoService } from '../../core/services/administracion/linea-mando.service';
 import { NoticiaService, DtoNoticia } from '../../core/services/administracion/noticia.service';
 import { SafeUrlPipe } from '../../shared/pipes/safe-url.pipe';
+import { environment } from '../../../environments/environment';
+
 
 type NewsTag = 'Comunicado' | 'Servicio' | 'Importante';
 
@@ -307,22 +309,30 @@ export class HomeComponent implements OnInit, OnDestroy {
     const uploadPathIndex = raw.toLowerCase().indexOf('/uploads/sliders/');
     if (uploadPathIndex >= 0) {
       const fileName = raw.substring(uploadPathIndex).split('/').filter(Boolean).pop() ?? '';
-      return fileName ? `/api/Slider/Image/${encodeURIComponent(fileName)}` : '';
+      return fileName ? `http://172.28.9.181:8088/api/Slider/Image/${encodeURIComponent(fileName)}` : '';
+      //return fileName ? `/api/Slider/Image/${encodeURIComponent(fileName)}` : '';
     }
 
     const normalized = raw.replace(/\\/g, '/');
     if (normalized.toLowerCase().startsWith('uploads/sliders/')) {
       const fileName = normalized.split('/').filter(Boolean).pop() ?? '';
-      return fileName ? `/api/Slider/Image/${encodeURIComponent(fileName)}` : '';
+      return fileName ? `http://172.28.9.181:8088/api/Slider/Image/${encodeURIComponent(fileName)}` : '';
+      //return fileName ? `/api/Slider/Image/${encodeURIComponent(fileName)}` : '';
     }
-
-    if (raw.startsWith('http://') || raw.startsWith('https://') || raw.startsWith('/')) {
+    if (raw.startsWith('http://') || raw.startsWith('https://')) {
       return raw;
     }
+    if (raw.startsWith('/')) {
+      return `http://172.28.9.181:8088${raw}`;
+    }
+    /*if (raw.startsWith('http://') || raw.startsWith('https://') || raw.startsWith('/')) {
+      return raw;
+    }*/
 
     // Si viene solo el nombre de archivo, apuntamos a la carpeta pública de sliders.
     if (/^[^/]+\.(jpg|jpeg|png|webp)$/i.test(normalized)) {
-      return `/api/Slider/Image/${encodeURIComponent(normalized)}`;
+     return `http://172.28.9.181:8088/api/Slider/Image/${encodeURIComponent(normalized)}`;
+     //return `/api/Slider/Image/${encodeURIComponent(normalized)}`;
     }
 
     return `/${raw}`;

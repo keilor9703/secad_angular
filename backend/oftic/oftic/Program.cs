@@ -143,6 +143,9 @@ builder.Services.AddScoped<IDbVideoInstitucionalRepository, DbVideoInstitucional
 builder.Services.AddScoped<IDbNoticiaService, DbNoticiaService>();
 builder.Services.AddScoped<IDbNoticiaRepository, DbNoticiaRepository>();
 
+builder.Services.AddScoped<IDbModalService, DbModalService>();
+builder.Services.AddScoped<IDbModalRepository, DbModalRepository>();
+
 var app = builder.Build();
 
 var uploadsRoot = Path.Combine(app.Environment.ContentRootPath, "uploads", "sliders");
@@ -153,6 +156,9 @@ Directory.CreateDirectory(radioLogosRoot);
 
 var noticiasRoot = Path.Combine(app.Environment.ContentRootPath, "uploads", "noticias");
 Directory.CreateDirectory(noticiasRoot);
+
+var modalesRoot = Path.Combine(app.Environment.ContentRootPath, "uploads", "modales");
+Directory.CreateDirectory(modalesRoot);
 
 app.UseCors("DevCors");
 

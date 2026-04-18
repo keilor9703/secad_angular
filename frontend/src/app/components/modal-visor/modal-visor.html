@@ -1,0 +1,42 @@
+<div class="mv-overlay" *ngIf="visible && modal" (click)="cerrar()">
+  <div class="mv-panel" (click)="$event.stopPropagation()">
+
+    <button class="mv-close" type="button" (click)="cerrar()" aria-label="Cerrar">
+      <i class="fa-solid fa-xmark"></i>
+    </button>
+
+    <!-- Contador cuando hay varios modales -->
+    <div class="mv-pager" *ngIf="modales.length > 1">
+      {{ indiceActual + 1 }} / {{ modales.length }}
+    </div>
+
+    <!-- Recurso: imagen -->
+    <div class="mv-recurso" *ngIf="esImagen">
+      <img [src]="modal!.rutaRecurso" [alt]="modal!.titulo">
+    </div>
+
+    <!-- Recurso: video -->
+    <div class="mv-recurso" *ngIf="esVideo">
+      <video controls muted preload="auto" (error)="onVideoError($event)">
+        <source [src]="modal!.rutaRecurso | safeUrl" [type]="videoMimeType">
+      </video>
+    </div>
+
+    <!-- Contenido -->
+    <div class="mv-body">
+      <!--<h2 class="mv-titulo">{{ modal!.titulo }}</h2> -->
+      <p class="mv-descripcion" *ngIf="modal!.descripcion">{{ modal!.descripcion }}</p>
+    </div>
+
+    <!-- Acciones -->
+    <div class="mv-actions">
+      <button class="mv-btn secondary" type="button" (click)="cerrar()">
+        Cerrar
+      </button>
+      <button class="mv-btn primary" type="button" *ngIf="requiereAceptar" (click)="aceptar()">
+        <i class="fa-solid fa-check"></i> Aceptar
+      </button>
+    </div>
+
+  </div>
+</div>

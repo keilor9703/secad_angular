@@ -7,7 +7,7 @@ import { FooterComponent } from '../components/footer/footer';
 import { BreadcrumbComponent } from '../components/breadcrumb/breadcrumb';
 import { AccessibilityMenuComponent } from '../components/accessibility-menu/accessibility-menu';
 import { SidebarService } from '../services/sidebar';
- 
+
 @Component({
   selector: 'app-layout',
   templateUrl: './layout.html',

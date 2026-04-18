@@ -94,4 +94,4 @@ jobs:
 
             # Start container
             cd /opt/oftic
-            docker compose up -d
+            DB_COEST="${{ secrets.DB_COEST }}" docker compose up -d

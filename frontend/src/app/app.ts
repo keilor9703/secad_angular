@@ -6,12 +6,13 @@ import { Subscription } from 'rxjs';
 import { ToastService, ToastType } from './core/services/toast.service';
 import { AlertService, AlertType } from './core/services/alert.service';
 import { BrandingService } from './core/services/administracion/branding.service';
+import { ModalVisorComponent } from './components/modal-visor/modal-visor';
 
 @Component({
   selector: 'app-root',
   templateUrl: './app.html',
   standalone: true,
-  imports: [RouterOutlet, CommonModule]
+  imports: [RouterOutlet, CommonModule, ModalVisorComponent]
 })
 export class AppComponent implements OnDestroy {
 
