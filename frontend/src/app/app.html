@@ -1,5 +1,8 @@
 <router-outlet></router-outlet>
 
+<!-- Modal Visor (popups configurables, se activa solo en /home) -->
+<app-modal-visor></app-modal-visor>
+
 <!-- UI TOAST -->
 <div class="ui-toast-wrap" *ngIf="toast.open">
   <div class="ui-toast" [ngClass]="toast.type">

@@ -1,15 +1,16 @@
-import { Component, HostBinding, HostListener, OnInit } from '@angular/core';
+﻿import { Component, HostBinding, HostListener, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { SidebarService } from '../../services/sidebar';
-import { MenuService, DbMenuItem } from '../../core/services/menu.service';
+import { MenuService, DbMenuItem } from '../../core/services/administracion/menu.service';
 import { AuthService } from '../../core/auth/auth.service';
-import { BrandingService } from '../../core/services/branding.service';
+import { BrandingService } from '../../core/services/administracion/branding.service';
 
 interface SubMenuItem {
   id: number;
   label: string;
   route: string;
+  isExternal?: boolean;
 }
 
 interface MenuItem {
@@ -17,6 +18,7 @@ interface MenuItem {
   icon: string;
   label: string;
   route?: string;
+  isExternal?: boolean;
   submenu?: SubMenuItem[];
 }
 
@@ -218,22 +220,13 @@ onItemTap(item: MenuItem, ev: MouseEvent) {
     const active = normalized.filter(x => !!x.descripcion && x.vigente === 1);
     const byId = new Map(active.map(x => [x.idMenu, x]));
 
-    // Soporta 3 esquemas de raíz:
-    // 1) idPadre=0
-    // 2) padre no presente
-    // 3) raíz técnica con autoreferencia (idPadre === idMenu), p.ej. RAIZ.
-    const selfRootIds = new Set(
-      active.filter(x => x.idPadre === x.idMenu).map(x => x.idMenu)
-    );
-
+    // Encontrar items que son raíces (tienen idPadre = 1 o idPadre = 0 o no tienen padre en la lista)
+    // Excluir RAIZ técnico de la lista de padres visibles
     const parents = active
       .filter(x => {
-        if (selfRootIds.size > 0) {
-          // Si existe raíz técnica, los padres reales son sus hijos directos.
-          return selfRootIds.has(x.idPadre) && !selfRootIds.has(x.idMenu);
-        }
-        return !x.idPadre || x.idPadre === 0 || !byId.has(x.idPadre);
+        return x.idPadre === 0 || x.idPadre === 1 || !byId.has(x.idPadre);
       })
+      .filter(x => x.idMenu !== 1)
       .sort((a, b) => a.posicion - b.posicion);
 
     if (parents.length === 0) {
@@ -246,16 +239,21 @@ onItemTap(item: MenuItem, ev: MouseEvent) {
         .sort((a, b) => a.posicion - b.posicion);
 
       const subs = directChildren
-        .map(child => ({
-          id: child.idMenu,
-          route: this.normalizeRoute(child.detalle),
-          label: this.normalizeLabel(child.descripcion, this.normalizeRoute(child.detalle))
-        }))
+        .map(child => {
+          const route = this.normalizeRoute(child.detalle);
+          return {
+            id: child.idMenu,
+            route: route,
+            label: this.normalizeLabel(child.descripcion, route),
+            isExternal: this.isExternalUrl(route)
+          };
+        })
         .filter(sub => !!sub.route);
 
       const route = this.normalizeRoute(parent.detalle);
       const label = this.normalizeLabel(parent.descripcion, route);
       const icon = this.normalizeIcon(parent.icono);
+      const isExternal = this.isExternalUrl(route);
 
       if (subs.length > 0) {
         return {
@@ -275,7 +273,8 @@ onItemTap(item: MenuItem, ev: MouseEvent) {
         id: parent.idMenu,
         icon,
         label,
-        route
+        route,
+        isExternal
       } as MenuItem;
     });
 
@@ -287,32 +286,49 @@ onItemTap(item: MenuItem, ev: MouseEvent) {
     if (!value) {
       return '';
     }
-    const normalized = value.startsWith('/') ? value : `/${value}`;
-    if (normalized === '/formularios') {
-      return '/administracion/formularios';
+
+    // Si es URL externa (http://, https://, o www.)
+    if (value.startsWith('http://') || value.startsWith('https://') || value.startsWith('www.')) {
+      // Agregar https:// si solo tiene www.
+      if (value.startsWith('www.') && !value.startsWith('http')) {
+        return 'https://' + value;
+      }
+      return value;
     }
-    if (normalized === '/usuarios') {
-      return '/administracion/usuarios';
+
+    // Si ya tiene /administracion/, devolver tal cual
+    if (value.startsWith('/administracion/')) {
+      return value;
     }
-    if (normalized === '/roles') {
-      return '/administracion/roles';
-    }
-    if (normalized === '/video-unidad') {
+
+    // Rutas que van a configuracion-sistema
+    const configRoutes = [
+      '/video-unidad',
+      '/configuracion-imagen-sitio',
+      '/admin-multimedia',
+      '/configuracion-sistema'
+    ];
+    if (configRoutes.includes(value)) {
       return '/administracion/configuracion-sistema';
     }
-    if (normalized === '/configuracion-imagen-sitio') {
-      return '/administracion/configuracion-sistema';
-    }
-    if (normalized === '/admin-multimedia') {
-      return '/administracion/configuracion-sistema';
-    }
-    if (normalized === '/configuracion-sistema') {
-      return '/administracion/configuracion-sistema';
-    }
-    if (normalized === '/linea-mando') {
-      return '/administracion/linea-mando';
-    }
-    return normalized;
+
+    // Rutas simples que necesitan prefijo
+    const routeMap: Record<string, string> = {
+      '/formularios': '/administracion/formularios',
+      '/usuarios': '/administracion/usuarios',
+      '/roles': '/administracion/roles',
+      '/linea-mando': '/administracion/linea-mando',
+      '/radio': '/administracion/radio',
+      '/menu': '/administracion/menu',
+      '/auditoria': '/administracion/auditoria',
+      '/sliders': '/administracion/sliders'
+    };
+
+    return routeMap[value] || (value.startsWith('/') ? value : `/${value}`);
+  }
+
+  private isExternalUrl(url: string): boolean {
+    return url.startsWith('http://') || url.startsWith('https://') || url.startsWith('www.');
   }
 
   private normalizeLabel(label: string, route: string): string {
@@ -391,6 +407,7 @@ onItemTap(item: MenuItem, ev: MouseEvent) {
       route === '/usuarios' ||
       route === '/roles' ||
       route === '/linea-mando' ||
+      route === '/radio' ||
       route === '/configuracion-sistema' ||
       route === '/video-unidad' ||
       route === '/configuracion-imagen-sitio' ||
@@ -425,3 +442,4 @@ onItemTap(item: MenuItem, ev: MouseEvent) {
   }
   
 }
+

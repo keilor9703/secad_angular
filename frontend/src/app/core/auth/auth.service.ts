@@ -48,6 +48,7 @@ export class AuthService {
           }
           localStorage.setItem(this.authKey, '1');
           localStorage.setItem(this.userKey, resp.usuario ?? usuario);
+          sessionStorage.removeItem('modales_vistos');
         }
       })
     );

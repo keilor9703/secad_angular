@@ -1,10 +1,10 @@
-import { Component, OnDestroy, OnInit } from '@angular/core';
+﻿import { Component, OnDestroy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
 import { AuthService } from '../../core/auth/auth.service';
-import { LoginVisualPublicItem, LoginVisualService } from '../../core/services/login-visual.service';
-import { BrandingService } from '../../core/services/branding.service';
+import { LoginVisualPublicItem, LoginVisualService } from '../../core/services/administracion/login-visual.service';
+import { BrandingService } from '../../core/services/administracion/branding.service';
 
 @Component({
   selector: 'app-login',
@@ -150,3 +150,4 @@ export class LoginComponent implements OnInit, OnDestroy {
     this.showPassword = !this.showPassword;
   }
 }
+

@@ -1,4 +1,4 @@
-import { Component, HostListener, OnInit } from '@angular/core';
+﻿import { Component, HostListener, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, RouterModule } from '@angular/router';
 import { FormsModule } from '@angular/forms';
@@ -6,7 +6,7 @@ import { HttpClient } from '@angular/common/http';
 import { SidebarService } from '../../services/sidebar.js';
 import { AuthService } from '../../core/auth/auth.service';
 import { environment } from '../../../environments/environment';
-import { BrandingService } from '../../core/services/branding.service';
+import { BrandingService } from '../../core/services/administracion/branding.service';
 
 interface Notification {
   id: number;
@@ -192,3 +192,4 @@ export class HeaderComponent implements OnInit {
     this.profileModalOpen = false;
   }
 }
+

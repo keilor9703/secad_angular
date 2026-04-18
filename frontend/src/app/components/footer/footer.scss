@@ -74,6 +74,10 @@
   font-size: calc(0.78rem * var(--font-size-scale));
   font-weight: 800;
   letter-spacing: 0.2px;
+  max-width: 220px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .radio-play {
@@ -93,6 +97,28 @@
 .radio-play:hover {
   transform: translateY(-1px);
   background: rgba(255, 255, 255, 0.2);
+}
+
+.radio-play.is-playing {
+  background: var(--policia-acento);
+  color: var(--policia-oscuro);
+  border-color: var(--policia-acento);
+  animation: soundPulse 1.5s infinite;
+}
+
+@keyframes soundPulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(205, 255, 0, 0.55);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow: 0 0 0 10px rgba(205, 255, 0, 0);
+    transform: scale(1.03);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(205, 255, 0, 0);
+    transform: scale(1);
+  }
 }
 
 .radio-select {
@@ -209,7 +235,7 @@
   }
 
   .radio-label {
-    display: none;
+    max-width: 100px;
   }
 
   .radio-logo {

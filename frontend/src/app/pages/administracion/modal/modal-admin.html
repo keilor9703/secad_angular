@@ -1,0 +1,230 @@
+<section class="modal-admin-page">
+  <div class="ui-panel">
+
+    <!-- Cabecera -->
+    <div class="ui-panel__head">
+      <div class="ui-panel__title">
+        <i class="fa-solid fa-window-restore"></i>
+        Administración de Modales
+      </div>
+      <div class="ui-panel__actions ui-window-controls">
+        <button class="ui-icon-btn ui-win-btn is-min" type="button" title="Minimizar" (click)="toggleMinimize()">
+          <i class="fa-solid fa-minus"></i>
+        </button>
+      </div>
+    </div>
+
+    <div class="ui-panel__body" *ngIf="!minimized">
+      <div class="admin-grid">
+
+        <!-- Formulario -->
+        <article class="tab-card form-card">
+          <h3>{{ editingId ? 'Editar modal' : 'Nuevo modal' }}</h3>
+
+          <div class="ui-grid">
+
+            <div class="ui-field ui-col-12">
+              <label class="ui-label">Título *</label>
+              <input class="ui-control" type="text" [(ngModel)]="form.Titulo" maxlength="300"
+                placeholder="Título del modal">
+            </div>
+
+            <div class="ui-field ui-col-12">
+              <label class="ui-label">Descripción</label>
+              <textarea class="ui-control" rows="3" [(ngModel)]="form.Descripcion" maxlength="1000"
+                placeholder="Mensaje o contenido del modal"></textarea>
+            </div>
+
+            <div class="ui-field ui-col-6">
+              <label class="ui-label">Tipo de recurso</label>
+              <select class="ui-control" [(ngModel)]="form.TipoRecurso">
+                <option *ngFor="let t of tiposRecurso" [value]="t">{{ t }}</option>
+              </select>
+            </div>
+
+            <div class="ui-field ui-col-6">
+              <label class="ui-label">Tipo de acción</label>
+              <select class="ui-control" [(ngModel)]="form.TipoAccion">
+                <option *ngFor="let a of tiposAccion" [value]="a">{{ a }}</option>
+              </select>
+            </div>
+
+            <div class="ui-field ui-col-12" *ngIf="form.TipoRecurso === 'IMAGEN' || form.TipoRecurso === 'VIDEO'">
+              <label class="ui-label">Cargar recurso</label>
+              <input class="ui-control" type="file"
+                [accept]="form.TipoRecurso === 'IMAGEN' ? '.jpg,.jpeg,.png,.webp,image/*' : '.mp4,.webm,.mov,video/*'"
+                (change)="onRecursoSelected($event)"
+                [disabled]="uploadingRecurso">
+              <small class="meta" *ngIf="form.TipoRecurso === 'IMAGEN'">JPG, PNG, WEBP — máx. 5MB</small>
+              <small class="meta" *ngIf="form.TipoRecurso === 'VIDEO'">MP4, WEBM, MOV — máx. 150MB</small>
+              <div class="list-loading" *ngIf="uploadingRecurso">Subiendo archivo...</div>
+            </div>
+
+            <!-- Preview imagen -->
+            <div class="ui-field ui-col-12"
+              *ngIf="!uploadingRecurso && form.TipoRecurso === 'IMAGEN' && recursoPreviewUrl">
+              <label class="ui-label">Vista previa</label>
+              <div class="recurso-preview">
+                <img [src]="recursoPreviewUrl" alt="Vista previa del recurso">
+              </div>
+            </div>
+
+            <!-- Preview video -->
+            <div class="ui-field ui-col-12"
+              *ngIf="!uploadingRecurso && form.TipoRecurso === 'VIDEO' && recursoPreviewUrl">
+              <label class="ui-label">Vista previa</label>
+              <div class="recurso-preview">
+                <video [src]="recursoPreviewUrl" controls preload="metadata"></video>
+              </div>
+            </div>
+
+            <div class="ui-field ui-col-6">
+              <label class="ui-label">Fecha y hora inicio *</label>
+              <input class="ui-control" type="datetime-local" [(ngModel)]="form.FechaInicio">
+            </div>
+
+            <div class="ui-field ui-col-6">
+              <label class="ui-label">Fecha y hora fin *</label>
+              <input class="ui-control" type="datetime-local" [(ngModel)]="form.FechaFin">
+            </div>
+
+            <div class="ui-field ui-col-8">
+              <label class="ui-label">Unidad</label>
+              <input class="ui-control" type="text" [(ngModel)]="form.Unidad" maxlength="100"
+                placeholder="Dejar vacío para todas las unidades">
+            </div>
+
+            <div class="ui-field ui-col-4">
+              <label class="ui-label">Orden</label>
+              <input class="ui-control" type="number" [(ngModel)]="form.Orden" min="1" max="999">
+            </div>
+
+            <div class="ui-field ui-col-6" *ngIf="editingId">
+              <label class="ui-label">Vigente</label>
+              <select class="ui-control" [(ngModel)]="form.Vigente">
+                <option [ngValue]="1">Sí</option>
+                <option [ngValue]="0">No</option>
+              </select>
+            </div>
+
+          </div>
+
+          <div class="tab-actions">
+            <button class="ui-btn secondary" type="button" (click)="nuevo()">Limpiar</button>
+            <button class="ui-btn primary" type="button" (click)="guardar()" [disabled]="saving">
+              <i class="fa-solid fa-floppy-disk"></i>
+              {{ saving ? 'Guardando...' : 'Guardar' }}
+            </button>
+          </div>
+        </article>
+
+        <!-- Listado -->
+        <article class="tab-card list-card">
+          <h3>Modales registrados</h3>
+
+          <div class="list-loading" *ngIf="loading">Cargando modales...</div>
+
+          <div class="modal-list" *ngIf="!loading && lista.length > 0">
+            <div class="modal-item" *ngFor="let item of lista">
+
+              <div class="modal-item__header">
+                <span class="modal-item__titulo">{{ item.titulo }}</span>
+                <span class="badge" [class.active]="item.vigente === 1">
+                  {{ item.vigente === 1 ? 'Activo' : 'Inactivo' }}
+                </span>
+              </div>
+
+              <div class="modal-item__meta">
+                <span><i class="fa-solid fa-calendar-days"></i> {{ item.fechaInicio | date:'dd/MM/yyyy' }} — {{ item.fechaFin | date:'dd/MM/yyyy' }}</span>
+                <span><i class="fa-solid fa-tag"></i> {{ item.tipoAccion }}</span>
+                <span *ngIf="item.unidad"><i class="fa-solid fa-building"></i> {{ item.unidad }}</span>
+              </div>
+
+              <div class="modal-item__contadores">
+                <span class="counter" title="Vistas">
+                  <i class="fa-solid fa-eye"></i> {{ item.conteoVistas }}
+                </span>
+                <span class="counter success" title="Aceptados">
+                  <i class="fa-solid fa-check"></i> {{ item.conteoAceptados }}
+                </span>
+                <span class="counter muted" title="Cerrados">
+                  <i class="fa-solid fa-xmark"></i> {{ item.conteoCerrados }}
+                </span>
+              </div>
+
+              <div class="modal-item__actions">
+                <button class="ui-btn secondary" type="button" (click)="editar(item)">
+                  <i class="fa-solid fa-pen"></i> Editar
+                </button>
+                <button class="ui-btn"
+                  [class.primary]="item.vigente === 0"
+                  [class.secondary]="item.vigente === 1"
+                  type="button" (click)="cambiarEstado(item)">
+                  {{ item.vigente === 1 ? 'Inactivar' : 'Activar' }}
+                </button>
+                <button class="ui-btn info" type="button" (click)="verAuditoria(item)" title="Ver interacciones">
+                  <i class="fa-solid fa-chart-bar"></i>
+                </button>
+                <button class="ui-btn danger" type="button" (click)="eliminar(item)">
+                  <i class="fa-solid fa-trash"></i>
+                </button>
+              </div>
+
+            </div>
+          </div>
+
+          <div class="news-state" *ngIf="!loading && lista.length === 0">
+            No hay modales registrados.
+          </div>
+        </article>
+
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Panel de auditoría de interacciones -->
+<div class="auditoria-overlay" *ngIf="mostrarAuditoria" (click)="cerrarAuditoria()">
+  <div class="auditoria-panel" (click)="$event.stopPropagation()">
+
+    <div class="auditoria-panel__head">
+      <span><i class="fa-solid fa-chart-bar"></i> Interacciones — {{ auditoriaTitulo }}</span>
+      <button class="ui-icon-btn" type="button" (click)="cerrarAuditoria()">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+    </div>
+
+    <div class="auditoria-panel__body">
+      <div class="list-loading" *ngIf="loadingAuditoria">Cargando...</div>
+
+      <table class="auditoria-table" *ngIf="!loadingAuditoria && auditoria.length > 0">
+        <thead>
+          <tr>
+            <th>Acción</th>
+            <th>Usuario</th>
+            <th>Máquina</th>
+            <th>Fecha</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let a of auditoria">
+            <td>
+              <span class="accion-badge" [class]="'accion-' + a.tipoAccion.toLowerCase()">
+                <i class="fa-solid" [class]="iconoTipoAccion(a.tipoAccion)"></i>
+                {{ a.tipoAccion }}
+              </span>
+            </td>
+            <td>{{ a.usuario || '—' }}</td>
+            <td>{{ a.maquina || '—' }}</td>
+            <td>{{ a.fechaInteraccion | date:'dd/MM/yyyy HH:mm' }}</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="news-state" *ngIf="!loadingAuditoria && auditoria.length === 0">
+        Sin interacciones registradas.
+      </div>
+    </div>
+
+  </div>
+</div>

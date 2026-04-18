@@ -1,8 +1,8 @@
-import { ComponentFixture, TestBed } from '@angular/core/testing';
+﻿import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { of } from 'rxjs';
 
 import { FooterComponent } from './footer';
-import { BrandingService } from '../../core/services/branding.service';
+import { BrandingService } from '../../core/services/administracion/branding.service';
 
 describe('FooterComponent', () => {
   let component: FooterComponent;
@@ -31,3 +31,4 @@ describe('FooterComponent', () => {
     expect(component).toBeTruthy();
   });
 });
+
