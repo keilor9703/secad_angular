@@ -6,12 +6,13 @@ import { Subscription } from 'rxjs';
 import { ToastService, ToastType } from './core/services/toast.service';
 import { AlertService, AlertType } from './core/services/alert.service';
 import { BrandingService } from './core/services/administracion/branding.service';
+import { ModalVisorComponent } from './components/modal-visor/modal-visor';
 
 @Component({
   selector: 'app-root',
   templateUrl: './app.html',
   standalone: true,
-  imports: [RouterOutlet, CommonModule]
+  imports: [RouterOutlet, CommonModule, ModalVisorComponent]
 })
 export class AppComponent implements OnDestroy {
 
@@ -65,7 +66,7 @@ export class AppComponent implements OnDestroy {
         okText: a.okText ?? 'OK'
       };
 
-      // Bloquear scroll del fondo mientras estÃ© la alerta
+      // Bloquear scroll del fondo mientras esté la alerta
       document.body.classList.add('ui-modal-open');
     });
 

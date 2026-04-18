@@ -1,4 +1,5 @@
 ﻿using Comun.Dtos.Dominio;
+using Comun.Dtos.LineasMando;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Negocio.Interfaz;
@@ -20,6 +21,12 @@ namespace Api.Controllers
             _service = service;
             _logger = logger;
         }
+        [HttpGet]
+        public async Task<ActionResult> GetAll()
+        {
+            var result = await _service.GetAllAsync(CancellationToken.None);
+            return Ok(result);
+        }
 
         [HttpPost]
         public async Task<ActionResult> Create([FromBody] DtoDominioRequest request)
@@ -27,15 +34,15 @@ namespace Api.Controllers
             try
             {
                 _logger.LogInformation(
-                    "LineaMando Create - Identificacion={Identificacion}, Nombre={Nombre}",
-                    request?.Identificacion,
-                    request?.Nombre
+                    "Dominio Create - Descripcion={Descripcion}, IdPadre={IdPadre}",
+                    request?.Descripcion,
+                    request?.IdPadre
                     
                 );
 
                 var (usuario, maquina) = ObtenerAuditoria();
 
-                _logger.LogInformation("LineaMando Create - Auditoria: usuario={Usuario}, maquina={Maquina}", usuario, maquina);
+                _logger.LogInformation("Dominio Create - Auditoria: usuario={Usuario}, maquina={Maquina}", usuario, maquina);
 
                 var result = await _service.CreateAsync(request, usuario, maquina, CancellationToken.None);
 
@@ -53,6 +60,37 @@ namespace Api.Controllers
                 return StatusCode(500, new { success = false, message = $"Error: {ex.Message}", detail = ex.ToString() });
             }
         }
+        
+        [HttpPut("{id:long}")]
+        public async Task<ActionResult> Update(long id, [FromBody] DtoDominioRequest request)
+        {
+            var (usuario, maquina) = ObtenerAuditoria();
+
+            var result = await _service.UpdateAsync(id, request, usuario, maquina, CancellationToken.None);
+
+            if (!result.Success)
+            {
+                return BadRequest(new { success = false, message = result.Message });
+            }
+
+            return Ok(new { success = true, message = result.Message });
+        }
+
+        [HttpDelete("{id:long}")]
+        public async Task<ActionResult> Delete(long id)
+        {
+            var (usuario, maquina) = ObtenerAuditoria();
+
+            var result = await _service.DeletelogicalAsync(id, usuario, maquina, CancellationToken.None);
+
+            if (!result.Success)
+            {
+                return BadRequest(new { success = false, message = result.Message });
+            }
+
+            return Ok(new { success = true, message = result.Message });
+        }
+
 
         private (long usuario, string maquina) ObtenerAuditoria()
         {

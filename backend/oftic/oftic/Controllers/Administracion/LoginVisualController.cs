@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.Extensions.Configuration;
@@ -36,6 +37,7 @@ namespace ofic.Controllers.Administracion
 
     [ApiController]
     [Route("api/[controller]")]
+    [EnableCors("PublicCors")]
     public class LoginVisualController : ControllerBase
     {
         private const long MaxImageBytes = 10 * 1024 * 1024; // 10MB

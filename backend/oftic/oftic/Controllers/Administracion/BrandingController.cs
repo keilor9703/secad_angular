@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.Extensions.Hosting;
@@ -30,6 +31,7 @@ namespace ofic.Controllers.Administracion
 
     [ApiController]
     [Route("api/[controller]")]
+    [EnableCors("PublicCors")]
     public class BrandingController : ControllerBase
     {
         private const string ConfigName = "config.json";
@@ -220,7 +222,7 @@ namespace ofic.Controllers.Administracion
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error guardando configuracion branding");
+                _logger.LogError(ex, "Error guardando configuracion branding - Path: {RootPath}", _rootPath);
                 return StatusCode(500, new { success = false, message = "Error guardando configuracion branding." });
             }
         }
@@ -388,25 +390,35 @@ namespace ofic.Controllers.Administracion
 
         private void WriteConfig(BrandingConfig config)
         {
-            var safe = new BrandingConfig
+            try
             {
-                sistema = string.IsNullOrWhiteSpace(config.sistema) ? "SISGE" : config.sistema.Trim(),
-                nombreSistema = string.IsNullOrWhiteSpace(config.nombreSistema) ? "SISGE" : config.nombreSistema.Trim(),
-                logoFileName = string.IsNullOrWhiteSpace(config.logoFileName) ? null : Path.GetFileName(config.logoFileName),
-                faviconFileName = string.IsNullOrWhiteSpace(config.faviconFileName) ? null : Path.GetFileName(config.faviconFileName)
-            };
+                EnsureStorage();
+                
+                var safe = new BrandingConfig
+                {
+                    sistema = string.IsNullOrWhiteSpace(config.sistema) ? "SISGE" : config.sistema.Trim(),
+                    nombreSistema = string.IsNullOrWhiteSpace(config.nombreSistema) ? "SISGE" : config.nombreSistema.Trim(),
+                    logoFileName = string.IsNullOrWhiteSpace(config.logoFileName) ? null : Path.GetFileName(config.logoFileName),
+                    faviconFileName = string.IsNullOrWhiteSpace(config.faviconFileName) ? null : Path.GetFileName(config.faviconFileName)
+                };
 
-            if (safe.sistema.Length > 10)
-            {
-                safe.sistema = safe.sistema[..10];
-            }
-            if (safe.nombreSistema.Length > 50)
-            {
-                safe.nombreSistema = safe.nombreSistema[..50];
-            }
+                if (safe.sistema.Length > 10)
+                {
+                    safe.sistema = safe.sistema[..10];
+                }
+                if (safe.nombreSistema.Length > 50)
+                {
+                    safe.nombreSistema = safe.nombreSistema[..50];
+                }
 
-            var json = JsonSerializer.Serialize(safe, JsonOptions);
-            System.IO.File.WriteAllText(_configPath, json);
+                var json = JsonSerializer.Serialize(safe, JsonOptions);
+                System.IO.File.WriteAllText(_configPath, json);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error guardando configuracion branding");
+                throw;
+            }
         }
 
         private static string ResolveStoragePath(string contentRootPath)

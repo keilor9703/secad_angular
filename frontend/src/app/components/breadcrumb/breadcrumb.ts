@@ -79,17 +79,18 @@ export class BreadcrumbComponent {
 
   private routeLabels: Record<string, string> = {
     '/home': 'Inicio',
-    '/administracion': 'AdministraciÃ³n',
+    '/administracion': 'Administración',
     '/administracion/usuarios': 'Usuarios',
     '/administracion/roles': 'Roles',
     '/administracion/formularios': 'Formularios',
     '/administracion/sliders': 'Sliders',
-    '/administracion/radio': 'Emisoras Radio',
-    '/administracion/menu': 'MenÃº',
-    '/administracion/configuracion-sistema': 'ConfiguraciÃ³n Sistema',
-    '/administracion/admin-multimedia': 'ConfiguraciÃ³n Sistema',
-    '/administracion/video-unidad': 'ConfiguraciÃ³n Sistema',
-    '/administracion/configuracion-imagen-sitio': 'ConfiguraciÃ³n Sistema',
+    '/administracion/radio': 'Radio',
+    '/administracion/dominio': 'Dominios',
+    '/administracion/menu': 'Menú',
+    '/administracion/configuracion-sistema': 'Configuración Sistema',
+    '/administracion/admin-multimedia': 'Configuración Sistema',
+    '/administracion/video-unidad': 'Configuración Sistema',
+    '/administracion/configuracion-imagen-sitio': 'Configuración Sistema',
     '/noticias': 'Noticias'
   };
 

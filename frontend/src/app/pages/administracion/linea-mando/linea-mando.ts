@@ -2,6 +2,7 @@
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
+import { DomSanitizer, SafeHtml, SafeUrl } from '@angular/platform-browser';
 import { ToastService } from '../../../core/services/toast.service';
 import { LineaMandoService, DtoLineaMando, DtoLineaMandoRequest } from '../../../core/services/administracion/linea-mando.service';
 import { UsuarioAdminService } from '../../../core/services/administracion/usuario-admin.service';
@@ -33,8 +34,8 @@ export class LineaMandoAdminComponent implements OnInit {
   hayFuncionario = false;
 
   pesoOpciones: CargoOpcion[] = [
-    { id: 'Director PolicÃ­a', nombre: 'Director PolicÃ­a' },
-    { id: 'Subdirector PolicÃ­a', nombre: 'Subdirector PolicÃ­a' },
+    { id: 'Director Policía', nombre: 'Director Policía' },
+    { id: 'Subdirector Policía', nombre: 'Subdirector Policía' },
     { id: 'Jefe Unidad', nombre: 'Jefe Unidad' },
     { id: 'Mando Ejecutivo', nombre: 'Mando Ejecutivo' }
   ];
@@ -54,7 +55,8 @@ export class LineaMandoAdminComponent implements OnInit {
   constructor(
     private toast: ToastService,
     private lineaMandoService: LineaMandoService,
-    private usuarioAdminService: UsuarioAdminService
+    private usuarioAdminService: UsuarioAdminService,
+    private sanitizer: DomSanitizer
   ) {}
 
   ngOnInit(): void {
@@ -70,7 +72,7 @@ export class LineaMandoAdminComponent implements OnInit {
       },
       error: () => {
         this.loading = false;
-        this.toast.error('Error', 'No se pudo cargar la lÃ­nea de mando');
+        this.toast.error('Error', 'No se pudo cargar la línea de mando');
       }
     });
   }
@@ -83,7 +85,7 @@ export class LineaMandoAdminComponent implements OnInit {
   buscarFuncionario(): void {
     const doc = this.searchIdentificacion.trim();
     if (!doc) {
-      this.toast.warning('Buscar', 'Ingrese un nÃºmero de identificaciÃ³n');
+      this.toast.warning('Buscar', 'Ingrese un número de identificación');
       return;
     }
 
@@ -96,7 +98,7 @@ export class LineaMandoAdminComponent implements OnInit {
         
         if (!func || !func.nombres) {
           this.searchingFuncionario = false;
-          this.toast.warning('Buscar', 'No se encontrÃ³ funcionario con esa identificaciÃ³n');
+          this.toast.warning('Buscar', 'No se encontró funcionario con esa identificación');
           return;
         }
 
@@ -104,7 +106,7 @@ export class LineaMandoAdminComponent implements OnInit {
         
         if (!activo) {
           this.searchingFuncionario = false;
-          this.toast.warning('Buscar', 'El usuario estÃ¡ inactivo en el sistema');
+          this.toast.warning('Buscar', 'El usuario está inactivo en el sistema');
           return;
         }
 
@@ -146,7 +148,7 @@ export class LineaMandoAdminComponent implements OnInit {
     );
 
     if (existentes.length > 0) {
-      this.toast.warning('Peso', `Ya existe un ${pesoActual} activo en la lÃ­nea de mando`);
+      this.toast.warning('Peso', `Ya existe un ${pesoActual} activo en la línea de mando`);
       return false;
     }
 
@@ -157,14 +159,29 @@ export class LineaMandoAdminComponent implements OnInit {
     const input = event.target as HTMLInputElement;
     if (input.files && input.files[0]) {
       const file = input.files[0];
+      
       if (file.size > 2 * 1024 * 1024) {
         this.toast.warning('Foto', 'El archivo no puede superar 2MB');
         return;
       }
+
+      const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+      const isValidType = validTypes.includes(file.type);
+      
+      if (!isValidType) {
+        this.toast.warning('Foto', 'Solo se permiten archivos de imagen (JPG, PNG, GIF, WEBP)');
+        return;
+      }
+
       const reader = new FileReader();
       reader.onload = () => {
-        this.fotoPreview = reader.result as string;
-        this.formData.fotoBase64 = reader.result as string;
+        const result = reader.result as string;
+        if (!result.startsWith('data:image/')) {
+          this.toast.warning('Foto', 'El archivo seleccionado no es una imagen válida');
+          return;
+        }
+        this.fotoPreview = result;
+        this.formData.fotoBase64 = result;
         this.fotoCambiada = true;
       };
       reader.readAsDataURL(file);
@@ -230,7 +247,7 @@ export class LineaMandoAdminComponent implements OnInit {
 
   guardar(): void {
     if (!this.formData.identificacion) {
-      this.toast.warning('Guardar', 'La identificaciÃ³n es requerida');
+      this.toast.warning('Guardar', 'La identificación es requerida');
       return;
     }
 
@@ -253,8 +270,8 @@ export class LineaMandoAdminComponent implements OnInit {
     if (existenteMismoPeso && !this.modoEdicion) {
       const confirmado = confirm(
         `Ya existe un registro activo con el cargo "${this.formData.peso}" (${existenteMismoPeso.grado} ${existenteMismoPeso.nombre}).\n\n` +
-        `Â¿EstÃ¡ seguro que desea reemplazarlo?\n\n` +
-        `El registro anterior pasarÃ¡ a estado Inactivo.`
+        `¿Está seguro que desea reemplazarlo?\n\n` +
+        `El registro anterior pasará a estado Inactivo.`
       );
       
       if (!confirmado) {
@@ -330,7 +347,7 @@ export class LineaMandoAdminComponent implements OnInit {
   }
 
   eliminar(item: DtoLineaMando): void {
-    if (!confirm(`Â¿EstÃ¡ seguro de eliminar a ${item.nombre} ${item.apellidos}?`)) {
+    if (!confirm(`¿Está seguro de eliminar a ${item.nombre} ${item.apellidos}?`)) {
       return;
     }
 
@@ -373,7 +390,23 @@ export class LineaMandoAdminComponent implements OnInit {
   }
 
   getNombreCompletoItem(item: DtoLineaMando): string {
-    return `${item.nombre} ${item.apellidos}`.trim();
+    return this.sanitizeText(`${item.nombre} ${item.apellidos}`.trim());
+  }
+
+  getGradoItem(item: DtoLineaMando): string {
+    return this.sanitizeText(item.grado);
+  }
+
+  getIdentificacionItem(item: DtoLineaMando): string {
+    return this.sanitizeText(item.identificacion);
+  }
+
+  getUnidadItem(item: DtoLineaMando): string {
+    return this.sanitizeText(item.unidad);
+  }
+
+  getPesoItem(item: DtoLineaMando): string {
+    return this.sanitizeText(item.peso);
   }
 
   private getFotoUrlFromBase64(fotoBase64: string | null): string {
@@ -381,6 +414,16 @@ export class LineaMandoAdminComponent implements OnInit {
     const base64 = fotoBase64.trim();
     if (base64.startsWith('data:')) return base64;
     return 'data:image/jpeg;base64,' + base64;
+  }
+
+  private sanitizeText(text: string | null | undefined): string {
+    if (!text) return '';
+    return String(text)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#x27;');
   }
 
   getFotoUrl(item: DtoLineaMando): string {

@@ -109,7 +109,7 @@ export class RolesAdminComponent implements OnInit {
   guardar(): void {
     const nombre = (this.form.nombre ?? '').trim();
     if (!nombre) {
-      this.toast.warning('Roles', 'La descripciÃ³n del rol es obligatoria.');
+      this.toast.warning('Roles', 'La descripción del rol es obligatoria.');
       return;
     }
 
@@ -173,7 +173,7 @@ export class RolesAdminComponent implements OnInit {
       error: (err) => {
         this.roleMenus = [];
         this.loadingRoleMenus = false;
-        this.toast.error('Permisos de menÃº', err?.error?.message ?? 'No fue posible consultar menÃºs del rol.');
+        this.toast.error('Permisos de menú', err?.error?.message ?? 'No fue posible consultar menús del rol.');
       }
     });
   }
@@ -185,12 +185,12 @@ export class RolesAdminComponent implements OnInit {
 
   asignarMenu(): void {
     if (!this.selectedRoleId || this.selectedRoleId <= 0) {
-      this.toast.warning('Permisos de menÃº', 'Selecciona un rol.');
+      this.toast.warning('Permisos de menú', 'Selecciona un rol.');
       return;
     }
 
     if (!this.selectedMenuId || this.selectedMenuId <= 0) {
-      this.toast.warning('Permisos de menÃº', 'Selecciona un menÃº.');
+      this.toast.warning('Permisos de menú', 'Selecciona un menú.');
       return;
     }
 
@@ -199,16 +199,16 @@ export class RolesAdminComponent implements OnInit {
       next: (resp) => {
         this.savingRoleMenu = false;
         if (!resp?.success) {
-          this.toast.warning('Permisos de menÃº', resp?.message || 'No fue posible asignar menÃº.');
+          this.toast.warning('Permisos de menú', resp?.message || 'No fue posible asignar menú.');
           return;
         }
-        this.toast.success('Permisos de menÃº', resp.message || 'MenÃº asignado.');
+        this.toast.success('Permisos de menú', resp.message || 'Menú asignado.');
         this.selectedMenuId = null;
         this.cargarMenusPorRol(this.selectedRoleId!);
       },
       error: (err) => {
         this.savingRoleMenu = false;
-        this.toast.error('Permisos de menÃº', err?.error?.detail ?? err?.error?.message ?? 'Error asignando menÃº.');
+        this.toast.error('Permisos de menú', err?.error?.detail ?? err?.error?.message ?? 'Error asignando menú.');
       }
     });
   }
@@ -221,14 +221,14 @@ export class RolesAdminComponent implements OnInit {
     this.menuService.removeMenuFromRol(this.selectedRoleId, item.idMenu).subscribe({
       next: (resp) => {
         if (!resp?.success) {
-          this.toast.warning('Permisos de menÃº', resp?.message || 'No fue posible quitar menÃº.');
+          this.toast.warning('Permisos de menú', resp?.message || 'No fue posible quitar menú.');
           return;
         }
-        this.toast.success('Permisos de menÃº', resp.message || 'MenÃº retirado del rol.');
+        this.toast.success('Permisos de menú', resp.message || 'Menú retirado del rol.');
         this.cargarMenusPorRol(this.selectedRoleId!);
       },
       error: (err) => {
-        this.toast.error('Permisos de menÃº', err?.error?.detail ?? err?.error?.message ?? 'Error retirando menÃº.');
+        this.toast.error('Permisos de menú', err?.error?.detail ?? err?.error?.message ?? 'Error retirando menú.');
       }
     });
   }

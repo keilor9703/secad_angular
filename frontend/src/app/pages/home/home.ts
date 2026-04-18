@@ -4,7 +4,12 @@ import { RouterLink } from '@angular/router';
 import { DtoSliders, SliderService } from '../../core/services/administracion/slider.service';
 import { HomeService, HomeStats } from '../../core/services/home.service';
 import { VideoUnidadService } from '../../core/services/administracion/video-unidad.service';
+import { VideoInstitucionalService } from '../../core/services/administracion/video-institucional.service';
 import { DtoLineaMando, LineaMandoService } from '../../core/services/administracion/linea-mando.service';
+import { NoticiaService, DtoNoticia } from '../../core/services/administracion/noticia.service';
+import { SafeUrlPipe } from '../../shared/pipes/safe-url.pipe';
+import { environment } from '../../../environments/environment';
+
 
 type NewsTag = 'Comunicado' | 'Servicio' | 'Importante';
 
@@ -15,14 +20,21 @@ interface NewsItem {
   title: string;
   lead: string;     
   content: string;  
-  image: string;   
+  image: string;
+  megusta: number;
 }
 
+interface SocialLink {
+  name: string;
+  icon: string;
+  url: string;
+  color: string;
+}
 
 @Component({
   selector: 'app-home',
   standalone: true,
-  imports: [CommonModule,RouterLink],
+  imports: [CommonModule, SafeUrlPipe, RouterLink],
   templateUrl: './home.html',
   styleUrls: ['./home.scss'],
 })
@@ -36,22 +48,80 @@ export class HomeComponent implements OnInit, OnDestroy {
   currentBannerIndex = 0;
   private bannerTimer: ReturnType<typeof setInterval> | null = null;
   videoUnidadUrl = '';
+  videoInstitucionalUrl = '';
   lineaMando: DtoLineaMando[] = [];
   lineaMandoLightboxOpen = false;
   lineaMandoLightboxItem: DtoLineaMando | null = null;
+
+  socialLinks: SocialLink[] = [
+    { name: 'Facebook', icon: 'fa-facebook-f', url: 'https://www.facebook.com/PoliciaColombia', color: '#1877F2' },
+    { name: 'X', icon: 'fa-x-twitter', url: 'https://twitter.com/PoliciaColombia', color: '#000000' },
+    { name: 'Instagram', icon: 'fa-instagram', url: 'https://www.instagram.com/policiacolombia', color: '#E4405F' },
+    { name: 'YouTube', icon: 'fa-youtube', url: 'https://www.youtube.com/@PoliciaNacionalCol', color: '#FF0000' }
+  ];
 
   constructor(
     private sliderService: SliderService,
     private homeService: HomeService,
     private videoUnidadService: VideoUnidadService,
-    private lineaMandoService: LineaMandoService
+    private videoInstitucionalService: VideoInstitucionalService,
+    private lineaMandoService: LineaMandoService,
+    private noticiaService: NoticiaService
   ) {}
 
   ngOnInit(): void {
     this.loadBanners();
     this.loadStats();
     this.loadVideoUnidad();
+    this.loadVideoInstitucional();
     this.loadLineaMando();
+    this.loadNoticias();
+  }
+
+  loadNoticias(): void {
+    this.noticiaService.getActivas().subscribe({
+      next: (noticias) => {
+        console.log('Noticias cargadas:', noticias);
+        console.log('Cantidad:', noticias.length);
+        // Ordenar por fecha descendente y limitar a 5 noticias más recientes
+        const sorted = noticias.sort((a, b) => 
+          new Date(b.fechaCreacion).getTime() - new Date(a.fechaCreacion).getTime()
+        ).slice(0, 5);
+        
+        this.news = sorted.map(n => ({
+          id: n.idNoticia,
+          date: new Date(n.fechaCreacion).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' }),
+          tag: this.mapSeccionToTag(n.seccion),
+          title: n.titulo,
+          lead: n.subtitulo || '',
+          content: n.contenido || '',
+          image: this.getNoticiaImageUrl(n.imagenNoticia),
+          megusta: n.megusta || 0
+        }));
+        console.log('News mapeadas:', this.news);
+      },
+      error: (err) => {
+        console.error('Error cargando noticias:', err);
+        this.news = [];
+      }
+    });
+  }
+
+  private getNoticiaImageUrl(imagenNoticia: string | null | undefined): string {
+    const raw = (imagenNoticia ?? '').trim();
+    if (!raw) return '';
+    if (raw.startsWith('http://') || raw.startsWith('https://') || raw.startsWith('/api/') || raw.startsWith('data:')) return raw;
+    const fileName = raw.split('/').filter(Boolean).pop() ?? '';
+    return fileName ? `/api/NoticiaUpload/Imagen/${encodeURIComponent(fileName)}` : '';
+  }
+
+  private mapSeccionToTag(seccion: string): NewsTag {
+    switch (seccion.toLowerCase()) {
+      case 'comunicado': return 'Comunicado';
+      case 'servicio': return 'Servicio';
+      case 'importante': return 'Importante';
+      default: return 'Comunicado';
+    }
   }
 
   ngOnDestroy(): void {
@@ -101,6 +171,17 @@ export class HomeComponent implements OnInit, OnDestroy {
       },
       error: () => {
         this.videoUnidadUrl = '';
+      }
+    });
+  }
+
+  private loadVideoInstitucional(): void {
+    this.videoInstitucionalService.getCurrent().subscribe({
+      next: (data) => {
+        this.videoInstitucionalUrl = data?.hasVideo && data.data?.embedUrl ? data.data.embedUrl : '';
+      },
+      error: () => {
+        this.videoInstitucionalUrl = '';
       }
     });
   }
@@ -228,22 +309,30 @@ export class HomeComponent implements OnInit, OnDestroy {
     const uploadPathIndex = raw.toLowerCase().indexOf('/uploads/sliders/');
     if (uploadPathIndex >= 0) {
       const fileName = raw.substring(uploadPathIndex).split('/').filter(Boolean).pop() ?? '';
-      return fileName ? `/api/Slider/Image/${encodeURIComponent(fileName)}` : '';
+      return fileName ? `http://172.28.9.181:8088/api/Slider/Image/${encodeURIComponent(fileName)}` : '';
+      //return fileName ? `/api/Slider/Image/${encodeURIComponent(fileName)}` : '';
     }
 
     const normalized = raw.replace(/\\/g, '/');
     if (normalized.toLowerCase().startsWith('uploads/sliders/')) {
       const fileName = normalized.split('/').filter(Boolean).pop() ?? '';
-      return fileName ? `/api/Slider/Image/${encodeURIComponent(fileName)}` : '';
+      return fileName ? `http://172.28.9.181:8088/api/Slider/Image/${encodeURIComponent(fileName)}` : '';
+      //return fileName ? `/api/Slider/Image/${encodeURIComponent(fileName)}` : '';
     }
-
-    if (raw.startsWith('http://') || raw.startsWith('https://') || raw.startsWith('/')) {
+    if (raw.startsWith('http://') || raw.startsWith('https://')) {
       return raw;
     }
+    if (raw.startsWith('/')) {
+      return `http://172.28.9.181:8088${raw}`;
+    }
+    /*if (raw.startsWith('http://') || raw.startsWith('https://') || raw.startsWith('/')) {
+      return raw;
+    }*/
 
-    // Si viene solo el nombre de archivo, apuntamos a la carpeta pÃºblica de sliders.
+    // Si viene solo el nombre de archivo, apuntamos a la carpeta pública de sliders.
     if (/^[^/]+\.(jpg|jpeg|png|webp)$/i.test(normalized)) {
-      return `/api/Slider/Image/${encodeURIComponent(normalized)}`;
+     return `http://172.28.9.181:8088/api/Slider/Image/${encodeURIComponent(normalized)}`;
+     //return `/api/Slider/Image/${encodeURIComponent(normalized)}`;
     }
 
     return `/${raw}`;
@@ -288,35 +377,7 @@ export class HomeComponent implements OnInit, OnDestroy {
     ];
   }
 
-  news: NewsItem[] = [
-    {
-      id: 1,
-      date: '15 Ene 2026',
-      tag: 'Comunicado',
-      title: 'ActualizaciÃ³n del sistema SISGE',
-      lead: 'Se implementaron mejoras de rendimiento y ajustes visuales en formularios y turnos de pago.',
-      content: 'Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry\'s standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book. It has survived not only five centuries, but also the leap into electronic typesetting, remaining essentially unchanged. It was popularised in the 1960s with the release of Letraset sheets containing Lorem Ipsum passages, and more recently with desktop publishing software like Aldus PageMaker including versions of Lorem Ipsum.',
-      image: 'imagenes/noticia1.jpg'
-    },
-    {
-      id: 2,
-      date: '12 Ene 2026',
-      tag: 'Servicio',
-      title: 'Nueva guÃ­a para radicaciÃ³n',
-      lead: 'Consulta el paso a paso actualizado para radicar y validar documentos en el mÃ³dulo judicial.',
-      content: 'Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry\'s standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book. It has survived not only five centuries, but also the leap into electronic typesetting, remaining essentially unchanged. It was popularised in the 1960s with the release of Letraset sheets containing Lorem Ipsum passages, and more recently with desktop publishing software like Aldus PageMaker including versions of Lorem Ipsum.',
-      image: 'imagenes/noticia2.jpg'
-    },
-    {
-      id: 3,
-      date: '08 Ene 2026',
-      tag: 'Importante',
-      title: 'Ventana de mantenimiento',
-      lead: 'El sistema tendrÃ¡ una ventana programada el fin de semana para actualizaciÃ³n de seguridad.',
-      content: 'Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry\'s standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book. It has survived not only five centuries, but also the leap into electronic typesetting, remaining essentially unchanged. It was popularised in the 1960s with the release of Letraset sheets containing Lorem Ipsum passages, and more recently with desktop publishing software like Aldus PageMaker including versions of Lorem Ipsum.',
-      image: 'imagenes/noticia3.jpg'
-    }
-  ];
+  news: NewsItem[] = [];
 
   newsModalOpen = false;
   selectedNews: NewsItem | null = null;
@@ -331,6 +392,43 @@ export class HomeComponent implements OnInit, OnDestroy {
     this.newsModalOpen = false;
     this.selectedNews = null;
     this.syncBodyModalClass();
+  }
+
+  likeNoticia(item: NewsItem, event: Event): void {
+    event.stopPropagation();
+    
+    const likedNews = this.getLikedNews();
+    if (likedNews.includes(item.id)) {
+      return;
+    }
+    
+    this.noticiaService.darLike(item.id).subscribe({
+      next: () => {
+        item.megusta = (item.megusta || 0) + 1;
+        this.saveLikedNews(item.id);
+      },
+      error: (err) => {
+        console.error('Error dando like:', err);
+      }
+    });
+  }
+
+  hasLiked(noticiaId: number): boolean {
+    const likedNews = this.getLikedNews();
+    return likedNews.includes(noticiaId);
+  }
+
+  private getLikedNews(): number[] {
+    const stored = sessionStorage.getItem('likedNews');
+    return stored ? JSON.parse(stored) : [];
+  }
+
+  private saveLikedNews(noticiaId: number): void {
+    const liked = this.getLikedNews();
+    if (!liked.includes(noticiaId)) {
+      liked.push(noticiaId);
+      sessionStorage.setItem('likedNews', JSON.stringify(liked));
+    }
   }
 
   @HostListener('document:keydown.escape')

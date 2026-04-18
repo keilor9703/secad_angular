@@ -15,7 +15,7 @@
     <div class="ui-panel__body" *ngIf="!videoPanelMinimized">
       <div class="video-grid">
         <article class="tab-card form-card">
-          <h3 >Cargar video institucional</h3>
+          <h3>Cargar video institucional</h3>
 
           <div class="ui-field">
             <label class="ui-label">Archivo (máx 100MB)</label>
@@ -27,25 +27,69 @@
             <small class="meta">Se conserva un solo video activo. Al cargar uno nuevo se reemplaza el anterior.</small>
           </div>
 
+          <div class="ui-field">
+            <label class="ui-label">Descripción <span class="required">*</span></label>
+            <input
+              class="ui-control"
+              type="text"
+              maxlength="255"
+              [(ngModel)]="videoDescripcion"
+              placeholder="Ej: Video institucional 2025"
+              [disabled]="!selectedVideoFile">
+          </div>
+
+          <div class="ui-field">
+            <label class="ui-label">Observaciones</label>
+            <textarea
+              class="ui-control"
+              rows="3"
+              maxlength="500"
+              [(ngModel)]="videoObservaciones"
+              placeholder="Observaciones adicionales (opcional)"
+              [disabled]="!selectedVideoFile"></textarea>
+          </div>
+
           <div class="list-loading" *ngIf="uploading">Cargando video, por favor espere...</div>
+
+          <div class="tab-actions">
+            <button
+              class="ui-btn primary"
+              type="button"
+              (click)="saveVideo()"
+              [disabled]="uploading || !selectedVideoFile">
+              <i class="fa-solid fa-floppy-disk"></i>
+              {{ uploading ? 'Guardando...' : 'Guardar video' }}
+            </button>
+          </div>
         </article>
 
         <article class="tab-card list-card">
-          <h3>Vista previa actual</h3>
+          <h3>Vista previa</h3>
           <div class="list-loading" *ngIf="loading">Consultando video actual...</div>
 
-          <div *ngIf="!loading && info?.hasVideo && previewUrl" class="video-preview">
+          <div *ngIf="selectedVideoPreviewUrl" class="video-preview">
+            <small class="meta">Nuevo video seleccionado (pendiente de guardar)</small>
+            <video class="video-player" controls preload="metadata">
+              <source [src]="selectedVideoPreviewUrl">
+              Tu navegador no soporta reproducción de video.
+            </video>
+          </div>
+
+          <div *ngIf="!selectedVideoPreviewUrl && !loading && info?.hasVideo && previewUrl" class="video-preview">
+            <small class="meta">Video actual</small>
             <video class="video-player" controls preload="metadata">
               <source [src]="previewUrl" type="video/mp4">
               Tu navegador no soporta reproducción de video.
             </video>
             <div class="meta mt-2">
+              <div *ngIf="info?.descripcion"><strong>Descripción:</strong> {{ info?.descripcion }}</div>
+              <div *ngIf="info?.observaciones"><strong>Observaciones:</strong> {{ info?.observaciones }}</div>
               <div><strong>Archivo:</strong> {{ info?.fileName }}</div>
               <div><strong>Tamaño:</strong> {{ (info?.sizeBytes ?? 0) / 1048576 | number:'1.1-1' }} MB</div>
             </div>
           </div>
 
-          <div class="news-state" *ngIf="!loading && !info?.hasVideo">
+          <div class="news-state" *ngIf="!selectedVideoPreviewUrl && !loading && !info?.hasVideo">
             No hay video configurado.
           </div>
         </article>

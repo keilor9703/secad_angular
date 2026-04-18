@@ -168,15 +168,15 @@
                 <div style="display: flex; align-items: center; gap: 10px;">
                   <img [src]="getFotoUrl(item)" alt="Foto" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 2px solid #ddd;">
                   <div>
-                    <div style="font-weight: 600;">{{ item.grado }} {{ item.nombre }} {{ item.apellidos }}</div>
-                    <div style="font-size: 11px; color: #666;">{{ item.identificacion }}</div>
+                    <div style="font-weight: 600;" [innerHTML]="getGradoItem(item) + ' ' + getNombreCompletoItem(item)"></div>
+                    <div style="font-size: 11px; color: #666;" [innerHTML]="getIdentificacionItem(item)"></div>
                   </div>
                 </div>
               </td>
               <td>
-                <span class="ui-badge primary">{{ item.peso }}</span>
+                <span class="ui-badge primary" [innerHTML]="getPesoItem(item)"></span>
               </td>
-              <td>{{ item.unidad }}</td>
+              <td [innerHTML]="getUnidadItem(item)"></td>
               <td style="text-align: center;">
                 <span class="ui-badge" [class.success]="item.vigente === 1" [class.warning]="item.vigente !== 1">
                   {{ item.vigente === 1 ? 'Activo' : 'Inactivo' }}

@@ -64,7 +64,25 @@ export class AdministracionInicioComponent {
       title: 'Configuración del Sistema',
       description: 'Marca del sistema, visual login y video institucional.',
       route: '/administracion/configuracion-sistema',
-      icon: 'fa-solid fa-sliders'
+      icon: 'fa fa-cog fa-spin fa-3x fa-fw"'
+    },
+     {
+      title: 'Configuración de Dominios',
+      description: 'Administra dominios del sistema, para listas desplegables.',
+      route: '/administracion/dominio',
+      icon: 'fa fa-refresh fa-spin fa-3x fa-fw'
+    },
+    {
+      title: 'Video Institucional',
+      description: 'Administracion de videos instuitucionales del sistema.',
+      route: '/administracion/video-institucional',
+      icon: 'fa fa-refresh fa-spin fa-3x fa-fw'
+    },
+     {
+      title: 'Administración de noticias',
+      description: 'Administracion de Creación de noticias.',
+      route: '/administracion/noticias',
+      icon: 'fa fa-refresh fa-spin fa-3x fa-fw'
     }
   ];
 }

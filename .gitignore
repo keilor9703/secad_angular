@@ -29,11 +29,14 @@ backend/oftic/oftic.dl/bin/
 backend/oftic/oftic.dl/obj/
 backend/oftic/oftic.sl/bin/
 backend/oftic/oftic.sl/obj/
+backend/**/publish/
+backend/**/uploads/
 backend/**/*.user
 backend/**/*.suo
 backend/**/.vs/
-backend/**/uploads/
 backend/**/appsettings.Development.json
+backend/publish/
+backend/*.zip
 
 # =====================
 # IDEs y editores
@@ -58,3 +61,5 @@ yarn-error.log
 # =====================
 .DS_Store
 Thumbs.db
+.dotnet/
+.claude

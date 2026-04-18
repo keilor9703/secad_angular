@@ -83,12 +83,12 @@ export class UsuariosComponent {
   consultarUsuario(): void {
     const documento = this.searchIdentification.trim();
     if (!documento) {
-      this.toast.warning('Documento requerido', 'Digite una identificaciÃ³n para consultar.');
+      this.toast.warning('Documento requerido', 'Digite una identificación para consultar.');
       return;
     }
 
     this.loading = true;
-    this.toast.info('Consulta', 'Buscando informaciÃ³n empresarial...');
+    this.toast.info('Consulta', 'Buscando información empresarial...');
 
     this.usuarioAdminService.consultarUsuarioPorIdentificacion(documento).subscribe({
       next: (resp) => {
@@ -130,7 +130,7 @@ export class UsuariosComponent {
         this.newRole = { rolId: null, justificacion: '', fechaFin: '' };
 
         this.loading = false;
-        this.toast.success('Consulta exitosa', 'Se cargÃ³ la informaciÃ³n del usuario.');
+        this.toast.success('Consulta exitosa', 'Se cargó la información del usuario.');
       },
       error: (err) => {
         this.loading = false;
@@ -138,7 +138,7 @@ export class UsuariosComponent {
         const errorResponse = err?.error;
         const errorMsg = 
           errorResponse?.message ?? 
-          (errorResponse?.success === false ? 'OperaciÃ³n fallida' : null) ??
+          (errorResponse?.success === false ? 'Operación fallida' : null) ??
           'No fue posible consultar el usuario.';
         this.toast.error('Consulta fallida', errorMsg);
       }
@@ -167,7 +167,7 @@ export class UsuariosComponent {
     }
 
     if (this.rolesCatalogo.length === 0) {
-      this.toast.warning('Roles', 'No hay catÃ¡logo de roles disponible.');
+      this.toast.warning('Roles', 'No hay catálogo de roles disponible.');
       return;
     }
 
@@ -186,7 +186,7 @@ export class UsuariosComponent {
     }
 
     if (!this.user.identificacion?.trim()) {
-      this.toast.warning('Guardar datos', 'La identificaciÃ³n estÃ¡ vacÃ­a; vuelve a consultar el usuario.');
+      this.toast.warning('Guardar datos', 'La identificación está vacía; vuelve a consultar el usuario.');
       return;
     }
 
@@ -217,7 +217,7 @@ export class UsuariosComponent {
         this.loading = false;
         this.toast.error(
           'Guardar datos',
-          err?.error?.detail ?? err?.error?.message ?? 'Se presentÃ³ un error guardando el usuario.'
+          err?.error?.detail ?? err?.error?.message ?? 'Se presentó un error guardando el usuario.'
         );
       }
     });
@@ -240,7 +240,7 @@ export class UsuariosComponent {
     }
 
     if (!this.newRole.justificacion.trim()) {
-      this.toast.warning('Roles', 'La justificaciÃ³n es obligatoria.');
+      this.toast.warning('Roles', 'La justificación es obligatoria.');
       return;
     }
 

@@ -1,0 +1,97 @@
+name: Build and Deploy
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-api:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore
+        run: dotnet restore backend/oftic/oftic.sln
+
+      - name: Build
+        run: dotnet build backend/oftic/oftic.sln -c Release --no-restore
+
+      - name: Publish
+        run: dotnet publish backend/oftic/oftic/Api.csproj -c Release -o ./publish/api
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: api
+          path: ./publish/api
+
+  build-frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install
+        run: npm ci --prefix frontend
+
+      - name: Build
+        run: npx ng build polisiadev-app --configuration production
+        working-directory: frontend
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: web
+          path: frontend/dist/policiadev-app
+
+  deploy:
+    needs: [build-api, build-frontend]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - name: Download API
+        uses: actions/download-artifact@v4
+        with:
+          name: api
+          path: /tmp/api
+
+      - name: Download Web
+        uses: actions/download-artifact@v4
+        with:
+          name: web
+          path: /tmp/web
+
+      - name: Deploy to server
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          script: |
+            # Stop existing container
+            docker stop sisge-api || true
+            docker rm sisge-api || true
+
+            # Copy artifacts
+            cp -r /tmp/api /opt/oftic/api/
+            cp -r /tmp/web /opt/oftic/www/
+
+            # Fix permissions
+            chown -R root:root /opt/oftic/api /opt/oftic/www
+
+            # Start container
+            cd /opt/oftic
+            DB_COEST="${{ secrets.DB_COEST }}" docker compose up -d

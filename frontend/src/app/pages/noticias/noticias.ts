@@ -1,15 +1,15 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { NoticiaCard, NoticiasService } from '../../core/services/noticias.service';
+import { NoticiaService, DtoNoticia } from '../../core/services/administracion/noticia.service';
 
 @Component({
-  selector: 'app-noticias',
+  selector: 'app-noticias-web',
   standalone: true,
   imports: [CommonModule],
   templateUrl: './noticias.html',
   styleUrl: './noticias.scss'
 })
-export class Noticias implements OnInit {
+export class NoticiasWeb implements OnInit {
   minimized = false;
   closed = false;
   isLoading = true;
@@ -20,9 +20,13 @@ export class Noticias implements OnInit {
   itemsPerPage = 8;
   totalPages = 0;
 
-  news: NoticiaCard[] = [];
+  news: DtoNoticia[] = [];
 
-  constructor(private noticiasService: NoticiasService) {}
+  modalOpen = false;
+  selectedNoticia: DtoNoticia | null = null;
+  liked = false;
+
+  constructor(private noticiaService: NoticiaService) {}
 
   ngOnInit(): void {
     this.loadNoticias();
@@ -33,9 +37,11 @@ export class Noticias implements OnInit {
     this.hasError = false;
     this.errorMessage = '';
 
-    this.noticiasService.getNoticias().subscribe({
+    this.noticiaService.getActivas().subscribe({
       next: (news) => {
-        this.news = news;
+        this.news = news.sort((a, b) => 
+          new Date(b.fechaCreacion).getTime() - new Date(a.fechaCreacion).getTime()
+        );
         this.currentPage = 1;
         this.calculateTotalPages();
         this.isLoading = false;
@@ -43,8 +49,7 @@ export class Noticias implements OnInit {
       error: () => {
         this.isLoading = false;
         this.hasError = true;
-        this.errorMessage =
-          'No fue posible cargar las noticias desde policia.gov.co. Intente nuevamente.';
+        this.errorMessage = 'No fue posible cargar las noticias. Intente nuevamente.';
       }
     });
   }
@@ -53,7 +58,7 @@ export class Noticias implements OnInit {
     this.totalPages = Math.ceil(this.news.length / this.itemsPerPage);
   }
 
-  get paginatedNews(): NoticiaCard[] {
+  get paginatedNews(): DtoNoticia[] {
     const startIndex = (this.currentPage - 1) * this.itemsPerPage;
     const endIndex = startIndex + this.itemsPerPage;
     return this.news.slice(startIndex, endIndex);
@@ -84,8 +89,65 @@ export class Noticias implements OnInit {
     }
   }
 
-  openOriginalNews(url: string): void {
-    window.open(url, '_blank', 'noopener,noreferrer');
+  getImageUrl(noticia: DtoNoticia): string {
+    if (!noticia.imagenNoticia) return 'imagenes/actividades/news2.jpg';
+    if (noticia.imagenNoticia.startsWith('http')) return noticia.imagenNoticia;
+    return `/api/NoticiaUpload/Imagen/${noticia.imagenNoticia.split('/').pop()}`;
+  }
+
+  getNoticiaUrl(noticia: DtoNoticia): string {
+    return `/administracion/noticias`;
+  }
+
+  openNoticia(noticia: DtoNoticia): void {
+    this.selectedNoticia = noticia;
+    this.modalOpen = true;
+    document.body.classList.add('modal-open');
+  }
+
+  closeNoticia(): void {
+    this.modalOpen = false;
+    this.selectedNoticia = null;
+    document.body.classList.remove('modal-open');
+  }
+
+  likeNoticia(noticia: DtoNoticia, event: Event): void {
+    event.stopPropagation();
+    
+    const likedNews = this.getLikedNews();
+    if (likedNews.includes(noticia.idNoticia)) {
+      return;
+    }
+    
+    this.liked = true;
+    this.noticiaService.darLike(noticia.idNoticia).subscribe({
+      next: () => {
+        noticia.megusta = (noticia.megusta || 0) + 1;
+        this.saveLikedNews(noticia.idNoticia);
+        setTimeout(() => this.liked = false, 1000);
+      },
+      error: (err) => {
+        console.error('Error dando like:', err);
+        this.liked = false;
+      }
+    });
+  }
+
+  hasLiked(noticiaId: number): boolean {
+    return this.getLikedNews().includes(noticiaId);
+  }
+
+  private getLikedNews(): number[] {
+    const stored = sessionStorage.getItem('likedNews');
+    return stored ? JSON.parse(stored) : [];
+  }
+
+  private saveLikedNews(noticiaId: number): void {
+    const liked = this.getLikedNews();
+    if (!liked.includes(noticiaId)) {
+      liked.push(noticiaId);
+      sessionStorage.setItem('likedNews', JSON.stringify(liked));
+    }
   }
 
   private scrollToTop(): void {
