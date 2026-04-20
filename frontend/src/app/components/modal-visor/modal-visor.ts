@@ -17,17 +17,12 @@ import { SafeUrlPipe } from '../../shared/pipes/safe-url.pipe';
   styleUrls: ['./modal-visor.scss'],
 })
 export class ModalVisorComponent implements OnInit, OnDestroy {
-  modales: DtoModalActivo[] = [];
-  indiceActual = 0;
+  modal: DtoModalActivo | null = null;
   visible = false;
 
   private static readonly SESSION_KEY = 'modales_vistos';
   private routerSub!: Subscription;
   private delay?: ReturnType<typeof setTimeout>;
-
-  get modal(): DtoModalActivo | null {
-    return this.modales[this.indiceActual] ?? null;
-  }
 
   get esImagen(): boolean { return this.modal?.tipoRecurso?.toUpperCase() === 'IMAGEN'; }
   get esVideo(): boolean  { return this.modal?.tipoRecurso?.toUpperCase() === 'VIDEO';  }
@@ -44,7 +39,6 @@ export class ModalVisorComponent implements OnInit, OnDestroy {
   constructor(private modalService: ModalService, private router: Router) {}
 
   ngOnInit(): void {
-    // Escucha navegaciones y dispara solo cuando lleguemos al home
     this.routerSub = this.router.events
       .pipe(filter(e => e instanceof NavigationEnd))
       .subscribe((e: NavigationEnd) => {
@@ -54,7 +48,6 @@ export class ModalVisorComponent implements OnInit, OnDestroy {
         }
       });
 
-    // También dispara si ya estamos en home al cargar el componente
     const url = this.router.url;
     if (url === '/home' || url.startsWith('/home?') || url.startsWith('/home;')) {
       this.intentarMostrar();
@@ -68,12 +61,16 @@ export class ModalVisorComponent implements OnInit, OnDestroy {
 
   aceptar(): void {
     this.registrar('ACEPTAR');
-    this.avanzar();
+    this.cerrarModal();
   }
 
   cerrar(): void {
     this.registrar('CERRAR');
-    this.avanzar();
+    this.cerrarModal();
+  }
+
+  onVideoError(event: Event): void {
+    console.error('Error cargando video del modal:', this.modal?.rutaRecurso, event);
   }
 
   private intentarMostrar(): void {
@@ -87,10 +84,10 @@ export class ModalVisorComponent implements OnInit, OnDestroy {
   private cargar(): void {
     this.modalService.getActivos().subscribe({
       next: (data) => {
-        this.modales = data ?? [];
-        console.log('[ModalVisor] modales activos:', this.modales);
-        if (this.modales.length > 0) {
-          this.indiceActual = 0;
+        const activo = data?.[0] ?? null;
+        console.log('[ModalVisor] modal activo:', activo);
+        if (activo) {
+          this.modal = activo;
           this.visible = true;
           this.registrar('VISTA');
         }
@@ -99,18 +96,10 @@ export class ModalVisorComponent implements OnInit, OnDestroy {
     });
   }
 
-  private avanzar(): void {
-    if (this.indiceActual < this.modales.length - 1) {
-      this.indiceActual++;
-      this.registrar('VISTA');
-    } else {
-      this.visible = false;
-      sessionStorage.setItem(ModalVisorComponent.SESSION_KEY, '1');
-    }
-  }
-
-  onVideoError(event: Event): void {
-    console.error('Error cargando video del modal:', this.modal?.rutaRecurso, event);
+  private cerrarModal(): void {
+    this.visible = false;
+    this.modal = null;
+    sessionStorage.setItem(ModalVisorComponent.SESSION_KEY, '1');
   }
 
   private registrar(accion: string): void {

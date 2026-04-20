@@ -72,7 +72,7 @@ namespace ofic.Controllers.Administracion
             {
                 if (string.IsNullOrEmpty(identificacion))
                 {
-                    return BadRequest(new { message = "IdentificaciÃ³n requerida" });
+                    return BadRequest(new { message = "Identificación requerida" });
                 }
 
                 // Obtener token tÃ©cnico de API externa configurado en ApiSettings.
@@ -88,17 +88,17 @@ namespace ofic.Controllers.Administracion
 
                 if (empleado is null)
                 {
-                    return NotFound(new { message = "No se encontrÃ³ informaciÃ³n del funcionario." });
+                    return NotFound(new { message = "No se encuentra información del funcionario." });
                 }
 
                 // Validar situaciÃ³n laboral
                 var situacionLaboral = (empleado.situacionLaboral ?? string.Empty).Trim().ToUpperInvariant();
-                if (situacionLaboral != "LABORANDO" && situacionLaboral != "COMISION DEL SERVICIO")
+                if (situacionLaboral != "LABORANDO" && situacionLaboral != "COMISION DEL SERVICIO" && situacionLaboral != "COMISION DE ESTUDIOS")
                 {
                     return BadRequest(new
                     {
                         success = false,
-                        message = $"Usuario no estÃ¡ en situaciÃ³n laboral vÃ¡lida. SituaciÃ³n actual: '{empleado.situacionLaboral ?? "No reportada"}'. Solo se permiten 'LABORANDO' o 'COMISIÃ“N DEL SERVICIO'."
+                        message = $"Usuario no está¡ en situación laboral válida. Situación actual: '{empleado.situacionLaboral ?? "No reportada"}'. Solo se permiten 'LABORANDO' o 'COMISIÓN DEL SERVICIO'."
                     });
                 }
 

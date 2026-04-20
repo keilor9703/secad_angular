@@ -267,53 +267,56 @@ namespace Datos.Gestion
         {
             var result = new DtoModalResult();
 
-            await using var conn = new OracleConnection(_cs);
-            await conn.OpenAsync(ct);
-            await using var transaction = await conn.BeginTransactionAsync(ct);
-
+            var conn = new OracleConnection(_cs);
             try
             {
-                await using var cmd = conn.CreateCommand();
-                cmd.CommandTimeout = 30;
-                cmd.Transaction = (OracleTransaction)transaction;
-                cmd.BindByName = true;
-                cmd.CommandType = CommandType.StoredProcedure;
-                cmd.CommandText = "PK_ADMINISTRACION.P_TOGGLE_VIGENTE_MODAL";
+                await conn.OpenAsync(ct);
+                await using var transaction = await conn.BeginTransactionAsync(CancellationToken.None);
 
-                cmd.Parameters.Add("p_id_modal",         OracleDbType.Int64).Value          = id;
-                cmd.Parameters.Add("p_vigente",          OracleDbType.Int32).Value           = vigente;
-                cmd.Parameters.Add("p_usuario_modifica", OracleDbType.Varchar2, 100).Value  = Truncate(usuarioAuditoria, 100);
-                cmd.Parameters.Add("p_maquina_modifica", OracleDbType.Varchar2, 100).Value  = Truncate(maquinaAuditoria, 100);
+                try
+                {
+                    await using var cmd = conn.CreateCommand();
+                    cmd.CommandTimeout = 60;
+                    cmd.Transaction = (OracleTransaction)transaction;
+                    cmd.BindByName = true;
+                    cmd.CommandType = CommandType.StoredProcedure;
+                    cmd.CommandText = "PK_ADMINISTRACION.P_TOGGLE_VIGENTE_MODAL";
 
-                var pSuccess = new OracleParameter("p_success", OracleDbType.Int32) { Direction = ParameterDirection.Output };
-                var pMessage = new OracleParameter("p_message", OracleDbType.Varchar2) { Direction = ParameterDirection.Output, Size = 4000 };
-                cmd.Parameters.Add(pSuccess);
-                cmd.Parameters.Add(pMessage);
+                    cmd.Parameters.Add("p_id_modal",         OracleDbType.Int64).Value         = id;
+                    cmd.Parameters.Add("p_vigente",          OracleDbType.Int32).Value          = vigente;
+                    cmd.Parameters.Add("p_usuario_modifica", OracleDbType.Varchar2, 100).Value = Truncate(usuarioAuditoria, 100);
+                    cmd.Parameters.Add("p_maquina_modifica", OracleDbType.Varchar2, 100).Value = Truncate(maquinaAuditoria, 100);
 
-                await cmd.ExecuteNonQueryAsync(ct);
+                    var pSuccess = new OracleParameter("p_success", OracleDbType.Int32) { Direction = ParameterDirection.Output };
+                    var pMessage = new OracleParameter("p_message", OracleDbType.Varchar2) { Direction = ParameterDirection.Output, Size = 4000 };
+                    cmd.Parameters.Add(pSuccess);
+                    cmd.Parameters.Add(pMessage);
 
-                var successVal = (Oracle.ManagedDataAccess.Types.OracleDecimal)pSuccess.Value;
-                result.Success = !successVal.IsNull && (int)successVal == 1;
-                result.Message = pMessage.Value?.ToString() ?? string.Empty;
+                    await cmd.ExecuteNonQueryAsync(CancellationToken.None);
 
-                if (result.Success)
-                    await transaction.CommitAsync(ct);
-                else
-                    await transaction.RollbackAsync(ct);
+                    var successVal = (Oracle.ManagedDataAccess.Types.OracleDecimal)pSuccess.Value;
+                    result.Success = !successVal.IsNull && (int)successVal == 1;
+                    result.Message = pMessage.Value?.ToString() ?? string.Empty;
+
+                    if (result.Success)
+                        await transaction.CommitAsync(CancellationToken.None);
+                    else
+                        await transaction.RollbackAsync(CancellationToken.None);
+                }
+                catch (Exception ex)
+                {
+                    try { await transaction.RollbackAsync(CancellationToken.None); } catch { }
+                    result.Success = false;
+                    result.Message = ex is OracleException ? $"Error Oracle: {ex.Message}" : $"Error: {ex.Message}";
+                    _logger.LogError(ex, "Error al cambiar vigente modal ID={Id}", id);
+                    // Limpiar conexión del pool para no dejar locks activos
+                    OracleConnection.ClearPool(conn);
+                }
             }
-            catch (OracleException ex)
+            finally
             {
-                await transaction.RollbackAsync(ct);
-                result.Success = false;
-                result.Message = $"Error Oracle: {ex.Message}";
-                _logger.LogError(ex, "Error Oracle al cambiar vigente modal ID={Id}", id);
-            }
-            catch (Exception ex)
-            {
-                await transaction.RollbackAsync(ct);
-                result.Success = false;
-                result.Message = $"Error: {ex.Message}";
-                _logger.LogError(ex, "Error al cambiar vigente modal ID={Id}", id);
+                try { conn.Close(); } catch { }
+                conn.Dispose();
             }
 
             return result;
@@ -322,45 +325,54 @@ namespace Datos.Gestion
         public async Task<DtoModalResult> RegistrarInteraccionAsync(long idModal, string tipoAccion, string usuario, string maquina, CancellationToken ct)
         {
             var result = new DtoModalResult();
-
-            await using var conn = new OracleConnection(_cs);
-            await conn.OpenAsync(ct);
-
+            var conn = new OracleConnection(_cs);
             try
             {
-                await using var cmd = conn.CreateCommand();
-                cmd.CommandTimeout = 30;
-                cmd.BindByName = true;
-                cmd.CommandType = CommandType.StoredProcedure;
-                cmd.CommandText = "PK_ADMINISTRACION.P_REGISTRAR_INTERACCION";
+                await conn.OpenAsync(ct);
+                await using var transaction = await conn.BeginTransactionAsync(CancellationToken.None);
+                try
+                {
+                    await using var cmd = conn.CreateCommand();
+                    cmd.CommandTimeout = 60;
+                    cmd.Transaction = (OracleTransaction)transaction;
+                    cmd.BindByName = true;
+                    cmd.CommandType = CommandType.StoredProcedure;
+                    cmd.CommandText = "PK_ADMINISTRACION.P_REGISTRAR_INTERACCION";
 
-                cmd.Parameters.Add("p_id_modal",    OracleDbType.Int64).Value          = idModal;
-                cmd.Parameters.Add("p_tipo_accion", OracleDbType.Varchar2, 20).Value   = Truncate(tipoAccion, 20);
-                cmd.Parameters.Add("p_usuario",     OracleDbType.Varchar2, 100).Value  = Truncate(usuario, 100);
-                cmd.Parameters.Add("p_maquina",     OracleDbType.Varchar2, 100).Value  = Truncate(maquina, 100);
+                    cmd.Parameters.Add("p_id_modal",    OracleDbType.Int64).Value          = idModal;
+                    cmd.Parameters.Add("p_tipo_accion", OracleDbType.Varchar2, 20).Value   = Truncate(tipoAccion, 20);
+                    cmd.Parameters.Add("p_usuario",     OracleDbType.Varchar2, 100).Value  = Truncate(usuario, 100);
+                    cmd.Parameters.Add("p_maquina",     OracleDbType.Varchar2, 100).Value  = Truncate(maquina, 100);
 
-                var pSuccess = new OracleParameter("p_success", OracleDbType.Int32) { Direction = ParameterDirection.Output };
-                var pMessage = new OracleParameter("p_message", OracleDbType.Varchar2) { Direction = ParameterDirection.Output, Size = 4000 };
-                cmd.Parameters.Add(pSuccess);
-                cmd.Parameters.Add(pMessage);
+                    var pSuccess = new OracleParameter("p_success", OracleDbType.Int32) { Direction = ParameterDirection.Output };
+                    var pMessage = new OracleParameter("p_message", OracleDbType.Varchar2) { Direction = ParameterDirection.Output, Size = 4000 };
+                    cmd.Parameters.Add(pSuccess);
+                    cmd.Parameters.Add(pMessage);
 
-                await cmd.ExecuteNonQueryAsync(ct);
+                    await cmd.ExecuteNonQueryAsync(CancellationToken.None);
 
-                var successVal = (Oracle.ManagedDataAccess.Types.OracleDecimal)pSuccess.Value;
-                result.Success = !successVal.IsNull && (int)successVal == 1;
-                result.Message = pMessage.Value?.ToString() ?? string.Empty;
+                    var successVal = (Oracle.ManagedDataAccess.Types.OracleDecimal)pSuccess.Value;
+                    result.Success = !successVal.IsNull && (int)successVal == 1;
+                    result.Message = pMessage.Value?.ToString() ?? string.Empty;
+
+                    if (result.Success)
+                        await transaction.CommitAsync(CancellationToken.None);
+                    else
+                        await transaction.RollbackAsync(CancellationToken.None);
+                }
+                catch (Exception ex)
+                {
+                    try { await transaction.RollbackAsync(CancellationToken.None); } catch { }
+                    result.Success = false;
+                    result.Message = ex is OracleException ? $"Error Oracle: {ex.Message}" : $"Error: {ex.Message}";
+                    _logger.LogError(ex, "Error al registrar interacción modal ID={Id}", idModal);
+                    OracleConnection.ClearPool(conn);
+                }
             }
-            catch (OracleException ex)
+            finally
             {
-                result.Success = false;
-                result.Message = $"Error Oracle: {ex.Message}";
-                _logger.LogError(ex, "Error Oracle al registrar interacción modal ID={Id}", idModal);
-            }
-            catch (Exception ex)
-            {
-                result.Success = false;
-                result.Message = $"Error: {ex.Message}";
-                _logger.LogError(ex, "Error al registrar interacción modal ID={Id}", idModal);
+                try { conn.Close(); } catch { }
+                conn.Dispose();
             }
 
             return result;
