@@ -59,7 +59,7 @@ export class MenuAdminComponent implements OnInit {
       next: (items) => {
         this.menuItems = (items ?? []).slice().sort((a, b) => a.idPadre - b.idPadre || a.posicion - b.posicion);
         this.parentOptions = this.menuItems
-          .filter((item) => !this.isRaiz(item))
+          .filter((item) => item.idMenu === 1 || !this.isRaiz(item))
           .slice()
           .sort((a, b) => a.descripcion.localeCompare(b.descripcion));
         this.expandedParents.clear();

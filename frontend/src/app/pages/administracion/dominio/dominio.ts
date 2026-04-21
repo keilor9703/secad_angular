@@ -31,7 +31,7 @@ export class DominioAdminComponent implements OnInit {
     Observacion: ''
   };
 
-  dominioOptions: { id: string; descripcion: string }[] = [];
+  dominioOptions: { id: number; descripcion: string }[] = [];
 
   constructor(
     private toast: ToastService,
@@ -46,7 +46,7 @@ export class DominioAdminComponent implements OnInit {
     this.loading = true;
     this.dominioService.getAll().subscribe({
       next: (data) => {
-        this.listaDominios = data ?? [];
+        this.listaDominios = (data ?? []).map((item) => this.normalizarDominio(item as any));
         this.buildTree();
         this.actualizarOpcionesPadre();
         this.loading = false;
@@ -60,11 +60,27 @@ export class DominioAdminComponent implements OnInit {
 
   private actualizarOpcionesPadre(): void {
     this.dominioOptions = this.listaDominios
-      .filter(d => d.idDominio !== 0 && d.idDominio !== (this.editingId ?? 0))
+      .filter(
+        d =>
+          d.idDominio !== 0 &&
+          d.idDominio !== (this.editingId ?? 0) &&
+          Number(d.idPadre) === 0
+      )
       .map(d => ({
-        id: String(d.idDominio),
+        id: d.idDominio,
         descripcion: d.descripcion
       }));
+  }
+
+  private normalizarDominio(item: any): DtoDominio {
+    return {
+      idDominio: Number(item?.idDominio ?? item?.IdDominio ?? item?.id_dominio ?? item?.ID_DOMINIO ?? 0),
+      descripcion: String(item?.descripcion ?? item?.Descripcion ?? ''),
+      idPadre: Number(item?.idPadre ?? item?.IdPadre ?? item?.id_padre ?? item?.ID_PADRE ?? 0),
+      vigente: Number(item?.vigente ?? item?.Vigente ?? 0),
+      abreviatura: String(item?.abreviatura ?? item?.Abreviatura ?? ''),
+      observacion: String(item?.observacion ?? item?.Observacion ?? '')
+    };
   }
 
   private buildTree(): void {

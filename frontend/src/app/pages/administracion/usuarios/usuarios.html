@@ -217,6 +217,18 @@
                     <strong>{{ rol.justificacion || 'Sin justificación' }}</strong>
                   </div>
                 </div>
+
+                <div class="tab-actions">
+                  <button
+                    class="ui-btn secondary"
+                    type="button"
+                    (click)="eliminarRol(rol)"
+                    [disabled]="deletingRoleId === rol.id"
+                  >
+                    <i class="fa-solid fa-trash"></i>
+                    {{ deletingRoleId === rol.id ? 'Retirando...' : 'Retirar rol' }}
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -244,6 +256,121 @@
           </div>
         </div>
       </ng-template>
+
+      <article class="tab-card users-table-card">
+        <div class="roles-head">
+          <h3>Usuarios existentes</h3>
+          <button class="ui-btn secondary" type="button" (click)="cargarListadoUsuarios()" [disabled]="loadingListado">
+            <i class="fa-solid fa-rotate"></i>
+            {{ loadingListado ? 'Cargando...' : 'Actualizar' }}
+          </button>
+        </div>
+
+        <div class="ui-grid">
+          <div class="ui-field ui-col-6">
+            <label class="ui-label">Buscar por nombre</label>
+            <input
+              class="ui-control"
+              type="text"
+              [(ngModel)]="searchNombreListado"
+              (ngModelChange)="onSearchNombreListadoChange()"
+              placeholder="Escribe un nombre (mínimo 6 caracteres)..."
+            >
+            <small class="search-hint">Al buscar, la tabla mostrará solo coincidencias desde el carácter {{ minSearchChars }}.</small>
+          </div>
+        </div>
+
+        <div class="list-loading" *ngIf="loadingListado">Consultando usuarios...</div>
+
+        <div class="table-wrap" *ngIf="!loadingListado && usuariosListado.length > 0; else noUsersTable">
+          <table class="users-table">
+            <thead>
+              <tr>
+                <th>Usuario empresarial</th>
+                <th>Grado y nombre</th>
+                <th>Rol</th>
+                <th>Fecha vencimiento rol</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let item of usuariosListadoPaginado">
+                <td>{{ item.username || 'N/A' }}</td>
+                <td>{{ item.nombreCompleto || 'N/A' }}</td>
+                <td>{{ item.rol || 'Sin rol' }}</td>
+                <td>{{ item.fechaFinRol || 'Sin fecha' }}</td>
+                <td>
+                  <div class="table-actions">
+                    <button class="ui-btn secondary" type="button" (click)="editarDesdeListado(item)">
+                      <i class="fa-solid fa-pen-to-square"></i>
+                      
+                    </button>
+                    <button class="ui-btn secondary danger" type="button" (click)="abrirModalEliminarUsuario(item)">
+                      <i class="fa-solid fa-user-xmark"></i>
+                      
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div class="table-pagination" *ngIf="totalUsuariosListado > 0">
+            <span class="pagination-summary">
+              Página {{ currentPage }} de {{ totalPaginasListado }} | Registros: {{ totalUsuariosListado }}
+            </span>
+
+            <div class="pagination-actions">
+              <button class="ui-btn secondary" type="button" (click)="prevPaginaListado()" [disabled]="!canGoPrevListado()">
+                <i class="fa-solid fa-chevron-left"></i>
+                Anterior
+              </button>
+              <button class="ui-btn secondary" type="button" (click)="nextPaginaListado()" [disabled]="!canGoNextListado()">
+                Siguiente
+                <i class="fa-solid fa-chevron-right"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <ng-template #noUsersTable>
+          <div class="news-state">
+            {{
+              isSearchMode
+                ? ((searchNombreListado || '').trim().length < minSearchChars
+                    ? ('Escribe mínimo ' + minSearchChars + ' caracteres para activar la búsqueda.')
+                    : 'No hay resultados para la búsqueda.')
+                : 'No hay usuarios para mostrar.'
+            }}
+          </div>
+        </ng-template>
+      </article>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" *ngIf="showDeleteUserModal">
+    <div class="modal-card">
+      <h3>Confirmar eliminación de usuario</h3>
+      <p>
+        Para eliminar el usuario <strong>{{ deletingTarget?.username }}</strong>, escribe
+        <strong>ELIMINAR</strong>.
+      </p>
+
+      <input
+        class="ui-control"
+        type="text"
+        [(ngModel)]="deleteConfirmText"
+        placeholder="Escribe ELIMINAR"
+      >
+
+      <div class="tab-actions">
+        <button class="ui-btn secondary" type="button" (click)="cerrarModalEliminarUsuario()" [disabled]="deletingUser">
+          Cancelar
+        </button>
+        <button class="ui-btn primary" type="button" (click)="confirmarEliminarUsuario()" [disabled]="deletingUser">
+          {{ deletingUser ? 'Eliminando...' : 'Confirmar eliminación' }}
+        </button>
+      </div>
     </div>
   </div>
 </section>

@@ -14,7 +14,7 @@ namespace Datos.Gestion
 
         public DbNoticiaRepository(IConfiguration configuration, ILogger<DbNoticiaRepository> logger)
         {
-            _cs = configuration.GetConnectionString("DbOracle")!;
+            _cs = configuration.GetConnectionString("DbCoest")!;
             _logger = logger;
         }
 

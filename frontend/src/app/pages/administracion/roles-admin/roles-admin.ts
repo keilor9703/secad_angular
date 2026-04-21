@@ -242,7 +242,7 @@ export class RolesAdminComponent implements OnInit {
   }
 
   formatMenuLabel(menu: DbMenuItem): string {
-    const prefix = menu.idPadre === 1 ? '' : 'â†³ ';
+    const prefix = menu.idPadre === 1 ? '' : '\u21B3 ';
     return `${prefix}${menu.descripcion} (ID ${menu.idMenu})`;
   }
 

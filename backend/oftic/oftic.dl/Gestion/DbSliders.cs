@@ -14,7 +14,7 @@ namespace Datos.Gestion
 
         public DbSliders(IConfiguration configuration)
         {
-            _cs = configuration.GetConnectionString("DbOracle")!;
+            _cs = configuration.GetConnectionString("DbCoest")!;
         }
 
         public async Task<List<DtoSliders>> GetPublicosAsync(CancellationToken ct)

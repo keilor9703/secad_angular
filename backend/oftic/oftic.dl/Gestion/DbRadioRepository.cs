@@ -13,7 +13,7 @@ namespace Datos.Gestion
 
         public DbRadioRepository(IConfiguration configuration)
         {
-            _cs = configuration.GetConnectionString("DbOracle")!;
+            _cs = configuration.GetConnectionString("DbCoest")!;
         }
 
         public async Task<List<DtoRadioEmisora>> GetAllAsync(int? soloActivos, CancellationToken ct)

@@ -15,7 +15,7 @@ namespace Datos.Gestion
 
         public DbVideoInstitucionalRepository(IConfiguration configuration, ILogger<DbVideoInstitucionalRepository> logger)
         {
-            _cs = configuration.GetConnectionString("DbOracle")!;
+            _cs = configuration.GetConnectionString("DbCoest")!;
             _logger = logger;
         }
 
