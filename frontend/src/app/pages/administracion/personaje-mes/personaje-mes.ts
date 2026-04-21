@@ -6,7 +6,8 @@ import { DominioService, DtoDominio } from '../../../core/services/administracio
 import {
   DtoPersonajeMes,
   DtoPersonajeMesRequest,
-  PersonajeMesService
+  PersonajeMesService,
+  sortPersonajesMes
 } from '../../../core/services/administracion/personaje-mes.service';
 import { UsuarioAdminService } from '../../../core/services/administracion/usuario-admin.service';
 
@@ -20,62 +21,7 @@ import { UsuarioAdminService } from '../../../core/services/administracion/usuar
 export class PersonajeMesAdminComponent implements OnInit {
   personajes: DtoPersonajeMes[] = [];
   categorias: DtoDominio[] = [];
-  categoriaDetectada: string | null = null;
-  categoriaNoReconocida = false;
-
-  private catalogoCategoriasPermitidas: DtoDominio[] = [];
-  private categoriaConsultadaId: number | null = null;
-  private categoriaConsultadaDescripcion: string | null = null;
-  private readonly categoriasPermitidas = [
-    'Oficiales',
-    'Nivel Ejecutivo',
-    'Patrulleros',
-    'Suboficiales',
-    'Agentes',
-    'Estudiantes',
-    'Auxiliares de Policía'
-  ];
-  private readonly aliasCategorias: Record<string, string[]> = {
-    oficiales: ['oficiales', 'oficial'],
-    'nivel ejecutivo': ['nivel ejecutivo', 'ejecutivo'],
-    patrulleros: ['patrulleros', 'patrullero', 'patrullero de policia'],
-    suboficiales: ['suboficiales', 'suboficial'],
-    agentes: ['agentes', 'agente'],
-    estudiantes: ['estudiantes', 'estudiante'],
-    'auxiliares de policia': ['auxiliares de policia', 'auxiliar de policia', 'auxiliares', 'auxiliar']
-  };
-  private readonly reglasGradoCategoria = [
-    { grado: 'Teniente General', categoria: 'Oficiales' },
-    { grado: 'Mayor General', categoria: 'Oficiales' },
-    { grado: 'Brigadier General', categoria: 'Oficiales' },
-    { grado: 'Teniente Coronel', categoria: 'Oficiales' },
-    { grado: 'Subteniente', categoria: 'Oficiales' },
-    { grado: 'Coronel', categoria: 'Oficiales' },
-    { grado: 'Capitán', categoria: 'Oficiales' },
-    { grado: 'Teniente', categoria: 'Oficiales' },
-    { grado: 'General', categoria: 'Oficiales' },
-    { grado: 'Mayor', categoria: 'Oficiales' },
-    { grado: 'Subcomisario', categoria: 'Nivel Ejecutivo' },
-    { grado: 'Comisario', categoria: 'Nivel Ejecutivo' },
-    { grado: 'Intendente Jefe', categoria: 'Nivel Ejecutivo' },
-    { grado: 'Subintendente', categoria: 'Nivel Ejecutivo' },
-    { grado: 'Intendente', categoria: 'Nivel Ejecutivo' },
-    { grado: 'Patrullero de Policía', categoria: 'Patrulleros' },
-    { grado: 'Patrullero', categoria: 'Patrulleros' },
-    { grado: 'Sargento Mayor', categoria: 'Suboficiales' },
-    { grado: 'Sargento Primero', categoria: 'Suboficiales' },
-    { grado: 'Sargento Viceprimero', categoria: 'Suboficiales' },
-    { grado: 'Sargento Segundo', categoria: 'Suboficiales' },
-    { grado: 'Cabo Primero', categoria: 'Suboficiales' },
-    { grado: 'Cabo Segundo', categoria: 'Suboficiales' },
-    { grado: 'Auxiliares de Policía', categoria: 'Auxiliares de Policía' },
-    { grado: 'Auxiliar de Policía', categoria: 'Auxiliares de Policía' },
-    { grado: 'Estudiantes', categoria: 'Estudiantes' },
-    { grado: 'Estudiante', categoria: 'Estudiantes' },
-    { grado: 'Agentes', categoria: 'Agentes' },
-    { grado: 'Agente', categoria: 'Agentes' }
-  ].sort((a, b) => b.grado.length - a.grado.length);
-  readonly meses = [
+  private readonly todosLosMeses = [
     { value: 1, label: 'Enero' },
     { value: 2, label: 'Febrero' },
     { value: 3, label: 'Marzo' },
@@ -89,7 +35,17 @@ export class PersonajeMesAdminComponent implements OnInit {
     { value: 11, label: 'Noviembre' },
     { value: 12, label: 'Diciembre' }
   ];
-  readonly aniosDisponibles = this.buildAniosDisponibles();
+
+  get mesesDisponibles(): { value: number; label: string }[] {
+    const mesVigente = new Date().getMonth() + 1;
+    const mesAnterior = mesVigente === 1 ? 12 : mesVigente - 1;
+    return this.todosLosMeses.filter(m => m.value === mesAnterior || m.value === mesVigente);
+  }
+
+  get aniosDisponibles(): number[] {
+    const currentYear = new Date().getFullYear();
+    return this.formData.Mes === 1 ? [currentYear - 1, currentYear] : [currentYear];
+  }
 
   loading = false;
   saving = false;
@@ -116,8 +72,7 @@ export class PersonajeMesAdminComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
-    this.cargarPersonajes();
-    this.cargarCategorias();
+    this.cargarCategoriasYPersonajes();
   }
 
   private createEmptyForm(): DtoPersonajeMesRequest {
@@ -137,23 +92,19 @@ export class PersonajeMesAdminComponent implements OnInit {
     };
   }
 
-  private buildAniosDisponibles(): number[] {
+  onMesChange(nuevoMes: number): void {
     const currentYear = new Date().getFullYear();
-    return [currentYear - 2, currentYear - 1, currentYear];
+    if (nuevoMes !== 1 && this.formData.Anio === currentYear - 1) {
+      this.formData.Anio = currentYear;
+    }
   }
 
-  cargarPersonajes(): void {
+
+cargarPersonajes(): void {
     this.loading = true;
     this.personajeMesService.getAll().subscribe({
       next: (data) => {
-        this.personajes = (data ?? []).slice().sort((a, b) => {
-          const vigenteDiff = Number(b.vigente ?? 0) - Number(a.vigente ?? 0);
-          if (vigenteDiff !== 0) {
-            return vigenteDiff;
-          }
-
-          return `${a.nombres ?? ''} ${a.apellidos ?? ''}`.localeCompare(`${b.nombres ?? ''} ${b.apellidos ?? ''}`);
-        });
+        this.personajes = sortPersonajesMes(data ?? [], this.categorias);
         this.loading = false;
       },
       error: (err) => {
@@ -166,12 +117,12 @@ export class PersonajeMesAdminComponent implements OnInit {
   cargarCategorias(): void {
     this.dominioService.getAll().subscribe({
       next: (data) => {
-        this.catalogoCategoriasPermitidas = (data ?? [])
+        this.categorias = (data ?? [])
           .filter((item) => Number(item.idPadre) === 1 && Number(item.vigente) === 1)
-          .filter((item) => this.esCategoriaPermitida(item.descripcion))
           .sort((a, b) => (a.descripcion ?? '').localeCompare(b.descripcion ?? ''));
-
-        this.actualizarCategoriasPorGrado();
+        if (this.personajes.length > 0) {
+          this.personajes = sortPersonajesMes(this.personajes, this.categorias);
+        }
       },
       error: (err) => {
         this.toast.error('Categorías', err?.error?.message ?? 'No se pudieron cargar las categorías.');
@@ -179,126 +130,21 @@ export class PersonajeMesAdminComponent implements OnInit {
     });
   }
 
-  private actualizarCategoriasPorGrado(): void {
-    const categoriaCatalogo = this.resolverCategoriaEnCatalogo();
-    const categoria = categoriaCatalogo?.descripcion
-      ?? this.categoriaConsultadaDescripcion
-      ?? this.obtenerCategoriaPorGrado(this.formData.grado || this.formData.cargo);
-    const hayRegistroCargado = this.hayFuncionario || this.modoEdicion;
-
-    this.categoriaDetectada = categoria;
-    this.categoriaNoReconocida = hayRegistroCargado && !categoriaCatalogo;
-
-    if (!hayRegistroCargado) {
-      this.categorias = [...this.catalogoCategoriasPermitidas];
-      return;
-    }
-
-    if (!categoriaCatalogo) {
-      this.formData.IdCategoria = 0;
-      this.categorias = [];
-      return;
-    }
-
-    this.categorias = [categoriaCatalogo];
-    this.formData.IdCategoria = Number(categoriaCatalogo.idDominio ?? 0);
-    this.categoriaNoReconocida = false;
-  }
-
-  private resolverCategoriaEnCatalogo(): DtoDominio | null {
-    return this.obtenerCategoriaPreferidaEnCatalogo()
-      ?? this.buscarCategoriaEnCatalogo(this.obtenerCategoriaPorGrado(this.formData.grado || this.formData.cargo));
-  }
-
-  private obtenerCategoriaPreferidaEnCatalogo(): DtoDominio | null {
-    const idCategoriaConsultada = Number(this.categoriaConsultadaId ?? 0);
-    if (idCategoriaConsultada > 0) {
-      const matchById = this.catalogoCategoriasPermitidas.find(
-        (item) => Number(item.idDominio) === idCategoriaConsultada
-      );
-
-      if (matchById) {
-        return matchById;
+  private cargarCategoriasYPersonajes(): void {
+    this.dominioService.getAll().subscribe({
+      next: (data) => {
+        this.categorias = (data ?? [])
+          .filter((item) => Number(item.idPadre) === 1 && Number(item.vigente) === 1)
+          .sort((a, b) => (a.descripcion ?? '').localeCompare(b.descripcion ?? ''));
+        this.cargarPersonajes();
+      },
+      error: (err) => {
+        this.toast.error('Categorías', err?.error?.message ?? 'No se pudieron cargar las categorías.');
+        this.cargarPersonajes();
       }
-    }
-
-    const idCategoriaFormulario = Number(this.formData.IdCategoria ?? 0);
-    if (idCategoriaFormulario > 0) {
-      const matchById = this.catalogoCategoriasPermitidas.find(
-        (item) => Number(item.idDominio) === idCategoriaFormulario
-      );
-
-      if (matchById) {
-        return matchById;
-      }
-    }
-
-    if (this.categoriaConsultadaDescripcion) {
-      return this.buscarCategoriaEnCatalogo(this.categoriaConsultadaDescripcion);
-    }
-
-    return null;
-  }
-
-  private obtenerCategoriaPorGrado(grado: string | null | undefined): string | null {
-    const gradoNormalizado = this.normalizeText(grado);
-
-    if (!gradoNormalizado) {
-      return null;
-    }
-
-    const regla = this.reglasGradoCategoria.find((item) => {
-      const alias = this.normalizeText(item.grado);
-      return gradoNormalizado === alias || gradoNormalizado.includes(alias);
-    });
-
-    return regla?.categoria ?? null;
-  }
-
-  private buscarCategoriaEnCatalogo(categoriaEsperada: string | null | undefined): DtoDominio | null {
-    const alias = this.obtenerAliasCategoria(categoriaEsperada);
-
-    for (const nombreAlias of alias) {
-      const match = this.catalogoCategoriasPermitidas.find(
-        (item) => this.normalizeCategoria(item.descripcion) === nombreAlias
-      );
-
-      if (match) {
-        return match;
-      }
-    }
-
-    return null;
-  }
-
-  private obtenerAliasCategoria(categoria: string | null | undefined): string[] {
-    const categoriaNormalizada = this.normalizeCategoria(categoria);
-    return this.aliasCategorias[categoriaNormalizada] ?? [categoriaNormalizada];
-  }
-
-  private esCategoriaPermitida(descripcion: string | null | undefined): boolean {
-    const descripcionNormalizada = this.normalizeCategoria(descripcion);
-    return this.categoriasPermitidas.some((item) => {
-      const categoriaBase = this.normalizeCategoria(item);
-      return this.obtenerAliasCategoria(categoriaBase).includes(descripcionNormalizada);
     });
   }
 
-  private normalizeCategoria(value: string | null | undefined): string {
-    return this.normalizeText(value)
-      .replace(/^categoria\s+/, '')
-      .trim();
-  }
-
-  private normalizeText(value: string | null | undefined): string {
-    return (value ?? '')
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .replace(/[^a-zA-Z0-9\s]/g, ' ')
-      .replace(/\s+/g, ' ')
-      .trim()
-      .toLowerCase();
-  }
 
   onSearchEnter(event: Event): void {
     event.preventDefault();
@@ -315,7 +161,7 @@ export class PersonajeMesAdminComponent implements OnInit {
     this.searchingFuncionario = true;
     this.hayFuncionario = false;
 
-    this.usuarioAdminService.consultarUsuarioPorIdentificacion(doc).subscribe({
+    this.usuarioAdminService.consultarFuncionarioPersonajeMes(doc).subscribe({
       next: (resp) => {
         const func = resp.funcionario;
 
@@ -336,20 +182,17 @@ export class PersonajeMesAdminComponent implements OnInit {
 
         const identificacion = (func.identificacion ?? doc).trim();
         const fotoConsultada = (resp.fotoBase64 ?? '').trim();
-        const categoriaIdConsultada = Number(func.idCategoria ?? 0);
-        const categoriaDescripcionConsultada = (func.categoriaDescripcion ?? '').trim();
-
-        this.categoriaConsultadaId = categoriaIdConsultada > 0 ? categoriaIdConsultada : null;
-        this.categoriaConsultadaDescripcion = categoriaDescripcionConsultada || null;
+        const grado = (func.nombreGrado ?? func.cargo ?? '').trim();
+        const categoriaResuelta = this.resolverCategoriaPorFuncionario(grado, func.categoriaDescripcion);
 
         this.formData = {
           identificacion,
           nombres: (func.nombres ?? '').trim(),
           apellidos: (func.apellidos ?? '').trim(),
-          grado: (func.nombreGrado ?? func.cargo ?? '').trim(),
+          grado,
           cargo: (func.cargo ?? '').trim(),
           unidad: (func.dependencia ?? '').trim(),
-          IdCategoria: this.categoriaConsultadaId ?? Number(this.formData.IdCategoria ?? 0),
+          IdCategoria: Number(categoriaResuelta?.idDominio ?? 0),
           NumeroActa: (this.formData.NumeroActa ?? '').trim(),
           FotoModificada: '',
           Mes: Number(this.formData.Mes ?? 0),
@@ -358,7 +201,6 @@ export class PersonajeMesAdminComponent implements OnInit {
 
         this.fotoPreview = this.getImageUrl(fotoConsultada);
         this.hayFuncionario = true;
-        this.actualizarCategoriasPorGrado();
         this.searchingFuncionario = false;
 
         if (fotoConsultada) {
@@ -384,8 +226,7 @@ export class PersonajeMesAdminComponent implements OnInit {
     const cargo = (this.formData.cargo ?? '').trim();
     const unidad = (this.formData.unidad ?? '').trim();
     const numeroActa = (this.formData.NumeroActa ?? '').trim();
-    const categoriaValida = this.resolverCategoriaEnCatalogo();
-    const idCategoria = Number(categoriaValida?.idDominio ?? this.formData.IdCategoria ?? 0);
+    const idCategoria = Number(this.formData.IdCategoria ?? 0);
     const mes = Number(this.formData.Mes ?? 0);
     const anio = Number(this.formData.Anio ?? 0);
 
@@ -416,16 +257,9 @@ export class PersonajeMesAdminComponent implements OnInit {
     }
 
     this.formData.IdCategoria = idCategoria;
-    this.categoriaNoReconocida = !categoriaValida;
 
     if (!idCategoria) {
-      const categoriaConsultada = (this.categoriaConsultadaDescripcion ?? this.categoriaDetectada ?? '').trim();
-      this.toast.warning(
-        'Personaje del mes',
-        categoriaConsultada
-          ? `La categoría consultada (${categoriaConsultada}) no tiene una equivalencia habilitada para Personaje del Mes.`
-          : 'El funcionario consultado no tiene una categoría habilitada para Personaje del Mes.'
-      );
+      this.toast.warning('Personaje del mes', 'Debe seleccionar una categoría.');
       return;
     }
 
@@ -498,10 +332,6 @@ export class PersonajeMesAdminComponent implements OnInit {
     this.hayFuncionario = true;
     this.idEditando = item.idPersonajeMes;
     this.searchIdentificacion = item.identificacion ?? '';
-    this.categoriaConsultadaId = Number(item.idCategoria ?? 0) || null;
-    this.categoriaConsultadaDescripcion = this.categoriaConsultadaId
-      ? this.getCategoriaDescripcion(this.categoriaConsultadaId)
-      : null;
     this.formData = {
       identificacion: item.identificacion ?? '',
       nombres: item.nombres ?? '',
@@ -516,7 +346,6 @@ export class PersonajeMesAdminComponent implements OnInit {
       Anio: this.getAnioValue(item)
     };
     this.fotoPreview = this.getImageUrl(item.fotoModificada);
-    this.actualizarCategoriasPorGrado();
   }
 
   eliminar(item: DtoPersonajeMes): void {
@@ -837,16 +666,49 @@ export class PersonajeMesAdminComponent implements OnInit {
     this.searchIdentificacion = '';
     this.searchingFuncionario = false;
     this.uploading = false;
-    this.categoriaConsultadaId = null;
-    this.categoriaConsultadaDescripcion = null;
-    this.categoriaDetectada = null;
-    this.categoriaNoReconocida = false;
-    this.categorias = [...this.catalogoCategoriasPermitidas];
     this.fotoPreview = 'imagenes/policia.jpg';
   }
 
+  private resolverCategoriaPorFuncionario(grado: string | null | undefined, categoriaDescripcion: string | null | undefined): DtoDominio | null {
+    const gradoNorm = this.normalizarTexto(grado);
+    const categNorm = this.normalizarTexto(categoriaDescripcion);
+
+    // Caso especial: grado PATRULLERO con categoría NIVEL EJECUTIVO → PATRULLEROS
+    if (gradoNorm.includes('patrullero') && categNorm.includes('nivel ejecutivo')) {
+      return this.buscarCategoriaPorKeyword('patrullero');
+    }
+    if (categNorm.includes('no uniformado')) return this.buscarCategoriaPorKeyword('no uniformado');
+    if (categNorm.includes('nivel ejecutivo')) return this.buscarCategoriaPorKeyword('nivel ejecutivo');
+    if (categNorm.includes('suboficial')) return this.buscarCategoriaPorKeyword('suboficial');
+    if (categNorm.includes('oficial') && !categNorm.includes('suboficial')) return this.buscarCategoriaPorKeyword('oficial');
+    if (categNorm.includes('agente') || categNorm.includes('categoria agentes') || categNorm.includes('categoría agentes')) return this.buscarCategoriaPorKeyword('agente');
+    if (categNorm.includes('patrullero')) return this.buscarCategoriaPorKeyword('patrullero');
+    if (categNorm.includes('alumno')) return this.buscarCategoriaPorKeyword('estudiante');
+    if (categNorm.includes('auxiliar')) return this.buscarCategoriaPorKeyword('auxiliar');
+
+    return null;
+  }
+
+  private buscarCategoriaPorKeyword(keyword: string): DtoDominio | null {
+    return this.categorias.find((item) => this.normalizarTexto(item.descripcion).includes(keyword)) ?? null;
+  }
+
+  private normalizarTexto(value: string | null | undefined): string {
+    return (value ?? '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-zA-Z0-9\s]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .toLowerCase();
+  }
+
+  get categoriaDescripcion(): string {
+    return this.categorias.find((item) => Number(item.idDominio) === Number(this.formData.IdCategoria))?.descripcion ?? '';
+  }
+
   getCategoriaDescripcion(idCategoria: number): string {
-    return this.catalogoCategoriasPermitidas.find((item) => Number(item.idDominio) === Number(idCategoria))?.descripcion ?? 'Sin categoría';
+    return this.categorias.find((item) => Number(item.idDominio) === Number(idCategoria))?.descripcion ?? 'Sin categoría';
   }
 
   getNombreCompleto(item: DtoPersonajeMes): string {
@@ -885,6 +747,6 @@ export class PersonajeMesAdminComponent implements OnInit {
   }
 
   getMesDescripcion(mes: number | null | undefined): string {
-    return this.meses.find((item) => item.value === Number(mes))?.label ?? 'Sin mes';
+    return this.todosLosMeses.find((item) => item.value === Number(mes))?.label ?? 'Sin mes';
   }
 }

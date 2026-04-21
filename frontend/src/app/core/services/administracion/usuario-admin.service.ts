@@ -130,6 +130,31 @@ export class UsuarioAdminService {
     return this.http.post<SaveUsuarioResponse>(this.baseUrl, payload);
   }
 
+  consultarFuncionarioPersonajeMes(identificacion: string): Observable<{ funcionario: DtoFuncionario; fotoBase64: string | null }> {
+    const id = identificacion.trim();
+    return this.http
+      .get<DtoFuncionario>(`${this.baseUrl}/GetFuncionarioPersonajeMes`, {
+        params: { identificacion: id }
+      })
+      .pipe(
+        map((funcionario) => funcionario ?? {}),
+        switchMap((funcionario) =>
+          forkJoin({
+            funcionario: of(funcionario),
+            fotoBase64: this.http
+              .get(`${this.baseUrl}/Foto`, {
+                params: { identificacion: id },
+                responseType: 'text'
+              })
+              .pipe(
+                map((raw) => this.normalizeFotoResponse(raw)),
+                catchError(() => of(null))
+              )
+          })
+        )
+      );
+  }
+
   asignarRol(payload: AsignarRolRequest): Observable<AsignarRolResponse> {
     return this.http.post<AsignarRolResponse>(`${this.baseUrl}/Roles`, payload);
   }

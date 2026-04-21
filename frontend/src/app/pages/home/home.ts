@@ -6,7 +6,7 @@ import { HomeService, HomeStats } from '../../core/services/home.service';
 import { VideoUnidadService } from '../../core/services/administracion/video-unidad.service';
 import { VideoInstitucionalService } from '../../core/services/administracion/video-institucional.service';
 import { DtoLineaMando, LineaMandoService } from '../../core/services/administracion/linea-mando.service';
-import { DtoPersonajeMes, PersonajeMesService } from '../../core/services/administracion/personaje-mes.service';
+import { DtoPersonajeMes, PersonajeMesService, sortPersonajesMes } from '../../core/services/administracion/personaje-mes.service';
 import { DominioService, DtoDominio } from '../../core/services/administracion/dominio.service';
 import { NoticiaService, DtoNoticia } from '../../core/services/administracion/noticia.service';
 import { SafeUrlPipe } from '../../shared/pipes/safe-url.pipe';
@@ -80,8 +80,7 @@ export class HomeComponent implements OnInit, OnDestroy {
     this.loadStats();
     this.loadVideoUnidad();
     this.loadVideoInstitucional();
-    this.loadPersonajesMes();
-    this.loadCategoriasPersonajeMes();
+    this.loadPersonajesMesConCategorias();
     this.loadLineaMando();
     this.loadNoticias();
   }
@@ -194,12 +193,13 @@ export class HomeComponent implements OnInit, OnDestroy {
     });
   }
 
-  private loadPersonajesMes(): void {
+private loadPersonajesMes(): void {
     this.personajeMesService.getAll().subscribe({
       next: (items) => {
-        this.personajesMes = (items ?? [])
-          .filter((x) => Number(x?.vigente ?? 1) === 1)
-          .sort((a, b) => this.getPersonajeMesNombre(a).localeCompare(this.getPersonajeMesNombre(b)));
+        this.personajesMes = sortPersonajesMes(
+          (items ?? []).filter((x) => Number(x?.vigente ?? 1) === 1),
+          this.categoriasPersonajeMes
+        );
       },
       error: () => {
         this.personajesMes = [];
@@ -213,9 +213,27 @@ export class HomeComponent implements OnInit, OnDestroy {
         this.categoriasPersonajeMes = (items ?? [])
           .filter((item) => Number(item?.idPadre ?? 0) === 1 && Number(item?.vigente ?? 0) === 1)
           .sort((a, b) => (a?.descripcion ?? '').localeCompare(b?.descripcion ?? ''));
+        if (this.personajesMes.length > 0) {
+          this.personajesMes = sortPersonajesMes(this.personajesMes, this.categoriasPersonajeMes);
+        }
       },
       error: () => {
         this.categoriasPersonajeMes = [];
+      }
+    });
+  }
+
+  private loadPersonajesMesConCategorias(): void {
+    this.dominioService.getAll().subscribe({
+      next: (items) => {
+        this.categoriasPersonajeMes = (items ?? [])
+          .filter((item) => Number(item?.idPadre ?? 0) === 1 && Number(item?.vigente ?? 0) === 1)
+          .sort((a, b) => (a?.descripcion ?? '').localeCompare(b?.descripcion ?? ''));
+        this.loadPersonajesMes();
+      },
+      error: () => {
+        this.categoriasPersonajeMes = [];
+        this.loadPersonajesMes();
       }
     });
   }

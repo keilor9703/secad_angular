@@ -10,6 +10,8 @@ using System.Threading.Tasks;
 using Comun.Dtos;
 using Servicios.ApiInterfaz;
 
+
+
 namespace Servicios.Api
 {
     public class ApiWebToken : IApiWebToken
@@ -230,6 +232,42 @@ namespace Servicios.Api
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error getting employee");
+                return new DtoFuncionario();
+            }
+
+        }
+
+        public async Task<DtoFuncionario> GetFuncionarioPersonajeMesAsync(string token, string identificacion)
+        {
+            try
+            {
+                var client = _factory.CreateClient("AuthClient");
+                client.DefaultRequestHeaders.Add("Authorization", $"Bearer {token}");
+
+                var url = _cfg["ApiSettings:ConsultaFuncionarios"] ?? "https://internalpip.policia.gov.co:8080/api/Icahu/FuncionarioPorIdentificacion";
+                url = $"{url}{identificacion}";
+
+                var resp = await client.GetAsync(url);
+
+                if (!resp.IsSuccessStatusCode)
+                {
+                    _logger.LogWarning("GetFuncionarioPersonajeMes request failed: {StatusCode}", resp.StatusCode);
+                    return new DtoFuncionario();
+                }
+
+                var json = await resp.Content.ReadAsStringAsync();
+                var funcionario = TryExtractFuncionario(json);
+                if (funcionario is null)
+                {
+                    _logger.LogWarning("GetFuncionarioPersonajeMes returned 200 but could not parse payload. Body: {Body}", json);
+                    return new DtoFuncionario();
+                }
+
+                return funcionario;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting employee for PersonajeMes");
                 return new DtoFuncionario();
             }
         }

@@ -95,21 +95,8 @@
             </div>
 
             <div class="ui-field ui-col-4">
-              <label class="ui-label">Categoría asignada *</label>
-              <select class="ui-control" [(ngModel)]="formData.IdCategoria" name="idCategoria" [disabled]="true">
-                <option [ngValue]="0">
-                  {{ categoriaNoReconocida ? 'Categoría consultada sin equivalencia válida' : 'Categoría asignada automáticamente' }}
-                </option>
-                <option *ngFor="let categoria of categorias" [ngValue]="categoria.idDominio">
-                  {{ categoria.descripcion }}
-                </option>
-              </select>
-              <small *ngIf="categoriaDetectada && !categoriaNoReconocida" style="display: block; margin-top: 4px; color: #64748b;">
-                La categoría se asigna automáticamente con la información consultada del funcionario.
-              </small>
-              <small *ngIf="categoriaNoReconocida" style="display: block; margin-top: 4px; color: #dc2626;">
-                La categoría consultada no pertenece a una categoría habilitada.
-              </small>
+              <label class="ui-label">Categoría *</label>
+              <input class="ui-control" type="text" [value]="categoriaDescripcion" name="idCategoria" readonly />
             </div>
 
             <div class="ui-field ui-col-4">
@@ -119,9 +106,9 @@
 
             <div class="ui-field ui-col-4">
               <label class="ui-label">Mes *</label>
-              <select class="ui-control" [(ngModel)]="formData.Mes" name="mes">
+              <select class="ui-control" [(ngModel)]="formData.Mes" name="mes" (ngModelChange)="onMesChange($event)">
                 <option [ngValue]="0">Seleccione...</option>
-                <option *ngFor="let mes of meses" [ngValue]="mes.value">
+                <option *ngFor="let mes of mesesDisponibles" [ngValue]="mes.value">
                   {{ mes.label }}
                 </option>
               </select>
@@ -137,10 +124,7 @@
               </select>
             </div>
 
-            <div class="ui-field ui-col-4 readonly-field">
-              <label class="ui-label">Ruta imagen</label>
-              <input class="ui-control" type="text" [ngModel]="formData.FotoModificada || 'Sin imagen cargada'" name="fotoModificadaPreview" readonly />
-            </div>
+
           </div>
         </div>
       </div>

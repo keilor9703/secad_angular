@@ -62,6 +62,109 @@ export interface DtoUploadResponse {
   message: string;
 }
 
+export const CATEGORIA_PRIORIDAD: Record<string, number> = {
+  'oficial': 1,
+  'suboficial': 2,
+  'nivel ejecutivo': 3,
+  'patrullero': 4,
+  'agente': 5,
+  'estudiante': 6,
+  'auxiliar': 7,
+  'no uniformado': 8,
+};
+
+const CATEGORIA_CLAVE: Record<string, string> = {
+  'oficiales': 'oficial',
+  'suboficial': 'suboficial',
+  'mandos de nivel ejecutivo': 'nivel ejecutivo',
+  'nivel ejecutivo': 'nivel ejecutivo',
+  'patrulleros': 'patrullero',
+  'agentes': 'agente',
+  'estudiantes': 'estudiante',
+  'auxiliares de policia': 'auxiliar',
+  'no uniformados': 'no uniformado',
+};
+
+export const GRADO_ORDEN_OFICIAL = [
+  'General',
+  'Teniente General',
+  'Mayor General',
+  'Brigadier General',
+  'Coronel',
+  'Teniente Coronel',
+  'Mayor',
+  'Capitán',
+  'Teniente',
+  'Subteniente',
+];
+
+export const GRADO_ORDEN_SUBOFICIAL = [
+  'Sargento Mayor',
+  'Sargento Primero',
+  'Sargento Viceprimero',
+  'Sargento Segundo',
+  'Cabo Primero',
+  'Cabo Segundo',
+];
+
+export const GRADO_ORDEN_NIVEL_EJECUTIVO = [
+  'Comisario',
+  'Subcomisario',
+  'Intendente Jefe',
+  'Intendente',
+  'Subintendente',
+];
+
+export const GRADO_ORDEN_PATRULLEROS = [
+  'Patrullero',
+  'Patrullero De Policía',
+];
+
+export function getCategoriaClaveYPrioridad(descripcion: string): { clave: string; prioridad: number } {
+  let d = (descripcion ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim().toLowerCase();
+  d = d.replace(/^categoria\s+/, '').trim();
+  const clave = CATEGORIA_CLAVE[d] ?? '';
+  return { clave, prioridad: CATEGORIA_PRIORIDAD[clave] ?? 99 };
+}
+
+export function getGradoOrdenEnCategoria(grado: string, claveCategoria: string): number {
+  const g = (grado ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+
+  const GRADO_INDICES: Record<string, string[]> = {
+    'oficial': GRADO_ORDEN_OFICIAL.map(r => r.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()),
+    'suboficial': GRADO_ORDEN_SUBOFICIAL.map(r => r.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()),
+    'nivel ejecutivo': GRADO_ORDEN_NIVEL_EJECUTIVO.map(r => r.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()),
+    'patrullero': GRADO_ORDEN_PATRULLEROS.map(r => r.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()),
+  };
+
+  const ordenes = GRADO_INDICES[claveCategoria];
+  if (!ordenes) return 999;
+  const idx = ordenes.findIndex(r => g === r);
+  return idx >= 0 ? idx : 999;
+}
+
+export function sortPersonajesMes(lista: DtoPersonajeMes[], categorias: { idDominio: number; descripcion: string }[]): DtoPersonajeMes[] {
+  const mapaCategorias = new Map<number, string>();
+  for (const cat of categorias) {
+    mapaCategorias.set(Number(cat.idDominio), cat.descripcion ?? '');
+  }
+
+  return lista.slice().sort((a, b) => {
+    const catA = mapaCategorias.get(Number(a.idCategoria)) ?? '';
+    const catB = mapaCategorias.get(Number(b.idCategoria)) ?? '';
+
+    const { clave: claveA, prioridad: prioA } = getCategoriaClaveYPrioridad(catA);
+    const { clave: claveB, prioridad: prioB } = getCategoriaClaveYPrioridad(catB);
+    if (prioA !== prioB) return prioA - prioB;
+
+    const ordGradoA = getGradoOrdenEnCategoria(a.grado ?? '', claveA);
+    const ordGradoB = getGradoOrdenEnCategoria(b.grado ?? '', claveB);
+    if (ordGradoA !== ordGradoB) return ordGradoA - ordGradoB;
+
+    return `${a.nombres ?? ''} ${a.apellidos ?? ''}`.localeCompare(`${b.nombres ?? ''} ${b.apellidos ?? ''}`);
+  });
+}
+
 @Injectable({ providedIn: 'root' })
 export class PersonajeMesService {
   private readonly baseUrl = `${environment.apiBaseUrl}/PersonajeMes`;

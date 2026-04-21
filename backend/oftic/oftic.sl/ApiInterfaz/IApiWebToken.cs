@@ -13,6 +13,7 @@ namespace Servicios.ApiInterfaz
         Task<DtoRespuesta<string>> ObtenerTokenPipAsync(CancellationToken ct);
         Task<string> GetTokenAsync(string usuario, string contrasena);
         Task<DtoFuncionario> GetFuncionarioAsync(string token, string identificacion);
+        Task<DtoFuncionario> GetFuncionarioPersonajeMesAsync(string token, string identificacion);
         Task<string> GetFotoFuncionarioAsync(string token, string identificacion);
     }
 }
