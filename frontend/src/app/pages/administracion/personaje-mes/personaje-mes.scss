@@ -8,6 +8,16 @@
   border: 1px solid rgba(21, 27, 59, 0.1);
 }
 
+.personaje-panel .ui-control {
+  padding: 10px 12px;
+  font-size: 14px;
+}
+
+.personaje-panel .ui-label {
+  font-size: 12px;
+  margin-bottom: 5px;
+}
+
 .funcionario-foto {
   flex: 0 0 125.71px;
   display: flex;
@@ -137,4 +147,18 @@
   .acciones-cell {
     flex-wrap: wrap;
   }
+}
+
+.ui-modal__dialog--personaje-mes {
+  width: min(1900px, 99vw);
+  max-height: 95vh;
+  margin-top: 1.5vh;
+  align-self: flex-start;
+  overflow-y: auto;
+  animation: uiModalInTop .2s ease-out;
+}
+
+@keyframes uiModalInTop {
+  from { transform: translateY(-20px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
 }

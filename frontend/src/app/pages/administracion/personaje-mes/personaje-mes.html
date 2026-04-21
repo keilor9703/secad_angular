@@ -13,7 +13,108 @@
       </div>
     </div>
 
+<div class="ui-panel__body">  
+      <button
+              class="ui-btn primary"
+              type="button"
+              (click)="abrirmodalpersonajemes()"
+              [disabled]="loading"
+              style=" white-space: nowrap;">
+              <i class="fa-solid fa-plus"></i>
+              {{ loading ? 'Cargando...' : ' personaje del mes' }}
+      </button>
+</div>
+    
+  </div>
+
+  <div class="ui-panel">
+    <div class="ui-panel__head">
+      <div class="ui-panel__title">
+        <i class="fa-solid fa-list"></i>
+        Personajes del Mes configurados
+      </div>
+      <div class="ui-panel__actions">
+        <span class="ui-badge info">Registros: {{ personajes.length }}</span>
+      </div>
+    </div>
+
     <div class="ui-panel__body">
+      <div *ngIf="loading" class="empty-state">
+        <i class="fa-solid fa-circle-notch fa-spin"></i>
+        <p>Cargando personajes del mes...</p>
+      </div>
+
+      <div *ngIf="!loading && personajes.length === 0" class="empty-state">
+        <i class="fa-solid fa-user-tie"></i>
+        <p>No hay registros creados.</p>
+      </div>
+
+      <div class="ui-table-wrap" *ngIf="!loading && personajes.length > 0">
+        <table class="ui-table">
+          <thead>
+            <tr>
+              <th>Funcionario</th>
+              <th>Cargo</th>
+              <th>Categoría</th>
+              <th>Acta</th>
+              <th>Mes</th>
+              <th>Año</th>
+              <th>Unidad</th>
+              <th>Estado</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let item of personajes">
+              <td>
+                <div class="personaje-cell">
+                  <img [src]="getFotoUrl(item)" alt="Foto personaje" class="personaje-thumb" />
+                  <div>
+                    <div class="personaje-name">{{ getNombreCompleto(item) }}</div>
+                    <div class="personaje-meta">{{ item.identificacion }}</div>
+                  </div>
+                </div>
+              </td>
+              <td>{{ item.cargo }}</td>
+              <td>{{ getCategoriaDescripcion(item.idCategoria) }}</td>
+              <td>{{ item.numeroActa }}</td>
+              <td>{{ getMesDescripcion(getMesValue(item)) }}</td>
+              <td>{{ getAnioValue(item) || 'Sin año' }}</td>
+              <td>{{ item.unidad }}</td>
+              <td>
+                <span class="ui-badge" [class.success]="item.vigente === 1" [class.warning]="item.vigente !== 1">
+                  {{ item.vigente === 1 ? 'Activo' : 'Inactivo' }}
+                </span>
+              </td>
+              <td class="acciones-cell">
+                <button class="ui-mini-btn" type="button" title="Editar" (click)="editar(item)">
+                  <i class="fa-solid fa-pen"></i>
+                </button>
+                
+                <button class="ui-mini-btn danger" type="button" title="Eliminar" (click)="eliminar(item)">
+                  <i class="fa-solid fa-trash"></i>
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="ui-modal" *ngIf="mostrarModalPersonajeMes" (click)="cerrarModalPersonajeMes()">
+  <div class="ui-modal__dialog ui-modal__dialog--personaje-mes" (click)="$event.stopPropagation()" role="dialog" aria-modal="true">
+    <div class="ui-modal__head">
+      <div class="ui-modal__title">
+        <i class="fa-solid fa-user-tie"></i>
+        Agregar Personaje del Mes
+      </div>
+      <button class="ui-modal__close" type="button" (click)="cerrarModalPersonajeMes()">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+    </div>
+    <div class="ui-modal__body">
       <div class="ui-grid" *ngIf="!modoEdicion">
         <div class="ui-field ui-col-6">
           <label class="ui-label">Buscar Funcionario por Cédula</label>
@@ -123,8 +224,6 @@
                 </option>
               </select>
             </div>
-
-
           </div>
         </div>
       </div>
@@ -146,79 +245,4 @@
       </div>
     </div>
   </div>
-
-  <div class="ui-panel">
-    <div class="ui-panel__head">
-      <div class="ui-panel__title">
-        <i class="fa-solid fa-list"></i>
-        Personajes del Mes configurados
-      </div>
-      <div class="ui-panel__actions">
-        <span class="ui-badge info">Registros: {{ personajes.length }}</span>
-      </div>
-    </div>
-
-    <div class="ui-panel__body">
-      <div *ngIf="loading" class="empty-state">
-        <i class="fa-solid fa-circle-notch fa-spin"></i>
-        <p>Cargando personajes del mes...</p>
-      </div>
-
-      <div *ngIf="!loading && personajes.length === 0" class="empty-state">
-        <i class="fa-solid fa-user-tie"></i>
-        <p>No hay registros creados.</p>
-      </div>
-
-      <div class="ui-table-wrap" *ngIf="!loading && personajes.length > 0">
-        <table class="ui-table">
-          <thead>
-            <tr>
-              <th>Funcionario</th>
-              <th>Cargo</th>
-              <th>Categoría</th>
-              <th>Acta</th>
-              <th>Mes</th>
-              <th>Año</th>
-              <th>Unidad</th>
-              <th>Estado</th>
-              <th>Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr *ngFor="let item of personajes">
-              <td>
-                <div class="personaje-cell">
-                  <img [src]="getFotoUrl(item)" alt="Foto personaje" class="personaje-thumb" />
-                  <div>
-                    <div class="personaje-name">{{ getNombreCompleto(item) }}</div>
-                    <div class="personaje-meta">{{ item.identificacion }}</div>
-                  </div>
-                </div>
-              </td>
-              <td>{{ item.cargo }}</td>
-              <td>{{ getCategoriaDescripcion(item.idCategoria) }}</td>
-              <td>{{ item.numeroActa }}</td>
-              <td>{{ getMesDescripcion(getMesValue(item)) }}</td>
-              <td>{{ getAnioValue(item) || 'Sin año' }}</td>
-              <td>{{ item.unidad }}</td>
-              <td>
-                <span class="ui-badge" [class.success]="item.vigente === 1" [class.warning]="item.vigente !== 1">
-                  {{ item.vigente === 1 ? 'Activo' : 'Inactivo' }}
-                </span>
-              </td>
-              <td class="acciones-cell">
-                <button class="ui-mini-btn" type="button" title="Editar" (click)="editar(item)">
-                  <i class="fa-solid fa-pen"></i>
-                </button>
-                
-                <button class="ui-mini-btn danger" type="button" title="Eliminar" (click)="eliminar(item)">
-                  <i class="fa-solid fa-trash"></i>
-                </button>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-</section>
+</div>

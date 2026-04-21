@@ -47,13 +47,14 @@ export class PersonajeMesAdminComponent implements OnInit {
     return this.formData.Mes === 1 ? [currentYear - 1, currentYear] : [currentYear];
   }
 
-  loading = false;
+loading = false;
   saving = false;
   uploading = false;
   searchingFuncionario = false;
   modoEdicion = false;
   hayFuncionario = false;
   idEditando: number | null = null;
+  mostrarModalPersonajeMes = false;
 
   searchIdentificacion = '';
   fotoPreview = 'imagenes/policia.jpg';
@@ -746,7 +747,16 @@ cargarPersonajes(): void {
     return Number(item?.anio ?? item?.Anio ?? 0);
   }
 
-  getMesDescripcion(mes: number | null | undefined): string {
+getMesDescripcion(mes: number | null | undefined): string {
     return this.todosLosMeses.find((item) => item.value === Number(mes))?.label ?? 'Sin mes';
+  }
+
+  abrirmodalpersonajemes(): void {
+    this.mostrarModalPersonajeMes = true;
+  }
+
+  cerrarModalPersonajeMes(): void {
+    this.mostrarModalPersonajeMes = false;
+    this.limpiarForm();
   }
 }
