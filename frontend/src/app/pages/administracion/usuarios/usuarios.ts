@@ -103,6 +103,15 @@ export class UsuariosComponent implements OnInit, OnDestroy {
     this.visible = false;
   }
 
+  prepararNuevoUsuario(): void {
+    this.user = null;
+    this.activeTab = 'datos';
+    this.searchIdentification = '';
+    this.showAddRoleForm = false;
+    this.newRole = { rolId: null, justificacion: '', fechaFin: '' };
+    this.rolesCatalogo = [];
+  }
+
   consultarUsuario(): void {
     const documento = this.searchIdentification.trim();
     if (!documento) {

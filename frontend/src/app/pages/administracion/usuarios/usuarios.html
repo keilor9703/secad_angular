@@ -260,10 +260,16 @@
       <article class="tab-card users-table-card">
         <div class="roles-head">
           <h3>Usuarios existentes</h3>
-          <button class="ui-btn secondary" type="button" (click)="cargarListadoUsuarios()" [disabled]="loadingListado">
-            <i class="fa-solid fa-rotate"></i>
-            {{ loadingListado ? 'Cargando...' : 'Actualizar' }}
-          </button>
+          <div class="table-head-actions">
+            <button class="ui-btn primary" type="button" (click)="prepararNuevoUsuario()" *ngIf="user">
+              <i class="fa-solid fa-user-plus"></i>
+              Nuevo usuario
+            </button>
+            <button class="ui-btn secondary" type="button" (click)="cargarListadoUsuarios()" [disabled]="loadingListado">
+              <i class="fa-solid fa-rotate"></i>
+              {{ loadingListado ? 'Cargando...' : 'Actualizar' }}
+            </button>
+          </div>
         </div>
 
         <div class="ui-grid">

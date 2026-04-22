@@ -423,6 +423,13 @@
   flex-wrap: wrap;
 }
 
+.table-head-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
 .table-pagination {
   margin-top: 10px;
   display: flex;
