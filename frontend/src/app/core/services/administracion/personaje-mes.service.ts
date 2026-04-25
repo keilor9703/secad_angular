@@ -62,6 +62,13 @@ export interface DtoUploadResponse {
   message: string;
 }
 
+export interface DtoPersonajeMesBulkResult {
+  success: boolean;
+  message: string;
+  totalProcesados?: number;
+  totalExitosos?: number;
+}
+
 export const CATEGORIA_PRIORIDAD: Record<string, number> = {
   'oficial': 1,
   'suboficial': 2,
@@ -217,9 +224,13 @@ export class PersonajeMesService {
     return this.http.put<DtoPersonajeMesResult>(`${this.baseUrl}/${id}/vigente`, { vigente });
   }
 
-  uploadImage(file: File): Observable<DtoUploadResponse> {
+uploadImage(file: File): Observable<DtoUploadResponse> {
     const formData = new FormData();
     formData.append('file', file);
     return this.http.post<DtoUploadResponse>(`${this.uploadUrl}/imagen`, formData);
+  }
+
+  createBulk(items: DtoPersonajeMesRequest[]): Observable<DtoPersonajeMesBulkResult> {
+    return this.http.post<DtoPersonajeMesBulkResult>(`${this.baseUrl}/Bulk`, { items });
   }
 }

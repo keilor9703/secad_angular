@@ -55,9 +55,23 @@ loading = false;
   hayFuncionario = false;
   idEditando: number | null = null;
   mostrarModalPersonajeMes = false;
+  mostrarModalEquipoAltoRendimiento = false;
 
   searchIdentificacion = '';
   fotoPreview = 'imagenes/policia.jpg';
+
+  searchIdentificacionEquipo = '';
+  integrantesEquipo: DtoPersonajeMesRequest[] = [];
+  datosFijosEquipo = {
+    Mes: 0,
+    Anio: 0,
+    NumeroActa: ''
+  };
+  searchingFuncionarioEquipo = false;
+  idCategoriaEquipo = 0;
+  fotoPreviewEquipo = 'imagenes/policia.jpg';
+  fotoModificadaEquipo = '';
+  uploadingEquipo = false;
 
   private readonly maxImageBytes = 2 * 1024 * 1024;
   private readonly targetOptimizedImageBytes = 90 * 1024;
@@ -328,7 +342,8 @@ cargarPersonajes(): void {
     });
   }
 
-  editar(item: DtoPersonajeMes): void {
+editar(item: DtoPersonajeMes): void {
+    this.mostrarModalPersonajeMes = true;
     this.modoEdicion = true;
     this.hayFuncionario = true;
     this.idEditando = item.idPersonajeMes;
@@ -447,6 +462,60 @@ cargarPersonajes(): void {
       })
       .catch(() => {
         this.uploading = false;
+        input.value = '';
+        this.toast.warning('Imagen', 'No fue posible procesar la imagen seleccionada.');
+});
+  }
+
+  onImageSelectedEquipo(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const file = input.files && input.files.length > 0 ? input.files[0] : null;
+
+    if (!file) {
+      return;
+    }
+
+    const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+    if (!validTypes.includes(file.type)) {
+      this.toast.warning('Imagen', 'Solo se permiten imágenes JPG, JPEG, PNG o WEBP.');
+      input.value = '';
+      return;
+    }
+
+    this.uploadingEquipo = true;
+
+    this.optimizeImageFile(file)
+      .then((optimizedFile) => {
+        if (optimizedFile.size > this.maxImageBytes) {
+          this.uploadingEquipo = false;
+          input.value = '';
+          this.toast.warning('Imagen', 'El archivo no puede superar 2MB.');
+          return;
+        }
+
+        this.personajeMesService.uploadImage(optimizedFile).subscribe({
+          next: (resp) => {
+            this.uploadingEquipo = false;
+            input.value = '';
+
+            if (!resp.success) {
+              this.toast.warning('Imagen', resp.message ?? 'No fue posible cargar la imagen.');
+              return;
+            }
+
+            this.fotoModificadaEquipo = resp.fileName;
+            this.fotoPreviewEquipo = resp.url || this.getImageUrl(resp.fileName);
+            this.toast.success('Imagen', resp.message ?? 'Imagen cargada correctamente.');
+          },
+          error: (err) => {
+            this.uploadingEquipo = false;
+            input.value = '';
+            this.toast.error('Imagen', err?.error?.message ?? 'Error cargando la imagen.');
+          }
+        });
+      })
+      .catch(() => {
+        this.uploadingEquipo = false;
         input.value = '';
         this.toast.warning('Imagen', 'No fue posible procesar la imagen seleccionada.');
       });
@@ -758,5 +827,121 @@ getMesDescripcion(mes: number | null | undefined): string {
   cerrarModalPersonajeMes(): void {
     this.mostrarModalPersonajeMes = false;
     this.limpiarForm();
+  }
+
+  abrirmodalequipoaltorendi(): void {
+    this.mostrarModalEquipoAltoRendimiento = true;
+  }
+
+  cerrarModalEquipoAltoRendimiento(): void {
+    this.mostrarModalEquipoAltoRendimiento = false;
+    this.integrantesEquipo = [];
+    this.searchIdentificacionEquipo = '';
+    this.datosFijosEquipo = { Mes: 0, Anio: 0, NumeroActa: '' };
+    this.idCategoriaEquipo = 0;
+    this.fotoPreviewEquipo = 'imagenes/policia.jpg';
+    this.fotoModificadaEquipo = '';
+    this.uploadingEquipo = false;
+  }
+
+  buscarFuncionarioEquipo(): void {
+    const doc = this.searchIdentificacionEquipo.trim();
+    if (!doc) {
+      this.toast.warning('Buscar', 'Ingrese un número de identificación');
+      return;
+    }
+
+    this.searchingFuncionarioEquipo = true;
+
+    this.usuarioAdminService.consultarFuncionarioPersonajeMes(doc).subscribe({
+      next: (resp) => {
+        const func = resp.funcionario;
+
+        if (!func || !func.nombres) {
+          this.searchingFuncionarioEquipo = false;
+          this.toast.warning('Buscar', 'No se encontró funcionario con esa identificación');
+          return;
+        }
+
+        const activo = func.activo !== false;
+        if (!activo) {
+          this.searchingFuncionarioEquipo = false;
+          this.toast.warning('Buscar', 'El usuario está inactivo en el sistema');
+          return;
+        }
+
+        const categoria = this.resolverCategoriaPorFuncionario(
+          func.nombreGrado ?? func.cargo ?? '',
+          func.categoriaDescripcion
+        );
+
+        this.agregarIntegranteEquipo({
+          identificacion: (func.identificacion ?? doc).trim(),
+          nombres: (func.nombres ?? '').trim(),
+          apellidos: (func.apellidos ?? '').trim(),
+          grado: ((func.nombreGrado ?? func.cargo ?? '')).trim(),
+          cargo: (func.cargo ?? '').trim(),
+          unidad: (func.dependencia ?? '').trim(),
+          IdCategoria: Number(categoria?.idDominio ?? 0),
+          NumeroActa: this.datosFijosEquipo.NumeroActa,
+          FotoModificada: this.fotoModificadaEquipo || null,
+          Mes: this.datosFijosEquipo.Mes,
+          Anio: this.datosFijosEquipo.Anio
+        });
+
+        this.searchingFuncionarioEquipo = false;
+        this.searchIdentificacionEquipo = '';
+        this.toast.success('Buscar', 'Integrante agregado a la lista');
+      },
+      error: (err) => {
+        this.searchingFuncionarioEquipo = false;
+        this.toast.error('Buscar', err?.error?.message ?? 'Error al consultar funcionario');
+      }
+    });
+  }
+
+  agregarIntegranteEquipo(data: DtoPersonajeMesRequest): void {
+    const existe = this.integrantesEquipo.some(i => i.identificacion === data.identificacion);
+    if (existe) {
+      this.toast.warning('Equipo', 'Este funcionario ya está en la lista');
+      return;
+    }
+    this.integrantesEquipo.push(data);
+  }
+
+  quitarIntegranteEquipo(index: number): void {
+    this.integrantesEquipo.splice(index, 1);
+  }
+
+  guardarEquipoAltoRendimiento(): void {
+    if (this.integrantesEquipo.length === 0) {
+      this.toast.warning('Equipo', 'Debe agregar al menos un integrante');
+      return;
+    }
+
+    if (!this.fotoModificadaEquipo?.trim()) {
+      this.toast.warning('Equipo', 'Debe subir una foto del equipo');
+      return;
+    }
+
+    this.saving = true;
+
+    this.personajeMesService.createBulk(this.integrantesEquipo).subscribe({
+      next: (resp) => {
+        this.saving = false;
+        if (!resp.success) {
+          this.toast.error('Equipo', resp.message ?? 'Error al guardar');
+          return;
+        }
+
+        this.toast.success('Equipo', resp.message ?? 'Registros guardados correctamente');
+        this.cerrarModalEquipoAltoRendimiento();
+        this.cargarPersonajes();
+      },
+      error: (err) => {
+        this.saving = false;
+        this.toast.error('Equipo', err?.error?.message ?? 'Error al guardar');
+      }
+    });
   }
 }

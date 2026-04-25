@@ -22,6 +22,7 @@ namespace Comun.Dtos.PersonajeMes
         public string? FotoModificada { get; set; }
         public int Mes { get; set; }
         public int Anio { get; set; }
+        public int IdPersonajeGrupo { get; set; } 
     }
     public class DtoPersonajeMesRequest
     {
@@ -47,7 +48,9 @@ namespace Comun.Dtos.PersonajeMes
         public int Mes { get; set; }
         [JsonPropertyName("Anio")]
         public int Anio { get; set; }
-        
+        [JsonPropertyName("IdPersonajeGrupo")]
+        public int IdPersonajeGrupo { get; set; }
+
 
 
 
@@ -63,5 +66,23 @@ namespace Comun.Dtos.PersonajeMes
     {
         [JsonPropertyName("vigente")]
         public int Vigente { get; set; }
+    }
+
+    public class DtoPersonajeMesBulkRequest
+    {
+        [JsonPropertyName("items")]
+        public List<DtoPersonajeMesRequest> Items { get; set; } = new();
+    }
+
+    public class DtoPersonajeMesBulkResult
+    {
+        [JsonPropertyName("success")]
+        public bool Success { get; set; }
+        [JsonPropertyName("message")]
+        public string Message { get; set; } = string.Empty;
+        [JsonPropertyName("totalProcesados")]
+        public int TotalProcesados { get; set; }
+        [JsonPropertyName("totalExitosos")]
+        public int TotalExitosos { get; set; }
     }
 }

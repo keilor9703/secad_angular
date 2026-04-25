@@ -23,6 +23,15 @@
               <i class="fa-solid fa-plus"></i>
               {{ loading ? 'Cargando...' : ' personaje del mes' }}
       </button>
+      <button
+              class="ui-btn primary"
+              type="button"
+              (click)="abrirmodalequipoaltorendi()"
+              [disabled]="loading"
+              style=" white-space: nowrap;">
+              <i class="fa-solid fa-users"></i>
+              {{ loading ? 'Cargando...' : ' Equipo Alto Rendimiento' }}
+      </button>
 </div>
     
   </div>
@@ -86,11 +95,10 @@
                   {{ item.vigente === 1 ? 'Activo' : 'Inactivo' }}
                 </span>
               </td>
-              <td class="acciones-cell">
+              <td >
                 <button class="ui-mini-btn" type="button" title="Editar" (click)="editar(item)">
                   <i class="fa-solid fa-pen"></i>
-                </button>
-                
+                </button>                
                 <button class="ui-mini-btn danger" type="button" title="Eliminar" (click)="eliminar(item)">
                   <i class="fa-solid fa-trash"></i>
                 </button>
@@ -103,14 +111,15 @@
   </div>
 </section>
 
-<div class="ui-modal" *ngIf="mostrarModalPersonajeMes" (click)="cerrarModalPersonajeMes()">
+<!-- <-- Modal Personaje del Mes-->
+<div class="ui-modal" *ngIf="mostrarModalPersonajeMes" (click)="$event.stopPropagation()">
   <div class="ui-modal__dialog ui-modal__dialog--personaje-mes" (click)="$event.stopPropagation()" role="dialog" aria-modal="true">
     <div class="ui-modal__head">
-      <div class="ui-modal__title">
+<div class="ui-modal__title">
         <i class="fa-solid fa-user-tie"></i>
-        Agregar Personaje del Mes
+        {{ modoEdicion ? 'Editar' : 'Agregar' }} Personaje del Mes
       </div>
-      <button class="ui-modal__close" type="button" (click)="cerrarModalPersonajeMes()">
+      <button class="ui-icon-btn" type="button" (click)="cerrarModalPersonajeMes()">
         <i class="fa-solid fa-xmark"></i>
       </button>
     </div>
@@ -233,12 +242,134 @@
         <p>Busque un funcionario por número de identificación para agregarlo como personaje del mes</p>
       </div>
 
-      <div class="ui-toolbar" *ngIf="hayFuncionario">
+<div class="ui-toolbar" *ngIf="hayFuncionario">
         <button class="ui-btn primary" type="button" (click)="guardar()" [disabled]="saving || uploading">
           <i class="fa-solid fa-floppy-disk"></i>
           {{ saving ? 'Guardando...' : (modoEdicion ? 'Actualizar' : 'Guardar') }}
         </button>
         <button class="ui-btn outline" type="button" (click)="limpiarForm()" [disabled]="saving">
+          <i class="fa-solid fa-xmark"></i>
+          Cancelar
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- <-- Modal Equipo Alto Rendimiento-->
+<div class="ui-modal" *ngIf="mostrarModalEquipoAltoRendimiento" (click)="$event.stopPropagation()">
+  <div class="ui-modal__dialog ui-modal__dialog--personaje-mes" (click)="$event.stopPropagation()" role="dialog" aria-modal="true">
+    <div class="ui-modal__head">
+      <div class="ui-modal__title">
+        <i class="fa-solid fa-users"></i>
+        Equipo de Alto Rendimiento
+      </div>
+      <button class="ui-icon-btn" type="button" (click)="cerrarModalEquipoAltoRendimiento()">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+    </div>
+<div class="ui-modal__body">
+      <div class="equipo-foto-seccion">
+        <div class="equipo-foto-col-izq">
+          <div class="equipo-foto-preview">
+            <img [src]="fotoPreviewEquipo || 'imagenes/policia.jpg'" alt="Foto equipo" />
+          </div>
+          <div class="equipo-foto-actions">
+            <input
+              type="file"
+              accept=".jpg,.jpeg,.png,.webp,image/*"
+              (change)="onImageSelectedEquipo($event)"
+              [disabled]="uploadingEquipo"
+              style="display: none;"
+              #fileInputEquipo />
+            <button class="ui-btn outline sm" type="button" (click)="fileInputEquipo.click()" [disabled]="uploadingEquipo">
+              <i class="fa-solid" [ngClass]="uploadingEquipo ? 'fa-circle-notch fa-spin' : 'fa-upload'"></i>
+              {{ uploadingEquipo ? 'Cargando...' : (fotoModificadaEquipo ? 'Cambiar' : 'Subir foto') }}
+            </button>
+          </div>
+          
+        </div>
+<div class="equipo-foto-form">
+          <div class="ui-grid">
+            <div class="ui-field ui-col-3">
+              <label class="ui-label">Numero de grupo o equipo *</label>
+              <input class="ui-control" type="text"  name="numeroGrupoEquipo" placeholder="Número de grupo o equipo" />
+            </div>
+            <div class="ui-field ui-col-3">
+              <label class="ui-label">Número de acta *</label>
+              <input class="ui-control" type="text" [(ngModel)]="datosFijosEquipo.NumeroActa" name="numeroActaEquipo" placeholder="Número de acta" />
+            </div>
+
+            <div class="ui-field ui-col-3">
+              <label class="ui-label">Mes *</label>
+              <select class="ui-control" [(ngModel)]="datosFijosEquipo.Mes" name="mesEquipo">
+                <option [ngValue]="0">Seleccione...</option>
+                <option *ngFor="let mes of mesesDisponibles" [ngValue]="mes.value">
+                  {{ mes.label }}
+                </option>
+              </select>
+            </div>
+
+            <div class="ui-field ui-col-3">
+              <label class="ui-label">Año *</label>
+              <select class="ui-control" [(ngModel)]="datosFijosEquipo.Anio" name="anioEquipo">
+                <option [ngValue]="0">Seleccione...</option>
+                <option *ngFor="let anio of aniosDisponibles" [ngValue]="anio">
+                  {{ anio }}
+                </option>
+              </select>
+            </div>
+          </div>
+          <div class="equipo-buscar">
+            <div style="display: flex; gap: 0;">
+              <input
+                class="ui-control"
+                type="text"
+                [(ngModel)]="searchIdentificacionEquipo"
+                name="searchIdentificacionEquipo"
+                placeholder="Identificación"
+                [disabled]="searchingFuncionarioEquipo"
+                (keyup.enter)="buscarFuncionarioEquipo()"
+                style="border-radius: var(--ui-radius-sm) 0 0 var(--ui-radius-sm); flex: 1;" />
+              <button
+                class="ui-btn primary sm"
+                type="button"
+                (click)="buscarFuncionarioEquipo()"
+                [disabled]="searchingFuncionarioEquipo"
+                style="border-radius: 0 var(--ui-radius-sm) var(--ui-radius-sm) 0; white-space: nowrap;">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                {{ searchingFuncionarioEquipo ? 'Buscando...' : 'Buscar' }}
+              </button>
+            </div>
+          </div>
+        </div>
+</div>
+
+      <div class="integrantes-lista" *ngIf="integrantesEquipo.length > 0">
+        <h4 class="integrantes-titulo">Integrantes ({{ integrantesEquipo.length }})</h4>
+        <div class="integrante-item" *ngFor="let item of integrantesEquipo; let i = index">
+          <div class="integrante-info">
+            <i class="fa-solid fa-user"></i>
+            <span>{{ item.grado }} {{ item.nombres }} {{ item.apellidos }}</span>
+            <span class="integrante-ident">{{ item.identificacion }}</span>
+          </div>
+          <button class="ui-mini-btn danger" type="button" (click)="quitarIntegranteEquipo(i)">
+            <i class="fa-solid fa-trash"></i>
+          </button>
+        </div>
+      </div>
+
+      <div class="no-funcionario" *ngIf="integrantesEquipo.length === 0">
+        <i class="fa-solid fa-users"></i>
+        <p>Busque un funcionario por número de identificación y agréguelo al equipo</p>
+      </div>
+
+      <div class="ui-toolbar" *ngIf="integrantesEquipo.length > 0">
+        <button class="ui-btn primary" type="button" (click)="guardarEquipoAltoRendimiento()" [disabled]="saving">
+          <i class="fa-solid fa-floppy-disk"></i>
+          {{ saving ? 'Guardando...' : 'Guardar Equipo' }}
+        </button>
+        <button class="ui-btn outline" type="button" (click)="cerrarModalEquipoAltoRendimiento()" [disabled]="saving">
           <i class="fa-solid fa-xmark"></i>
           Cancelar
         </button>
