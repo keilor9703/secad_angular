@@ -177,7 +177,7 @@
       <p style="color: #666; margin: 10px;">No hay movimientos recientes en tu cuenta.</p>
     </div>
 
-    <!-- Spotlight: Personajes del Mes y Línea de Mando -->
+    <!-- Spotlight: Personajes del Mes -->
     <section class="home-spotlight mt-4">
       <div class="card-view rounded-xl shadow-subtle">
         <div class="card-head card-head--dark">
@@ -187,7 +187,50 @@
           </div>
         </div>
         <div class="card-body">
-          <div class="cmd-row" *ngIf="personajesMes.length > 0; else emptyPersonajesMesTpl">
+          <div class="spotlight-grid mb-4">
+            <article class="spotlight-card" *ngFor="let item of personajesMes">                       
+              <div class="spotlight-card__top">
+                <span class="spotlight-tag">{{ getPersonajeMesCategoriaDisplay(item) }}</span>
+                <span class="spotlight-mini">
+                  <i class="fa-solid fa-users"></i> {{ getPersonajeMesCargoDisplay(item) }}
+                </span>
+              </div>
+              <div class="spotlight-person">                
+                <img class="spotlight-avatar" [src]="getPersonajeMesFotoUrl(item)" [alt]="getPersonajeMesNombre(item)" />
+                <div class="spotlight-person__info">
+                  <div class="spotlight-name">{{ item.grado || 'Sin grado' }}</div>    
+                  <div class="spotlight-grade">{{ getPersonajeMesNombre(item) || 'Sin nombre' }}</div>                  
+                </div>
+              </div>
+            </article>
+          </div>
+          
+          <div class="spotlight-grid">
+            <article class="spotlight-card spotlight-card--double" *ngFor="let grupo of equiposAltoRendimiento">
+              <div class="spotlight-card__top">
+                <span class="spotlight-tag">Grupo o equipo de alto rendimiento</span>
+                
+              </div>
+              <div class="spotlight-person">
+                <img class="spotlight-avatar" [src]="getGrupoFotoUrl(grupo)" [alt]="grupo.nombreGrupo" />
+                <div class="spotlight-person__info">
+                  <div class="spotlight-name">{{ grupo.nombreGrupo }}</div>
+                  <div class="spotlight-grade">
+                    <ul style="margin:0; padding-left: 18px;">
+                      <li *ngFor="let integrante of grupo.integrantes">
+                        {{ integrante.grado }} {{ integrante.nombres }} {{ integrante.apellidos }} 
+                      </li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </article>
+            <div *ngIf="!equiposAltoRendimiento || equiposAltoRendimiento.length === 0" class="news-state">
+              No hay equipos o grupos configurados.
+            </div>
+          </div>
+          
+          <!-- <div class="cmd-row" *ngIf="personajesMes.length > 0; else emptyPersonajesMesTpl">
             <article class="cmd-item" *ngFor="let item of personajesMes">
               <button
                 class="cmd-photo-btn"
@@ -201,13 +244,15 @@
               <div class="cmd-role"> {{ getPersonajeMesCargoDisplay(item) }}</div>
               <div class="cmd-role">{{ getPersonajeMesCategoriaDisplay(item) }}</div>
             </article>
-          </div>
+          </div> -->
+
           <ng-template #emptyPersonajesMesTpl>
             <div class="news-state">No hay personajes del mes activos.</div>
-          </ng-template>
-        </div>
+          </ng-template>          
+        </div>        
       </div>
 
+      <!-- Spotlight: Línea de Mando -->
       <div class="card-view rounded-xl shadow-subtle">
         <div class="card-head card-head--dark">
           <div class="card-title">
@@ -294,6 +339,7 @@
     </div>
   </div>
 </div>
+
 
 <!-- Linea Mando Lightbox -->
 <div class="ui-modal" *ngIf="lineaMandoLightboxOpen" (click)="closeLineaMandoLightbox()">

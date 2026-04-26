@@ -1,3 +1,10 @@
+// Separación entre los botones de Personaje de Mes y Equipo de Alto Rendimiento
+.botones-personaje-equipo {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 18px;
+  flex-wrap: wrap;
+}
 .personaje-panel {
   display: flex;
   margin-top: 10px;

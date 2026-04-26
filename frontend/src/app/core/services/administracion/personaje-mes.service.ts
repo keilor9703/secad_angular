@@ -1,10 +1,11 @@
+// ...existing code...
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { map, Observable } from 'rxjs';
 import { environment } from '../../../../environments/environment';
 
 export interface DtoPersonajeMes {
-  idPersonajeMes: number;
+  idPersonajeMes: number;  
   identificacion: string;
   nombres: string;
   apellidos: string;
@@ -19,6 +20,7 @@ export interface DtoPersonajeMes {
   anio?: number;
   Mes?: number;
   Anio?: number;
+  idPersonajeGrupo?: number;
 }
 
 type PersonajeMesApiResponse = Partial<DtoPersonajeMes> & {
@@ -36,18 +38,27 @@ type PersonajeMesApiResponse = Partial<DtoPersonajeMes> & {
 };
 
 export interface DtoPersonajeMesRequest {
-  identificacion: string;
-  nombres: string;
-  apellidos: string;
-  grado: string;
-  cargo: string;
-  unidad: string;
-  IdCategoria: number;
-  NumeroActa: string;
-  FotoModificada?: string | null;
-  Mes: number;
-  Anio: number;
-}
+    identificacion: string;
+    nombres: string;
+    apellidos: string;
+    grado: string;
+    cargo: string;
+    unidad: string;
+    IdCategoria: number;
+    NumeroActa: string;
+    FotoModificada?: string | null;
+    Mes: number;
+    Anio: number;
+    IdPersonajeGrupo?: number;
+ }
+
+ export interface DtoPersonajeGrupoRequest {
+    NombreGrupo: string;
+    FotoGrupo?: string;
+    NumeroActa: string;
+    Mes: number;
+    Anio: number;
+ }
 
 export interface DtoPersonajeMesResult {
   success: boolean;
@@ -174,6 +185,12 @@ export function sortPersonajesMes(lista: DtoPersonajeMes[], categorias: { idDomi
 
 @Injectable({ providedIn: 'root' })
 export class PersonajeMesService {
+    /**
+     * Obtiene los personajes del mes asociados a un grupo específico
+     */
+    getByGrupo(idGrupo: number) {
+      return this.http.get<DtoPersonajeMes[]>(`${this.baseUrl}?idPersonajeGrupo=${idGrupo}`);
+    }
   private readonly baseUrl = `${environment.apiBaseUrl}/PersonajeMes`;
   private readonly uploadUrl = `${environment.apiBaseUrl}/PersonajeMesUpload`;
 
@@ -204,7 +221,8 @@ export class PersonajeMesService {
       mes,
       anio,
       Mes: mes,
-      Anio: anio
+      Anio: anio,
+      idPersonajeGrupo: typeof (item as any)?.IdPersonajeGrupo !== 'undefined' ? Number((item as any)?.IdPersonajeGrupo) : (typeof item?.idPersonajeGrupo !== 'undefined' ? Number(item?.idPersonajeGrupo) : 0)
     };
   }
 
@@ -230,7 +248,15 @@ uploadImage(file: File): Observable<DtoUploadResponse> {
     return this.http.post<DtoUploadResponse>(`${this.uploadUrl}/imagen`, formData);
   }
 
-  createBulk(items: DtoPersonajeMesRequest[]): Observable<DtoPersonajeMesBulkResult> {
-    return this.http.post<DtoPersonajeMesBulkResult>(`${this.baseUrl}/Bulk`, { items });
+   createBulk(items: DtoPersonajeMesRequest[]): Observable<DtoPersonajeMesBulkResult> {
+     return this.http.post<DtoPersonajeMesBulkResult>(`${this.baseUrl}/Bulk`, { items });
+   }
+
+   createGrupo(request: DtoPersonajeGrupoRequest): Observable<DtoPersonajeMesResult> {
+     return this.http.post<DtoPersonajeMesResult>(`${this.baseUrl}/grupo`, request);
+   }
+
+  getAllGrupo(): Observable<any[]> {
+    return this.http.get<any[]>(`${this.baseUrl}/grupo`);
   }
 }

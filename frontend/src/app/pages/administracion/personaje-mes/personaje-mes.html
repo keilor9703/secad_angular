@@ -14,24 +14,26 @@
     </div>
 
 <div class="ui-panel__body">  
-      <button
-              class="ui-btn primary"
-              type="button"
-              (click)="abrirmodalpersonajemes()"
-              [disabled]="loading"
-              style=" white-space: nowrap;">
-              <i class="fa-solid fa-plus"></i>
-              {{ loading ? 'Cargando...' : ' personaje del mes' }}
-      </button>
-      <button
-              class="ui-btn primary"
-              type="button"
-              (click)="abrirmodalequipoaltorendi()"
-              [disabled]="loading"
-              style=" white-space: nowrap;">
-              <i class="fa-solid fa-users"></i>
-              {{ loading ? 'Cargando...' : ' Equipo Alto Rendimiento' }}
-      </button>
+            <div class="botones-personaje-equipo">
+        <button
+          class="ui-btn primary"
+          type="button"
+          (click)="abrirmodalpersonajemes()"
+          [disabled]="loading"
+          style=" white-space: nowrap;">
+          <i class="fa-solid fa-plus"></i>
+          {{ loading ? 'Cargando...' : ' personaje del mes' }}
+        </button>
+        <button
+          class="ui-btn primary"
+          type="button"
+          (click)="abrirmodalequipoaltorendi()"
+          [disabled]="loading"
+          style=" white-space: nowrap;">
+          <i class="fa-solid fa-users"></i>
+          {{ loading ? 'Cargando...' : ' Equipo Alto Rendimiento' }}
+        </button>
+            </div>
 </div>
     
   </div>
@@ -107,8 +109,57 @@
           </tbody>
         </table>
       </div>
+
+      
     </div>
   </div>
+
+  <!-- Panel Equipos/Grupos de Alto Rendimiento -->
+      <div class="ui-panel" style="margin-top: 40px;">
+        <div class="ui-panel__head">
+          <div class="ui-panel__title">
+            <i class="fa-solid fa-users"></i>
+            Equipos o Grupos de Alto Rendimiento configurados
+          </div>
+        </div>
+        <div class="ui-panel__body">
+          <div class="ui-table-wrap" *ngIf="!loading && equipos.length > 0">
+            <table class="ui-table">
+              <thead>
+                <tr>
+                  <th>Nombre de Grupo</th>
+                  <th>Foto</th>
+                  <th>Acta</th>
+                  <th>Mes</th>
+                  <th>Año</th>
+                  <th>Integrantes</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let grupo of equipos">
+                  <td>{{ grupo.nombreGrupo }}</td>
+                  <td>
+                    <img *ngIf="grupo.fotoGrupo" [src]="getImageUrl(grupo.fotoGrupo)" alt="Foto grupo" class="personaje-thumb" />
+                  </td>
+                  <td>{{ grupo.numeroActa }}</td>
+                  <td>{{ getMesDescripcion(grupo.mes) }}</td>
+                  <td>{{ grupo.anio }}</td>
+                  <td>
+                    <ul style="margin:0; padding-left: 18px;">
+                      <li *ngFor="let integrante of grupo.integrantes">{{ integrante.nombres }} {{ integrante.apellidos }} ({{ integrante.grado }})</li>
+                    </ul>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div *ngIf="!loading && equipos.length === 0" class="empty-state">
+            <i class="fa-solid fa-users"></i>
+            <p>No hay equipos o grupos configurados.</p>
+          </div>
+        </div>
+      </div>
+
 </section>
 
 <!-- <-- Modal Personaje del Mes-->
@@ -291,10 +342,10 @@
         </div>
 <div class="equipo-foto-form">
           <div class="ui-grid">
-            <div class="ui-field ui-col-3">
-              <label class="ui-label">Numero de grupo o equipo *</label>
-              <input class="ui-control" type="text"  name="numeroGrupoEquipo" placeholder="Número de grupo o equipo" />
-            </div>
+             <div class="ui-field ui-col-3">
+               <label class="ui-label">Nombre de grupo o equipo *</label>
+               <input class="ui-control" type="text" [(ngModel)]="nombreGrupoEquipo" name="nombreGrupoEquipo" placeholder="Nombre de grupo o equipo" />
+             </div>
             <div class="ui-field ui-col-3">
               <label class="ui-label">Número de acta *</label>
               <input class="ui-control" type="text" [(ngModel)]="datosFijosEquipo.NumeroActa" name="numeroActaEquipo" placeholder="Número de acta" />

@@ -1,3 +1,4 @@
+// ...existing code...
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -21,6 +22,7 @@ import { UsuarioAdminService } from '../../../core/services/administracion/usuar
 export class PersonajeMesAdminComponent implements OnInit {
   personajes: DtoPersonajeMes[] = [];
   categorias: DtoDominio[] = [];
+  equipos: any[] = [];
   private readonly todosLosMeses = [
     { value: 1, label: 'Enero' },
     { value: 2, label: 'Febrero' },
@@ -67,11 +69,12 @@ loading = false;
     Anio: 0,
     NumeroActa: ''
   };
-  searchingFuncionarioEquipo = false;
-  idCategoriaEquipo = 0;
-  fotoPreviewEquipo = 'imagenes/policia.jpg';
-  fotoModificadaEquipo = '';
-  uploadingEquipo = false;
+   nombreGrupoEquipo = '';
+   searchingFuncionarioEquipo = false;
+   idCategoriaEquipo = 0;
+   fotoPreviewEquipo = 'imagenes/policia.jpg';
+   fotoModificadaEquipo = '';
+   uploadingEquipo = false;
 
   private readonly maxImageBytes = 2 * 1024 * 1024;
   private readonly targetOptimizedImageBytes = 90 * 1024;
@@ -87,7 +90,62 @@ loading = false;
   ) {}
 
   ngOnInit(): void {
-    this.cargarCategoriasYPersonajes();
+    this.cargarCategoriasYPersonajesYEquipos();
+  }
+  private cargarCategoriasYPersonajesYEquipos(): void {
+    this.dominioService.getAll().subscribe({
+      next: (data) => {
+        this.categorias = (data ?? [])
+          .filter((item) => Number(item.idPadre) === 1 && Number(item.vigente) === 1)
+          .sort((a, b) => (a.descripcion ?? '').localeCompare(b.descripcion ?? ''));
+        this.cargarPersonajes();
+        this.cargarEquipos();
+      },
+      error: (err) => {
+        this.toast.error('Categorías', err?.error?.message ?? 'No se pudieron cargar las categorías.');
+        this.cargarPersonajes();
+        this.cargarEquipos();
+      }
+    });
+  }
+
+  private cargarEquipos(): void {
+    this.personajeMesService.getAllGrupo().subscribe({
+      next: (data) => {
+        const grupos = data ?? [];
+        if (grupos.length === 0) {
+          this.equipos = [];
+          return;
+        }
+        // Para cada grupo, cargar sus integrantes
+        let pendientes = grupos.length;
+        grupos.forEach((grupo: any) => {
+          this.personajeMesService.getByGrupo(grupo.idPersonajeGrupo || grupo.IdPersonajeGrupo).subscribe({
+            next: (integrantes) => {
+              grupo.integrantes = (integrantes ?? []).map(i => ({
+                nombres: i.nombres,
+                apellidos: i.apellidos,
+                grado: i.grado
+              }));
+              pendientes--;
+              if (pendientes === 0) {
+                this.equipos = grupos;
+              }
+            },
+            error: () => {
+              grupo.integrantes = [];
+              pendientes--;
+              if (pendientes === 0) {
+                this.equipos = grupos;
+              }
+            }
+          });
+        });
+      },
+      error: (err) => {
+        this.toast.error('Equipos', err?.error?.message ?? 'No se pudieron cargar los equipos.');
+      }
+    });
   }
 
   private createEmptyForm(): DtoPersonajeMesRequest {
@@ -119,6 +177,7 @@ cargarPersonajes(): void {
     this.loading = true;
     this.personajeMesService.getAll().subscribe({
       next: (data) => {
+        // El backend ya filtra por grupo y vigencia, así que solo ordenamos
         this.personajes = sortPersonajesMes(data ?? [], this.categorias);
         this.loading = false;
       },
@@ -842,6 +901,7 @@ getMesDescripcion(mes: number | null | undefined): string {
     this.fotoPreviewEquipo = 'imagenes/policia.jpg';
     this.fotoModificadaEquipo = '';
     this.uploadingEquipo = false;
+    this.nombreGrupoEquipo = '';
   }
 
   buscarFuncionarioEquipo(): void {
@@ -859,6 +919,7 @@ getMesDescripcion(mes: number | null | undefined): string {
 
         if (!func || !func.nombres) {
           this.searchingFuncionarioEquipo = false;
+          this.nombreGrupoEquipo = ''; // Limpiar nombreGrupoEquipo después de guardar
           this.toast.warning('Buscar', 'No se encontró funcionario con esa identificación');
           return;
         }
@@ -913,35 +974,71 @@ getMesDescripcion(mes: number | null | undefined): string {
     this.integrantesEquipo.splice(index, 1);
   }
 
-  guardarEquipoAltoRendimiento(): void {
-    if (this.integrantesEquipo.length === 0) {
-      this.toast.warning('Equipo', 'Debe agregar al menos un integrante');
-      return;
-    }
+   guardarEquipoAltoRendimiento(): void {
+     if (this.integrantesEquipo.length === 0) {
+       this.toast.warning('Equipo', 'Debe agregar al menos un integrante');
+       return;
+     }
 
-    if (!this.fotoModificadaEquipo?.trim()) {
-      this.toast.warning('Equipo', 'Debe subir una foto del equipo');
-      return;
-    }
+     if (!this.fotoModificadaEquipo?.trim()) {
+       this.toast.warning('Equipo', 'Debe subir una foto del equipo');
+       return;
+     }
 
-    this.saving = true;
+     if (!this.nombreGrupoEquipo?.trim()) {
+       this.toast.warning('Equipo', 'Debe ingresar el número de grupo o equipo');
+       return;
+     }
 
-    this.personajeMesService.createBulk(this.integrantesEquipo).subscribe({
-      next: (resp) => {
-        this.saving = false;
-        if (!resp.success) {
-          this.toast.error('Equipo', resp.message ?? 'Error al guardar');
-          return;
-        }
+     this.saving = true;
 
-        this.toast.success('Equipo', resp.message ?? 'Registros guardados correctamente');
-        this.cerrarModalEquipoAltoRendimiento();
-        this.cargarPersonajes();
-      },
-      error: (err) => {
-        this.saving = false;
-        this.toast.error('Equipo', err?.error?.message ?? 'Error al guardar');
-      }
-    });
-  }
+     // Primero crear el grupo
+     const grupoRequest = {
+       NombreGrupo: this.nombreGrupoEquipo.trim(),
+       FotoGrupo: this.fotoModificadaEquipo,
+       NumeroActa: this.datosFijosEquipo.NumeroActa,
+       Mes: this.datosFijosEquipo.Mes,
+       Anio: this.datosFijosEquipo.Anio
+     };
+
+     this.personajeMesService.createGrupo(grupoRequest).subscribe({
+       next: (grupoResp) => {
+         if (!grupoResp.success) {
+           this.saving = false;
+           this.toast.error('Equipo', grupoResp.message ?? 'Error al crear el grupo');
+           return;
+         }
+
+         // Asignar el ID del grupo a todos los integrantes
+         const integrantesConGrupoId = this.integrantesEquipo.map(integrante => ({
+           ...integrante,
+           IdPersonajeGrupo: grupoResp.id
+         }));
+
+         // Luego guardar todos los integrantes con el ID del grupo
+         this.personajeMesService.createBulk(integrantesConGrupoId).subscribe({
+           next: (bulkResp) => {
+             this.saving = false;
+             if (!bulkResp.success) {
+               this.toast.error('Equipo', bulkResp.message ?? 'Error al guardar los integrantes');
+               return;
+             }
+
+             this.toast.success('Equipo', bulkResp.message ?? 'Registros guardados correctamente');
+             this.cerrarModalEquipoAltoRendimiento();
+             this.cargarPersonajes();
+             this.cargarEquipos(); // Refresca la lista de equipos/grupos
+           },
+           error: (err) => {
+             this.saving = false;
+             this.toast.error('Equipo', err?.error?.message ?? 'Error al guardar los integrantes');
+           }
+         });
+       },
+       error: (err) => {
+         this.saving = false;
+         this.toast.error('Equipo', err?.error?.message ?? 'Error al crear el grupo');
+       }
+     });
+   }
 }

@@ -1,3 +1,12 @@
+// Margen inferior utilitario para separación de tarjetas
+.mb-4 {
+    margin-bottom: 20px;
+}
+// Tarjeta doble para equipos de alto rendimiento
+.spotlight-card--double {
+    grid-column: span 2;
+    font-size: 1.12em;
+}
 /* ==========================================
    ESTRUCTURA PRINCIPAL (LAYOUT)
    ========================================== */

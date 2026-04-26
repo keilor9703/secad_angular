@@ -10,6 +10,7 @@ import { DtoPersonajeMes, PersonajeMesService, sortPersonajesMes } from '../../c
 import { DominioService, DtoDominio } from '../../core/services/administracion/dominio.service';
 import { NoticiaService, DtoNoticia } from '../../core/services/administracion/noticia.service';
 import { SafeUrlPipe } from '../../shared/pipes/safe-url.pipe';
+import { MesNombrePipe } from '../../shared/pipes/mes-nombre.pipe';
 
 type NewsTag = 'Comunicado' | 'Servicio' | 'Importante';
 
@@ -64,6 +65,9 @@ export class HomeComponent implements OnInit, OnDestroy {
     { name: 'YouTube', icon: 'fa-youtube', url: 'https://www.youtube.com/@PoliciaNacionalCol', color: '#FF0000' }
   ];
 
+  // Equipos de Alto Rendimiento (dinámico)
+  equiposAltoRendimiento: any[] = [];
+
   constructor(
     private sliderService: SliderService,
     private homeService: HomeService,
@@ -74,6 +78,17 @@ export class HomeComponent implements OnInit, OnDestroy {
     private lineaMandoService: LineaMandoService,
     private noticiaService: NoticiaService
   ) {}
+  
+    /**
+     * Devuelve la URL completa de la foto del grupo
+     */
+    getGrupoFotoUrl(grupo: any): string {
+      const raw = (grupo.fotoGrupo || '').trim();
+      if (!raw) return 'imagenes/policia.jpg';
+      if (raw.startsWith('http://') || raw.startsWith('https://') || raw.startsWith('/api/') || raw.startsWith('data:')) return raw;
+      const fileName = raw.split('/').filter(Boolean).pop() ?? '';
+      return fileName ? `/api/PersonajeMesUpload/Imagen/${encodeURIComponent(fileName)}` : 'imagenes/policia.jpg';
+    }
 
   ngOnInit(): void {
     this.loadBanners();
@@ -83,6 +98,45 @@ export class HomeComponent implements OnInit, OnDestroy {
     this.loadPersonajesMesConCategorias();
     this.loadLineaMando();
     this.loadNoticias();
+    this.loadEquiposAltoRendimiento();
+  }
+
+  /**
+   * Carga los equipos/grupos de alto rendimiento y sus integrantes
+   */
+  loadEquiposAltoRendimiento(): void {
+    this.personajeMesService.getAllGrupo().subscribe({
+      next: (grupos) => {
+        if (!grupos || !Array.isArray(grupos)) {
+          this.equiposAltoRendimiento = [];
+          return;
+        }
+        // Para cada grupo, obtener sus integrantes
+        const requests = grupos.map((grupo: any) =>
+          this.personajeMesService.getByGrupo(grupo.idPersonajeGrupo).toPromise().then((integrantes: import('../../core/services/administracion/personaje-mes.service').DtoPersonajeMes[] | undefined) => {
+            const integrantesList = Array.isArray(integrantes) ? integrantes : [];
+            return {
+              nombreGrupo: grupo.nombreGrupo || grupo.NombreGrupo,
+              fotoGrupo: grupo.fotoGrupo || grupo.FotoGrupo,
+              numeroActa: grupo.numeroActa || grupo.NumeroActa,
+              mes: grupo.mes || grupo.Mes,
+              anio: grupo.anio || grupo.Anio,
+              integrantes: integrantesList.map(integrante => ({
+                nombres: integrante.nombres,
+                apellidos: integrante.apellidos,
+                grado: integrante.grado
+              }))
+            };
+          })
+        );
+        Promise.all(requests).then((result) => {
+          this.equiposAltoRendimiento = result;
+        });
+      },
+      error: () => {
+        this.equiposAltoRendimiento = [];
+      }
+    });
   }
 
   loadNoticias(): void {
