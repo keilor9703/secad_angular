@@ -16,6 +16,9 @@ namespace Negocio.Gestion
 
         public Task<DtoVideoInstitucional?> GetActiveAsync(CancellationToken ct)
             => _repository.GetActiveAsync(ct);
+        
+        public Task<List<DtoVideoInstitucional>> GetAllAsync(CancellationToken ct)
+            => _repository.GetAllAsync(ct);
 
         public async Task<DtoVideoInstitucionalResult> CreateAsync(DtoVideoInstitucionalRequest request, string usuarioAuditoria, string maquinaAuditoria, CancellationToken ct)
         {

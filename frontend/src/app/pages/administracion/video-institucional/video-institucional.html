@@ -24,7 +24,7 @@
 
           <div class="edit-mode-badge" *ngIf="isEditing">
             <i class="fa-solid fa-pen"></i>
-            {{ current ? 'Editando' : 'Nuevo video' }}
+            {{ isCreatingNew ? 'Nuevo video' : 'Editando' }}
           </div>
 
           <!-- Vista actual (sin editar) -->
@@ -40,6 +40,9 @@
               <div class="tab-actions mt-3">
                 <button class="ui-btn primary" type="button" (click)="activarEdicion()">
                   <i class="fa-solid fa-pen"></i> Editar
+                </button>
+                <button class="ui-btn secondary" type="button" (click)="nuevoVideo()">
+                  <i class="fa-solid fa-plus"></i> Nuevo video
                 </button>
                 <button class="ui-btn danger" type="button" (click)="eliminar()" [disabled]="deleting">
                   <i class="fa-solid fa-trash"></i>
@@ -128,6 +131,47 @@
         </article>
 
       </div>
+
+      <article class="tab-card videos-table-card" *ngIf="!loading">
+        <div class="roles-head">
+          <h3>Listado de Videos</h3>
+          <button class="ui-btn secondary" type="button" (click)="cargarListado()" [disabled]="loadingListado">
+            <i class="fa-solid fa-rotate"></i>
+            {{ loadingListado ? 'Cargando...' : 'Actualizar' }}
+          </button>
+        </div>
+
+        <div class="list-loading" *ngIf="loadingListado">Consultando videos...</div>
+
+        <div class="table-wrap" *ngIf="!loadingListado && videosListado.length > 0; else noVideosTable">
+          <table class="videos-table">
+            <thead>
+              <tr>
+                <th>Título</th>
+                <th>URL</th>
+                <th>Quién lo cargó</th>
+                <th>Cuándo se cargó</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let item of videosListado">
+                <td>{{ item.titulo || 'N/A' }}</td>
+                <td class="url-cell">
+                  <a [href]="item.urlYoutube" target="_blank" rel="noopener noreferrer">{{ item.urlYoutube }}</a>
+                </td>
+                <td>{{ item.usuarioCreacion || 'N/A' }}</td>
+                <td>{{ item.fechaCreacion | date:'dd/MM/yyyy HH:mm' }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <ng-template #noVideosTable>
+          <div class="news-state">
+            No hay videos institucionales registrados.
+          </div>
+        </ng-template>
+      </article>
     </div>
 
   </div>

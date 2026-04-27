@@ -22,8 +22,11 @@ export class VideoInstitucionalComponent implements OnInit {
   saving = false;
   deleting = false;
   isEditing = false;
+  isCreatingNew = false;
+  loadingListado = false;
 
   current: DtoVideoInstitucional | null = null;
+  videosListado: DtoVideoInstitucional[] = [];
 
   form: DtoVideoInstitucionalRequest = {
     titulo: '',
@@ -38,6 +41,7 @@ export class VideoInstitucionalComponent implements OnInit {
 
   ngOnInit(): void {
     this.cargar();
+    this.cargarListado();
   }
 
   cargar(): void {
@@ -61,14 +65,38 @@ export class VideoInstitucionalComponent implements OnInit {
         descripcion: this.current.descripcion ?? '',
         urlYoutube: this.current.urlYoutube
       };
+      this.isCreatingNew = false;
     } else {
       this.form = { titulo: '', descripcion: '', urlYoutube: '' };
+      this.isCreatingNew = true;
     }
+    this.isEditing = true;
+  }
+  
+  cargarListado(): void {
+    this.loadingListado = true;
+    this.service.getListado().subscribe({
+      next: (items) => {
+        this.videosListado = items ?? [];
+        this.loadingListado = false;
+      },
+      error: (err) => {
+        this.loadingListado = false;
+        this.videosListado = [];
+        this.toast.error('Video institucional', err?.error?.message ?? 'Error consultando listado de videos.');
+      }
+    });
+  }
+
+  nuevoVideo(): void {
+    this.form = { titulo: '', descripcion: '', urlYoutube: '' };
+    this.isCreatingNew = true;
     this.isEditing = true;
   }
 
   cancelar(): void {
     this.isEditing = false;
+    this.isCreatingNew = false;
     this.form = { titulo: '', descripcion: '', urlYoutube: '' };
   }
 
@@ -93,7 +121,7 @@ export class VideoInstitucionalComponent implements OnInit {
 
     this.saving = true;
 
-    const request$ = this.current
+    const request$ = this.current && !this.isCreatingNew
       ? this.service.update(this.current.idVideoInst, payload)
       : this.service.create(payload);
 
@@ -106,7 +134,9 @@ export class VideoInstitucionalComponent implements OnInit {
         }
         this.toast.success('Video institucional', resp.message ?? 'Guardado correctamente.');
         this.isEditing = false;
+        this.isCreatingNew = false;
         this.cargar();
+        this.cargarListado();
       },
       error: (err) => {
         this.saving = false;
@@ -129,6 +159,7 @@ export class VideoInstitucionalComponent implements OnInit {
         this.toast.success('Video institucional', resp.message ?? 'Video eliminado correctamente.');
         this.current = null;
         this.isEditing = false;
+        this.cargarListado();
       },
       error: (err) => {
         this.deleting = false;

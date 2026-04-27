@@ -26,6 +26,9 @@ export class AuthService {
   private readonly authKey = 'sisge_auth';
   private readonly userIdKey = 'sisge_user_id';
   private readonly loginUrl = `${environment.apiBaseUrl}/Cuenta/Token`;
+  private readonly maxJwtLength = 8192;
+  private readonly maxJwtPayloadB64Length = 4096;
+  private readonly maxJwtPayloadJsonLength = 6144;
 
   constructor(private http: HttpClient) {}
 
@@ -98,13 +101,10 @@ export class AuthService {
 
   private extractUserIdFromToken(token: string): number | null {
     try {
-      const payload = token.split('.')[1];
-      if (!payload) {
+      const parsed = this.decodeJwtPayload(token);
+      if (!parsed) {
         return null;
       }
-      const normalized = payload.replace(/-/g, '+').replace(/_/g, '/');
-      const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, '=');
-      const parsed = JSON.parse(atob(padded));
 
       const rawId =
         parsed?.id_usuario ??
@@ -120,13 +120,10 @@ export class AuthService {
 
   private isTokenExpired(token: string): boolean {
     try {
-      const payload = token.split('.')[1];
-      if (!payload) {
+      const parsed = this.decodeJwtPayload(token);
+      if (!parsed) {
         return true;
       }
-      const normalized = payload.replace(/-/g, '+').replace(/_/g, '/');
-      const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, '=');
-      const parsed = JSON.parse(atob(padded));
 
       const exp = Number(parsed?.exp);
       if (!Number.isFinite(exp) || exp <= 0) {
@@ -138,5 +135,36 @@ export class AuthService {
     } catch {
       return true;
     }
+  }
+
+  private decodeJwtPayload(token: string): any | null {
+    const raw = String(token ?? '').trim();
+    if (!raw || raw.length > this.maxJwtLength) {
+      return null;
+    }
+
+    const parts = raw.split('.');
+    if (parts.length < 2) {
+      return null;
+    }
+
+    const payload = (parts[1] ?? '').trim();
+    if (!payload || payload.length > this.maxJwtPayloadB64Length) {
+      return null;
+    }
+
+    // Base64URL permitidos
+    if (!/^[A-Za-z0-9\-_]+$/.test(payload)) {
+      return null;
+    }
+
+    const normalized = payload.replace(/-/g, '+').replace(/_/g, '/');
+    const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, '=');
+    const decoded = atob(padded);
+    if (!decoded || decoded.length > this.maxJwtPayloadJsonLength) {
+      return null;
+    }
+
+    return JSON.parse(decoded);
   }
 }

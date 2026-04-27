@@ -57,13 +57,13 @@
             </div>
 
             <div class="ui-field ui-col-4">
-              <label class="ui-label">Fecha inicio</label>
-              <input class="ui-control" type="date" [(ngModel)]="form.fechaInicio">
+              <label class="ui-label">Vigencia inicio</label>
+              <input class="ui-control" type="datetime-local" [(ngModel)]="form.fechaInicio">
             </div>
 
             <div class="ui-field ui-col-4">
-              <label class="ui-label">Fecha fin</label>
-              <input class="ui-control" type="date" [(ngModel)]="form.fechaFin">
+              <label class="ui-label">Vigencia fin</label>
+              <input class="ui-control" type="datetime-local" [(ngModel)]="form.fechaFin">
             </div>
 
             <div class="ui-field ui-col-12">
@@ -99,6 +99,8 @@
                 <strong>{{ item.titulo }}</strong>
                 <span class="meta">Orden: {{ item.orden }}</span>
                 <span class="meta">Vigente: {{ item.vigente === 1 ? 'Sí' : 'No' }}</span>
+                <span class="meta">Inicio: {{ item.fechaInicio ? (item.fechaInicio | date:'dd/MM/yyyy HH:mm') : 'N/A' }}</span>
+                <span class="meta">Fin: {{ item.fechaFin ? (item.fechaFin | date:'dd/MM/yyyy HH:mm') : 'N/A' }}</span>
               </div>
 
               <div class="slider-item__actions">

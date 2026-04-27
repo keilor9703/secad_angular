@@ -43,6 +43,10 @@ export class VideoInstitucionalService {
   getCurrent(): Observable<VideoInstitucionalCurrentResponse> {
     return this.http.get<VideoInstitucionalCurrentResponse>(`${this.baseUrl}/current`);
   }
+  
+  getListado(): Observable<DtoVideoInstitucional[]> {
+    return this.http.get<DtoVideoInstitucional[]>(this.baseUrl);
+  }
 
   create(payload: DtoVideoInstitucionalRequest): Observable<VideoInstitucionalApiResponse> {
     return this.http.post<VideoInstitucionalApiResponse>(this.baseUrl, payload);

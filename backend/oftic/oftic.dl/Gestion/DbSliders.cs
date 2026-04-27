@@ -20,6 +20,7 @@ namespace Datos.Gestion
         public async Task<List<DtoSliders>> GetPublicosAsync(CancellationToken ct)
         {
             var result = await GetByProcedureAsync("PK_ADMINISTRACION.P_GET_SLIDERS_PUBLICOS", includeAdminColumns: false, ct);
+            var now = DateTime.Now;
             if (result.Count > 0)
             {
                 // Si el SP público no trae URL_IMAGEN/URL_DESTINO, completamos desde admin por id.
@@ -55,18 +56,17 @@ namespace Datos.Gestion
                     }
                 }
 
-                return result.OrderBy(x => x.orden).ToList();
+                return result
+                    .Where(x => IsPublicadoEnVentana(x, now))
+                    .OrderBy(x => x.orden)
+                    .ToList();
             }
 
             // Fallback: si el SP de públicos no devuelve filas, usamos admin y filtramos en backend.
             var admin = await GetByProcedureAsync("PK_ADMINISTRACION.P_GET_SLIDERS_ADMIN", includeAdminColumns: true, ct);
-            var today = DateTime.Today;
 
             return admin
-                .Where(x =>
-                    x.vigente == 1 &&
-                    (!x.fechaInicio.HasValue || x.fechaInicio.Value.Date <= today) &&
-                    (!x.fechaFin.HasValue || x.fechaFin.Value.Date >= today))
+                .Where(x => IsPublicadoEnVentana(x, now))
                 .OrderBy(x => x.orden)
                 .ToList();
         }
@@ -386,6 +386,26 @@ namespace Datos.Gestion
                 return dt;
             }
             return DateTime.TryParse(value?.ToString(), out var parsed) ? parsed : null;
+        }
+
+        private static bool IsPublicadoEnVentana(DtoSliders item, DateTime now)
+        {
+            if (item.vigente != 1)
+            {
+                return false;
+            }
+
+            if (item.fechaInicio.HasValue && item.fechaInicio.Value > now)
+            {
+                return false;
+            }
+
+            if (item.fechaFin.HasValue && item.fechaFin.Value < now)
+            {
+                return false;
+            }
+
+            return true;
         }
     }
 }

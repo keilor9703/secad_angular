@@ -37,17 +37,72 @@ namespace Datos.Gestion
 
             return MapVideoInstitucional(reader);
         }
+        
+        public async Task<List<DtoVideoInstitucional>> GetAllAsync(CancellationToken ct)
+        {
+            var result = new List<DtoVideoInstitucional>();
+
+            await using var conn = new OracleConnection(_cs);
+            await conn.OpenAsync(ct);
+
+            await using var cmd = conn.CreateCommand();
+            cmd.CommandTimeout = 30;
+            cmd.CommandType = CommandType.Text;
+            cmd.CommandText = @"
+SELECT
+    ID_VIDEO_INST,
+    TITULO,
+    DESCRIPCION,
+    URL_YOUTUBE,
+    NVL(VIGENTE, 0) AS VIGENTE,
+    USUARIO_CREACION,
+    FECHA_CREACION,
+    USUARIO_MODIFICA,
+    MAQUINA_MODIFICA,
+    FECHA_MODIFICA
+FROM CTR_VIDEO_INSTITUCIONAL
+ORDER BY FECHA_CREACION DESC";
+
+            await using var reader = await cmd.ExecuteReaderAsync(ct);
+            while (await reader.ReadAsync(ct))
+            {
+                result.Add(MapVideoInstitucional(reader));
+            }
+
+            return result;
+        }
 
         public async Task<DtoVideoInstitucionalResult> CreateAsync(DtoVideoInstitucionalRequest request, string usuarioAuditoria, string maquinaAuditoria, CancellationToken ct)
         {
             var result = new DtoVideoInstitucionalResult();
+            OracleTransaction? tx = null;
 
             try
             {
                 await using var conn = new OracleConnection(_cs);
                 await conn.OpenAsync(ct);
+                tx = conn.BeginTransaction();
+
+                await using (var cmdDeactivate = conn.CreateCommand())
+                {
+                    cmdDeactivate.Transaction = tx;
+                    cmdDeactivate.CommandTimeout = 30;
+                    cmdDeactivate.BindByName = true;
+                    cmdDeactivate.CommandType = CommandType.Text;
+                    cmdDeactivate.CommandText = @"
+UPDATE CTR_VIDEO_INSTITUCIONAL
+   SET VIGENTE = 0,
+       USUARIO_MODIFICA = :iv_usuario_modifica,
+       MAQUINA_MODIFICA = :iv_maquina_modifica,
+       FECHA_MODIFICA = SYSDATE
+ WHERE NVL(VIGENTE, 0) = 1";
+                    cmdDeactivate.Parameters.Add("iv_usuario_modifica", OracleDbType.Varchar2, 50).Value = usuarioAuditoria;
+                    cmdDeactivate.Parameters.Add("iv_maquina_modifica", OracleDbType.Varchar2, 100).Value = maquinaAuditoria;
+                    await cmdDeactivate.ExecuteNonQueryAsync(ct);
+                }
 
                 await using var cmd = conn.CreateCommand();
+                cmd.Transaction = tx;
                 cmd.CommandTimeout = 30;
                 cmd.BindByName = true;
                 cmd.CommandType = CommandType.StoredProcedure;
@@ -65,6 +120,7 @@ namespace Datos.Gestion
                 pMsg.Direction = ParameterDirection.Output;
 
                 await cmd.ExecuteNonQueryAsync(ct);
+                await tx.CommitAsync(ct);
 
                 result.Message = pMsg.Value?.ToString() ?? string.Empty;
                 result.Success = result.Message.Contains("exitosa");
@@ -73,6 +129,14 @@ namespace Datos.Gestion
             }
             catch (OracleException ex)
             {
+                try
+                {
+                    if (tx is not null)
+                    {
+                        await tx.RollbackAsync(ct);
+                    }
+                }
+                catch { }
                 result.Success = false;
                 result.Message = $"Error de base de datos: {ex.Message}";
                 _logger.LogError(ex, "Error Oracle en CreateAsync VideoInstitucional");
@@ -174,7 +238,7 @@ namespace Datos.Gestion
                 Descripcion     = reader.IsDBNull(reader.GetOrdinal("DESCRIPCION")) ? null : reader.GetString(reader.GetOrdinal("DESCRIPCION")),
                 UrlYoutube      = urlYoutube,
                 EmbedUrl        = BuildEmbedUrl(urlYoutube),
-                Vigente         = reader.GetInt32(reader.GetOrdinal("VIGENTE")),
+                Vigente         = Convert.ToInt32(reader.GetValue(reader.GetOrdinal("VIGENTE"))),
                 UsuarioCreacion = reader.GetString(reader.GetOrdinal("USUARIO_CREACION")),
                 FechaCreacion   = reader.GetDateTime(reader.GetOrdinal("FECHA_CREACION")),
                 UsuarioModifica = reader.IsDBNull(reader.GetOrdinal("USUARIO_MODIFICA")) ? null : reader.GetString(reader.GetOrdinal("USUARIO_MODIFICA")),

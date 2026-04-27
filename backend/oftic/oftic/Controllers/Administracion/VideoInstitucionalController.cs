@@ -41,6 +41,23 @@ namespace ofic.Controllers.Administracion
                 return StatusCode(500, new { success = false, message = "Error consultando video institucional." });
             }
         }
+        
+        [HttpGet]
+        [HttpGet("listado")]
+        [AllowAnonymous]
+        public async Task<IActionResult> GetListado()
+        {
+            try
+            {
+                var items = await _service.GetAllAsync(CancellationToken.None);
+                return Ok(items);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error consultando listado de videos institucionales");
+                return StatusCode(500, new { success = false, message = "Error consultando listado de videos institucionales." });
+            }
+        }
 
         [HttpPost]
         [Authorize]

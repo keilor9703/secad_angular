@@ -132,8 +132,12 @@ export class HomeComponent implements OnInit, OnDestroy {
   private loadBanners(): void {
     this.sliderService.getPublicos().subscribe({
       next: (items) => {
-        const ordered = (items ?? []).slice().sort((a, b) => a.orden - b.orden);
-        this.banners = ordered.length > 0 ? ordered : this.getFallbackBanners();
+        const now = new Date();
+        const ordered = (items ?? [])
+          .filter((x) => this.isBannerVigenteNow(x, now))
+          .slice()
+          .sort((a, b) => a.orden - b.orden);
+        this.banners = ordered;
         this.currentBannerIndex = 0;
         this.startBannerRotation();
       },
@@ -143,6 +147,39 @@ export class HomeComponent implements OnInit, OnDestroy {
         this.startBannerRotation();
       }
     });
+  }
+
+  private isBannerVigenteNow(item: DtoSliders, now: Date): boolean {
+    if (Number(item?.vigente ?? 0) !== 1) {
+      return false;
+    }
+
+    const inicio = this.parseSliderDate(item?.fechaInicio);
+    const fin = this.parseSliderDate(item?.fechaFin);
+
+    if (inicio && inicio.getTime() > now.getTime()) {
+      return false;
+    }
+
+    if (fin && fin.getTime() < now.getTime()) {
+      return false;
+    }
+
+    return true;
+  }
+
+  private parseSliderDate(value?: string | null): Date | null {
+    const raw = String(value ?? '').trim();
+    if (!raw) {
+      return null;
+    }
+
+    const parsed = new Date(raw);
+    if (Number.isNaN(parsed.getTime())) {
+      return null;
+    }
+
+    return parsed;
   }
 
   private loadStats(): void {
@@ -309,33 +346,45 @@ export class HomeComponent implements OnInit, OnDestroy {
     const uploadPathIndex = raw.toLowerCase().indexOf('/uploads/sliders/');
     if (uploadPathIndex >= 0) {
       const fileName = raw.substring(uploadPathIndex).split('/').filter(Boolean).pop() ?? '';
-      return fileName ? `http://172.28.9.181:8088/api/Slider/Image/${encodeURIComponent(fileName)}` : '';
-      //return fileName ? `/api/Slider/Image/${encodeURIComponent(fileName)}` : '';
+      return fileName ? `${this.getApiBaseUrl()}/Slider/Image/${encodeURIComponent(fileName)}` : '';
     }
 
     const normalized = raw.replace(/\\/g, '/');
     if (normalized.toLowerCase().startsWith('uploads/sliders/')) {
       const fileName = normalized.split('/').filter(Boolean).pop() ?? '';
-      return fileName ? `http://172.28.9.181:8088/api/Slider/Image/${encodeURIComponent(fileName)}` : '';
-      //return fileName ? `/api/Slider/Image/${encodeURIComponent(fileName)}` : '';
+      return fileName ? `${this.getApiBaseUrl()}/Slider/Image/${encodeURIComponent(fileName)}` : '';
     }
     if (raw.startsWith('http://') || raw.startsWith('https://')) {
       return raw;
     }
     if (raw.startsWith('/')) {
-      return `http://172.28.9.181:8088${raw}`;
+      return `${this.getApiOrigin()}${raw}`;
     }
-    /*if (raw.startsWith('http://') || raw.startsWith('https://') || raw.startsWith('/')) {
-      return raw;
-    }*/
 
     // Si viene solo el nombre de archivo, apuntamos a la carpeta pública de sliders.
     if (/^[^/]+\.(jpg|jpeg|png|webp)$/i.test(normalized)) {
-     return `http://172.28.9.181:8088/api/Slider/Image/${encodeURIComponent(normalized)}`;
-     //return `/api/Slider/Image/${encodeURIComponent(normalized)}`;
+     return `${this.getApiBaseUrl()}/Slider/Image/${encodeURIComponent(normalized)}`;
     }
 
     return `/${raw}`;
+  }
+
+  private getApiBaseUrl(): string {
+    const base = (environment.apiBaseUrl ?? '/api').trim().replace(/\/+$/, '');
+    return base || '/api';
+  }
+
+  private getApiOrigin(): string {
+    const base = this.getApiBaseUrl();
+    if (!/^https?:\/\//i.test(base)) {
+      return '';
+    }
+    try {
+      const url = new URL(base);
+      return `${url.protocol}//${url.host}`;
+    } catch {
+      return '';
+    }
   }
 
   private looksLikeUrl(value: string): boolean {

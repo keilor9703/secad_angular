@@ -80,8 +80,8 @@ export class SlidersComponent implements OnInit {
       urlDestino: (item.urlDestino ?? '').trim(),
       orden: item.orden || 1,
       vigente: item.vigente || 0,
-      fechaInicio: this.normalizeDate(item.fechaInicio),
-      fechaFin: this.normalizeDate(item.fechaFin)
+      fechaInicio: this.normalizeDateTime(item.fechaInicio),
+      fechaFin: this.normalizeDateTime(item.fechaFin)
     };
     this.imagePreviewUrl = this.form.urlImagen || '';
   }
@@ -99,6 +99,16 @@ export class SlidersComponent implements OnInit {
 
     if (!this.form.orden || this.form.orden < 1) {
       this.toast.warning('Sliders', 'El orden debe ser mayor a 0.');
+      return;
+    }
+
+    if (!this.form.fechaInicio || !this.form.fechaFin) {
+      this.toast.warning('Sliders', 'La fecha/hora de inicio y fin son obligatorias.');
+      return;
+    }
+
+    if (new Date(this.form.fechaFin).getTime() < new Date(this.form.fechaInicio).getTime()) {
+      this.toast.warning('Sliders', 'La vigencia fin no puede ser menor a la vigencia inicio.');
       return;
     }
 
@@ -210,24 +220,39 @@ export class SlidersComponent implements OnInit {
       urlDestino: '',
       orden: 1,
       vigente: 1,
-      fechaInicio: this.toInputDate(today),
-      fechaFin: this.toInputDate(plusSeven)
+      fechaInicio: this.toInputDateTime(today),
+      fechaFin: this.toInputDateTime(plusSeven)
     };
   }
 
-  private normalizeDate(value?: string | null): string {
+  private normalizeDateTime(value?: string | null): string {
     if (!value) {
       return '';
     }
-    const str = value.toString();
-    return str.length >= 10 ? str.slice(0, 10) : str;
+    const str = value.toString().trim();
+    if (!str) {
+      return '';
+    }
+
+    // Caso común: "YYYY-MM-DDTHH:mm:ss..." -> datetime-local "YYYY-MM-DDTHH:mm"
+    if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(str)) {
+      return str.slice(0, 16);
+    }
+
+    const parsed = new Date(str);
+    if (Number.isNaN(parsed.getTime())) {
+      return '';
+    }
+    return this.toInputDateTime(parsed);
   }
 
-  private toInputDate(date: Date): string {
+  private toInputDateTime(date: Date): string {
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, '0');
     const day = String(date.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
   }
 }
 

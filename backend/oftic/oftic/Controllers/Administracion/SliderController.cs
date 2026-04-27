@@ -105,6 +105,14 @@ namespace ofic.Controllers.Administracion
                 {
                     return BadRequest(new { success = false, message = "Orden debe ser mayor a 0" });
                 }
+                if (!request.fechaInicio.HasValue || !request.fechaFin.HasValue)
+                {
+                    return BadRequest(new { success = false, message = "La vigencia inicio y fin es obligatoria." });
+                }
+                if (request.fechaFin.Value < request.fechaInicio.Value)
+                {
+                    return BadRequest(new { success = false, message = "La vigencia fin no puede ser menor a la vigencia inicio." });
+                }
 
                 var usuarioAuditoria = await ResolveUsuarioAuditoriaAsync(HttpContext.RequestAborted);
                 if (usuarioAuditoria <= 0)
@@ -146,7 +154,8 @@ namespace ofic.Controllers.Administracion
                 return StatusCode(500, new
                 {
                     success = false,
-                    message = "Error al guardar slider"
+                    message = "Error al guardar slider",
+                    detail = ex.InnerException?.Message ?? ex.Message
                 });
             }
         }
