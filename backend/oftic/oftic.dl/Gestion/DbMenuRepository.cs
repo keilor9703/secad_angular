@@ -17,7 +17,7 @@ namespace Datos.Gestion
         private readonly string _cs;
         public DbMenuRepository(IConfiguration configuration)
         {
-            _cs = configuration.GetConnectionString("DbOracle")!;
+            _cs = configuration.GetConnectionString("DbCoest")!;
         }
 
 
@@ -33,36 +33,36 @@ namespace Datos.Gestion
             // - ctr_menu_roles relaciona rol con menú.
             // - CONNECT BY agrega ancestros (padres) para construir el árbol.
             const string sqlMenuPorRoles = @"
-WITH roles_vigentes AS (
-    SELECT DISTINCT rua.id_rol
-      FROM ctr_roles_user_admin rua
-     WHERE rua.id_usuario = :pIdUsuario
-       AND NVL(rua.vigente, 0) = 1
-       AND (rua.fecha_fin IS NULL OR TRUNC(rua.fecha_fin) >= TRUNC(SYSDATE))
-),
-menus_asignados AS (
-    -- Si el usuario tiene rol 1 (super administrador), obtiene todo el menú.
-    SELECT DISTINCT m.id_menu
-      FROM ctr_menu m
-     WHERE EXISTS (SELECT 1 FROM roles_vigentes rv WHERE rv.id_rol = 1)
-    UNION
-    SELECT DISTINCT mr.id_menu
-      FROM ctr_menu_roles mr
-      JOIN roles_vigentes rv ON rv.id_rol = mr.id_rol
-)
-SELECT DISTINCT
-       m.id_menu,
-       m.descripcion,
-       m.idpadre,
-       m.posicion,
-       m.tipo,
-       m.icono,
-       m.vigente,
-       m.detalle
-  FROM ctr_menu m
- START WITH m.id_menu IN (SELECT ma.id_menu FROM menus_asignados ma)
-CONNECT BY NOCYCLE PRIOR m.idpadre = m.id_menu
- ORDER BY m.idpadre, m.posicion, m.id_menu";
+                WITH roles_vigentes AS (
+                    SELECT DISTINCT rua.id_rol
+                      FROM ctr_roles_user_admin rua
+                     WHERE rua.id_usuario = :pIdUsuario
+                       AND NVL(rua.vigente, 0) = 1
+                       AND (rua.fecha_fin IS NULL OR TRUNC(rua.fecha_fin) >= TRUNC(SYSDATE))
+                ),
+                menus_asignados AS (
+                    -- Si el usuario tiene rol 1 (super administrador), obtiene todo el menú.
+                    SELECT DISTINCT m.id_menu
+                      FROM ctr_menu m
+                     WHERE EXISTS (SELECT 1 FROM roles_vigentes rv WHERE rv.id_rol = 1)
+                    UNION
+                    SELECT DISTINCT mr.id_menu
+                      FROM ctr_menu_roles mr
+                      JOIN roles_vigentes rv ON rv.id_rol = mr.id_rol
+                )
+                SELECT DISTINCT
+                       m.id_menu,
+                       m.descripcion,
+                       m.idpadre,
+                       m.posicion,
+                       m.tipo,
+                       m.icono,
+                       m.vigente,
+                       m.detalle
+                  FROM ctr_menu m
+                 START WITH m.id_menu IN (SELECT ma.id_menu FROM menus_asignados ma)
+                CONNECT BY NOCYCLE PRIOR m.idpadre = m.id_menu
+                 ORDER BY m.idpadre, m.posicion, m.id_menu";
 
             try
             {
@@ -110,9 +110,9 @@ CONNECT BY NOCYCLE PRIOR m.idpadre = m.id_menu
             await using var cmd = conn.CreateCommand();
             cmd.CommandType = CommandType.Text;
             cmd.CommandText = @"
-SELECT id_menu, descripcion, idpadre, posicion, tipo, icono, vigente, detalle
-FROM ctr_menu
-ORDER BY idpadre, posicion, id_menu";
+                SELECT id_menu, descripcion, idpadre, posicion, tipo, icono, vigente, detalle
+                FROM ctr_menu
+                ORDER BY idpadre, posicion, id_menu";
 
             await using var reader = await cmd.ExecuteReaderAsync(ct);
             while (await reader.ReadAsync(ct))
@@ -153,18 +153,18 @@ ORDER BY idpadre, posicion, id_menu";
                     cmdUpdate.Transaction = tx;
                     cmdUpdate.CommandType = CommandType.Text;
                     cmdUpdate.CommandText = @"
-UPDATE ctr_menu
-   SET descripcion      = :pDescripcion,
-       idpadre          = :pIdPadre,
-       posicion         = :pPosicion,
-       tipo             = :pTipo,
-       icono            = :pIcono,
-       vigente          = :pVigente,
-       detalle          = :pDetalle,
-       usuario_modifica = :pUsuarioModifica,
-       fecha_modifica   = SYSDATE,
-       maquina_modifica = :pMaquinaModifica
- WHERE id_menu = :pIdMenu";
+                        UPDATE ctr_menu
+                           SET descripcion      = :pDescripcion,
+                               idpadre          = :pIdPadre,
+                               posicion         = :pPosicion,
+                               tipo             = :pTipo,
+                               icono            = :pIcono,
+                               vigente          = :pVigente,
+                               detalle          = :pDetalle,
+                               usuario_modifica = :pUsuarioModifica,
+                               fecha_modifica   = SYSDATE,
+                               maquina_modifica = :pMaquinaModifica
+                         WHERE id_menu = :pIdMenu";
 
                     BindSaveParams(cmdUpdate, request, idPadre, usuarioAuditoria, maquinaAuditoria);
                     cmdUpdate.Parameters.Add(":pIdMenu", OracleDbType.Int64).Value = idMenu;
@@ -193,12 +193,12 @@ UPDATE ctr_menu
                     cmdInsert.Transaction = tx;
                     cmdInsert.CommandType = CommandType.Text;
                     cmdInsert.CommandText = @"
-INSERT INTO ctr_menu
-  (id_menu, descripcion, idpadre, posicion, tipo, icono, vigente, detalle,
-   usuario_creacion, fecha_creacion, maquina_creacion)
-VALUES
-  (:pIdMenu, :pDescripcion, :pIdPadre, :pPosicion, :pTipo, :pIcono, :pVigente, :pDetalle,
-   :pUsuarioCreacion, SYSDATE, :pMaquinaCreacion)";
+                        INSERT INTO ctr_menu
+                          (id_menu, descripcion, idpadre, posicion, tipo, icono, vigente, detalle,
+                           usuario_creacion, fecha_creacion, maquina_creacion)
+                        VALUES
+                          (:pIdMenu, :pDescripcion, :pIdPadre, :pPosicion, :pTipo, :pIcono, :pVigente, :pDetalle,
+                           :pUsuarioCreacion, SYSDATE, :pMaquinaCreacion)";
 
                     cmdInsert.Parameters.Add(":pIdMenu", OracleDbType.Int64).Value = idMenu;
                     cmdInsert.Parameters.Add(":pDescripcion", OracleDbType.Varchar2).Value = request.Descripcion!.Trim();

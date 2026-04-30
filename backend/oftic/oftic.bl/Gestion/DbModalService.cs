@@ -23,7 +23,11 @@ namespace Negocio.Gestion
         }
 
         public async Task<List<DtoModalActivo>> GetActivosAsync(CancellationToken ct)
-            => await _repository.GetActivosAsync(ct);
+        {
+            var todos = await _repository.GetActivosAsync(ct);
+            // Por diseño solo puede existir un modal activo; retornamos el más reciente
+            return todos.Take(1).ToList();
+        }
 
         public async Task<DtoModalResult> CreateAsync(DtoModalRequest request, string usuarioAuditoria, string maquinaAuditoria, CancellationToken ct)
         {

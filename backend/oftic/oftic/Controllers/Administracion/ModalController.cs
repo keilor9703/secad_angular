@@ -106,26 +106,42 @@ namespace Api.Controllers.Administracion
         [Authorize]
         public async Task<ActionResult> Delete(long id)
         {
-            var (usuario, maquina) = ObtenerAuditoria();
-            var result = await _service.DeleteLogicalAsync(id, usuario, maquina, CancellationToken.None);
+            try
+            {
+                var (usuario, maquina) = ObtenerAuditoria();
+                var result = await _service.DeleteLogicalAsync(id, usuario, maquina, CancellationToken.None);
 
-            if (!result.Success)
-                return BadRequest(new { success = false, message = result.Message });
+                if (!result.Success)
+                    return BadRequest(new { success = false, message = result.Message });
 
-            return Ok(new { success = true, message = result.Message });
+                return Ok(new { success = true, message = result.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al eliminar modal ID={Id}", id);
+                return StatusCode(500, new { success = false, message = $"Error: {ex.Message}" });
+            }
         }
 
         [HttpPatch("{id:long}/vigente")]
         [Authorize]
         public async Task<ActionResult> ToggleVigente(long id, [FromBody] DtoModalToggleRequest request)
         {
-            var (usuario, maquina) = ObtenerAuditoria();
-            var result = await _service.ToggleVigenteAsync(id, request.Vigente, usuario, maquina, CancellationToken.None);
+            try
+            {
+                var (usuario, maquina) = ObtenerAuditoria();
+                var result = await _service.ToggleVigenteAsync(id, request.Vigente, usuario, maquina, CancellationToken.None);
 
-            if (!result.Success)
-                return BadRequest(new { success = false, message = result.Message });
+                if (!result.Success)
+                    return BadRequest(new { success = false, message = result.Message });
 
-            return Ok(new { success = true, message = result.Message });
+                return Ok(new { success = true, message = result.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al cambiar estado de modal ID={Id}", id);
+                return StatusCode(500, new { success = false, message = $"Error: {ex.Message}" });
+            }
         }
 
         [HttpGet("{id:long}/interacciones")]
