@@ -8,13 +8,13 @@
 
     <!-- Recurso: imagen -->
     <div class="mv-recurso" *ngIf="esImagen">
-      <img [src]="modal!.rutaRecurso" [alt]="modal!.titulo">
+      <img [src]="resourceUrl" [alt]="modal!.titulo">
     </div>
 
     <!-- Recurso: video -->
     <div class="mv-recurso" *ngIf="esVideo">
       <video controls muted preload="auto" (error)="onVideoError($event)">
-        <source [src]="modal!.rutaRecurso | safeUrl" [type]="videoMimeType">
+        <source [src]="resourceUrl | safeUrl" [type]="videoMimeType">
       </video>
     </div>
 

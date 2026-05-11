@@ -89,7 +89,6 @@ builder.Services.AddScoped<IApiWebToken, ApiWebToken>();
 builder.Services.AddScoped<IDbMenuService, DbMenuService>();
 builder.Services.AddScoped<IDbMenuRepository, DbMenuRepository>();
 builder.Services.AddScoped<IDbUsuarioRepository, DbUsuarioRepository>();
-builder.Services.AddScoped<IDbSliders, DbSliders>();
 builder.Services.AddScoped<IDbHomeRepository, DbHomeRepository>();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
@@ -128,8 +127,6 @@ builder.Services.AddScoped<IJwtService, JwtService>();
 
 builder.Services.AddScoped<IDbLineaMandoService, DbLineaMandoService>();
 builder.Services.AddScoped<IDbLineaMandoRepository, DbLineaMandoRepository>();
-builder.Services.AddScoped<IDbRadioService, DbRadioService>();
-builder.Services.AddScoped<IDbRadioRepository, DbRadioRepository>();
 
 builder.Services.AddScoped<IDbDominioService, DbDominioService>();
 builder.Services.AddScoped<IDbDominioRepository, DbDominioRepository>();
@@ -137,28 +134,7 @@ builder.Services.AddScoped<IDbDominioRepository, DbDominioRepository>();
 builder.Services.AddScoped<IDbVideoService, DbVideoService>();
 builder.Services.AddScoped<IDbVideoRepository, DbVideoRepository>();
 
-builder.Services.AddScoped<IDbVideoInstitucionalService, DbVideoInstitucionalService>();
-builder.Services.AddScoped<IDbVideoInstitucionalRepository, DbVideoInstitucionalRepository>();
-
-builder.Services.AddScoped<IDbNoticiaService, DbNoticiaService>();
-builder.Services.AddScoped<IDbNoticiaRepository, DbNoticiaRepository>();
-
-builder.Services.AddScoped<IDbModalService, DbModalService>();
-builder.Services.AddScoped<IDbModalRepository, DbModalRepository>();
-
 var app = builder.Build();
-
-var uploadsRoot = Path.Combine(app.Environment.ContentRootPath, "uploads", "sliders");
-Directory.CreateDirectory(uploadsRoot);
-
-var radioLogosRoot = Path.Combine(app.Environment.ContentRootPath, "uploads", "radio");
-Directory.CreateDirectory(radioLogosRoot);
-
-var noticiasRoot = Path.Combine(app.Environment.ContentRootPath, "uploads", "noticias");
-Directory.CreateDirectory(noticiasRoot);
-
-var modalesRoot = Path.Combine(app.Environment.ContentRootPath, "uploads", "modales");
-Directory.CreateDirectory(modalesRoot);
 
 app.UseCors("DevCors");
 
@@ -167,24 +143,6 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 }
-
-app.UseStaticFiles(new StaticFileOptions
-{
-    FileProvider = new PhysicalFileProvider(uploadsRoot),
-    RequestPath = "/uploads/sliders"
-});
-
-app.UseStaticFiles(new StaticFileOptions
-{
-    FileProvider = new PhysicalFileProvider(radioLogosRoot),
-    RequestPath = "/uploads/radio"
-});
-
-app.UseStaticFiles(new StaticFileOptions
-{
-    FileProvider = new PhysicalFileProvider(noticiasRoot),
-    RequestPath = "/uploads/noticias"
-});
 
 app.UseAuthentication();
 app.UseAuthorization();

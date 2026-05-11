@@ -28,10 +28,6 @@ namespace Datos.Gestion
             await using var conn = new OracleConnection(_cs);
             await conn.OpenAsync(ct);
 
-            // Nuevo flujo: menú por roles vigentes del usuario.
-            // - ctr_roles_user_admin determina roles activos del usuario.
-            // - ctr_menu_roles relaciona rol con menú.
-            // - CONNECT BY agrega ancestros (padres) para construir el árbol.
             const string sqlMenuPorRoles = @"
                 WITH roles_vigentes AS (
                     SELECT DISTINCT rua.id_rol

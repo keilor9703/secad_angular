@@ -7,6 +7,7 @@ import {
   DtoModalActivo,
   ModalService,
 } from '../../core/services/administracion/modal.service';
+import { environment } from '../../../environments/environment';
 import { SafeUrlPipe } from '../../shared/pipes/safe-url.pipe';
 
 @Component({
@@ -24,14 +25,29 @@ export class ModalVisorComponent implements OnInit, OnDestroy {
   private routerSub!: Subscription;
   private delay?: ReturnType<typeof setTimeout>;
 
+  get resourceUrl(): string {
+    let raw = (this.modal?.rutaRecurso ?? '').trim();
+    if (!raw) return '';
+    if (raw.startsWith('http') || raw.startsWith('data:')) return raw;
+    
+    const baseUrl = environment.sliderMediaBaseUrl;
+    if (raw.startsWith('/')) {
+      return `${baseUrl}${raw}`;
+    }
+    // Si viene solo el nombre, intentamos la ruta estándar de modales
+    return `${baseUrl}/uploads/modales/${raw}`;
+  }
+
   get esImagen(): boolean { return this.modal?.tipoRecurso?.toUpperCase() === 'IMAGEN'; }
   get esVideo(): boolean  { return this.modal?.tipoRecurso?.toUpperCase() === 'VIDEO';  }
+  
   get videoMimeType(): string {
     const ruta = this.modal?.rutaRecurso ?? '';
     if (ruta.endsWith('.webm')) return 'video/webm';
     if (ruta.endsWith('.mov'))  return 'video/quicktime';
     return 'video/mp4';
   }
+  
   get requiereAceptar(): boolean {
     return this.modal?.tipoAccion === 'ACEPTAR' || this.modal?.tipoAccion === 'CONFIRMAR';
   }
@@ -39,6 +55,7 @@ export class ModalVisorComponent implements OnInit, OnDestroy {
   constructor(private modalService: ModalService, private router: Router) {}
 
   ngOnInit(): void {
+    // Importación necesaria para el template
     this.routerSub = this.router.events
       .pipe(filter(e => e instanceof NavigationEnd))
       .subscribe((e: NavigationEnd) => {
@@ -70,7 +87,7 @@ export class ModalVisorComponent implements OnInit, OnDestroy {
   }
 
   onVideoError(event: Event): void {
-    console.error('Error cargando video del modal:', this.modal?.rutaRecurso, event);
+    console.error('Error cargando video del modal:', this.resourceUrl, event);
   }
 
   private intentarMostrar(): void {
@@ -85,7 +102,6 @@ export class ModalVisorComponent implements OnInit, OnDestroy {
     this.modalService.getActivos().subscribe({
       next: (data) => {
         const activo = data?.[0] ?? null;
-        console.log('[ModalVisor] modal activo:', activo);
         if (activo) {
           this.modal = activo;
           this.visible = true;

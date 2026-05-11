@@ -43,18 +43,6 @@ export class AdministracionInicioComponent {
       icon: 'fa-solid fa-sitemap'
     },
     {
-      title: 'Sliders',
-      description: 'Configura banners y piezas visuales del home.',
-      route: '/administracion/sliders',
-      icon: 'fa-solid fa-image'
-    },
-    {
-      title: 'Emisoras Radio',
-      description: 'Administra emisoras, streams y estado de publicación.',
-      route: '/administracion/radio',
-      icon: 'fa-solid fa-radio'
-    },
-    {
       title: 'Formularios',
       description: 'Galería y base de formularios administrativos.',
       route: '/administracion/formularios',
@@ -64,24 +52,12 @@ export class AdministracionInicioComponent {
       title: 'Configuración del Sistema',
       description: 'Marca del sistema, visual login y video institucional.',
       route: '/administracion/configuracion-sistema',
-      icon: 'fa fa-cog fa-spin fa-3x fa-fw"'
+      icon: 'fa fa-cog fa-spin fa-3x fa-fw'
     },
-     {
+    {
       title: 'Configuración de Dominios',
       description: 'Administra dominios del sistema, para listas desplegables.',
       route: '/administracion/dominio',
-      icon: 'fa fa-refresh fa-spin fa-3x fa-fw'
-    },
-    {
-      title: 'Video Institucional',
-      description: 'Administracion de videos instuitucionales del sistema.',
-      route: '/administracion/video-institucional',
-      icon: 'fa fa-refresh fa-spin fa-3x fa-fw'
-    },
-     {
-      title: 'Administración de noticias',
-      description: 'Administracion de Creación de noticias.',
-      route: '/administracion/noticias',
       icon: 'fa fa-refresh fa-spin fa-3x fa-fw'
     }
   ];
