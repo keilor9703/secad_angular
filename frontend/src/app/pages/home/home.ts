@@ -1,4 +1,4 @@
-﻿import { Component, HostListener, OnDestroy, OnInit } from '@angular/core';
+import { Component, HostListener, OnDestroy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { DtoSliders, SliderService } from '../../core/services/administracion/slider.service';
@@ -81,8 +81,6 @@ export class HomeComponent implements OnInit, OnDestroy {
   loadNoticias(): void {
     this.noticiaService.getActivas().subscribe({
       next: (noticias) => {
-        console.log('Noticias cargadas:', noticias);
-        console.log('Cantidad:', noticias.length);
         // Ordenar por fecha descendente y limitar a 5 noticias más recientes
         const sorted = noticias.sort((a, b) => 
           new Date(b.fechaCreacion).getTime() - new Date(a.fechaCreacion).getTime()
@@ -98,7 +96,6 @@ export class HomeComponent implements OnInit, OnDestroy {
           image: this.getNoticiaImageUrl(n.imagenNoticia),
           megusta: n.megusta || 0
         }));
-        console.log('News mapeadas:', this.news);
       },
       error: (err) => {
         console.error('Error cargando noticias:', err);
@@ -110,9 +107,18 @@ export class HomeComponent implements OnInit, OnDestroy {
   private getNoticiaImageUrl(imagenNoticia: string | null | undefined): string {
     const raw = (imagenNoticia ?? '').trim();
     if (!raw) return '';
-    if (raw.startsWith('http://') || raw.startsWith('https://') || raw.startsWith('/api/') || raw.startsWith('data:')) return raw;
+    if (raw.startsWith('http://') || raw.startsWith('https://') || raw.startsWith('data:')) return raw;
+    
+    // Si la imagen viene como /api/... o simplemente el nombre, apuntamos al servidor externo
+    if (raw.startsWith('/api/')) {
+      return `${this.sliderService.imageBaseUrl}${raw}`;
+    }
+
     const fileName = raw.split('/').filter(Boolean).pop() ?? '';
-    return fileName ? `/api/NoticiaUpload/Imagen/${encodeURIComponent(fileName)}` : '';
+    // Como no sabemos la ruta exacta de las imágenes en el nuevo API, 
+    // asumimos que el API de Slider/Image o similar podría servirlas o que vienen con ruta completa.
+    // Si viene solo el nombre, intentamos el endpoint que parece ser el estándar en este server.
+    return fileName ? `${this.sliderService.imageBaseUrl}/api/NoticiaUpload/Imagen/${encodeURIComponent(fileName)}` : '';
   }
 
   private mapSeccionToTag(seccion: string): NewsTag {
@@ -342,6 +348,11 @@ export class HomeComponent implements OnInit, OnDestroy {
       return raw;
     }
 
+    // Si la URL empieza con /api/Slider/Image/, viene de la nueva API externa configurada.
+    if (raw.startsWith('/api/Slider/Image/')) {
+      return `${this.sliderService.imageBaseUrl}${raw}`;
+    }
+
     // Si viene URL absoluta/local con /uploads/sliders, resolvemos por API para evitar problemas de host/puerto/proxy.
     const uploadPathIndex = raw.toLowerCase().indexOf('/uploads/sliders/');
     if (uploadPathIndex >= 0) {
@@ -363,7 +374,7 @@ export class HomeComponent implements OnInit, OnDestroy {
 
     // Si viene solo el nombre de archivo, apuntamos a la carpeta pública de sliders.
     if (/^[^/]+\.(jpg|jpeg|png|webp)$/i.test(normalized)) {
-     return `${this.getApiBaseUrl()}/Slider/Image/${encodeURIComponent(normalized)}`;
+      return `${this.getApiBaseUrl()}/Slider/Image/${encodeURIComponent(normalized)}`;
     }
 
     return `/${raw}`;

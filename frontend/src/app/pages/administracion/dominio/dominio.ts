@@ -86,7 +86,6 @@ export class DominioAdminComponent implements OnInit {
   private buildTree(): void {
     const noRaiz = this.listaDominios.filter(d => d.idDominio !== 0);
     const raiz = noRaiz.filter(d => !d.idPadre || d.idPadre === 0);
-    console.log('Dominios completos:', noRaiz);
     this.dominiosTree = raiz.map(padre => {
       const children = noRaiz.filter(hijo => hijo.idPadre === padre.idDominio);
       return {
@@ -99,7 +98,6 @@ export class DominioAdminComponent implements OnInit {
         expanded: true
       };
     });
-    console.log('Árbol construido:', this.dominiosTree);
   }
 
   toggleExpand(index: number): void {

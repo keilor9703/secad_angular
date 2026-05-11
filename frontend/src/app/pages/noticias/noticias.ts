@@ -1,6 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { NoticiaService, DtoNoticia } from '../../core/services/administracion/noticia.service';
+import { environment } from '../../../environments/environment';
 
 @Component({
   selector: 'app-noticias-web',
@@ -90,9 +91,19 @@ export class NoticiasWeb implements OnInit {
   }
 
   getImageUrl(noticia: DtoNoticia): string {
-    if (!noticia.imagenNoticia) return 'imagenes/actividades/news2.jpg';
-    if (noticia.imagenNoticia.startsWith('http')) return noticia.imagenNoticia;
-    return `/api/NoticiaUpload/Imagen/${noticia.imagenNoticia.split('/').pop()}`;
+    const raw = (noticia.imagenNoticia ?? '').trim();
+    if (!raw) return '/imagenes/actividades/news2.jpg';
+    if (raw.startsWith('http://') || raw.startsWith('https://') || raw.startsWith('data:')) return raw;
+    
+    const baseUrl = environment.sliderMediaBaseUrl || 'https://srvdockergusof.policia.gov.co:8088';
+    
+    // Si la imagen viene como /api/... o simplemente el nombre, apuntamos al servidor externo
+    if (raw.startsWith('/api/')) {
+      return `${baseUrl}${raw}`;
+    }
+
+    const fileName = raw.split('/').filter(Boolean).pop() ?? '';
+    return `${baseUrl}/api/NoticiaUpload/Imagen/${encodeURIComponent(fileName)}`;
   }
 
   getNoticiaUrl(noticia: DtoNoticia): string {

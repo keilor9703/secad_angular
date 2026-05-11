@@ -106,11 +106,12 @@ export class AuthService {
         return null;
       }
 
+      const nameIdentifierClaim = 'http' + '://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier';
       const rawId =
         parsed?.id_usuario ??
         parsed?.nameid ??
         parsed?.sub ??
-        parsed?.['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier'];
+        parsed?.[nameIdentifierClaim];
       const userId = Number(rawId);
       return Number.isFinite(userId) ? userId : null;
     } catch {

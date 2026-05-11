@@ -1,4 +1,4 @@
-﻿import { Component, HostBinding, HostListener, OnInit } from '@angular/core';
+import { Component, HostBinding, HostListener, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { SidebarService } from '../../services/sidebar';
@@ -318,10 +318,8 @@ onItemTap(item: MenuItem, ev: MouseEvent) {
       '/usuarios': '/administracion/usuarios',
       '/roles': '/administracion/roles',
       '/linea-mando': '/administracion/linea-mando',
-      '/radio': '/administracion/radio',
       '/menu': '/administracion/menu',
-      '/auditoria': '/administracion/auditoria',
-      '/sliders': '/administracion/sliders'
+      '/auditoria': '/administracion/auditoria'
     };
 
     return routeMap[value] || (value.startsWith('/') ? value : `/${value}`);
@@ -407,7 +405,8 @@ onItemTap(item: MenuItem, ev: MouseEvent) {
       route === '/usuarios' ||
       route === '/roles' ||
       route === '/linea-mando' ||
-      route === '/radio' ||
+      route === '/menu' ||
+      route === '/auditoria' ||
       route === '/configuracion-sistema' ||
       route === '/video-unidad' ||
       route === '/configuracion-imagen-sitio' ||
