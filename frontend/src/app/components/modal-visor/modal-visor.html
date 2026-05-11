@@ -5,20 +5,16 @@
       <i class="fa-solid fa-xmark"></i>
     </button>
 
-    <!-- Contador cuando hay varios modales -->
-    <div class="mv-pager" *ngIf="modales.length > 1">
-      {{ indiceActual + 1 }} / {{ modales.length }}
-    </div>
 
     <!-- Recurso: imagen -->
     <div class="mv-recurso" *ngIf="esImagen">
-      <img [src]="modal!.rutaRecurso" [alt]="modal!.titulo">
+      <img [src]="resourceUrl" [alt]="modal!.titulo">
     </div>
 
     <!-- Recurso: video -->
     <div class="mv-recurso" *ngIf="esVideo">
       <video controls muted preload="auto" (error)="onVideoError($event)">
-        <source [src]="modal!.rutaRecurso | safeUrl" [type]="videoMimeType">
+        <source [src]="resourceUrl | safeUrl" [type]="videoMimeType">
       </video>
     </div>
 

@@ -72,7 +72,7 @@ namespace ofic.Controllers.Administracion
             {
                 if (string.IsNullOrEmpty(identificacion))
                 {
-                    return BadRequest(new { message = "IdentificaciÃ³n requerida" });
+                    return BadRequest(new { message = "Identificación requerida" });
                 }
 
                 // Obtener token tÃ©cnico de API externa configurado en ApiSettings.
@@ -88,17 +88,17 @@ namespace ofic.Controllers.Administracion
 
                 if (empleado is null)
                 {
-                    return NotFound(new { message = "No se encontrÃ³ informaciÃ³n del funcionario." });
+                    return NotFound(new { message = "No se encuentra información del funcionario." });
                 }
 
                 // Validar situaciÃ³n laboral
                 var situacionLaboral = (empleado.situacionLaboral ?? string.Empty).Trim().ToUpperInvariant();
-                if (situacionLaboral != "LABORANDO" && situacionLaboral != "COMISION DEL SERVICIO")
+                if (situacionLaboral != "LABORANDO" && situacionLaboral != "COMISION DEL SERVICIO" && situacionLaboral != "COMISION DE ESTUDIOS")
                 {
                     return BadRequest(new
                     {
                         success = false,
-                        message = $"Usuario no estÃ¡ en situaciÃ³n laboral vÃ¡lida. SituaciÃ³n actual: '{empleado.situacionLaboral ?? "No reportada"}'. Solo se permiten 'LABORANDO' o 'COMISIÃ“N DEL SERVICIO'."
+                        message = $"Usuario no está¡ en situación laboral válida. Situación actual: '{empleado.situacionLaboral ?? "No reportada"}'. Solo se permiten 'LABORANDO' o 'COMISIÓN DEL SERVICIO'."
                     });
                 }
 
@@ -308,6 +308,21 @@ namespace ofic.Controllers.Administracion
             }
         }
 
+        [HttpGet("Listado")]
+        public async Task<IActionResult> GetListadoUsuarios([FromQuery] string? nombre)
+        {
+            try
+            {
+                var usuarios = await _dbUsuarioRepository.GetUsuariosListadoAsync(nombre, HttpContext.RequestAborted);
+                return Ok(usuarios);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error consultando listado de usuarios");
+                return StatusCode(500, new { message = "Error al consultar listado de usuarios" });
+            }
+        }
+
         [HttpPost]
         public async Task<IActionResult> SaveUsuario([FromBody] DtoUsuarioRequest request)
         {
@@ -363,6 +378,46 @@ namespace ofic.Controllers.Administracion
                     success = false,
                     message = "Error al guardar usuario"
                 });
+            }
+        }
+
+        [HttpDelete("{idUsuario:long}")]
+        public async Task<IActionResult> EliminarUsuario(long idUsuario)
+        {
+            try
+            {
+                if (idUsuario <= 0)
+                {
+                    return BadRequest(new { success = false, message = "Id de usuario inválido." });
+                }
+
+                var usuarioAuditoria = await ResolveUsuarioAuditoriaAsync(
+                    User,
+                    null,
+                    HttpContext.RequestAborted);
+
+                var maquinaAuditoria =
+                    HttpContext.Connection.RemoteIpAddress?.ToString()
+                    ?? Environment.MachineName
+                    ?? "N/A";
+
+                var result = await _dbUsuarioRepository.EliminarUsuarioAsync(
+                    idUsuario,
+                    usuarioAuditoria,
+                    maquinaAuditoria,
+                    HttpContext.RequestAborted);
+
+                if (result.idUsuario <= 0)
+                {
+                    return BadRequest(new { success = false, message = result.message });
+                }
+
+                return Ok(new { success = true, message = result.message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error eliminando usuario id={IdUsuario}", idUsuario);
+                return StatusCode(500, new { success = false, message = "Error al eliminar usuario" });
             }
         }
 
@@ -520,17 +575,75 @@ namespace ofic.Controllers.Administracion
         }
 
         [HttpDelete("Roles/{rolId}")]
-        public IActionResult EliminarRol(int rolId)
+        public async Task<IActionResult> EliminarRol(
+            int rolId,
+            [FromQuery] string? usuario,
+            [FromQuery] string? identificacion)
         {
             try
             {
-                // AquÃ­ eliminarÃ­as de tu BD
-                return Ok(new { success = true, message = "Rol eliminado correctamente" });
+                if (rolId <= 0)
+                {
+                    return BadRequest(new { success = false, message = "Rol inválido." });
+                }
+
+                long idUsuario = 0;
+
+                if (!string.IsNullOrWhiteSpace(identificacion))
+                {
+                    var idByDoc = await _dbUsuarioRepository.GetUsuarioIdByIdentificacionAsync(
+                        identificacion.Trim(),
+                        HttpContext.RequestAborted);
+                    if (idByDoc.HasValue)
+                    {
+                        idUsuario = idByDoc.Value;
+                    }
+                }
+
+                if (idUsuario <= 0 && !string.IsNullOrWhiteSpace(usuario))
+                {
+                    var idByUser = await _dbUsuarioRepository.GetUsuarioIdByUsernameAsync(
+                        usuario.Trim(),
+                        HttpContext.RequestAborted);
+                    if (idByUser.HasValue)
+                    {
+                        idUsuario = idByUser.Value;
+                    }
+                }
+
+                if (idUsuario <= 0)
+                {
+                    return BadRequest(new { success = false, message = "No se encontró el usuario para retirar el rol." });
+                }
+
+                var usuarioAuditoria = await ResolveUsuarioAuditoriaAsync(
+                    User,
+                    identificacion,
+                    HttpContext.RequestAborted);
+
+                var maquinaAuditoria =
+                    HttpContext.Connection.RemoteIpAddress?.ToString()
+                    ?? Environment.MachineName
+                    ?? "N/A";
+
+                var result = await _dbUsuarioRepository.EliminarRolAsync(
+                    idUsuario,
+                    rolId,
+                    usuarioAuditoria,
+                    maquinaAuditoria,
+                    HttpContext.RequestAborted);
+
+                if (result.idUsuario <= 0)
+                {
+                    return BadRequest(new { success = false, message = result.message });
+                }
+
+                return Ok(new { success = true, message = result.message });
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error eliminando rol");
-                return StatusCode(500, new { message = "Error al eliminar rol" });
+                return StatusCode(500, new { success = false, message = "Error al eliminar rol" });
             }
         }
 

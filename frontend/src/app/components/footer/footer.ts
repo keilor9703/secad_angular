@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { BrandingService } from '../../core/services/administracion/branding.service';
 import { DtoRadioEmisora, RadioService } from '../../core/services/administracion/radio.service';
+import { environment } from '../../../environments/environment';
 
 interface FooterStation {
   id: string;
@@ -114,7 +115,6 @@ export class FooterComponent implements OnInit, OnDestroy {
     }
 
     // solo UI
-    console.log('Ticket (solo UI):', this.supportForm);
     this.resetSupportForm();
     this.closeSupport();
   }
@@ -242,11 +242,23 @@ export class FooterComponent implements OnInit, OnDestroy {
   }
 
   private mapStation(item: DtoRadioEmisora, index: number): FooterStation {
+    let logo = (item.logoUrl ?? '').trim();
+    if (logo && !logo.startsWith('http') && !logo.startsWith('data:')) {
+      // Si la ruta es relativa (ej: /uploads/radio/... o similar), apuntamos al servidor externo
+      const baseUrl = environment.sliderMediaBaseUrl;
+      if (logo.startsWith('/')) {
+        logo = `${baseUrl}${logo}`;
+      } else {
+        // Si viene solo el nombre, intentamos la ruta estándar de uploads de radio en ese server
+        logo = `${baseUrl}/uploads/radio/${logo}`;
+      }
+    }
+
     return {
       id: String(item.idEmisora ?? index + 1),
       name: (item.nombre ?? '').trim() || `Emisora ${index + 1}`,
       url: (item.streamUrl ?? '').trim(),
-      logoUrl: item.logoUrl ?? null
+      logoUrl: logo || null
     };
   }
 }

@@ -20,7 +20,7 @@ namespace Datos.Gestion
 
         public DbDominioRepository(IConfiguration configuration, ILogger<DbDominioRepository> logger)
         {
-            _cs = configuration.GetConnectionString("DbOracle")!;
+            _cs = configuration.GetConnectionString("DbCoest")!;
             _logger = logger;
         }
 

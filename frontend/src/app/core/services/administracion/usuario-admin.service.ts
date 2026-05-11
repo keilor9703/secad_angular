@@ -45,6 +45,15 @@ export interface UsuarioConsultaResult {
   rolesCatalogo: DtoRolCatalogo[];
 }
 
+export interface UsuarioListadoItem {
+  idUsuario: number;
+  identificacion: string;
+  username: string;
+  nombreCompleto: string;
+  rol: string;
+  fechaFinRol?: string | null;
+}
+
 export interface SaveUsuarioRequest {
   username: string;
   identificacion: string;
@@ -77,6 +86,16 @@ export interface AsignarRolRequest {
 export interface AsignarRolResponse {
   success: boolean;
   idRolUserAdmin?: number;
+  message: string;
+}
+
+export interface EliminarRolResponse {
+  success: boolean;
+  message: string;
+}
+
+export interface EliminarUsuarioResponse {
+  success: boolean;
   message: string;
 }
 
@@ -124,12 +143,32 @@ export class UsuarioAdminService {
       );
   }
 
+  getListadoUsuarios(nombre?: string): Observable<UsuarioListadoItem[]> {
+    const term = (nombre ?? '').trim();
+    return this.http.get<UsuarioListadoItem[]>(`${this.baseUrl}/Listado`, {
+      params: term ? { nombre: term } : {}
+    });
+  }
+
   guardarUsuario(payload: SaveUsuarioRequest): Observable<SaveUsuarioResponse> {
     return this.http.post<SaveUsuarioResponse>(this.baseUrl, payload);
   }
 
   asignarRol(payload: AsignarRolRequest): Observable<AsignarRolResponse> {
     return this.http.post<AsignarRolResponse>(`${this.baseUrl}/Roles`, payload);
+  }
+
+  eliminarRol(rolId: number, usuario: string, identificacion: string): Observable<EliminarRolResponse> {
+    return this.http.delete<EliminarRolResponse>(`${this.baseUrl}/Roles/${rolId}`, {
+      params: {
+        usuario: (usuario ?? '').trim(),
+        identificacion: (identificacion ?? '').trim()
+      }
+    });
+  }
+
+  eliminarUsuario(idUsuario: number): Observable<EliminarUsuarioResponse> {
+    return this.http.delete<EliminarUsuarioResponse>(`${this.baseUrl}/${idUsuario}`);
   }
 
   private normalizeFotoResponse(raw: string | null): string | null {
