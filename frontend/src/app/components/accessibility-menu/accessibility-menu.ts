@@ -1,10 +1,29 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, OnInit, OnDestroy, Input, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { AccessibilityService, AccessibilityState } from '../../core/services/accessibility.service';
 import { SpeechToTextService } from '../../core/services/speech-to-text.service';
 import { TextToSpeechService } from '../../core/services/text-to-speech.service';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
+
+export interface SocialDockAccount {
+  id: number;
+  networkName: string;
+  accountName: string;
+  icon: string;
+  url: string;
+  color: string;
+  handle?: string;
+  avatarUrl?: string;
+  notifications?: number;
+}
+
+export interface SocialDockGroup {
+  networkName: string;
+  icon: string;
+  color: string;
+  accounts: SocialDockAccount[];
+}
 
 @Component({
   selector: 'app-accessibility-menu',
@@ -17,6 +36,8 @@ import { takeUntil } from 'rxjs/operators';
   }
 })
 export class AccessibilityMenuComponent implements OnInit, OnDestroy {
+  @Input() socialGroups: SocialDockGroup[] = [];
+
   accessibility: AccessibilityState = {
     darkMode: false,
     fontSize: 2 // nivel por defecto (normal)
@@ -26,6 +47,9 @@ export class AccessibilityMenuComponent implements OnInit, OnDestroy {
   isSpeaking = false;
   speechToTextAvailable = false;
   textToSpeechAvailable = false;
+  socialExpanded = false;
+  panelOpen = false;
+  selectedGroup: SocialDockGroup | null = null;
 
   private destroy$ = new Subject<void>();
 
@@ -114,5 +138,41 @@ export class AccessibilityMenuComponent implements OnInit, OnDestroy {
   get fontSizeLabel(): string {
     const labels = ['Muy pequeña', 'Pequeña', 'Normal', 'Mediana', 'Grande', 'Muy grande', 'Extra grande'];
     return labels[this.accessibility.fontSize] || 'Normal';
+  }
+
+  toggleSocial(): void {
+    this.socialExpanded = !this.socialExpanded;
+  }
+
+  openSocialGroup(group: SocialDockGroup): void {
+    this.selectedGroup = group;
+    this.panelOpen = true;
+    document.body.classList.add('ui-modal-open');
+  }
+
+  closeSocialPanel(): void {
+    this.panelOpen = false;
+    this.selectedGroup = null;
+    document.body.classList.remove('ui-modal-open');
+  }
+
+  getHandle(account: SocialDockAccount): string {
+    const raw = (account.handle ?? account.accountName ?? '').trim();
+    if (!raw) {
+      return '@cuenta';
+    }
+
+    if (raw.startsWith('@')) {
+      return raw;
+    }
+
+    return `@${raw.replace(/\s+/g, '').toLowerCase()}`;
+  }
+
+  @HostListener('document:keydown.escape')
+  onEsc(): void {
+    if (this.panelOpen) {
+      this.closeSocialPanel();
+    }
   }
 }

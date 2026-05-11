@@ -40,6 +40,152 @@
   }
 }
 
+.social-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--accessibility-gap);
+  margin-top: 2px;
+}
+
+.social-network-btn {
+  background: var(--social-color, #08a6cb);
+  color: #fff;
+}
+
+.social-network-btn:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+.social-toggle-btn {
+  margin-top: 2px;
+}
+
+.social-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(8, 15, 26, 0.36);
+  backdrop-filter: blur(4px);
+  z-index: 1398;
+}
+
+.social-drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: min(92vw, 420px);
+  height: 100vh;
+  background: #f8fafc;
+  border-left: 1px solid rgba(15, 23, 42, 0.12);
+  box-shadow: -12px 0 34px rgba(0, 0, 0, 0.28);
+  z-index: 1399;
+  display: flex;
+  flex-direction: column;
+  animation: drawerIn 220ms ease;
+}
+
+@keyframes drawerIn {
+  from { transform: translateX(100%); opacity: 0.8; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+.social-drawer__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.1);
+  background: #eaf0f8;
+}
+
+.social-drawer__title {
+  font-weight: 700;
+  color: #0f172a;
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.social-drawer__close {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 0;
+  background: rgba(15, 23, 42, 0.08);
+  color: #0f172a;
+  cursor: pointer;
+}
+
+.social-drawer__body {
+  padding: 14px;
+  overflow: auto;
+  display: grid;
+  gap: 10px;
+}
+
+.social-account {
+  background: #fff;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 14px;
+  padding: 10px;
+  display: grid;
+  grid-template-columns: 44px 1fr;
+  gap: 10px;
+}
+
+.social-account__avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #dbe7f6;
+  color: #0f172a;
+  font-weight: 700;
+}
+
+.social-account__name-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.social-account__meta strong {
+  color: #111827;
+  font-size: 13px;
+}
+
+.social-account__handle {
+  color: #64748b;
+  font-size: 12px;
+  margin: 2px 0 6px;
+}
+
+.social-account__meta a {
+  color: #0b6bd3;
+  font-size: 12px;
+  text-decoration: none;
+}
+
+.social-account__meta a:hover {
+  text-decoration: underline;
+}
+
+.social-account__badge {
+  min-width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  background: #dc2626;
+  color: #fff;
+  font-size: 11px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 5px;
+}
+
 .accessibility-btn {
   width: var(--accessibility-btn-size);
   height: var(--accessibility-btn-size);
