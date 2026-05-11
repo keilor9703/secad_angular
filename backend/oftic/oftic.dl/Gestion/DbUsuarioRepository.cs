@@ -16,7 +16,7 @@ namespace Datos.Gestion
 
         public DbUsuarioRepository(IConfiguration cfg, ILogger<DbUsuarioRepository> logger)
         {
-            _cs = cfg.GetConnectionString("DbOracle")!;
+            _cs = cfg.GetConnectionString("DbCoest")!;
             _logger = logger;
         }
 
@@ -183,6 +183,125 @@ VALUES (:pIdUsuario, :pUsername, :pIdentificacion, 0)";
             }
         }
 
+        public async Task<List<DtoUsuarioListadoItem>> GetUsuariosListadoAsync(string? nombre, CancellationToken ct)
+        {
+            var result = new List<DtoUsuarioListadoItem>();
+            var nombreFiltro = (nombre ?? string.Empty).Trim();
+
+            await using var conn = new OracleConnection(_cs);
+            await conn.OpenAsync(ct);
+
+            const string sqlConGrado = @"
+WITH roles_agg AS (
+    SELECT
+        x.id_usuario,
+        LISTAGG(x.rol_desc, ', ') WITHIN GROUP (ORDER BY x.rol_desc) AS roles,
+        LISTAGG(x.fecha_fin_txt, ', ') WITHIN GROUP (ORDER BY x.fecha_fin_txt) AS fecha_fin_rol
+    FROM (
+        SELECT DISTINCT
+            rua.id_usuario,
+            NVL(r.descripcion, 'Sin rol') AS rol_desc,
+            CASE WHEN rua.fecha_fin IS NOT NULL THEN TO_CHAR(rua.fecha_fin, 'YYYY-MM-DD') END AS fecha_fin_txt
+        FROM ctr_roles_user_admin rua
+        LEFT JOIN ctr_roles r ON r.id_rol = rua.id_rol
+    ) x
+    GROUP BY x.id_usuario
+)
+SELECT
+    u.id_usuario,
+    u.identificacion,
+    u.username,
+    REGEXP_REPLACE(
+        TRIM(NVL(u.grad_alfabetico, '') || ' ' || NVL(u.nombres, '') || ' ' || NVL(u.apellidos, '')),
+        '[[:space:]]+',
+        ' '
+    ) AS nombre_completo,
+    NVL(ra.roles, 'Sin rol') AS rol,
+    ra.fecha_fin_rol
+FROM ctr_usuarios u
+LEFT JOIN roles_agg ra ON ra.id_usuario = u.id_usuario
+WHERE (:pNombre IS NULL
+   OR UPPER(u.username) LIKE '%' || UPPER(:pNombre) || '%'
+   OR UPPER(
+       REGEXP_REPLACE(
+           TRIM(NVL(u.grad_alfabetico, '') || ' ' || NVL(u.nombres, '') || ' ' || NVL(u.apellidos, '')),
+           '[[:space:]]+',
+           ' '
+       )
+   ) LIKE '%' || UPPER(:pNombre) || '%')
+ORDER BY UPPER(u.username)";
+
+            const string sqlSinGrado = @"
+WITH roles_agg AS (
+    SELECT
+        x.id_usuario,
+        LISTAGG(x.rol_desc, ', ') WITHIN GROUP (ORDER BY x.rol_desc) AS roles,
+        LISTAGG(x.fecha_fin_txt, ', ') WITHIN GROUP (ORDER BY x.fecha_fin_txt) AS fecha_fin_rol
+    FROM (
+        SELECT DISTINCT
+            rua.id_usuario,
+            NVL(r.descripcion, 'Sin rol') AS rol_desc,
+            CASE WHEN rua.fecha_fin IS NOT NULL THEN TO_CHAR(rua.fecha_fin, 'YYYY-MM-DD') END AS fecha_fin_txt
+        FROM ctr_roles_user_admin rua
+        LEFT JOIN ctr_roles r ON r.id_rol = rua.id_rol
+    ) x
+    GROUP BY x.id_usuario
+)
+SELECT
+    u.id_usuario,
+    u.identificacion,
+    u.username,
+    TRIM(NVL(u.nombres, '') || ' ' || NVL(u.apellidos, '')) AS nombre_completo,
+    NVL(ra.roles, 'Sin rol') AS rol,
+    ra.fecha_fin_rol
+FROM ctr_usuarios u
+LEFT JOIN roles_agg ra ON ra.id_usuario = u.id_usuario
+WHERE (:pNombre IS NULL
+   OR UPPER(u.username) LIKE '%' || UPPER(:pNombre) || '%'
+   OR UPPER(TRIM(NVL(u.nombres, '') || ' ' || NVL(u.apellidos, ''))) LIKE '%' || UPPER(:pNombre) || '%')
+ORDER BY UPPER(u.username)";
+
+            OracleDataReader reader;
+            try
+            {
+                await using var cmd = conn.CreateCommand();
+                cmd.CommandType = CommandType.Text;
+                cmd.CommandText = sqlConGrado;
+                cmd.Parameters.Add(":pNombre", OracleDbType.Varchar2).Value = string.IsNullOrWhiteSpace(nombreFiltro)
+                    ? DBNull.Value
+                    : nombreFiltro;
+                reader = await cmd.ExecuteReaderAsync(ct);
+            }
+            catch (OracleException ex) when (ex.Number == 904)
+            {
+                await using var cmd = conn.CreateCommand();
+                cmd.CommandType = CommandType.Text;
+                cmd.CommandText = sqlSinGrado;
+                cmd.Parameters.Add(":pNombre", OracleDbType.Varchar2).Value = string.IsNullOrWhiteSpace(nombreFiltro)
+                    ? DBNull.Value
+                    : nombreFiltro;
+                reader = await cmd.ExecuteReaderAsync(ct);
+            }
+
+            await using (reader)
+            {
+                while (await reader.ReadAsync(ct))
+                {
+                    result.Add(new DtoUsuarioListadoItem
+                    {
+                        idUsuario = reader.IsDBNull(0) ? 0 : Convert.ToInt64(reader.GetDecimal(0)),
+                        identificacion = reader.IsDBNull(1) ? string.Empty : reader.GetString(1),
+                        username = reader.IsDBNull(2) ? string.Empty : reader.GetString(2),
+                        nombreCompleto = reader.IsDBNull(3) ? string.Empty : reader.GetString(3),
+                        rol = reader.IsDBNull(4) ? "Sin rol" : reader.GetString(4),
+                        fechaFinRol = reader.IsDBNull(5) ? null : reader.GetString(5)
+                    });
+                }
+            }
+
+            return result;
+        }
+
         public async Task<List<DtoRolAsignado>> GetRolesAsignadosAsync(string username, CancellationToken ct)
         {
             var idUsuario = await GetUsuarioIdByUsernameAsync(username, ct);
@@ -199,24 +318,41 @@ VALUES (:pIdUsuario, :pUsername, :pIdentificacion, 0)";
             await using var cmd = conn.CreateCommand();
             cmd.CommandType = CommandType.Text;
             cmd.CommandText = @"
-SELECT DISTINCT id_rol, justificacion
-FROM ctr_roles_user_admin
-WHERE id_usuario = :pIdUsuario
-ORDER BY id_rol";
+SELECT DISTINCT
+       rua.id_rol,
+       r.descripcion AS descripcion_rol,
+       rua.justificacion,
+       rua.fecha_fin,
+       NVL(rua.vigente, 0) AS vigente
+FROM ctr_roles_user_admin rua
+LEFT JOIN ctr_roles r
+       ON r.id_rol = rua.id_rol
+WHERE rua.id_usuario = :pIdUsuario
+ORDER BY descripcion_rol, rua.id_rol";
             cmd.Parameters.Add(":pIdUsuario", OracleDbType.Int64).Value = idUsuario.Value;
 
             await using var reader = await cmd.ExecuteReaderAsync(ct);
             while (await reader.ReadAsync(ct))
             {
                 var idRol = Convert.ToInt32(reader.GetInt64(0));
+                var descripcionRol = reader.IsDBNull(1) ? null : reader.GetString(1);
+                var justificacion = reader.IsDBNull(2) ? null : reader.GetString(2);
+                var fechaFin = reader.IsDBNull(3) ? (DateTime?)null : reader.GetDateTime(3);
+                var vigente = reader.IsDBNull(4) ? 0 : Convert.ToInt32(reader.GetDecimal(4));
+                var estado = "Vigente";
+                if (vigente != 1 || (fechaFin.HasValue && fechaFin.Value.Date < DateTime.Today))
+                {
+                    estado = "Vencido";
+                }
+
                 result.Add(new DtoRolAsignado
                 {
                     id = idRol,
-                    rol = $"Rol {idRol}",
-                    estado = "Vigente",
+                    rol = !string.IsNullOrWhiteSpace(descripcionRol) ? descripcionRol : $"Rol {idRol}",
+                    estado = estado,
                     fechaInicio = null,
-                    fechaFin = null,
-                    justificacion = reader.IsDBNull(1) ? null : reader.GetString(1)
+                    fechaFin = fechaFin?.ToString("yyyy-MM-dd"),
+                    justificacion = justificacion
                 });
             }
 
@@ -251,6 +387,47 @@ ORDER BY id_rol";
             }
 
             return result;
+        }
+
+        public async Task<DtoGuardarUsuarioResult> EliminarRolAsync(
+            long idUsuario,
+            int rolId,
+            string usuarioAuditoria,
+            string maquinaAuditoria,
+            CancellationToken ct)
+        {
+            await using var conn = new OracleConnection(_cs);
+            await conn.OpenAsync(ct);
+
+            await using var cmd = conn.CreateCommand();
+            cmd.BindByName = true;
+            cmd.CommandType = CommandType.Text;
+            cmd.CommandText = @"
+UPDATE ctr_roles_user_admin
+   SET vigente = 0,
+       fecha_fin = NVL(fecha_fin, TRUNC(SYSDATE))
+ WHERE id_usuario = :pIdUsuario
+   AND id_rol = :pIdRol
+   AND NVL(vigente, 0) = 1";
+
+            cmd.Parameters.Add(":pIdUsuario", OracleDbType.Int64).Value = idUsuario;
+            cmd.Parameters.Add(":pIdRol", OracleDbType.Int32).Value = rolId;
+
+            var affected = await cmd.ExecuteNonQueryAsync(ct);
+            if (affected <= 0)
+            {
+                return new DtoGuardarUsuarioResult
+                {
+                    idUsuario = 0,
+                    message = "No se encontró un rol vigente para retirar."
+                };
+            }
+
+            return new DtoGuardarUsuarioResult
+            {
+                idUsuario = idUsuario,
+                message = "Rol retirado correctamente."
+            };
         }
 
         public async Task<List<DtoRol>> GetRolesAsync(CancellationToken ct)
@@ -301,8 +478,8 @@ ORDER BY descripcion";
                     AsDbValue(request.username ?? request.identificacion);
                 cmd.Parameters.Add("P_Identificacion", OracleDbType.Varchar2).Value =
                     AsDbValue(request.identificacion);
-                cmd.Parameters.Add("P_Email", OracleDbType.Varchar2).Value =
-                    AsDbValue(request.email);
+                //cmd.Parameters.Add("P_Email", OracleDbType.Varchar2).Value =
+                //    AsDbValue(request.email);
                 cmd.Parameters.Add("P_GradAlfabetico", OracleDbType.Varchar2).Value =
                     AsRequiredDbValue(request.gradAlfabetico, "N/A");
                 cmd.Parameters.Add("P_Apellidos", OracleDbType.Varchar2).Value =
@@ -350,6 +527,71 @@ ORDER BY descripcion";
             catch (OracleException ex)
             {
                 _logger.LogError(ex, "Error Oracle ejecutando PK_ADMINISTRACION.P_INS_UPD_USUARIOS");
+                throw new InvalidOperationException($"Oracle: {ex.Message}", ex);
+            }
+        }
+
+        public async Task<DtoGuardarUsuarioResult> EliminarUsuarioAsync(
+            long idUsuario,
+            string usuarioAuditoria,
+            string maquinaAuditoria,
+            CancellationToken ct)
+        {
+            await using var conn = new OracleConnection(_cs);
+            await conn.OpenAsync(ct);
+            await using var tx = conn.BeginTransaction();
+
+            try
+            {
+                await using (var cmdUsuario = conn.CreateCommand())
+                {
+                    cmdUsuario.Transaction = tx;
+                    cmdUsuario.BindByName = true;
+                    cmdUsuario.CommandType = CommandType.Text;
+                    cmdUsuario.CommandText = @"
+UPDATE ctr_usuarios
+   SET bloqueado = 1
+ WHERE id_usuario = :pIdUsuario";
+                    cmdUsuario.Parameters.Add(":pIdUsuario", OracleDbType.Int64).Value = idUsuario;
+
+                    var affected = await cmdUsuario.ExecuteNonQueryAsync(ct);
+                    if (affected <= 0)
+                    {
+                        await tx.RollbackAsync(ct);
+                        return new DtoGuardarUsuarioResult
+                        {
+                            idUsuario = 0,
+                            message = "No se encontró el usuario para eliminar."
+                        };
+                    }
+                }
+
+                await using (var cmdRoles = conn.CreateCommand())
+                {
+                    cmdRoles.Transaction = tx;
+                    cmdRoles.BindByName = true;
+                    cmdRoles.CommandType = CommandType.Text;
+                    cmdRoles.CommandText = @"
+UPDATE ctr_roles_user_admin
+   SET vigente = 0,
+       fecha_fin = NVL(fecha_fin, TRUNC(SYSDATE))
+ WHERE id_usuario = :pIdUsuario
+   AND NVL(vigente, 0) = 1";
+                    cmdRoles.Parameters.Add(":pIdUsuario", OracleDbType.Int64).Value = idUsuario;
+                    await cmdRoles.ExecuteNonQueryAsync(ct);
+                }
+
+                await tx.CommitAsync(ct);
+                return new DtoGuardarUsuarioResult
+                {
+                    idUsuario = idUsuario,
+                    message = "Usuario eliminado correctamente."
+                };
+            }
+            catch (OracleException ex)
+            {
+                await tx.RollbackAsync(ct);
+                _logger.LogError(ex, "Error Oracle eliminando usuario id={IdUsuario}", idUsuario);
                 throw new InvalidOperationException($"Oracle: {ex.Message}", ex);
             }
         }

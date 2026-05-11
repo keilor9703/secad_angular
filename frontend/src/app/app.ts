@@ -1,16 +1,18 @@
-import { CommonModule } from '@angular/common';
+﻿import { CommonModule } from '@angular/common';
 import { Component, HostListener, OnDestroy } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 import { Subscription } from 'rxjs';
 
 import { ToastService, ToastType } from './core/services/toast.service';
 import { AlertService, AlertType } from './core/services/alert.service';
+import { BrandingService } from './core/services/administracion/branding.service';
+import { ModalVisorComponent } from './components/modal-visor/modal-visor';
 
 @Component({
   selector: 'app-root',
   templateUrl: './app.html',
   standalone: true,
-  imports: [RouterOutlet, CommonModule]
+  imports: [RouterOutlet, CommonModule, ModalVisorComponent]
 })
 export class AppComponent implements OnDestroy {
 
@@ -38,7 +40,8 @@ export class AppComponent implements OnDestroy {
 
   constructor(
     private toastService: ToastService,
-    private alertService: AlertService
+    private alertService: AlertService,
+    private brandingService: BrandingService
   ) {
     // Escucha TOAST global
     this.toastSub = this.toastService.toast$.subscribe(t => {
@@ -66,6 +69,33 @@ export class AppComponent implements OnDestroy {
       // Bloquear scroll del fondo mientras esté la alerta
       document.body.classList.add('ui-modal-open');
     });
+
+    this.brandingService.getPublicConfig().subscribe({
+      next: (cfg) => {
+        this.applyFavicon(cfg?.faviconUrl ?? null);
+        this.applyDocumentTitle(cfg?.sistema ?? cfg?.systemName ?? null);
+      },
+      error: () => {}
+    });
+  }
+
+  private applyDocumentTitle(sigla: string | null): void {
+    const title = (sigla ?? '').trim();
+    document.title = title || 'SISGE';
+  }
+
+  private applyFavicon(faviconUrl: string | null): void {
+    if (!faviconUrl) return;
+    const link = document.querySelector<HTMLLinkElement>('link[rel=\"icon\"]');
+    if (link) {
+      link.href = faviconUrl;
+      return;
+    }
+
+    const newLink = document.createElement('link');
+    newLink.rel = 'icon';
+    newLink.href = faviconUrl;
+    document.head.appendChild(newLink);
   }
 
   // ===== TOAST API =====
@@ -93,3 +123,4 @@ export class AppComponent implements OnDestroy {
     document.body.classList.remove('ui-modal-open');
   }
 }
+

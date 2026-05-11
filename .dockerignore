@@ -1,0 +1,40 @@
+# Dependencies
+node_modules/
+frontend/node_modules/
+
+# Build outputs
+bin/
+obj/
+publish/
+dist/
+
+# IDE
+.vs/
+.vscode/
+*.user
+*.suo
+
+# Logs
+*.log
+logs/
+
+# Git
+.git/
+.gitignore
+
+# Docs
+docs/
+README.md
+
+# Scripts
+scripts/
+
+# Docker (keep the ones we need)
+!Dockerfile
+docker-compose.yml
+!.github/
+
+# Temp
+tmp/
+temp/
+*.tmp
