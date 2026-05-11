@@ -1,14 +1,15 @@
 <footer class="modern-footer">
   <div class="footer-left">
     <div class="radio-bar">
-      <img class="radio-logo" src="/imagenes/radio-policia-bogota.svg" alt="Logo Radio Policia Bogota">
-      <span class="radio-label">Radio Policia</span>
+      <img class="radio-logo" [src]="currentStationLogo" [alt]="'Logo ' + currentStationLabel">
+      <span class="radio-label">{{ currentStationLabel }}</span>
 
-      <button class="radio-play" type="button" (click)="togglePlay()" [title]="isPlaying ? 'Pausar radio' : 'Reproducir radio'">
+      <button class="radio-play" [class.is-playing]="isPlaying" type="button" (click)="togglePlay()" [title]="isPlaying ? 'Pausar radio' : 'Reproducir radio'">
         <i class="fa-solid" [class.fa-play]="!isPlaying" [class.fa-pause]="isPlaying"></i>
       </button>
 
       <select class="radio-select" [(ngModel)]="selectedStation" (ngModelChange)="onStationChange()">
+        <option *ngIf="stations.length === 0" value="" disabled>Sin emisoras activas</option>
         <option *ngFor="let station of stations" [value]="station.id">{{ station.name }}</option>
       </select>
     </div>
@@ -22,7 +23,7 @@
     <span class="footer-dot" aria-hidden="true"></span>
 
     <div class="footer-text">
-      <div class="footer-title">Sistema de gestion de Policia</div>
+      <div class="footer-title">{{ systemDisplayName }}</div>
       <div class="footer-meta">&copy; 2026 OFTIC - {{ systemName }} - Version 1</div>
     </div>
   </div>

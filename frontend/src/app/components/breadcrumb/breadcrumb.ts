@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+﻿import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule, Router, NavigationEnd } from '@angular/router';
 import { filter } from 'rxjs/operators';
@@ -84,10 +84,13 @@ export class BreadcrumbComponent {
     '/administracion/roles': 'Roles',
     '/administracion/formularios': 'Formularios',
     '/administracion/sliders': 'Sliders',
+    '/administracion/radio': 'Radio',
+    '/administracion/dominio': 'Dominios',
     '/administracion/menu': 'Menú',
-    '/administracion/admin-multimedia': 'Multimedia',
-    '/administracion/video-unidad': 'Video Unidad',
-    '/administracion/configuracion-imagen-sitio': 'Configuración Imagen',
+    '/administracion/configuracion-sistema': 'Configuración Sistema',
+    '/administracion/admin-multimedia': 'Configuración Sistema',
+    '/administracion/video-unidad': 'Configuración Sistema',
+    '/administracion/configuracion-imagen-sitio': 'Configuración Sistema',
     '/noticias': 'Noticias'
   };
 
@@ -136,3 +139,4 @@ export class BreadcrumbComponent {
       .replace(/\b\w/g, (c) => c.toUpperCase());
   }
 }
+

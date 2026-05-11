@@ -18,7 +18,7 @@ namespace Datos.Gestion
 
         public DbLineaMandoRepository(IConfiguration configuration, ILogger<DbLineaMandoRepository> logger)
         {
-            _cs = configuration.GetConnectionString("DbOracle")!;
+            _cs = configuration.GetConnectionString("DbCoest")!;
             _logger = logger;
         }
 

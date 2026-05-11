@@ -1,17 +1,18 @@
-import { CommonModule } from '@angular/common';
+﻿import { CommonModule } from '@angular/common';
 import { Component, HostListener, OnDestroy } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 import { Subscription } from 'rxjs';
 
 import { ToastService, ToastType } from './core/services/toast.service';
 import { AlertService, AlertType } from './core/services/alert.service';
-import { BrandingService } from './core/services/branding.service';
+import { BrandingService } from './core/services/administracion/branding.service';
+import { ModalVisorComponent } from './components/modal-visor/modal-visor';
 
 @Component({
   selector: 'app-root',
   templateUrl: './app.html',
   standalone: true,
-  imports: [RouterOutlet, CommonModule]
+  imports: [RouterOutlet, CommonModule, ModalVisorComponent]
 })
 export class AppComponent implements OnDestroy {
 
@@ -70,9 +71,17 @@ export class AppComponent implements OnDestroy {
     });
 
     this.brandingService.getPublicConfig().subscribe({
-      next: (cfg) => this.applyFavicon(cfg?.faviconUrl ?? null),
+      next: (cfg) => {
+        this.applyFavicon(cfg?.faviconUrl ?? null);
+        this.applyDocumentTitle(cfg?.sistema ?? cfg?.systemName ?? null);
+      },
       error: () => {}
     });
+  }
+
+  private applyDocumentTitle(sigla: string | null): void {
+    const title = (sigla ?? '').trim();
+    document.title = title || 'SISGE';
   }
 
   private applyFavicon(faviconUrl: string | null): void {
@@ -114,3 +123,4 @@ export class AppComponent implements OnDestroy {
     document.body.classList.remove('ui-modal-open');
   }
 }
+
