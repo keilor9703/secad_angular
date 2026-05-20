@@ -1,4 +1,5 @@
-GEPOL solicitud concepto COEST 			GS-2026-002228-OFTIC
-GEPOL respuesta solicitud 			GS-2026-001017-COEST
+GEPOL solicitud concepto COEST 				GS-2026-002228-OFTIC
+GEPOL respuesta solicitud 					GS-2026-001017-COEST
 Solicitud server Linux, control de cambios 	OFTIC-2026-1039
+GEPOL PRUEBAS VULNERABILIDADES OK 			GS-2026-004635-OFTIC
 .
