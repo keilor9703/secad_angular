@@ -25,6 +25,12 @@ namespace Datos.Gestion
 
         public async Task<List<DtoPersonajeMes>> GetAllAsync(CancellationToken ct)
         {
+            return await GetAllAsync(null, ct);
+        }
+
+        // Nueva sobrecarga: permite filtrar por idPersonajeGrupo
+        public async Task<List<DtoPersonajeMes>> GetAllAsync(int? idPersonajeGrupo, CancellationToken ct)
+        {
             var result = new List<DtoPersonajeMes>();
 
             await using var conn = new OracleConnection(_cs);
@@ -46,7 +52,7 @@ namespace Datos.Gestion
             {
                 "ID_PERSONAJE_MES", "IDENTIFICACION", "NOMBRES", "APELLIDOS", "GRADO",
                 "CARGO", "UNIDAD", "FOTO_MODIFICADA", "ID_CATEGORIA", "NUMERO_ACTA",
-                "VIGENTE", "MES", "ANIO"
+                "VIGENTE", "MES", "ANIO", "ID_PERSONAJE_GRUPO"
             };
 
             var columnasFaltantes = columnasEsperadas
@@ -63,7 +69,23 @@ namespace Datos.Gestion
 
             while (await reader.ReadAsync(ct))
             {
-                result.Add(MapPersonajeMes(reader));
+                var personaje = MapPersonajeMes(reader);
+                // Si se solicita un grupo específico, filtrar por ese grupo y vigente
+                if (idPersonajeGrupo.HasValue && idPersonajeGrupo.Value > 0)
+                {
+                    if (personaje.IdPersonajeGrupo == idPersonajeGrupo.Value && personaje.Vigente == 1)
+                    {
+                        result.Add(personaje);
+                    }
+                }
+                else
+                {
+                    // Si no se solicita grupo, solo los que NO tienen grupo y están vigentes
+                    if ((personaje.IdPersonajeGrupo == 0 || personaje.IdPersonajeGrupo == null) && personaje.Vigente == 1)
+                    {
+                        result.Add(personaje);
+                    }
+                }
             }
 
             return result;
@@ -108,9 +130,13 @@ namespace Datos.Gestion
                 // p_foto_modificada va DESPUÉS de los parámetros de auditoría
                 cmd.Parameters.Add("p_foto_modificada", OracleDbType.Varchar2, 200).Value = (request.FotoModificada ?? string.Empty).Length > 200 ? (request.FotoModificada ?? string.Empty).Substring(0, 200) : (request.FotoModificada ?? string.Empty);
 
-                cmd.Parameters.Add("p_mes", OracleDbType.Int32).Value = (long)request.Mes;
-                cmd.Parameters.Add("p_anio", OracleDbType.Int32).Value = (long)request.Anio;
-                cmd.Parameters.Add("p_id_personaje_grupo", OracleDbType.Int32).Value = (long)request.IdPersonajeGrupo;
+                cmd.Parameters.Add("p_mes", OracleDbType.Int32).Value = request.Mes;
+                cmd.Parameters.Add("p_anio", OracleDbType.Int32).Value = request.Anio;
+                // enviar DBNull si no hay grupo; usar Int64 para FK
+                var idGrupoVal = request.IdPersonajeGrupo.HasValue && request.IdPersonajeGrupo.Value > 0
+                    ? (object)request.IdPersonajeGrupo.Value
+                    : DBNull.Value;
+                cmd.Parameters.Add("p_id_personaje_grupo", OracleDbType.Int64).Value = idGrupoVal;
 
                 OracleParameter pId = new OracleParameter("p_id", OracleDbType.Int64);
                 pId.Direction = ParameterDirection.Output;
@@ -736,7 +762,7 @@ namespace Datos.Gestion
                 Vigente = GetInt32OrDefault(reader, "VIGENTE", 1),
                 Mes = GetInt32OrDefault(reader, "MES"),
                 Anio = GetInt32OrDefault(reader, "ANIO"),
-                IdPersonajeGrupo = GetInt32OrDefault(reader, "ID_PERSONAJE_MES")
+                IdPersonajeGrupo = GetInt64OrDefault(reader, "ID_PERSONAJE_GRUPO")
             };
         }
         private static DtoPersonajeGrupo MapPersonajeGrupo(OracleDataReader reader)
@@ -855,7 +881,8 @@ namespace Datos.Gestion
                     cmd.Parameters.Add("p_foto_modificada", OracleDbType.Varchar2, 200).Value = (request.FotoModificada ?? string.Empty).Length > 200 ? request.FotoModificada.Substring(0, 200) : request.FotoModificada ?? string.Empty;
                     cmd.Parameters.Add("p_mes", OracleDbType.Int32).Value = (long)request.Mes;
                     cmd.Parameters.Add("p_anio", OracleDbType.Int32).Value = (long)request.Anio;
-
+                    var idGrupoValue = request.IdPersonajeGrupo > 0 ? (object)Convert.ToInt64(request.IdPersonajeGrupo) : DBNull.Value;
+                    cmd.Parameters.Add("p_id_personaje_grupo", OracleDbType.Int64).Value = idGrupoValue;
                     OracleParameter pId = new OracleParameter("p_id", OracleDbType.Int64);
                     pId.Direction = ParameterDirection.Output;
                     cmd.Parameters.Add(pId);

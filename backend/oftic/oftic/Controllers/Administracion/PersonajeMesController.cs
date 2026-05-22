@@ -23,9 +23,9 @@ namespace Api.Controllers.Administracion
         }
 
         [HttpGet]
-        public async Task<ActionResult> GetAll()
+        public async Task<ActionResult> GetAll([FromQuery] int? idPersonajeGrupo = null)
         {
-            var result = await _service.GetAllAsync(CancellationToken.None);
+            var result = await _service.GetAllAsync(idPersonajeGrupo, CancellationToken.None);
             return Ok(result);
         }
 

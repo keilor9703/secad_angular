@@ -22,7 +22,7 @@ namespace Comun.Dtos.PersonajeMes
         public string? FotoModificada { get; set; }
         public int Mes { get; set; }
         public int Anio { get; set; }
-        public int IdPersonajeGrupo { get; set; } 
+        public long IdPersonajeGrupo { get; set; } 
     }
     public class DtoPersonajeMesRequest
     {
@@ -49,7 +49,7 @@ namespace Comun.Dtos.PersonajeMes
         [JsonPropertyName("Anio")]
         public int Anio { get; set; }
         [JsonPropertyName("IdPersonajeGrupo")]
-        public int IdPersonajeGrupo { get; set; }
+        public long? IdPersonajeGrupo { get; set; }
 
 
 

@@ -10,6 +10,7 @@ namespace Negocio.Interfaz
 public interface IDbPersonajeMesService
     {
         Task<List<DtoPersonajeMes>> GetAllAsync(CancellationToken ct);
+        Task<List<DtoPersonajeMes>> GetAllAsync(int? idPersonajeGrupo, CancellationToken ct);
         Task<DtoPersonajeMesResult> CreateAsync(DtoPersonajeMesRequest request, long usuarioAuditoria, string maquinaAuditoria, CancellationToken ct);
         Task<DtoPersonajeMesResult> UpdateAsync(long id, DtoPersonajeMesRequest request, long usuarioAuditoria, string maquinaAuditoria, CancellationToken ct);
         Task<DtoPersonajeMesResult> DeleteAsync(long id, long usuarioAuditoria, string maquinaAuditoria, CancellationToken ct);

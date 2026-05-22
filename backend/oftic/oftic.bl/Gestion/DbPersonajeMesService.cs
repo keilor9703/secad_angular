@@ -18,9 +18,15 @@ namespace Negocio.Gestion
             _repository = repository;
         }
 
+
         public async Task<List<DtoPersonajeMes>> GetAllAsync(CancellationToken ct)
         {
             return await _repository.GetAllAsync(ct);
+        }
+
+        public async Task<List<DtoPersonajeMes>> GetAllAsync(int? idPersonajeGrupo, CancellationToken ct)
+        {
+            return await _repository.GetAllAsync(idPersonajeGrupo, ct);
         }
 
         public async Task<DtoPersonajeMesResult> CreateAsync(DtoPersonajeMesRequest request, long usuarioAuditoria, string maquinaAuditoria, CancellationToken ct)
