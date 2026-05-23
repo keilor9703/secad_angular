@@ -1,59 +1,46 @@
 using Comun.Dtos.Home;
 using Datos.Interfaz;
-using Microsoft.Extensions.Configuration;
-using Oracle.ManagedDataAccess.Client;
-using System.Data;
+using Datos.Tenant;
+using Npgsql;
 
 namespace Datos.Gestion
 {
     public class DbHomeRepository : IDbHomeRepository
     {
-        private readonly string _cs;
+        private readonly TenantContext _tenant;
 
-        public DbHomeRepository(IConfiguration configuration)
+        public DbHomeRepository(TenantContext tenant)
         {
-            _cs = configuration.GetConnectionString("DbCoest")!;
+            _tenant = tenant;
         }
 
         public async Task<DtoHomeStats> GetStatsAsync(CancellationToken ct)
         {
-            await using var conn = new OracleConnection(_cs);
-            await conn.OpenAsync(ct);
+            await using var conn = await _tenant.DataSource.OpenConnectionAsync(ct);
 
-            var stats = new DtoHomeStats
+            return new DtoHomeStats
             {
-                usuariosActivos = await ExecuteCountAsync(conn, @"
-SELECT COUNT(1)
-  FROM ctr_usuarios
- WHERE NVL(bloqueado, 0) = 0", ct),
-                reportesGenerados = await ExecuteCountAsync(conn, @"
-SELECT COUNT(1)
-  FROM ctr_auditoria
- WHERE fecha_creacion >= TRUNC(SYSDATE, 'MM')", ct),
-                alertasSistema = await ExecuteCountAsync(conn, @"
-SELECT COUNT(1)
-  FROM ctr_roles_user_admin
- WHERE NVL(vigente, 0) = 1
-   AND fecha_fin IS NOT NULL
-   AND TRUNC(fecha_fin) <= TRUNC(SYSDATE) + 7", ct)
-            };
+                usuariosActivos = await CountAsync(conn, @"
+SELECT COUNT(1) FROM ctr_usuarios WHERE COALESCE(bloqueado, 0) = 0", ct),
 
-            return stats;
+                reportesGenerados = await CountAsync(conn, @"
+SELECT COUNT(1) FROM ctr_auditoria
+WHERE fecha_creacion >= DATE_TRUNC('month', NOW())", ct),
+
+                alertasSistema = await CountAsync(conn, @"
+SELECT COUNT(1) FROM ctr_roles_user_admin
+WHERE COALESCE(vigente, 0) = 1
+  AND fecha_fin IS NOT NULL
+  AND fecha_fin <= CURRENT_DATE + 7", ct)
+            };
         }
 
-        private static async Task<int> ExecuteCountAsync(OracleConnection conn, string sql, CancellationToken ct)
+        private static async Task<int> CountAsync(NpgsqlConnection conn, string sql, CancellationToken ct)
         {
             await using var cmd = conn.CreateCommand();
-            cmd.CommandType = CommandType.Text;
             cmd.CommandText = sql;
-
             var value = await cmd.ExecuteScalarAsync(ct);
-            if (value is null || value == DBNull.Value)
-            {
-                return 0;
-            }
-
-            return Convert.ToInt32(value);
+            return value is null || value == DBNull.Value ? 0 : Convert.ToInt32(value);
         }
     }
 }

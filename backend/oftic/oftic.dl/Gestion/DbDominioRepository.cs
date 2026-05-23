@@ -1,137 +1,77 @@
-﻿using Comun.Dtos.Dominio;
-using Comun.Dtos.LineasMando;
+using Comun.Dtos.Dominio;
 using Datos.Interfaz;
-using Microsoft.Extensions.Configuration;
+using Datos.Tenant;
 using Microsoft.Extensions.Logging;
-using Oracle.ManagedDataAccess.Client;
-using System;
-using System.Collections.Generic;
-using System.Data;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Datos.Gestion
 {
-    public class DbDominioRepository: IDbDominioRepository
+    public class DbDominioRepository : IDbDominioRepository
     {
-        private readonly string _cs;
+        private readonly TenantContext _tenant;
         private readonly ILogger<DbDominioRepository> _logger;
 
-        public DbDominioRepository(IConfiguration configuration, ILogger<DbDominioRepository> logger)
+        public DbDominioRepository(TenantContext tenant, ILogger<DbDominioRepository> logger)
         {
-            _cs = configuration.GetConnectionString("DbCoest")!;
+            _tenant = tenant;
             _logger = logger;
         }
 
         public async Task<List<DtoDominio>> GetAllAsync(CancellationToken ct)
         {
             var result = new List<DtoDominio>();
-
-            await using var conn = new OracleConnection(_cs);
-            await conn.OpenAsync(ct);
-
+            await using var conn = await _tenant.DataSource.OpenConnectionAsync(ct);
             await using var cmd = conn.CreateCommand();
-            cmd.CommandTimeout = 30;
-            cmd.BindByName = true;
-            cmd.CommandType = CommandType.StoredProcedure;
-            cmd.CommandText = "PK_ADMINISTRACION.P_GET_ALL_DOMINIO";
-            cmd.Parameters.Add("p_cursor", OracleDbType.RefCursor).Direction = ParameterDirection.Output;
+            cmd.CommandText = @"
+SELECT id_dominio, descripcion, id_padre, abreviatura, observacion, vigente
+FROM ctr_dominio
+ORDER BY id_padre, descripcion";
 
             await using var reader = await cmd.ExecuteReaderAsync(ct);
-            
             while (await reader.ReadAsync(ct))
-            {
                 result.Add(MapDominio(reader));
-            }
 
             return result;
         }
 
-       public async Task<DtoDominioResult> CreateAsync(DtoDominioRequest request, long usuarioAuditoria, string maquinaAuditoria, CancellationToken ct)
+        public async Task<DtoDominioResult> CreateAsync(DtoDominioRequest request, long usuarioAuditoria, string maquinaAuditoria, CancellationToken ct)
         {
             var result = new DtoDominioResult();
+            await using var conn = await _tenant.DataSource.OpenConnectionAsync(ct);
+            await using var tx = await conn.BeginTransactionAsync(ct);
 
-            await using var conn = new OracleConnection(_cs);
-            await conn.OpenAsync(ct);
-
-            await using var transaction = await conn.BeginTransactionAsync(ct);
             try
             {
-                _logger.LogInformation("Ejecutando PK_ADMINISTRACION.P_CREATE_DOMINIO con datos: Descripcion={Desc}, IdPadre={IdPadre}, Abreviatura={Abrev}",
-                    request.Descripcion, request.IdPadre, request.Abreviatura);
-
                 await using var cmd = conn.CreateCommand();
-                cmd.CommandTimeout = 30;
-                cmd.Transaction = (OracleTransaction)transaction;
-                cmd.BindByName = true;
-                cmd.CommandType = CommandType.StoredProcedure;
-                cmd.CommandText = "PK_ADMINISTRACION.P_CREATE_DOMINIO";
+                cmd.Transaction = tx;
+                cmd.CommandText = @"
+INSERT INTO ctr_dominio
+    (descripcion, id_padre, abreviatura, observacion, vigente,
+     usuario_creacion, fecha_creacion, maquina_creacion)
+VALUES
+    (@desc, @idPadre, @abrev, @obs, 1,
+     @usuario, NOW(), @maquina)
+RETURNING id_dominio";
 
-                cmd.Parameters.Add("P_Descripcion", OracleDbType.Varchar2, 100).Value = (request.Descripcion ?? string.Empty).Length > 100 ? (request.Descripcion ?? string.Empty).Substring(0, 100) : (request.Descripcion ?? string.Empty);
-                cmd.Parameters.Add("P_IdPadre", OracleDbType.Int32).Value = request.IdPadre;
-                cmd.Parameters.Add("P_Abreviatura", OracleDbType.Varchar2, 100).Value = (request.Abreviatura ?? string.Empty).Length > 100 ? (request.Abreviatura ?? string.Empty).Substring(0, 100) : (request.Abreviatura ?? string.Empty);
-                cmd.Parameters.Add("P_Observacion", OracleDbType.Varchar2, 100).Value = (request.Observacion ?? string.Empty).Length > 100 ? (request.Observacion ?? string.Empty).Substring(0, 100) : (request.Observacion ?? string.Empty);
-                              
-                
-                var usuarioStr = usuarioAuditoria.ToString();
-                var maquinaStr = maquinaAuditoria ?? "N/A";
+                cmd.Parameters.AddWithValue("desc", Truncate(request.Descripcion, 100));
+                cmd.Parameters.AddWithValue("idPadre", request.IdPadre);
+                cmd.Parameters.AddWithValue("abrev", Truncate(request.Abreviatura, 100));
+                cmd.Parameters.AddWithValue("obs", Truncate(request.Observacion, 100));
+                cmd.Parameters.AddWithValue("usuario", usuarioAuditoria.ToString()[..Math.Min(usuarioAuditoria.ToString().Length, 50)]);
+                cmd.Parameters.AddWithValue("maquina", Truncate(maquinaAuditoria ?? "N/A", 100));
 
-                cmd.Parameters.Add("p_usuario_auditoria", OracleDbType.Varchar2, 50).Value = usuarioStr.Length > 50 ? usuarioStr.Substring(0, 50) : usuarioStr;
-                cmd.Parameters.Add("p_maquina_auditoria", OracleDbType.Varchar2, 100).Value = maquinaStr.Length > 100 ? maquinaStr.Substring(0, 100) : maquinaStr;
+                result.Id = Convert.ToInt64(await cmd.ExecuteScalarAsync(ct));
+                result.Success = true;
+                result.Message = "Dominio creado exitosamente.";
 
-           
-                // Parámetros OUTPUT en el mismo orden que el stored procedure
-                OracleParameter pId = new OracleParameter("p_id", OracleDbType.Int64);
-                pId.Direction = ParameterDirection.Output;
-                cmd.Parameters.Add(pId);
-
-                OracleParameter pSuccess = new OracleParameter("p_success", OracleDbType.Int32);
-                pSuccess.Direction = ParameterDirection.Output;
-                cmd.Parameters.Add(pSuccess);
-
-                OracleParameter pMessage = new OracleParameter("p_message", OracleDbType.Varchar2);
-                pMessage.Direction = ParameterDirection.Output;
-                pMessage.Size = 4000;
-                cmd.Parameters.Add(pMessage);
-
-                await cmd.ExecuteNonQueryAsync(ct);
-
-               
-                // DESPUÉS - cast correcto para OracleDecimal
-                var pIdVal = (Oracle.ManagedDataAccess.Types.OracleDecimal)cmd.Parameters["p_id"].Value;
-                result.Id = pIdVal.IsNull ? 0 : (long)pIdVal;
-
-                var pSuccessVal = (Oracle.ManagedDataAccess.Types.OracleDecimal)cmd.Parameters["p_success"].Value;
-                result.Success = !pSuccessVal.IsNull && (int)pSuccessVal == 1;
-
-                result.Message = cmd.Parameters["p_message"].Value?.ToString() ?? string.Empty;
-
-                if (result.Success)
-                {
-                    await transaction.CommitAsync(ct);
-                    _logger.LogInformation(" creado exitosamente");
-                    _logger.LogInformation("Dominio creado exitosamente");
-                }
-                else
-                {
-                    await transaction.RollbackAsync(ct);
-                    _logger.LogWarning("Error al crear el dominio: {Message}", result.Message);
-                }
-            }
-            catch (OracleException ex)
-            {
-                await transaction.RollbackAsync(ct);
-                result.Success = false;
-                result.Message = $"Error Oracle: {ex.Message}";
-                _logger.LogError(ex, "Error Oracle al crear el dominio - Code: {Code}, Message: {Message}", ex.Number, ex.Message);
+                await tx.CommitAsync(ct);
+                _logger.LogInformation("Dominio creado con ID={Id}", result.Id);
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync(ct);
+                await tx.RollbackAsync(ct);
                 result.Success = false;
                 result.Message = $"Error: {ex.Message}";
-                _logger.LogError(ex, "Error general al crear el dominio: {Message}", ex.Message);
+                _logger.LogError(ex, "Error creando dominio");
             }
 
             return result;
@@ -140,96 +80,50 @@ namespace Datos.Gestion
         public async Task<DtoDominioResult> UpdateAsync(long id, DtoDominioRequest request, long usuarioAuditoria, string maquinaAuditoria, CancellationToken ct)
         {
             var result = new DtoDominioResult();
-
-            OracleConnection? conn = null;
-            OracleTransaction? transaction = null;
+            await using var conn = await _tenant.DataSource.OpenConnectionAsync(ct);
+            await using var tx = await conn.BeginTransactionAsync(ct);
 
             try
             {
-                conn = new OracleConnection(_cs);
-                await conn.OpenAsync(ct);
-                transaction = (OracleTransaction)(await conn.BeginTransactionAsync(ct));
-
-                _logger.LogInformation("Ejecutando UPDATE DOMINIO ID={Id}, Descripcion={Desc}, IdPadre={IdPadre}, Vigente={Vigente}",
-                    id, request.Descripcion, request.IdPadre, request.Vigente);
-
                 await using var cmd = conn.CreateCommand();
-                cmd.CommandTimeout = 30;
-                cmd.Transaction = (OracleTransaction)transaction;
-                cmd.BindByName = true;
-                cmd.CommandType = CommandType.StoredProcedure;
-                cmd.CommandText = "PK_ADMINISTRACION.P_UPDATE_DOMINIO";
+                cmd.Transaction = tx;
+                cmd.CommandText = @"
+UPDATE ctr_dominio
+   SET descripcion      = @desc,
+       id_padre         = @idPadre,
+       vigente          = @vigente,
+       abreviatura      = @abrev,
+       observacion      = @obs,
+       usuario_modifica = @usuario,
+       fecha_modifica   = NOW(),
+       maquina_modifica = @maquina
+ WHERE id_dominio = @id";
 
-                cmd.Parameters.Add("P_IdDominio", OracleDbType.Int32).Value = id;
-                cmd.Parameters.Add("P_Descripcion", OracleDbType.Varchar2, 100).Value = (request.Descripcion ?? string.Empty).Length > 100 ? (request.Descripcion ?? string.Empty).Substring(0, 100) : (request.Descripcion ?? string.Empty);
-                cmd.Parameters.Add("P_IdPadre", OracleDbType.Int32).Value = request.IdPadre;
-                cmd.Parameters.Add("P_Vigente", OracleDbType.Int32).Value = request.Vigente;
-                cmd.Parameters.Add("P_Abreviatura", OracleDbType.Varchar2, 100).Value = (request.Abreviatura ?? string.Empty).Length > 100 ? (request.Abreviatura ?? string.Empty).Substring(0, 100) : (request.Abreviatura ?? string.Empty);
-                cmd.Parameters.Add("P_Observacion", OracleDbType.Varchar2, 100).Value = (request.Observacion ?? string.Empty).Length > 100 ? (request.Observacion ?? string.Empty).Substring(0, 100) : (request.Observacion ?? string.Empty);
-                
-                var usuarioStrU = usuarioAuditoria.ToString();
-                var maquinaStrU = maquinaAuditoria ?? "N/A";
+                cmd.Parameters.AddWithValue("desc", Truncate(request.Descripcion, 100));
+                cmd.Parameters.AddWithValue("idPadre", request.IdPadre);
+                cmd.Parameters.AddWithValue("vigente", request.Vigente);
+                cmd.Parameters.AddWithValue("abrev", Truncate(request.Abreviatura, 100));
+                cmd.Parameters.AddWithValue("obs", Truncate(request.Observacion, 100));
+                cmd.Parameters.AddWithValue("usuario", Truncate(usuarioAuditoria.ToString(), 50));
+                cmd.Parameters.AddWithValue("maquina", Truncate(maquinaAuditoria ?? "N/A", 100));
+                cmd.Parameters.AddWithValue("id", id);
 
-                cmd.Parameters.Add("p_usuario_auditoria", OracleDbType.Varchar2, 50).Value = usuarioStrU.Length > 50 ? usuarioStrU.Substring(0, 50) : usuarioStrU;
-                cmd.Parameters.Add("p_maquina_auditoria", OracleDbType.Varchar2, 100).Value = maquinaStrU.Length > 100 ? maquinaStrU.Substring(0, 100) : maquinaStrU;
-
-                OracleParameter pSuccess = new OracleParameter("p_success", OracleDbType.Int32);
-                pSuccess.Direction = ParameterDirection.Output;
-                cmd.Parameters.Add(pSuccess);
-
-                OracleParameter pMessage = new OracleParameter("p_message", OracleDbType.Varchar2);
-                pMessage.Direction = ParameterDirection.Output;
-                pMessage.Size = 4000;
-                cmd.Parameters.Add(pMessage);
-
-                await cmd.ExecuteNonQueryAsync(ct);
-
-                var pSuccessVal = (Oracle.ManagedDataAccess.Types.OracleDecimal)cmd.Parameters["p_success"].Value;
-                result.Success = !pSuccessVal.IsNull && (int)pSuccessVal == 1;
-                result.Message = cmd.Parameters["p_message"].Value?.ToString() ?? string.Empty;
+                var rows = await cmd.ExecuteNonQueryAsync(ct);
+                result.Success = rows > 0;
+                result.Message = rows > 0 ? "Dominio actualizado." : "Dominio no encontrado.";
+                result.Id = id;
 
                 if (result.Success)
-                {
-                    await transaction.CommitAsync(ct);
-                    _logger.LogInformation("UPDATE Dominio ID={Id} exitoso", id);
-                }
+                    await tx.CommitAsync(ct);
                 else
-                {
-                    await transaction.RollbackAsync(ct);
-                    _logger.LogWarning("UPDATE Dominio ID={Id} fallido: {Message}", id, result.Message);
-                }
-            }
-            catch (OracleException ex)
-            {
-                if (transaction != null)
-                    await transaction.RollbackAsync(ct);
-                result.Success = false;
-                result.Message = $"Error de base de datos: {ex.Message}";
-                _logger.LogError(ex, "Error Oracle en UPDATE Dominio - Code: {Code}", ex.Number);
-            }
-            catch (System.IO.IOException ex)
-            {
-                if (transaction != null)
-                    await transaction.RollbackAsync(ct);
-                result.Success = false;
-                result.Message = $"Error de conexión: {ex.Message}";
-                _logger.LogError(ex, "Error de E/S en UPDATE Dominio");
+                    await tx.RollbackAsync(ct);
             }
             catch (Exception ex)
             {
-                if (transaction != null)
-                    await transaction.RollbackAsync(ct);
+                await tx.RollbackAsync(ct);
                 result.Success = false;
                 result.Message = $"Error: {ex.Message}";
-                _logger.LogError(ex, "Error general en UPDATE Dominio");
-            }
-            finally
-            {
-                if (conn != null)
-                {
-                    await conn.CloseAsync();
-                    conn.Dispose();
-                }
+                _logger.LogError(ex, "Error actualizando dominio id={Id}", id);
             }
 
             return result;
@@ -238,62 +132,37 @@ namespace Datos.Gestion
         public async Task<DtoDominioResult> DeletelogicalAsync(long id, long usuarioAuditoria, string maquinaAuditoria, CancellationToken ct)
         {
             var result = new DtoDominioResult();
+            await using var conn = await _tenant.DataSource.OpenConnectionAsync(ct);
+            await using var tx = await conn.BeginTransactionAsync(ct);
 
-            await using var conn = new OracleConnection(_cs);
-            await conn.OpenAsync(ct);
-
-            await using var transaction = await conn.BeginTransactionAsync(ct);
             try
             {
                 await using var cmd = conn.CreateCommand();
-                cmd.CommandTimeout = 30;
-                cmd.Transaction = (OracleTransaction)transaction;
-                cmd.BindByName = true;
-                cmd.CommandType = CommandType.StoredProcedure;
-                cmd.CommandText = "PK_ADMINISTRACION.P_DELETE_LOGICAL_DOMINIO";
+                cmd.Transaction = tx;
+                cmd.CommandText = @"
+UPDATE ctr_dominio
+   SET vigente          = 0,
+       usuario_modifica = @usuario,
+       fecha_modifica   = NOW(),
+       maquina_modifica = @maquina
+ WHERE id_dominio = @id";
 
-                cmd.Parameters.Add("P_IdDominio", OracleDbType.Int64).Value = id;
+                cmd.Parameters.AddWithValue("usuario", Truncate(usuarioAuditoria.ToString(), 50));
+                cmd.Parameters.AddWithValue("maquina", Truncate(maquinaAuditoria ?? "N/A", 100));
+                cmd.Parameters.AddWithValue("id", id);
 
-                var usuarioStrD = usuarioAuditoria.ToString();
-                var maquinaStrD = maquinaAuditoria ?? "N/A";
-
-                cmd.Parameters.Add("p_usuario_auditoria", OracleDbType.Varchar2, 50).Value = usuarioStrD.Length > 50 ? usuarioStrD.Substring(0, 50) : usuarioStrD;
-                cmd.Parameters.Add("p_maquina_auditoria", OracleDbType.Varchar2, 100).Value = maquinaStrD.Length > 100 ? maquinaStrD.Substring(0, 100) : maquinaStrD;
-
-                OracleParameter pSuccess = new OracleParameter("p_success", OracleDbType.Int32);
-                pSuccess.Direction = ParameterDirection.Output;
-                cmd.Parameters.Add(pSuccess);
-
-                OracleParameter pMessage = new OracleParameter("p_message", OracleDbType.Varchar2);
-                pMessage.Direction = ParameterDirection.Output;
-                pMessage.Size = 4000;
-                cmd.Parameters.Add(pMessage);
-
-                await cmd.ExecuteNonQueryAsync(ct);
-
-                // Reemplaza la lectura:
-                var pSuccessVal = (Oracle.ManagedDataAccess.Types.OracleDecimal)cmd.Parameters["p_success"].Value;
-                result.Success = !pSuccessVal.IsNull && (int)pSuccessVal == 1;
-                result.Message = cmd.Parameters["p_message"].Value?.ToString() ?? string.Empty;
+                var rows = await cmd.ExecuteNonQueryAsync(ct);
+                result.Success = rows > 0;
+                result.Message = rows > 0 ? "Dominio eliminado lógicamente." : "Dominio no encontrado.";
 
                 if (result.Success)
-                {
-                    await transaction.CommitAsync(ct);
-                }
+                    await tx.CommitAsync(ct);
                 else
-                {
-                    await transaction.RollbackAsync(ct);
-                }
-            }
-            catch (OracleException ex)
-            {
-                await transaction.RollbackAsync(ct);
-                result.Success = false;
-                result.Message = $"Error de base de datos: {ex.Message}";
+                    await tx.RollbackAsync(ct);
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync(ct);
+                await tx.RollbackAsync(ct);
                 result.Success = false;
                 result.Message = $"Error: {ex.Message}";
             }
@@ -301,20 +170,20 @@ namespace Datos.Gestion
             return result;
         }
 
-
-        private static DtoDominio MapDominio(OracleDataReader reader)
+        private static string Truncate(string? value, int maxLen)
         {
-            return new DtoDominio
-            {
-
-                IdDominio = reader.IsDBNull(reader.GetOrdinal("ID_DOMINIO"))? 0 : reader.GetInt64(reader.GetOrdinal("ID_DOMINIO")),
-                Descripcion = reader.IsDBNull(reader.GetOrdinal("DESCRIPCION")) ? string.Empty : reader.GetString(reader.GetOrdinal("DESCRIPCION")),
-                IdPadre = reader.GetInt64(reader.GetOrdinal("ID_PADRE")),
-                Abreviatura = reader.IsDBNull(reader.GetOrdinal("ABREVIATURA")) ? string.Empty : reader.GetString(reader.GetOrdinal("ABREVIATURA")),
-                Observacion = reader.IsDBNull(reader.GetOrdinal("OBSERVACION")) ? string.Empty : reader.GetString(reader.GetOrdinal("OBSERVACION")),
-                Vigente = reader.IsDBNull(reader.GetOrdinal("VIGENTE")) ? 1 : reader.GetInt32(reader.GetOrdinal("VIGENTE"))
-            };
+            var s = (value ?? string.Empty).Trim();
+            return s.Length > maxLen ? s[..maxLen] : s;
         }
-        
+
+        private static DtoDominio MapDominio(Npgsql.NpgsqlDataReader reader) => new()
+        {
+            IdDominio = reader.IsDBNull(0) ? 0 : reader.GetInt64(0),
+            Descripcion = reader.IsDBNull(1) ? string.Empty : reader.GetString(1),
+            IdPadre = reader.GetInt64(2),
+            Abreviatura = reader.IsDBNull(3) ? string.Empty : reader.GetString(3),
+            Observacion = reader.IsDBNull(4) ? string.Empty : reader.GetString(4),
+            Vigente = reader.IsDBNull(5) ? 1 : reader.GetInt32(5)
+        };
     }
 }

@@ -1,21 +1,24 @@
-using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.IdentityModel.Tokens;
-using Microsoft.Extensions.FileProviders;
-using Microsoft.OpenApi.Models;
-using System.Text;
+using Api.Middleware;
 using Datos.Gestion;
 using Datos.Interfaz;
+using Datos.Tenant;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.Extensions.FileProviders;
+using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi.Models;
 using Negocio.Gestion;
 using Negocio.Interfaz;
+using Npgsql;
 using Servicios.Api;
 using Servicios.ApiInterfaz;
+using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Kestrel: aumentar límite de tamaño de request para videos (150MB)
+// Kestrel: aumentar límite para videos (150 MB)
 builder.WebHost.ConfigureKestrel(options =>
 {
-    options.Limits.MaxRequestBodySize = 150 * 1024 * 1024; // 150MB
+    options.Limits.MaxRequestBodySize = 150 * 1024 * 1024;
 });
 
 builder.Services.AddControllers()
@@ -24,22 +27,16 @@ builder.Services.AddControllers()
         options.JsonSerializerOptions.PropertyNameCaseInsensitive = true;
     });
 
-// CORS - Políticas separadas para desarrollo y producción
+// CORS
 builder.Services.AddCors(options =>
 {
-    // Política Dev: solo localhost
     options.AddPolicy("DevCors", p =>
         p.WithOrigins("http://localhost:4200", "https://localhost:4200", "http://localhost:4300", "https://localhost:4300")
-         .AllowAnyHeader()
-         .AllowAnyMethod()
-         .AllowCredentials());
+         .AllowAnyHeader().AllowAnyMethod().AllowCredentials());
 
-    // Política Pública: permite cualquier origen para endpoints públicos
     options.AddPolicy("PublicCors", p =>
         p.SetIsOriginAllowed(_ => true)
-         .AllowAnyHeader()
-         .AllowAnyMethod()
-         .AllowCredentials());
+         .AllowAnyHeader().AllowAnyMethod().AllowCredentials());
 });
 
 // JWT Authentication
@@ -48,10 +45,8 @@ var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? "oftic.api";
 var jwtAudience = builder.Configuration["Jwt:Audience"] ?? jwtIssuer;
 
 if (string.IsNullOrWhiteSpace(jwtKey) || jwtKey.Length < 32)
-{
     throw new InvalidOperationException(
-        "Configuracion insegura: Jwt:Key no configurada o demasiado corta. Defina una clave de al menos 32 caracteres en appsettings o variables de entorno.");
-}
+        "Jwt:Key no configurada o demasiado corta (mínimo 32 caracteres).");
 
 builder.Services.AddAuthentication("Bearer")
     .AddJwtBearer("Bearer", options =>
@@ -69,32 +64,50 @@ builder.Services.AddAuthentication("Bearer")
     });
 
 builder.Services.AddAuthorization();
-
 builder.Services.AddMemoryCache();
 
+// Master DB (PostgreSQL): NpgsqlDataSource singleton
+var masterConnStr = builder.Configuration.GetConnectionString("MasterDb")
+    ?? throw new InvalidOperationException("ConnectionStrings:MasterDb no configurada.");
+builder.Services.AddSingleton(NpgsqlDataSource.Create(masterConnStr));
+
+// Tenant infrastructure
+builder.Services.AddSingleton<ConnectionPoolManager>();
+builder.Services.AddScoped<TenantContext>();
+
+// HTTP clients for external APIs
 builder.Services.AddHttpClient("AuthClient");
-
 builder.Services.AddScoped<ITokenProvider, TokenProvider>();
-
 builder.Services.AddTransient<AuthHeaderHandler>();
 
 builder.Services.AddHttpClient<IApiWebOud, ApiWebOud>(c =>
-{
-    c.Timeout = TimeSpan.FromSeconds(15);
-})
-.AddHttpMessageHandler<AuthHeaderHandler>();
+    c.Timeout = TimeSpan.FromSeconds(15))
+    .AddHttpMessageHandler<AuthHeaderHandler>();
 
 builder.Services.AddScoped<IApiWebToken, ApiWebToken>();
 
-builder.Services.AddScoped<IDbMenuService, DbMenuService>();
+// Data repositories
+builder.Services.AddScoped<IDbMasterRepository, DbMasterRepository>();
+builder.Services.AddScoped<IDbAuthRepository, DbAuthRepository>();
 builder.Services.AddScoped<IDbMenuRepository, DbMenuRepository>();
+builder.Services.AddScoped<IDbMenuService, DbMenuService>();
 builder.Services.AddScoped<IDbUsuarioRepository, DbUsuarioRepository>();
 builder.Services.AddScoped<IDbHomeRepository, DbHomeRepository>();
+builder.Services.AddScoped<IDbDominioRepository, DbDominioRepository>();
+builder.Services.AddScoped<IDbDominioService, DbDominioService>();
+builder.Services.AddScoped<IDbVideoRepository, DbVideoRepository>();
+builder.Services.AddScoped<IDbVideoService, DbVideoService>();
+builder.Services.AddScoped<IDbLineaMandoRepository, DbLineaMandoRepository>();
+builder.Services.AddScoped<IDbLineaMandoService, DbLineaMandoService>();
+
+// Business services
+builder.Services.AddScoped<IJwtService, JwtService>();
+
+// Swagger
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {
-    options.SwaggerDoc("v1", new OpenApiInfo { Title = "OFTIC API", Version = "v1" });
-
+    options.SwaggerDoc("v1", new OpenApiInfo { Title = "SECAD API", Version = "v1" });
     options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
         Name = "Authorization",
@@ -104,35 +117,17 @@ builder.Services.AddSwaggerGen(options =>
         In = ParameterLocation.Header,
         Description = "Ingrese: Bearer {token}"
     });
-
     options.AddSecurityRequirement(new OpenApiSecurityRequirement
     {
         {
             new OpenApiSecurityScheme
             {
-                Reference = new OpenApiReference
-                {
-                    Type = ReferenceType.SecurityScheme,
-                    Id = "Bearer"
-                }
+                Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "Bearer" }
             },
             Array.Empty<string>()
         }
     });
 });
-
-builder.Services.AddScoped<IDbAuthRepository, DbAuthRepository>();
-builder.Services.AddScoped<IJwtService, JwtService>();
-
-
-builder.Services.AddScoped<IDbLineaMandoService, DbLineaMandoService>();
-builder.Services.AddScoped<IDbLineaMandoRepository, DbLineaMandoRepository>();
-
-builder.Services.AddScoped<IDbDominioService, DbDominioService>();
-builder.Services.AddScoped<IDbDominioRepository, DbDominioRepository>();
-
-builder.Services.AddScoped<IDbVideoService, DbVideoService>();
-builder.Services.AddScoped<IDbVideoRepository, DbVideoRepository>();
 
 var app = builder.Build();
 
@@ -145,8 +140,11 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseAuthentication();
-app.UseAuthorization();
 
+// TenantMiddleware: runs after auth, resolves tenant from JWT cod_dane claim
+app.UseMiddleware<TenantMiddleware>();
+
+app.UseAuthorization();
 app.MapControllers();
 app.MapGet("/health", () => Results.Ok("OK"));
 

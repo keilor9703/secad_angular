@@ -10,28 +10,27 @@ namespace Negocio.Gestion
     public class JwtService : IJwtService
     {
         private readonly IConfiguration _cfg;
-        private readonly string _key = "EstaEsUnaClaveSecretaMuyLargaParaJWT2024!";
-        private readonly string _issuer = "oftic.api";
-        private readonly string _audience = "oftic.api";
 
         public JwtService(IConfiguration cfg)
         {
             _cfg = cfg;
         }
 
-        public string CreateToken(long idUsuario, string usuario, List<long> roles)
+        public string CreateToken(long idUsuario, string usuario, List<long> roles, string codDane, string? nombreCad)
         {
-            var issuer = _cfg["Jwt:Issuer"] ?? _issuer;
-            var audience = _cfg["Jwt:Audience"] ?? _audience;
-            var key = _cfg["Jwt:Key"] ?? _key;
-            var minutes = int.Parse(_cfg["Jwt:Minutes"] ?? "60");
+            var issuer = _cfg["Jwt:Issuer"] ?? "oftic.api";
+            var audience = _cfg["Jwt:Audience"] ?? issuer;
+            var key = _cfg["Jwt:Key"]!;
+            var minutes = int.Parse(_cfg["Jwt:Minutes"] ?? "480");
 
             var claims = new List<Claim>
-                {
-                new Claim("id_usuario", idUsuario.ToString()),
-                new Claim(ClaimTypes.NameIdentifier, idUsuario.ToString()),
-                new Claim(ClaimTypes.Name, usuario ?? "")
-                };
+            {
+                new("id_usuario", idUsuario.ToString()),
+                new(ClaimTypes.NameIdentifier, idUsuario.ToString()),
+                new(ClaimTypes.Name, usuario ?? ""),
+                new("cod_dane", codDane),
+                new("nombre_cad", nombreCad ?? "")
+            };
 
             foreach (var r in roles)
                 claims.Add(new Claim(ClaimTypes.Role, r.ToString()));
@@ -40,40 +39,37 @@ namespace Negocio.Gestion
             var creds = new SigningCredentials(signingKey, SecurityAlgorithms.HmacSha256);
 
             var token = new JwtSecurityToken(
-            issuer: issuer,
-            audience: audience,
-            claims: claims,
-            expires: DateTime.UtcNow.AddMinutes(minutes),
-            signingCredentials: creds
-            );
+                issuer: issuer,
+                audience: audience,
+                claims: claims,
+                expires: DateTime.UtcNow.AddMinutes(minutes),
+                signingCredentials: creds);
 
             return new JwtSecurityTokenHandler().WriteToken(token);
         }
 
         public string GenerateToken(string usuario)
         {
+            var key = _cfg["Jwt:Key"]!;
             var minutes = 60;
-            
+
             var claims = new List<Claim>
             {
-                new Claim(ClaimTypes.Name, usuario ?? ""),
-                new Claim(JwtRegisteredClaimNames.Sub, usuario ?? "")
+                new(ClaimTypes.Name, usuario ?? ""),
+                new(JwtRegisteredClaimNames.Sub, usuario ?? "")
             };
 
-            var signingKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_key));
+            var signingKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(key));
             var creds = new SigningCredentials(signingKey, SecurityAlgorithms.HmacSha256);
 
             var token = new JwtSecurityToken(
-                issuer: _issuer,
-                audience: _audience,
+                issuer: _cfg["Jwt:Issuer"] ?? "oftic.api",
+                audience: _cfg["Jwt:Audience"] ?? "oftic.api",
                 claims: claims,
                 expires: DateTime.UtcNow.AddMinutes(minutes),
-                signingCredentials: creds
-            );
+                signingCredentials: creds);
 
             return new JwtSecurityTokenHandler().WriteToken(token);
         }
     }
-
 }
-

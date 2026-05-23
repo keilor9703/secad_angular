@@ -1,71 +1,53 @@
 using Comun.Dtos.Videos;
 using Datos.Interfaz;
-using Microsoft.Extensions.Configuration;
+using Datos.Tenant;
 using Microsoft.Extensions.Logging;
-using Oracle.ManagedDataAccess.Client;
-using System.Data;
 
 namespace Datos.Gestion
 {
     public class DbVideoRepository : IDbVideoRepository
     {
-        private readonly string _cs;
+        private readonly TenantContext _tenant;
         private readonly ILogger<DbVideoRepository> _logger;
 
-        public DbVideoRepository(IConfiguration configuration, ILogger<DbVideoRepository> logger)
+        public DbVideoRepository(TenantContext tenant, ILogger<DbVideoRepository> logger)
         {
-            _cs = configuration.GetConnectionString("DbCoest")!;
+            _tenant = tenant;
             _logger = logger;
         }
 
         public async Task<List<DtoVideo>> GetAllAsync(CancellationToken ct)
         {
             var result = new List<DtoVideo>();
-
-            await using var conn = new OracleConnection(_cs);
-            await conn.OpenAsync(ct);
-
+            await using var conn = await _tenant.DataSource.OpenConnectionAsync(ct);
             await using var cmd = conn.CreateCommand();
-            cmd.CommandTimeout = 30;
-            cmd.BindByName = true;
-            cmd.CommandType = CommandType.StoredProcedure;
-            cmd.CommandText = "PK_ADMINISTRACION.FN_CONSULTAR_VIDEO";
-            cmd.Parameters.Add("in_id_video", OracleDbType.Int64).Value = DBNull.Value;
-
-            var cursorParam = cmd.Parameters.Add("cur_datos", OracleDbType.RefCursor);
-            cursorParam.Direction = ParameterDirection.ReturnValue;
+            cmd.CommandText = @"
+SELECT id_video, descripcion, observaciones, ruta_video, fecha_creacion,
+       usuario_creacion, vigente, fecha_modifica, usuario_modifica, maquina_modifica
+FROM ctr_video
+ORDER BY fecha_creacion DESC";
 
             await using var reader = await cmd.ExecuteReaderAsync(ct);
-            
             while (await reader.ReadAsync(ct))
-            {
                 result.Add(MapVideo(reader));
-            }
 
             return result;
         }
 
         public async Task<DtoVideo?> GetByIdAsync(long id, CancellationToken ct)
         {
-            await using var conn = new OracleConnection(_cs);
-            await conn.OpenAsync(ct);
-
+            await using var conn = await _tenant.DataSource.OpenConnectionAsync(ct);
             await using var cmd = conn.CreateCommand();
-            cmd.CommandTimeout = 30;
-            cmd.BindByName = true;
-            cmd.CommandType = CommandType.StoredProcedure;
-            cmd.CommandText = "PK_ADMINISTRACION.FN_CONSULTAR_VIDEO";
-            cmd.Parameters.Add("in_id_video", OracleDbType.Int64).Value = id;
-
-            var cursorParam = cmd.Parameters.Add("cur_datos", OracleDbType.RefCursor);
-            cursorParam.Direction = ParameterDirection.ReturnValue;
+            cmd.CommandText = @"
+SELECT id_video, descripcion, observaciones, ruta_video, fecha_creacion,
+       usuario_creacion, vigente, fecha_modifica, usuario_modifica, maquina_modifica
+FROM ctr_video
+WHERE id_video = @id";
+            cmd.Parameters.AddWithValue("id", id);
 
             await using var reader = await cmd.ExecuteReaderAsync(ct);
-            
             if (await reader.ReadAsync(ct))
-            {
                 return MapVideo(reader);
-            }
 
             return null;
         }
@@ -73,45 +55,30 @@ namespace Datos.Gestion
         public async Task<DtoVideoResult> CreateAsync(DtoVideoRequest request, string usuarioAuditoria, string maquinaAuditoria, CancellationToken ct)
         {
             var result = new DtoVideoResult();
-
-            await using var conn = new OracleConnection(_cs);
-            await conn.OpenAsync(ct);
+            await using var conn = await _tenant.DataSource.OpenConnectionAsync(ct);
 
             try
             {
                 await using var cmd = conn.CreateCommand();
-                cmd.CommandTimeout = 30;
-                cmd.BindByName = true;
-                cmd.CommandType = CommandType.StoredProcedure;
-                cmd.CommandText = "PK_ADMINISTRACION.PR_INSERTAR_VIDEO";
+                cmd.CommandText = @"
+INSERT INTO ctr_video (descripcion, observaciones, usuario_creacion, ruta_video, fecha_creacion, vigente)
+VALUES (@desc, @obs, @usuario, @ruta, NOW(), 1)
+RETURNING id_video";
 
-                cmd.Parameters.Add("iv_descripcion", OracleDbType.Varchar2, 255).Value = request.Descripcion ?? string.Empty;
-                cmd.Parameters.Add("iv_observaciones", OracleDbType.Varchar2, 500).Value = (object?)request.Observaciones ?? DBNull.Value;
-                cmd.Parameters.Add("iv_usuario_creacion", OracleDbType.Varchar2, 50).Value = usuarioAuditoria;
-                cmd.Parameters.Add("iv_ruta_video", OracleDbType.Varchar2, 500).Value = (object?)request.RutaVideo ?? DBNull.Value;
+                cmd.Parameters.AddWithValue("desc", request.Descripcion ?? string.Empty);
+                cmd.Parameters.AddWithValue("obs", (object?)request.Observaciones ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("usuario", usuarioAuditoria);
+                cmd.Parameters.AddWithValue("ruta", (object?)request.RutaVideo ?? DBNull.Value);
 
-                var outIdParam = cmd.Parameters.Add("on_id_video", OracleDbType.Int64);
-                outIdParam.Direction = ParameterDirection.Output;
-
-                var outMsgParam = cmd.Parameters.Add("ov_mensaje", OracleDbType.Varchar2, 4000);
-                outMsgParam.Direction = ParameterDirection.Output;
-
-                await cmd.ExecuteNonQueryAsync(ct);
-
+                var newId = Convert.ToInt64(await cmd.ExecuteScalarAsync(ct));
                 result.Success = true;
-                result.Message = outMsgParam.Value?.ToString() ?? "Video creado exitosamente";
-            }
-            catch (OracleException ex)
-            {
-                result.Success = false;
-                result.Message = $"Error de base de datos: {ex.Message}";
-                _logger.LogError(ex, "Error Oracle en CreateAsync Video");
+                result.Message = $"Video creado exitosamente. ID={newId}";
             }
             catch (Exception ex)
             {
                 result.Success = false;
                 result.Message = $"Error: {ex.Message}";
-                _logger.LogError(ex, "Error general en CreateAsync Video");
+                _logger.LogError(ex, "Error creando video");
             }
 
             return result;
@@ -120,45 +87,39 @@ namespace Datos.Gestion
         public async Task<DtoVideoResult> UpdateAsync(long id, DtoVideoRequest request, string usuarioAuditoria, string maquinaAuditoria, CancellationToken ct)
         {
             var result = new DtoVideoResult();
-
-            await using var conn = new OracleConnection(_cs);
-            await conn.OpenAsync(ct);
+            await using var conn = await _tenant.DataSource.OpenConnectionAsync(ct);
 
             try
             {
                 await using var cmd = conn.CreateCommand();
-                cmd.CommandTimeout = 30;
-                cmd.BindByName = true;
-                cmd.CommandType = CommandType.StoredProcedure;
-                cmd.CommandText = "PK_ADMINISTRACION.PR_ACTUALIZAR_VIDEO";
+                cmd.CommandText = @"
+UPDATE ctr_video
+   SET descripcion      = @desc,
+       observaciones    = @obs,
+       usuario_modifica = @usuario,
+       maquina_modifica = @maquina,
+       ruta_video       = @ruta,
+       vigente          = @vigente,
+       fecha_modifica   = NOW()
+ WHERE id_video = @id";
 
-                cmd.Parameters.Add("in_id_video", OracleDbType.Int64).Value = id;
-                cmd.Parameters.Add("iv_descripcion", OracleDbType.Varchar2, 255).Value = request.Descripcion ?? string.Empty;
-                cmd.Parameters.Add("iv_observaciones", OracleDbType.Varchar2, 500).Value = (object?)request.Observaciones ?? DBNull.Value;
-                cmd.Parameters.Add("iv_usuario_modifica", OracleDbType.Varchar2, 50).Value = usuarioAuditoria;
-                cmd.Parameters.Add("iv_maquina_modifica", OracleDbType.Varchar2, 100).Value = maquinaAuditoria ?? "N/A";
-                cmd.Parameters.Add("iv_ruta_video", OracleDbType.Varchar2, 500).Value = (object?)request.RutaVideo ?? DBNull.Value;
-                cmd.Parameters.Add("in_vigente", OracleDbType.Int32).Value = request.Vigente;
+                cmd.Parameters.AddWithValue("desc", request.Descripcion ?? string.Empty);
+                cmd.Parameters.AddWithValue("obs", (object?)request.Observaciones ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("usuario", usuarioAuditoria);
+                cmd.Parameters.AddWithValue("maquina", maquinaAuditoria ?? "N/A");
+                cmd.Parameters.AddWithValue("ruta", (object?)request.RutaVideo ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("vigente", request.Vigente);
+                cmd.Parameters.AddWithValue("id", id);
 
-                var outMsgParam = cmd.Parameters.Add("ov_mensaje", OracleDbType.Varchar2, 4000);
-                outMsgParam.Direction = ParameterDirection.Output;
-
-                await cmd.ExecuteNonQueryAsync(ct);
-
-                result.Success = outMsgParam.Value?.ToString()?.Contains("exitosa") ?? false;
-                result.Message = outMsgParam.Value?.ToString() ?? "Video actualizado";
-            }
-            catch (OracleException ex)
-            {
-                result.Success = false;
-                result.Message = $"Error de base de datos: {ex.Message}";
-                _logger.LogError(ex, "Error Oracle en UpdateAsync Video");
+                var rows = await cmd.ExecuteNonQueryAsync(ct);
+                result.Success = rows > 0;
+                result.Message = rows > 0 ? "Video actualizado exitosamente." : "Video no encontrado.";
             }
             catch (Exception ex)
             {
                 result.Success = false;
                 result.Message = $"Error: {ex.Message}";
-                _logger.LogError(ex, "Error general en UpdateAsync Video");
+                _logger.LogError(ex, "Error actualizando video id={Id}", id);
             }
 
             return result;
@@ -167,60 +128,47 @@ namespace Datos.Gestion
         public async Task<DtoVideoResult> DeleteAsync(long id, string usuarioAuditoria, string maquinaAuditoria, CancellationToken ct)
         {
             var result = new DtoVideoResult();
-
-            await using var conn = new OracleConnection(_cs);
-            await conn.OpenAsync(ct);
+            await using var conn = await _tenant.DataSource.OpenConnectionAsync(ct);
 
             try
             {
                 await using var cmd = conn.CreateCommand();
-                cmd.CommandTimeout = 30;
-                cmd.BindByName = true;
-                cmd.CommandType = CommandType.StoredProcedure;
-                cmd.CommandText = "PK_ADMINISTRACION.PR_ELIMINAR_VIDEO";
+                cmd.CommandText = @"
+UPDATE ctr_video
+   SET vigente          = 0,
+       usuario_modifica = @usuario,
+       fecha_modifica   = NOW()
+ WHERE id_video = @id";
 
-                cmd.Parameters.Add("in_id_video", OracleDbType.Int64).Value = id;
-                cmd.Parameters.Add("iv_usuario_modifica", OracleDbType.Varchar2, 50).Value = usuarioAuditoria;
+                cmd.Parameters.AddWithValue("usuario", usuarioAuditoria);
+                cmd.Parameters.AddWithValue("id", id);
 
-                var outMsgParam = cmd.Parameters.Add("ov_mensaje", OracleDbType.Varchar2, 4000);
-                outMsgParam.Direction = ParameterDirection.Output;
-
-                await cmd.ExecuteNonQueryAsync(ct);
-
-                result.Success = outMsgParam.Value?.ToString()?.Contains("exitosa") ?? false;
-                result.Message = outMsgParam.Value?.ToString() ?? "Video eliminado";
-            }
-            catch (OracleException ex)
-            {
-                result.Success = false;
-                result.Message = $"Error de base de datos: {ex.Message}";
-                _logger.LogError(ex, "Error Oracle en DeleteAsync Video");
+                var rows = await cmd.ExecuteNonQueryAsync(ct);
+                result.Success = rows > 0;
+                result.Message = rows > 0 ? "Video eliminado exitosamente." : "Video no encontrado.";
             }
             catch (Exception ex)
             {
                 result.Success = false;
                 result.Message = $"Error: {ex.Message}";
-                _logger.LogError(ex, "Error general en DeleteAsync Video");
+                _logger.LogError(ex, "Error eliminando video id={Id}", id);
             }
 
             return result;
         }
 
-        private static DtoVideo MapVideo(OracleDataReader reader)
+        private static DtoVideo MapVideo(Npgsql.NpgsqlDataReader reader) => new()
         {
-            return new DtoVideo
-            {
-                IdVideo = reader.GetInt64(reader.GetOrdinal("ID_VIDEO")),
-                Descripcion = reader.GetString(reader.GetOrdinal("DESCRIPCION")),
-                Observaciones = reader.IsDBNull(reader.GetOrdinal("OBSERVACIONES")) ? null : reader.GetString(reader.GetOrdinal("OBSERVACIONES")),
-                RutaVideo = reader.IsDBNull(reader.GetOrdinal("RUTA_VIDEO")) ? null : reader.GetString(reader.GetOrdinal("RUTA_VIDEO")),
-                FechaCreacion = reader.GetDateTime(reader.GetOrdinal("FECHA_CREACION")),
-                UsuarioCreacion = reader.GetString(reader.GetOrdinal("USUARIO_CREACION")),
-                Vigente = reader.GetInt64(reader.GetOrdinal("VIGENTE")),
-                FechaModifica = reader.IsDBNull(reader.GetOrdinal("FECHA_MODIFICA")) ? null : reader.GetDateTime(reader.GetOrdinal("FECHA_MODIFICA")),
-                UsuarioModifica = reader.IsDBNull(reader.GetOrdinal("USUARIO_MODIFICA")) ? null : reader.GetString(reader.GetOrdinal("USUARIO_MODIFICA")),
-                MaquinaModifica = reader.IsDBNull(reader.GetOrdinal("MAQUINA_MODIFICA")) ? null : reader.GetString(reader.GetOrdinal("MAQUINA_MODIFICA"))
-            };
-        }
+            IdVideo = reader.GetInt64(0),
+            Descripcion = reader.GetString(1),
+            Observaciones = reader.IsDBNull(2) ? null : reader.GetString(2),
+            RutaVideo = reader.IsDBNull(3) ? null : reader.GetString(3),
+            FechaCreacion = reader.GetDateTime(4),
+            UsuarioCreacion = reader.GetString(5),
+            Vigente = reader.GetInt64(6),
+            FechaModifica = reader.IsDBNull(7) ? null : reader.GetDateTime(7),
+            UsuarioModifica = reader.IsDBNull(8) ? null : reader.GetString(8),
+            MaquinaModifica = reader.IsDBNull(9) ? null : reader.GetString(9)
+        };
     }
 }

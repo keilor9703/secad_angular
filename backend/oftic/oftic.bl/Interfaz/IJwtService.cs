@@ -8,7 +8,7 @@ namespace Negocio.Interfaz
 {
     public interface IJwtService
     {
-        string CreateToken(long idUsuario, string usuario, List<long> roles);
+        string CreateToken(long idUsuario, string usuario, List<long> roles, string codDane, string? nombreCad);
         string GenerateToken(string usuario);
     }
 }
