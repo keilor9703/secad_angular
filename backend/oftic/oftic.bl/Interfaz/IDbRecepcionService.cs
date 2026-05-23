@@ -1,0 +1,17 @@
+using Comun.Dtos.Recepcion;
+
+namespace Negocio.Interfaz
+{
+    public interface IDbRecepcionService
+    {
+        Task<DtoLlamadaEntrante?> F_GetLlamadasAsync(int sitioGraba, int acd, CancellationToken ct);
+        Task<long>  F_ConsultarSeqPedidoAsync(CancellationToken ct);
+        Task<List<DtoCasoItem>> F_GetCasosIntelAsync(string busqueda, CancellationToken ct);
+        Task<DtoCasoItem?> F_GetCasoPorCodigoAsync(string codigo, CancellationToken ct);
+        Task<List<DtoCanalRecepcion>> F_GetCanalesAsync(int sitioGraba, CancellationToken ct);
+        Task<List<DtoReferenciaSecad>> F_GetReferenciasAsync(string nombre, CancellationToken ct);
+        Task<List<DtoLlamadaAsociar>> F_BuscarLlamadasAsociarAsync(int sitioGraba, string horaCaso, long numeLlamada, CancellationToken ct);
+        Task<DtoRecepcionResult> P_GuardarLlamadaAsync(DtoRecepcion datos, int canalFuerza, string usuario, long idEmpleado, CancellationToken ct);
+        Task<DtoRecepcionResult> P_CerrarLlamadaRapidaAsync(DtoRecepcion datos, string usuario, CancellationToken ct);
+    }
+}

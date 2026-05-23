@@ -1,0 +1,303 @@
+// ─── Pedido / CAD incident management page ────────────────────────────────────
+
+.pedido-page {
+  display: block;
+  padding: 1rem;
+}
+
+// ─── Filters bar ──────────────────────────────────────────────────────────────
+
+.pedido-filters {
+  display: flex;
+  align-items: flex-end;
+  gap: 1rem;
+  margin-bottom: 1rem;
+
+  .filter-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    min-width: 140px;
+  }
+}
+
+// ─── Two-column layout ────────────────────────────────────────────────────────
+
+.pedido-grid {
+  display: grid;
+  grid-template-columns: 380px 1fr;
+  gap: 1rem;
+  align-items: start;
+
+  @media (max-width: 900px) {
+    grid-template-columns: 1fr;
+  }
+
+  .list-card {
+    max-height: calc(100vh - 220px);
+    overflow-y: auto;
+  }
+}
+
+// ─── Incident row ─────────────────────────────────────────────────────────────
+
+.pedido-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.pedido-row {
+  border: 1px solid var(--border-color, #e0e0e0);
+  border-radius: 6px;
+  padding: 0.6rem 0.75rem;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+
+  &:hover {
+    background: var(--hover-bg, #f5f5f5);
+    border-color: var(--primary, #3b82f6);
+  }
+
+  &.is-selected {
+    background: var(--selected-bg, #eff6ff);
+    border-color: var(--primary, #3b82f6);
+  }
+
+  &__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.3rem;
+  }
+
+  &__body {
+    .pedido-codi {
+      font-weight: 600;
+      font-size: 0.85rem;
+      color: var(--primary, #3b82f6);
+    }
+    .pedido-dir {
+      font-size: 0.88rem;
+      color: var(--text-primary, #333);
+    }
+    .pedido-meta {
+      display: flex;
+      gap: 1rem;
+      font-size: 0.75rem;
+      color: var(--text-muted, #666);
+      margin-top: 0.2rem;
+
+      span {
+        display: flex;
+        align-items: center;
+        gap: 0.3rem;
+      }
+    }
+  }
+
+  &__actions {
+    display: flex;
+    gap: 0.4rem;
+    margin-top: 0.5rem;
+    justify-content: flex-end;
+  }
+}
+
+.pedido-id {
+  font-size: 0.78rem;
+  color: var(--text-muted, #888);
+  font-weight: 600;
+}
+
+.badge-count {
+  background: var(--primary, #3b82f6);
+  color: #fff;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  padding: 0.15rem 0.5rem;
+  margin-left: 0.4rem;
+}
+
+// ─── Status badges ────────────────────────────────────────────────────────────
+
+.estado-badge {
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+
+  &.is-large {
+    font-size: 0.82rem;
+    padding: 0.3rem 0.8rem;
+  }
+}
+
+.badge-activo    { background: #dcfce7; color: #166534; }
+.badge-cerrado   { background: #fee2e2; color: #991b1b; }
+.badge-pendiente { background: #fef9c3; color: #92400e; }
+.badge-default   { background: #e5e7eb; color: #374151; }
+
+// ─── Detail view ──────────────────────────────────────────────────────────────
+
+.detail-loading {
+  padding: 2rem;
+  text-align: center;
+  color: var(--text-muted, #888);
+}
+
+.detail-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+
+  h3 { margin: 0; }
+}
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.6rem 1.2rem;
+  margin-bottom: 1rem;
+
+  .detail-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+
+    &.span-2 { grid-column: span 2; }
+  }
+
+  .detail-label {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-muted, #888);
+    font-weight: 600;
+  }
+
+  .detail-value {
+    font-size: 0.9rem;
+    color: var(--text-primary, #222);
+  }
+}
+
+.detail-actions {
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  margin-bottom: 1.5rem;
+}
+
+// ─── Annotations ──────────────────────────────────────────────────────────────
+
+.anotaciones-section {
+  border-top: 1px solid var(--border-color, #e0e0e0);
+  padding-top: 1rem;
+
+  h4 {
+    margin: 0 0 0.75rem;
+    font-size: 0.95rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+}
+
+.anotacion-form {
+  background: var(--surface-alt, #f9fafb);
+  border: 1px solid var(--border-color, #e0e0e0);
+  border-radius: 6px;
+  padding: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.anotacion-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.anotacion-item {
+  background: var(--surface-alt, #f9fafb);
+  border-left: 3px solid var(--primary, #3b82f6);
+  border-radius: 0 6px 6px 0;
+  padding: 0.6rem 0.75rem;
+
+  .anotacion-header {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+    flex-wrap: wrap;
+    margin-bottom: 0.3rem;
+
+    .anotacion-titulo  { font-weight: 600; font-size: 0.85rem; }
+    .anotacion-tipo    { font-size: 0.72rem; background: var(--primary, #3b82f6); color: #fff; border-radius: 3px; padding: 0.1rem 0.4rem; }
+    .anotacion-fecha   { font-size: 0.75rem; color: var(--text-muted, #888); margin-left: auto; }
+    .anotacion-usuario { font-size: 0.75rem; color: var(--text-muted, #888); }
+  }
+
+  .anotacion-texto {
+    font-size: 0.88rem;
+    color: var(--text-primary, #333);
+    white-space: pre-wrap;
+  }
+}
+
+// ─── Empty state ──────────────────────────────────────────────────────────────
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 260px;
+  gap: 0.75rem;
+  color: var(--text-muted, #aaa);
+
+  i { font-size: 3rem; }
+
+  p {
+    text-align: center;
+    max-width: 280px;
+    line-height: 1.5;
+  }
+}
+
+// ─── Modal overlay ────────────────────────────────────────────────────────────
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+
+.modal-box {
+  background: var(--surface, #fff);
+  border-radius: 10px;
+  padding: 1.5rem;
+  width: min(460px, 95vw);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+
+  h4 {
+    margin: 0 0 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 1rem;
+  }
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.6rem;
+  margin-top: 1rem;
+}

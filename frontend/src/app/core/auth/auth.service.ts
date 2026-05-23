@@ -95,6 +95,24 @@ export class AuthService {
     return true;
   }
 
+  /** Decode the stored JWT and return reception-specific claims. */
+  getJwtClaims(): { sitioGraba: number; acd: number; fuerzaId: number; codDane: string; usuario: string; idUsuario: number } {
+    const token = this.getToken();
+    const empty = { sitioGraba: 0, acd: 0, fuerzaId: 0, codDane: '', usuario: '', idUsuario: 0 };
+    if (!token) return empty;
+    const p = this.decodeJwtPayload(token);
+    if (!p) return empty;
+    const nameKey = 'http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name';
+    return {
+      sitioGraba: Number(p?.sitio_graba  ?? 0),
+      acd:        Number(p?.acd          ?? 0),
+      fuerzaId:   Number(p?.fuerza_id    ?? 0),
+      codDane:    String(p?.cod_dane     ?? ''),
+      idUsuario:  Number(p?.id_usuario   ?? p?.nameid ?? 0),
+      usuario:    String(p?.[nameKey] ?? p?.unique_name ?? p?.name ?? '')
+    };
+  }
+
   isLoginSuccessful(resp: LoginResponse | null | undefined): boolean {
     return !!resp && (resp.success === true || resp.Success === true || !!resp.token);
   }

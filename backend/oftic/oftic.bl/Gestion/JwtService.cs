@@ -16,7 +16,8 @@ namespace Negocio.Gestion
             _cfg = cfg;
         }
 
-        public string CreateToken(long idUsuario, string usuario, List<long> roles, string codDane, string? nombreCad)
+        public string CreateToken(long idUsuario, string usuario, List<long> roles, string codDane, string? nombreCad,
+                                  int sitioGraba = 0, int acd = 0, int fuerzaId = 0)
         {
             var issuer = _cfg["Jwt:Issuer"] ?? "oftic.api";
             var audience = _cfg["Jwt:Audience"] ?? issuer;
@@ -25,11 +26,14 @@ namespace Negocio.Gestion
 
             var claims = new List<Claim>
             {
-                new("id_usuario", idUsuario.ToString()),
+                new("id_usuario",   idUsuario.ToString()),
                 new(ClaimTypes.NameIdentifier, idUsuario.ToString()),
                 new(ClaimTypes.Name, usuario ?? ""),
-                new("cod_dane", codDane),
-                new("nombre_cad", nombreCad ?? "")
+                new("cod_dane",     codDane),
+                new("nombre_cad",   nombreCad ?? ""),
+                new("sitio_graba",  sitioGraba.ToString()),
+                new("acd",          acd.ToString()),
+                new("fuerza_id",    fuerzaId.ToString())
             };
 
             foreach (var r in roles)

@@ -1,0 +1,399 @@
+<section class="pedido-page" *ngIf="visible">
+  <div class="ui-panel">
+
+    <!-- Header -->
+    <div class="ui-panel__head">
+      <div class="ui-panel__title">
+        <i class="fa-solid fa-tower-broadcast"></i>
+        Recepcion de Casos CAD
+      </div>
+      <div class="ui-panel__actions ui-window-controls">
+        <button class="ui-btn secondary" type="button" (click)="nuevoCaso()" title="Nuevo caso">
+          <i class="fa-solid fa-plus"></i> Nuevo
+        </button>
+        <button class="ui-icon-btn ui-win-btn is-min" type="button" title="Minimizar" (click)="toggleMinimize()">
+          <i class="fa-solid fa-minus"></i>
+        </button>
+      </div>
+    </div>
+
+    <div class="ui-panel__body" *ngIf="!minimized">
+
+      <!-- ─── Filters ──────────────────────────────────────────────────────── -->
+      <div class="pedido-filters">
+        <div class="filter-group">
+          <label class="ui-label">Estado</label>
+          <select class="ui-control" [(ngModel)]="filtroEstado" (change)="cargarLista()">
+            <option value="">Todos</option>
+            <option value="A">Activos</option>
+            <option value="C">Cerrados</option>
+            <option value="P">Pendientes</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label class="ui-label">Sitio</label>
+          <input class="ui-control" type="number" [(ngModel)]="filtroSitio" placeholder="Todos" min="0">
+        </div>
+        <button class="ui-btn primary" type="button" (click)="cargarLista()">
+          <i class="fa-solid fa-magnifying-glass"></i> Buscar
+        </button>
+      </div>
+
+      <!-- ─── Main grid ────────────────────────────────────────────────────── -->
+      <div class="pedido-grid">
+
+        <!-- Left: list -->
+        <article class="tab-card list-card">
+          <h3>
+            Casos
+            <span class="badge-count">{{ listaPedidos.length }}</span>
+          </h3>
+
+          <div class="list-loading" *ngIf="loading && panelMode === 'list'">Cargando...</div>
+
+          <div class="pedido-list" *ngIf="!loading || panelMode !== 'list'">
+            <div
+              class="pedido-row"
+              *ngFor="let item of listaPedidos"
+              [class.is-selected]="item.id === selectedId"
+              (click)="seleccionarCaso(item)"
+            >
+              <div class="pedido-row__header">
+                <span class="pedido-id">#{{ item.id }}</span>
+                <span class="estado-badge" [ngClass]="getEstadoClass(item.estado)">
+                  {{ getEstadoLabel(item.estado) }}
+                </span>
+              </div>
+              <div class="pedido-row__body">
+                <div class="pedido-codi">{{ item.codiPedido || '—' }}</div>
+                <div class="pedido-dir">{{ item.direCaso || 'Sin direccion' }}</div>
+                <div class="pedido-meta">
+                  <span><i class="fa-solid fa-clock"></i> {{ (item.horaCaso | date:'dd/MM HH:mm') || '—' }}</span>
+                  <span><i class="fa-solid fa-user"></i> {{ item.usernameCreacion || '—' }}</span>
+                </div>
+              </div>
+              <div class="pedido-row__actions" (click)="$event.stopPropagation()">
+                <button class="ui-btn secondary" type="button" (click)="editarCaso(item)" title="Editar">
+                  <i class="fa-solid fa-pen"></i>
+                </button>
+                <button
+                  class="ui-btn danger"
+                  type="button"
+                  *ngIf="item.estado !== 'C'"
+                  (click)="abrirCerrarModal(item.id)"
+                  title="Cierre rapido"
+                >
+                  <i class="fa-solid fa-xmark"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="news-state" *ngIf="!loading && listaPedidos.length === 0">
+            No hay casos para mostrar.
+          </div>
+        </article>
+
+        <!-- Right: form or detail -->
+        <article class="tab-card form-card">
+
+          <!-- ─── Empty state ─────────────────────────────────────────────── -->
+          <div class="empty-state" *ngIf="panelMode === 'list'">
+            <i class="fa-solid fa-tower-broadcast"></i>
+            <p>Seleccione un caso para ver el detalle, o haga clic en <strong>Nuevo</strong> para registrar uno.</p>
+          </div>
+
+          <!-- ─── CREATE / EDIT form ─────────────────────────────────────── -->
+          <ng-container *ngIf="panelMode === 'form'">
+            <h3>{{ editingId ? 'Editar caso #' + editingId : 'Nuevo caso' }}</h3>
+
+            <div class="ui-grid">
+
+              <!-- Caller info -->
+              <div class="ui-field ui-col-6">
+                <label class="ui-label">Telefono</label>
+                <input class="ui-control" type="number" [(ngModel)]="form.numeTelefono" placeholder="3001234567">
+              </div>
+              <div class="ui-field ui-col-6">
+                <label class="ui-label">Propietario telefono</label>
+                <input class="ui-control" type="text" [(ngModel)]="form.propTelefono" maxlength="200">
+              </div>
+              <div class="ui-field ui-col-6">
+                <label class="ui-label">Nombre llamante</label>
+                <input class="ui-control" type="text" [(ngModel)]="form.nombLlamante" maxlength="200">
+              </div>
+              <div class="ui-field ui-col-6">
+                <label class="ui-label">Direccion llamante</label>
+                <input class="ui-control" type="text" [(ngModel)]="form.direLlamante" maxlength="300">
+              </div>
+
+              <!-- Incident location -->
+              <div class="ui-field ui-col-12">
+                <label class="ui-label">Direccion del caso *</label>
+                <input class="ui-control" type="text" [(ngModel)]="form.direCaso" maxlength="300" placeholder="Calle 1 # 2-3">
+              </div>
+              <div class="ui-field ui-col-6">
+                <label class="ui-label">Barrio</label>
+                <input class="ui-control" type="text" [(ngModel)]="form.barrio" maxlength="200">
+              </div>
+              <div class="ui-field ui-col-6">
+                <label class="ui-label">Ciudad</label>
+                <input class="ui-control" type="text" [(ngModel)]="form.ciudad" maxlength="200">
+              </div>
+              <div class="ui-field ui-col-6">
+                <label class="ui-label">Latitud</label>
+                <input class="ui-control" type="text" [(ngModel)]="form.latitudCaso" maxlength="50" placeholder="4.7110">
+              </div>
+              <div class="ui-field ui-col-6">
+                <label class="ui-label">Longitud</label>
+                <input class="ui-control" type="text" [(ngModel)]="form.longitudCaso" maxlength="50" placeholder="-74.0721">
+              </div>
+
+              <!-- Incident classification -->
+              <div class="ui-field ui-col-6">
+                <label class="ui-label">Codigo pedido *</label>
+                <input class="ui-control" type="text" [(ngModel)]="form.codiPedido" maxlength="50" placeholder="Ej: 11-A">
+              </div>
+              <div class="ui-field ui-col-6">
+                <label class="ui-label">Codigo secundario</label>
+                <input class="ui-control" type="text" [(ngModel)]="form.codiPedido2" maxlength="50">
+              </div>
+              <div class="ui-field ui-col-6">
+                <label class="ui-label">Tipo pedido</label>
+                <input class="ui-control" type="text" [(ngModel)]="form.tipoPedido" maxlength="50">
+              </div>
+              <div class="ui-field ui-col-6">
+                <label class="ui-label">Calidad pedido</label>
+                <input class="ui-control" type="text" [(ngModel)]="form.caliPedido" maxlength="50">
+              </div>
+              <div class="ui-field ui-col-4">
+                <label class="ui-label">Importancia</label>
+                <select class="ui-control" [(ngModel)]="form.importancia">
+                  <option value="">Seleccione</option>
+                  <option value="ALTA">Alta</option>
+                  <option value="MEDIA">Media</option>
+                  <option value="BAJA">Baja</option>
+                </select>
+              </div>
+              <div class="ui-field ui-col-4">
+                <label class="ui-label">Prioridad</label>
+                <select class="ui-control" [(ngModel)]="form.prioridad">
+                  <option value="">Seleccione</option>
+                  <option value="1">1 - Urgente</option>
+                  <option value="2">2 - Alta</option>
+                  <option value="3">3 - Normal</option>
+                  <option value="4">4 - Baja</option>
+                </select>
+              </div>
+              <div class="ui-field ui-col-4">
+                <label class="ui-label">Estado</label>
+                <select class="ui-control" [(ngModel)]="form.estado">
+                  <option value="A">Activo</option>
+                  <option value="P">Pendiente</option>
+                  <option value="C">Cerrado</option>
+                </select>
+              </div>
+              <div class="ui-field ui-col-6">
+                <label class="ui-label">Enviar a despacho</label>
+                <select class="ui-control" [(ngModel)]="form.enviar">
+                  <option value="N">No</option>
+                  <option value="S">Si</option>
+                </select>
+              </div>
+              <div class="ui-field ui-col-6">
+                <label class="ui-label">Sitio CAD</label>
+                <input class="ui-control" type="number" [(ngModel)]="form.sitioGraba" min="0">
+              </div>
+
+              <!-- Commentary -->
+              <div class="ui-field ui-col-12">
+                <label class="ui-label">Comentario</label>
+                <textarea class="ui-control" rows="3" [(ngModel)]="form.comentario" maxlength="2000" placeholder="Descripcion del incidente..."></textarea>
+              </div>
+            </div>
+
+            <div class="tab-actions">
+              <button class="ui-btn secondary" type="button" (click)="cancelar()">Cancelar</button>
+              <button class="ui-btn primary" type="button" (click)="guardar()" [disabled]="saving">
+                <i class="fa-solid fa-floppy-disk"></i>
+                {{ saving ? 'Guardando...' : 'Guardar' }}
+              </button>
+            </div>
+          </ng-container>
+
+          <!-- ─── DETAIL view ────────────────────────────────────────────── -->
+          <ng-container *ngIf="panelMode === 'detail'">
+            <div class="detail-loading" *ngIf="loading">Cargando detalle...</div>
+
+            <ng-container *ngIf="!loading && detalle">
+              <div class="detail-header">
+                <h3>Caso #{{ detalle.id }}</h3>
+                <span class="estado-badge is-large" [ngClass]="getEstadoClass(detalle.estado)">
+                  {{ getEstadoLabel(detalle.estado) }}
+                </span>
+              </div>
+
+              <div class="detail-grid">
+                <div class="detail-field">
+                  <span class="detail-label">Codigo</span>
+                  <span class="detail-value">{{ detalle.codiPedido || '—' }}
+                    <ng-container *ngIf="detalle.codiPedido2"> / {{ detalle.codiPedido2 }}</ng-container>
+                  </span>
+                </div>
+                <div class="detail-field">
+                  <span class="detail-label">Hora caso</span>
+                  <span class="detail-value">{{ (detalle.horaCaso | date:'dd/MM/yyyy HH:mm:ss') || '—' }}</span>
+                </div>
+                <div class="detail-field span-2">
+                  <span class="detail-label">Direccion del caso</span>
+                  <span class="detail-value">{{ detalle.direCaso || '—' }}</span>
+                </div>
+                <div class="detail-field">
+                  <span class="detail-label">Barrio</span>
+                  <span class="detail-value">{{ detalle.barrio || '—' }}</span>
+                </div>
+                <div class="detail-field">
+                  <span class="detail-label">Ciudad</span>
+                  <span class="detail-value">{{ detalle.ciudad || '—' }}</span>
+                </div>
+                <div class="detail-field">
+                  <span class="detail-label">Telefono</span>
+                  <span class="detail-value">{{ detalle.numeTelefono || '—' }}</span>
+                </div>
+                <div class="detail-field">
+                  <span class="detail-label">Llamante</span>
+                  <span class="detail-value">{{ detalle.nombLlamante || '—' }}</span>
+                </div>
+                <div class="detail-field">
+                  <span class="detail-label">Importancia</span>
+                  <span class="detail-value">{{ detalle.importancia || '—' }}</span>
+                </div>
+                <div class="detail-field">
+                  <span class="detail-label">Prioridad</span>
+                  <span class="detail-value">{{ detalle.prioridad || '—' }}</span>
+                </div>
+                <div class="detail-field">
+                  <span class="detail-label">Coordenadas</span>
+                  <span class="detail-value">
+                    <ng-container *ngIf="detalle.latitudCaso && detalle.longitudCaso">
+                      {{ detalle.latitudCaso }}, {{ detalle.longitudCaso }}
+                    </ng-container>
+                    <ng-container *ngIf="!detalle.latitudCaso || !detalle.longitudCaso">—</ng-container>
+                  </span>
+                </div>
+                <div class="detail-field">
+                  <span class="detail-label">Enviar a despacho</span>
+                  <span class="detail-value">{{ detalle.enviar === 'S' ? 'Si' : 'No' }}</span>
+                </div>
+                <div class="detail-field span-2" *ngIf="detalle.comentario">
+                  <span class="detail-label">Comentario</span>
+                  <span class="detail-value">{{ detalle.comentario }}</span>
+                </div>
+                <div class="detail-field">
+                  <span class="detail-label">Operador</span>
+                  <span class="detail-value">{{ detalle.usernameCreacion || '—' }}</span>
+                </div>
+                <div class="detail-field">
+                  <span class="detail-label">Sitio CAD</span>
+                  <span class="detail-value">{{ detalle.sitioGraba }}</span>
+                </div>
+              </div>
+
+              <div class="detail-actions">
+                <button class="ui-btn secondary" type="button" (click)="editarCaso(detalle)">
+                  <i class="fa-solid fa-pen"></i> Editar
+                </button>
+                <button
+                  class="ui-btn danger"
+                  type="button"
+                  *ngIf="detalle.estado !== 'C'"
+                  (click)="abrirCerrarModal(detalle.id)"
+                >
+                  <i class="fa-solid fa-xmark"></i> Cierre rapido
+                </button>
+                <button class="ui-btn secondary" type="button" (click)="cancelar()">
+                  <i class="fa-solid fa-list"></i> Volver
+                </button>
+              </div>
+
+              <!-- Annotations -->
+              <div class="anotaciones-section">
+                <h4><i class="fa-solid fa-comments"></i> Anotaciones ({{ detalle.anotaciones.length }})</h4>
+
+                <!-- Add annotation -->
+                <div class="anotacion-form" *ngIf="detalle.estado !== 'C'">
+                  <div class="ui-grid">
+                    <div class="ui-field ui-col-6">
+                      <label class="ui-label">Titulo</label>
+                      <input class="ui-control" type="text" [(ngModel)]="anotacionForm.titulo" maxlength="200" placeholder="Titulo de la anotacion">
+                    </div>
+                    <div class="ui-field ui-col-6">
+                      <label class="ui-label">Tipo</label>
+                      <select class="ui-control" [(ngModel)]="anotacionForm.tipoAnotacion">
+                        <option value="GENERAL">General</option>
+                        <option value="DESPACHO">Despacho</option>
+                        <option value="NOVEDAD">Novedad</option>
+                        <option value="CIERRE">Cierre</option>
+                      </select>
+                    </div>
+                    <div class="ui-field ui-col-12">
+                      <label class="ui-label">Texto *</label>
+                      <textarea class="ui-control" rows="2" [(ngModel)]="anotacionForm.anotacion" maxlength="2000" placeholder="Escriba la anotacion..."></textarea>
+                    </div>
+                  </div>
+                  <div class="tab-actions">
+                    <button class="ui-btn primary" type="button" (click)="guardarAnotacion()" [disabled]="savingAnotacion">
+                      <i class="fa-solid fa-plus"></i>
+                      {{ savingAnotacion ? 'Guardando...' : 'Agregar anotacion' }}
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Annotations list -->
+                <div class="anotacion-list" *ngIf="detalle.anotaciones.length > 0">
+                  <div class="anotacion-item" *ngFor="let an of detalle.anotaciones">
+                    <div class="anotacion-header">
+                      <span class="anotacion-titulo">{{ an.titulo || 'Sin titulo' }}</span>
+                      <span class="anotacion-tipo">{{ an.tipoAnotacion }}</span>
+                      <span class="anotacion-fecha">{{ (an.fechaCreacion | date:'dd/MM/yyyy HH:mm') || '—' }}</span>
+                      <span class="anotacion-usuario">{{ an.usernameCreacion }}</span>
+                    </div>
+                    <div class="anotacion-texto">{{ an.anotacion }}</div>
+                  </div>
+                </div>
+
+                <div class="news-state" *ngIf="detalle.anotaciones.length === 0">
+                  Sin anotaciones registradas.
+                </div>
+              </div>
+            </ng-container>
+          </ng-container>
+
+        </article>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─── Quick-close modal ──────────────────────────────────────────────────── -->
+<div class="modal-overlay" *ngIf="showCerrarModal" (click)="cancelarCerrar()">
+  <div class="modal-box" (click)="$event.stopPropagation()">
+    <h4><i class="fa-solid fa-xmark-circle"></i> Cierre rapido de caso</h4>
+    <div class="ui-grid">
+      <div class="ui-field ui-col-12">
+        <label class="ui-label">Codigo de cierre</label>
+        <input class="ui-control" type="text" [(ngModel)]="cerrarForm.codiPedido" maxlength="50" placeholder="Ej: 99-X">
+      </div>
+      <div class="ui-field ui-col-12">
+        <label class="ui-label">Comentario de cierre</label>
+        <textarea class="ui-control" rows="3" [(ngModel)]="cerrarForm.comentario" maxlength="2000" placeholder="Motivo del cierre..."></textarea>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="ui-btn secondary" type="button" (click)="cancelarCerrar()">Cancelar</button>
+      <button class="ui-btn danger" type="button" (click)="confirmarCerrar()" [disabled]="saving">
+        {{ saving ? 'Cerrando...' : 'Confirmar cierre' }}
+      </button>
+    </div>
+  </div>
+</div>

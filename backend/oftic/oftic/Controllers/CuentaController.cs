@@ -105,8 +105,8 @@ namespace Api.Controllers
                 {
                     // Development: use configured default tenant
                     _logger.LogWarning("MODO DESARROLLO: Validación OUD deshabilitada.");
-                    var devCodDane = _configuration["Auth:DevTenantCodDane"] ?? "11001";
-                    var devTenant = await _masterRepository.GetTenantByCodDaneAsync(devCodDane, CancellationToken.None);
+                    var devCodDane = _configuration["Auth:DevTenantCodDane"] ?? "11001";// aqui debe utilizar el codgo de la unidad devuelto por la PIP
+                    var devTenant = await _masterRepository.GetTenantByCodDaneAsync(devCodDane, CancellationToken.None); 
 
                     if (devTenant is null)
                     {
@@ -123,11 +123,11 @@ namespace Api.Controllers
                 }
 
                 // Query user and roles from tenant DB
-                var (idUsuario, roles) = await _dbAuthRepository.GetUsuarioYRolesAsync(
+                var (idUsuario, roles, sitioGraba, acd, fuerzaId) = await _dbAuthRepository.GetUsuarioYRolesAsync(
                     request.Usuario, CancellationToken.None);
 
-                _logger.LogInformation("User {Usuario} — idUsuario: {Id}, roles: {Count}, tenant: {Tenant}",
-                    request.Usuario, idUsuario, roles?.Count, codDane);
+                _logger.LogInformation("User {Usuario} — idUsuario: {Id}, roles: {Count}, tenant: {Tenant}, sitio: {Sitio}, acd: {Acd}",
+                    request.Usuario, idUsuario, roles?.Count, codDane, sitioGraba, acd);
 
                 if (idUsuario is null)
                 {
@@ -139,7 +139,8 @@ namespace Api.Controllers
                 }
 
                 var jwtToken = _jwtService.CreateToken(
-                    idUsuario.Value, request.Usuario, roles, codDane!, nombreCad);
+                    idUsuario.Value, request.Usuario, roles, codDane!, nombreCad,
+                    sitioGraba, acd, fuerzaId);
 
                 return Ok(new DtoTokenResponse
                 {

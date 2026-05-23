@@ -100,6 +100,10 @@ builder.Services.AddScoped<IDbVideoRepository, DbVideoRepository>();
 builder.Services.AddScoped<IDbVideoService, DbVideoService>();
 builder.Services.AddScoped<IDbLineaMandoRepository, DbLineaMandoRepository>();
 builder.Services.AddScoped<IDbLineaMandoService, DbLineaMandoService>();
+builder.Services.AddScoped<IDbPedidoRepository, DbPedidoRepository>();
+builder.Services.AddScoped<IDbPedidoService, DbPedidoService>();
+builder.Services.AddScoped<IDbRecepcionRepository, DbRecepcionRepository>();
+builder.Services.AddScoped<IDbRecepcionService, DbRecepcionService>();
 
 // Business services
 builder.Services.AddScoped<IJwtService, JwtService>();

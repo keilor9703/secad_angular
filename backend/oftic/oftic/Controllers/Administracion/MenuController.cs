@@ -77,12 +77,12 @@ namespace Api.Controllers.Administracion
 
                 if (string.IsNullOrWhiteSpace(request.Descripcion))
                 {
-                    return BadRequest(new { success = false, message = "DescripciÃ³n requerida." });
+                    return BadRequest(new { success = false, message = "Descripción requerida." });
                 }
 
                 if (request.Posicion < 0)
                 {
-                    return BadRequest(new { success = false, message = "PosiciÃ³n invÃ¡lida." });
+                    return BadRequest(new { success = false, message = "Posición invalida" });
                 }
 
                 if (string.IsNullOrWhiteSpace(request.Tipo))

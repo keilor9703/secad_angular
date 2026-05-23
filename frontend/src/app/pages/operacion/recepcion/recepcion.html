@@ -1,0 +1,576 @@
+<!-- ══════════════════════════════════════════════════════════════
+     Módulo de Recepción de Llamadas – SECAD
+     Usa el sistema de diseño propio de la plantilla (ui-panel,
+     ui-grid, ui-field, ui-btn). Sin dependencia de Bootstrap.
+     ══════════════════════════════════════════════════════════════ -->
+
+@if (visible) {
+
+<section class="recepcion-page">
+
+  <!-- ── PANEL PRINCIPAL ──────────────────────────────────────────────────── -->
+  <div class="ui-panel">
+
+    <!-- Cabecera del panel -->
+    <div class="ui-panel__head">
+      <div class="ui-panel__title">
+        <i class="fa-solid fa-phone-volume"></i>
+        Recepción de llamadas
+      </div>
+
+      <div class="rec-head-right">
+        <!-- Botones de cierre rápido -->
+        <div class="rec-quick-btns">
+          <button type="button" class="ui-btn sm info rec-qbtn"
+                  title="Solicitando Información"
+                  (click)="cerrarRapido('INFORMACION')">
+            <i class="fa-solid fa-circle-info"></i>
+            <span>Info</span>
+          </button>
+          <button type="button" class="ui-btn sm warning rec-qbtn"
+                  title="Persona molestando"
+                  (click)="cerrarRapido('PERSONAMOLESTANDO')">
+            <i class="fa-solid fa-user-xmark"></i>
+            <span>Molestia</span>
+          </button>
+          <button type="button" class="ui-btn sm warning rec-qbtn"
+                  title="Niño molestando"
+                  (click)="cerrarRapido('NINOMOLESTADO')">
+            <i class="fa-solid fa-child"></i>
+            <span>Niño</span>
+          </button>
+          <button type="button" class="ui-btn sm danger rec-qbtn"
+                  title="Llamada insultante"
+                  (click)="cerrarRapido('LLAMADAINSULTANTE')">
+            <i class="fa-solid fa-comment-slash"></i>
+            <span>Insultos</span>
+          </button>
+          <button type="button" class="ui-btn sm danger rec-qbtn"
+                  title="No hablan / colgaron"
+                  (click)="cerrarRapido('COLGARON')">
+            <i class="fa-solid fa-phone-slash"></i>
+            <span>Colgaron</span>
+          </button>
+          <button type="button" class="ui-btn sm ghost rec-qbtn"
+                  title="Llamada equivocada"
+                  (click)="cerrarRapido('EQUIVOCADA')">
+            <i class="fa-solid fa-rotate-left"></i>
+            <span>Equivocada</span>
+          </button>
+        </div>
+
+        <!-- Controles de ventana -->
+        <div class="ui-window-controls" style="margin-left:10px;">
+          <button class="ui-icon-btn ui-win-btn is-min" type="button"
+                  title="Minimizar" (click)="toggleMinimize()">
+            <i class="fa-solid fa-minus"></i>
+          </button>
+          <button class="ui-icon-btn ui-win-btn is-close" type="button"
+                  title="Cerrar" (click)="closePanel()">
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        </div>
+      </div>
+    </div><!-- /ui-panel__head -->
+
+    <!-- Cuerpo del panel -->
+    @if (!minimized) {
+    <div class="ui-panel__body">
+
+      <!-- ──────────── LAYOUT PRINCIPAL (form | mapa+canales) ──────────────── -->
+      <div class="rec-layout">
+
+        <!-- ═══════════ COLUMNA IZQUIERDA – Formulario ═══════════════════════ -->
+        <div class="rec-col-form">
+
+          <!-- ── Sección: Identificación de la llamada ────────────────────── -->
+          <div class="rec-section">
+            <div class="rec-section__head">
+              <i class="fa-solid fa-id-badge"></i>
+              Identificación de la llamada
+            </div>
+            <div class="ui-grid">
+              <div class="ui-field ui-col-6">
+                <label class="ui-label">Fecha de ingreso</label>
+                <input class="ui-control" type="text"
+                       [(ngModel)]="txtFechaIngreso" readonly
+                       placeholder="Automático al recibir llamada">
+              </div>
+              <div class="ui-field ui-col-3">
+                <label class="ui-label">ID Llamada</label>
+                <input class="ui-control rec-id-field" type="text"
+                       [(ngModel)]="txtNumeLlamada" readonly
+                       placeholder="—">
+              </div>
+              <div class="ui-field ui-col-3">
+                <label class="ui-label">Acd</label>
+                <input class="ui-control" type="text"
+                       [(ngModel)]="txtAcd" readonly placeholder="—">
+              </div>
+              <div class="ui-field ui-col-6">
+                <label class="ui-label">Usuario</label>
+                <input class="ui-control" type="text"
+                       [value]="usuario" readonly placeholder="—">
+              </div>
+              <div class="ui-field ui-col-6">
+                <label class="ui-label">Sitio grabación</label>
+                <input class="ui-control" type="text"
+                       [value]="sitioGraba" readonly placeholder="—">
+              </div>
+            </div>
+          </div>
+
+          <!-- ── Sección: Datos de la llamada ─────────────────────────────── -->
+          <div class="rec-section">
+            <div class="rec-section__head">
+              <i class="fa-solid fa-phone"></i>
+              Datos de la llamada
+            </div>
+            <div class="ui-grid">
+              <div class="ui-field ui-col-4">
+                <label class="ui-label">Abonado <span class="rec-required">*</span></label>
+                <input class="ui-control"
+                       [class.rec-invalid]="!txtAbonado.trim()"
+                       [class.rec-valid]="txtAbonado.trim()"
+                       type="text" inputmode="tel" id="txtAbonado"
+                       [(ngModel)]="txtAbonado"
+                       (ngModelChange)="onAbonadoChange($event)"
+                       (keydown.enter)="onAbonadoEnter()"
+                       placeholder="Ej: 3001234567">
+              </div>
+              <div class="ui-field ui-col-8">
+                <label class="ui-label">Propietario de la línea</label>
+                <input class="ui-control" type="text"
+                       [(ngModel)]="txtPropAbonado" readonly
+                       placeholder="Se consulta automáticamente">
+              </div>
+              <div class="ui-field ui-col-12">
+                <label class="ui-label">Medio de comunicación</label>
+                <input class="ui-control rec-device-badge" type="text"
+                       [(ngModel)]="txtDispTelefonico" readonly
+                       placeholder="Se detecta al ingresar el abonado">
+              </div>
+              <div class="ui-field ui-col-6">
+                <label class="ui-label">Llamante <span class="rec-required">*</span></label>
+                <input class="ui-control"
+                       [class.rec-invalid]="!txtNombreLlamante.trim()"
+                       [class.rec-valid]="txtNombreLlamante.trim()"
+                       type="text"
+                       [(ngModel)]="txtNombreLlamante"
+                       placeholder="Nombre de quien llama">
+              </div>
+              <div class="ui-field ui-col-6">
+                <label class="ui-label">Dirección de quien llama</label>
+                <input class="ui-control" type="text"
+                       [(ngModel)]="txtDireLlamante"
+                       placeholder="Dirección del llamante">
+              </div>
+            </div>
+          </div>
+
+          <!-- ── Sección: Datos del caso ───────────────────────────────────── -->
+          <div class="rec-section">
+            <div class="rec-section__head">
+              <i class="fa-solid fa-file-shield"></i>
+              Datos del caso
+            </div>
+            <div class="ui-grid">
+
+              <!-- Caso 1 -->
+              <div class="ui-field ui-col-3">
+                <label class="ui-label">Código caso <span class="rec-required">*</span></label>
+                <input class="ui-control"
+                       [class.rec-invalid]="!txtCodigCaso.trim()"
+                       [class.rec-valid]="txtCodigCaso.trim()"
+                       type="text"
+                       [(ngModel)]="txtCodigCaso"
+                       (keydown.enter)="buscarCasoPorCodigo(txtCodigCaso, 1)"
+                       placeholder="Ej: 120">
+              </div>
+              <div class="ui-field ui-col-9">
+                <label class="ui-label">Descripción del caso</label>
+                <div class="rec-autocomplete">
+                  <input class="ui-control" type="text"
+                         [(ngModel)]="txtDescaso"
+                         (ngModelChange)="onDescaso1Change($event)"
+                         (blur)="cerrarSugerencias()"
+                         placeholder="Escriba para buscar (mín. 3 chars)…">
+                  @if (casosSugeridos1.length > 0) {
+                    <div class="rec-suggest-list">
+                      @for (c of casosSugeridos1; track c.CODIGO_CASO) {
+                        <div class="rec-suggest-item"
+                             (mousedown)="seleccionarSugerencia(c, 1)">
+                          <span class="rec-suggest-code">{{ c.CODIGO_CASO }}</span>
+                          <span class="rec-suggest-desc">{{ c.DESCRIPCION_CASO }}</span>
+                        </div>
+                      }
+                    </div>
+                  }
+                </div>
+              </div>
+
+              <!-- Caso 2 (opcional) -->
+              <div class="ui-field ui-col-3">
+                <label class="ui-label">Código caso 2</label>
+                <input class="ui-control" type="text"
+                       [(ngModel)]="txtCodigCaso2"
+                       (keydown.enter)="buscarCasoPorCodigo(txtCodigCaso2, 2)"
+                       placeholder="Opcional">
+              </div>
+              <div class="ui-field ui-col-9">
+                <label class="ui-label">Descripción caso 2</label>
+                <div class="rec-autocomplete">
+                  <input class="ui-control" type="text"
+                         [(ngModel)]="txtDescaso2"
+                         (ngModelChange)="onDescaso2Change($event)"
+                         (blur)="cerrarSugerencias()"
+                         placeholder="Escriba para buscar…">
+                  @if (casosSugeridos2.length > 0) {
+                    <div class="rec-suggest-list">
+                      @for (c of casosSugeridos2; track c.CODIGO_CASO) {
+                        <div class="rec-suggest-item"
+                             (mousedown)="seleccionarSugerencia(c, 2)">
+                          <span class="rec-suggest-code">{{ c.CODIGO_CASO }}</span>
+                          <span class="rec-suggest-desc">{{ c.DESCRIPCION_CASO }}</span>
+                        </div>
+                      }
+                    </div>
+                  }
+                </div>
+              </div>
+
+              <!-- Localización -->
+              <div class="ui-field ui-col-6">
+                <label class="ui-label">Ciudad / Municipio caso</label>
+                <input class="ui-control" type="text"
+                       [(ngModel)]="txtCiudadCaso"
+                       placeholder="Ciudad del caso">
+              </div>
+              <div class="ui-field ui-col-6">
+                <label class="ui-label">Barrio</label>
+                <input class="ui-control" type="text"
+                       [(ngModel)]="txtBarrioCaso"
+                       placeholder="Barrio del caso">
+              </div>
+              <div class="ui-field ui-col-12">
+                <label class="ui-label">Dirección del caso <span class="rec-required">*</span></label>
+                <input class="ui-control"
+                       [class.rec-invalid]="!txtDireCaso.trim()"
+                       [class.rec-valid]="txtDireCaso.trim()"
+                       type="text"
+                       [(ngModel)]="txtDireCaso"
+                       placeholder="Dirección exacta del incidente">
+              </div>
+
+              <!-- Asociar llamada -->
+              <div class="ui-field ui-col-12">
+                <label class="ui-label">Asociar a llamada existente</label>
+                <div class="ui-input-group">
+                  <input class="ui-control" type="text"
+                         [(ngModel)]="txtAsociarLlamada"
+                         readonly
+                         placeholder="Doble-clic para buscar llamada a asociar…"
+                         (dblclick)="abrirModalAsociar()"
+                         title="Doble-clic para asociar a otra llamada">
+                  <button class="ui-addon-btn" type="button"
+                          title="Buscar llamada"
+                          (click)="abrirModalAsociar()">
+                    <i class="fa-solid fa-link"></i>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Tipo / Calidad -->
+              <div class="ui-field ui-col-6">
+                <label class="ui-label">Tipo de llamada</label>
+                <select class="ui-control" [(ngModel)]="tipoPedido">
+                  <option value="">— Seleccione —</option>
+                  @for (r of refTipoPedido; track r.Codigo) {
+                    <option [value]="r.Codigo">{{ r.Descripcion }}</option>
+                  }
+                </select>
+              </div>
+              <div class="ui-field ui-col-6">
+                <label class="ui-label">Calidad de llamada</label>
+                <select class="ui-control" [(ngModel)]="caliPedido">
+                  <option value="">— Seleccione —</option>
+                  @for (r of refCaliPedido; track r.Codigo) {
+                    <option [value]="r.Codigo">{{ r.Descripcion }}</option>
+                  }
+                </select>
+              </div>
+
+              <!-- Descripción de hechos -->
+              <div class="ui-field ui-col-12">
+                <label class="ui-label">
+                  Descripción de hechos <span class="rec-required">*</span>
+                </label>
+                <textarea class="ui-control rec-textarea"
+                          [class.rec-invalid]="!txtComentario.trim()"
+                          [class.rec-valid]="txtComentario.trim()"
+                          [(ngModel)]="txtComentario"
+                          placeholder="Describa detalladamente el incidente reportado…"></textarea>
+              </div>
+
+            </div>
+          </div>
+
+        </div><!-- /rec-col-form -->
+
+        <!-- ═══════════ COLUMNA DERECHA – Mapa + Canales ═════════════════════ -->
+        <div class="rec-col-right">
+
+          <!-- ── Buscador de dirección en mapa ──────────────────────────────── -->
+          <div class="rec-section">
+            <div class="rec-section__head">
+              <i class="fa-solid fa-map-location-dot"></i>
+              Mapa del incidente
+            </div>
+
+            <div class="rec-map-body">
+              <div class="ui-field">
+                <label class="ui-label">Buscar dirección en el mapa</label>
+                <div class="ui-input-group">
+                  <input class="ui-control" type="text"
+                         id="direccionmapa"
+                         [(ngModel)]="direccionBusqueda"
+                         (keydown.enter)="geocodificarDireccion()"
+                         placeholder="Escribe una dirección y presiona Enter…">
+                  <button class="ui-addon-btn" type="button"
+                          title="Buscar en mapa"
+                          (click)="geocodificarDireccion()">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Contenedor Leaflet -->
+              <div id="mapaDiv" class="rec-map"></div>
+
+              <!-- Coordenadas -->
+              <div class="ui-grid">
+                <div class="ui-field ui-col-6">
+                  <label class="ui-label">Latitud</label>
+                  <input class="ui-control" type="text"
+                         [(ngModel)]="latitudCaso" readonly placeholder="—">
+                </div>
+                <div class="ui-field ui-col-6">
+                  <label class="ui-label">Longitud</label>
+                  <input class="ui-control" type="text"
+                         [(ngModel)]="longitudCaso" readonly placeholder="—">
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ── Canales de atención ──────────────────────────────────────── -->
+          @if (gruposCanales.length > 0) {
+            <div class="rec-section">
+              <div class="rec-section__head">
+                <i class="fa-solid fa-tower-broadcast"></i>
+                Canales de atención — Agencias
+              </div>
+
+              <div class="rec-canales-wrap">
+                @for (grupo of gruposCanales; track grupo.fuerza) {
+                  <div class="rec-canal-grupo">
+                    <div class="rec-canal-grupo__head">
+                      <span class="rec-canal-grupo__nombre">{{ grupo.fuerza }}</span>
+                      <span class="rec-canal-grupo__badge">{{ grupo.canales.length }}</span>
+                    </div>
+                    <div class="rec-canal-grid">
+                      @for (c of grupo.canales; track c.Codigo) {
+                        <button type="button"
+                                class="rec-canal-card"
+                                [class.rec-canal-card--sel]="c.seleccionado"
+                                (click)="toggleCanal(c)">
+                          {{ c.Descripcion }}
+                        </button>
+                      }
+                    </div>
+                  </div>
+                }
+              </div>
+            </div>
+          }
+
+          <!-- ── Prioridad e Importancia ─────────────────────────────────── -->
+          <div class="rec-section">
+            <div class="rec-section__head">
+              <i class="fa-solid fa-gauge-high"></i>
+              Prioridad e Importancia
+            </div>
+
+            <div class="rec-prio-row">
+              <div class="rec-prio-group">
+                <span class="rec-prio-label">Prioridad</span>
+                <div class="rec-prio-opts">
+                  <label class="rec-radio-pill rec-radio-pill--rutina"
+                         [class.active]="prioridad === '03'">
+                    <input type="radio" name="prioridad" value="03" [(ngModel)]="prioridad">
+                    Rutina
+                  </label>
+                  <label class="rec-radio-pill rec-radio-pill--inmd"
+                         [class.active]="prioridad === '02'">
+                    <input type="radio" name="prioridad" value="02" [(ngModel)]="prioridad">
+                    Inmd.
+                  </label>
+                  <label class="rec-radio-pill rec-radio-pill--flash"
+                         [class.active]="prioridad === '01'">
+                    <input type="radio" name="prioridad" value="01" [(ngModel)]="prioridad">
+                    Flash
+                  </label>
+                </div>
+              </div>
+
+              <div class="rec-prio-group">
+                <span class="rec-prio-label">Importancia</span>
+                <div class="rec-prio-opts">
+                  <label class="rec-radio-pill rec-radio-pill--imp"
+                         [class.active]="importancia === '01'">
+                    <input type="radio" name="importancia" value="01" [(ngModel)]="importancia">
+                    1
+                  </label>
+                  <label class="rec-radio-pill rec-radio-pill--imp"
+                         [class.active]="importancia === '02'">
+                    <input type="radio" name="importancia" value="02" [(ngModel)]="importancia">
+                    2
+                  </label>
+                  <label class="rec-radio-pill rec-radio-pill--imp"
+                         [class.active]="importancia === '03'">
+                    <input type="radio" name="importancia" value="03" [(ngModel)]="importancia">
+                    3
+                  </label>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ── Botón Validar y Enviar ──────────────────────────────────── -->
+          <div class="rec-section rec-section--send">
+            <button type="button"
+                    class="ui-btn primary lg rec-send-btn"
+                    (click)="validarYGuardar()"
+                    [disabled]="saving">
+              @if (!saving) {
+                <i class="fa-solid fa-paper-plane"></i>
+                Validar y Enviar
+              } @else {
+                <i class="fa-solid fa-spinner fa-spin"></i>
+                Enviando…
+              }
+            </button>
+            <button type="button"
+                    class="ui-btn ghost sm"
+                    (click)="limpiarFormulario()"
+                    [disabled]="saving"
+                    title="Limpiar formulario">
+              <i class="fa-solid fa-eraser"></i>
+              Limpiar
+            </button>
+          </div>
+
+        </div><!-- /rec-col-right -->
+
+      </div><!-- /rec-layout -->
+
+    </div><!-- /ui-panel__body -->
+    }
+
+  </div><!-- /ui-panel -->
+
+</section>
+
+
+<!-- ══════════════════════════════════════════════════════════════════
+     MODAL: Asociar Llamada
+     ══════════════════════════════════════════════════════════════════ -->
+@if (showModalAsociar) {
+  <div class="ui-modal" (click)="cerrarModalAsociar()">
+    <div class="ui-modal__dialog rec-modal-xl" (click)="$event.stopPropagation()">
+
+      <div class="ui-modal__head">
+        <div class="ui-modal__title">
+          <i class="fa-solid fa-link"></i>
+          Asociar llamada existente
+        </div>
+        <button class="ui-icon-btn" type="button"
+                title="Cerrar" (click)="cerrarModalAsociar()">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <div class="ui-modal__body">
+        @if (llamadasParaAsociar.length === 0) {
+          <div class="rec-empty-state">
+            <i class="fa-solid fa-inbox"></i>
+            <p>No hay llamadas disponibles para asociar en la ventana de 200 minutos.</p>
+          </div>
+        } @else {
+          <div class="ui-table-wrap">
+            <table class="ui-table">
+              <thead>
+                <tr>
+                  <th>Acción</th>
+                  <th>ID Llamada</th>
+                  <th>Hora</th>
+                  <th>Teléfono</th>
+                  <th>Calidad</th>
+                  <th>Ciudad</th>
+                  <th>Llamante</th>
+                  <th>Dirección</th>
+                  <th>Código</th>
+                  <th>Estado</th>
+                  <th>Sitio</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (ll of llamadasParaAsociar; track ll.NUME_LLAMADA) {
+                  <tr>
+                    <td>
+                      <button class="ui-btn sm secondary"
+                              type="button"
+                              (click)="seleccionarAsociada(ll)">
+                        <i class="fa-solid fa-check"></i>
+                        Seleccionar
+                      </button>
+                    </td>
+                    <td><strong>{{ ll.NUME_LLAMADA }}</strong></td>
+                    <td>{{ ll.HORA_CASO }}</td>
+                    <td>{{ ll.NUME_TELEFONO }}</td>
+                    <td>{{ ll.CALI_PEDIDO }}</td>
+                    <td>{{ ll.CIUDAD }}</td>
+                    <td>{{ ll.NOMB_LLAMANTE }}</td>
+                    <td>{{ ll.DIRE_CASO }}</td>
+                    <td><strong>{{ ll.CODI_PEDIDO }}</strong></td>
+                    <td>
+                      <span class="ui-badge"
+                            [class.success]="ll.ESTADO === 'A'"
+                            [class.warning]="ll.ESTADO === 'P'"
+                            [style.background]="ll.ESTADO === 'C' ? '#fee2e2' : ''"
+                            [style.color]="ll.ESTADO === 'C' ? '#991b1b' : ''">
+                        {{ getEstadoLabel(ll.ESTADO) }}
+                      </span>
+                    </td>
+                    <td>{{ ll.SITIO_GRABA }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+      </div>
+
+      <div class="ui-modal__foot">
+        <button type="button" class="ui-btn secondary"
+                (click)="cerrarModalAsociar()">
+          <i class="fa-solid fa-xmark"></i>
+          Cerrar
+        </button>
+      </div>
+
+    </div>
+  </div>
+}
+
+} <!-- /if visible -->

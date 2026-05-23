@@ -1,0 +1,511 @@
+// ═══════════════════════════════════════════════════════════════
+//  Recepción de Llamadas – SECAD
+//  Styles complementary to the global ui-* design system.
+//  NO Bootstrap dependencies.
+// ═══════════════════════════════════════════════════════════════
+
+// ── Page wrapper ──────────────────────────────────────────────────────────────
+.recepcion-page {
+  width: 100%;
+}
+
+// ── Panel head: right-side cluster ───────────────────────────────────────────
+.rec-head-right {
+  display:     flex;
+  align-items: center;
+  gap:         8px;
+  flex-wrap:   wrap;
+}
+
+.rec-quick-btns {
+  display:     flex;
+  align-items: center;
+  gap:         6px;
+  flex-wrap:   wrap;
+}
+
+.rec-qbtn {
+  font-size:    calc(11px * var(--font-size-scale));
+  height:       30px;
+  padding:      0 10px;
+  // Override for legibility on the dark panel-head background
+  background:   rgba(255,255,255,.12) !important;
+  border-color: rgba(255,255,255,.22) !important;
+  color:        #fff !important;
+
+  span {
+    font-size:   calc(10px * var(--font-size-scale));
+    font-weight: 900;
+  }
+
+  &:hover {
+    background:   rgba(255,255,255,.22) !important;
+    border-color: rgba(255,255,255,.40) !important;
+    color:        #fff !important;
+  }
+
+  // Keep semantic accent colours via left border indicator
+  &.info    { border-left: 3px solid var(--policia-cielo) !important; }
+  &.warning { border-left: 3px solid #f59e0b !important; }
+  &.danger  { border-left: 3px solid #ef4444 !important; }
+  &.ghost   { border-left: 3px solid rgba(255,255,255,.4) !important; }
+}
+
+// ── Main 2-column layout ─────────────────────────────────────────────────────
+.rec-layout {
+  display:               grid;
+  grid-template-columns: 1fr 1fr;
+  gap:                   16px;
+  align-items:           start;
+
+  @media (max-width: 1100px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.rec-col-form,
+.rec-col-right {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+// ── Form sections ─────────────────────────────────────────────────────────────
+.rec-section {
+  background:    #fff;
+  border:        1px solid var(--ui-border, rgba(21,27,59,.14));
+  border-radius: var(--ui-radius-sm, 10px);
+  // NOTE: no overflow:hidden here — autocomplete dropdowns must escape the box
+
+  &--send {
+    display:         flex;
+    align-items:     center;
+    gap:             10px;
+    padding:         14px;
+    background:      var(--policia-gradiente-soft);
+    border-color:    transparent;
+    flex-wrap:       wrap;
+  }
+}
+
+.rec-section__head {
+  display:        flex;
+  align-items:    center;
+  gap:            8px;
+  padding:        10px 14px;
+  background:     var(--policia-gradiente-deep);
+  color:          #fff;
+  font-size:      calc(12px * var(--font-size-scale));
+  font-weight:    900;
+  letter-spacing: .25px;
+  text-transform: uppercase;
+  border-radius:  calc(var(--ui-radius-sm, 10px) - 1px)
+                  calc(var(--ui-radius-sm, 10px) - 1px)
+                  0 0;
+
+  i { color: var(--policia-acento); font-size: calc(13px * var(--font-size-scale)); }
+}
+
+// Override ui-grid gap inside a section
+.rec-section .ui-grid {
+  padding: 12px 14px;
+  gap:     10px;
+}
+
+// ── Validation colour feedback ────────────────────────────────────────────────
+.rec-invalid {
+  border-color:     #fca5a5 !important;
+  background-color: #fff5f5 !important;
+
+  &:focus {
+    border-color:  #f87171 !important;
+    box-shadow:    0 0 0 4px rgba(239,68,68,.12) !important;
+  }
+}
+
+.rec-valid {
+  border-color:     rgba(34,197,94,.45) !important;
+  background-color: #f0fdf4 !important;
+}
+
+// ── ID Llamada badge ──────────────────────────────────────────────────────────
+.rec-id-field {
+  font-weight:   900;
+  font-size:     calc(15px * var(--font-size-scale));
+  color:         var(--policia-medio);
+  text-align:    center;
+}
+
+// ── Device badge (read-only display) ─────────────────────────────────────────
+.rec-device-badge {
+  font-weight:  700;
+  color:        var(--policia-claro);
+}
+
+// ── Textarea ──────────────────────────────────────────────────────────────────
+.rec-textarea {
+  min-height:  110px;
+  max-height:  220px;
+  resize:      vertical;
+  line-height: 1.5;
+}
+
+// ── Map section body (padding wrapper) ───────────────────────────────────────
+.rec-map-body {
+  padding:        12px 14px 14px;
+  display:        flex;
+  flex-direction: column;
+  gap:            10px;
+
+  // Coordinates grid inside map body — reset the outer .rec-section .ui-grid rule
+  .ui-grid {
+    padding: 0;
+    gap:     10px;
+  }
+}
+
+// ── Leaflet map container ─────────────────────────────────────────────────────
+.rec-map {
+  width:         100%;
+  height:        300px;
+  border-radius: var(--ui-radius-sm, 10px);
+  overflow:      hidden;
+  border:        1px solid rgba(21,27,59,.14);
+  background:    #e8eff8;
+}
+
+// ── Autocomplete suggestion list ──────────────────────────────────────────────
+.rec-autocomplete {
+  position: relative;
+}
+
+.rec-suggest-list {
+  position:      absolute;
+  top:           100%;
+  left:          0;
+  right:         0;
+  z-index:       1100;
+  background:    #fff;
+  border:        1px solid rgba(21,27,59,.16);
+  border-top:    none;
+  border-radius: 0 0 var(--ui-radius-sm) var(--ui-radius-sm);
+  max-height:    200px;
+  overflow-y:    auto;
+  box-shadow:    0 10px 24px rgba(2,6,23,.14);
+}
+
+.rec-suggest-item {
+  display:     flex;
+  align-items: baseline;
+  gap:         8px;
+  padding:     8px 12px;
+  cursor:      pointer;
+  transition:  background .1s ease;
+
+  &:hover {
+    background: rgba(8,166,203,.08);
+  }
+}
+
+.rec-suggest-code {
+  font-weight:  900;
+  font-size:    calc(12px * var(--font-size-scale));
+  color:        var(--policia-medio);
+  white-space:  nowrap;
+}
+
+.rec-suggest-desc {
+  font-size:     calc(12px * var(--font-size-scale));
+  color:         rgba(21,27,59,.85);
+  overflow:      hidden;
+  text-overflow: ellipsis;
+  white-space:   nowrap;
+}
+
+// ── Canal groups ──────────────────────────────────────────────────────────────
+.rec-canales-wrap {
+  padding:        10px 14px 14px;
+  display:        flex;
+  flex-direction: column;
+  gap:            12px;
+}
+
+.rec-canal-grupo {
+  border:        1px solid rgba(21,27,59,.10);
+  border-radius: var(--ui-radius-sm, 10px);
+  overflow:      hidden;
+}
+
+.rec-canal-grupo__head {
+  display:         flex;
+  align-items:     center;
+  justify-content: space-between;
+  gap:             8px;
+  padding:         7px 12px;
+  background:      rgba(21,27,59,.04);
+  border-bottom:   1px solid rgba(21,27,59,.08);
+}
+
+.rec-canal-grupo__nombre {
+  font-weight:    900;
+  font-size:      calc(11px * var(--font-size-scale));
+  text-transform: uppercase;
+  letter-spacing: .3px;
+  color:          var(--policia-oscuro);
+}
+
+.rec-canal-grupo__badge {
+  background:    var(--policia-gradiente-soft);
+  color:         #fff;
+  font-size:     calc(10px * var(--font-size-scale));
+  font-weight:   900;
+  padding:       2px 8px;
+  border-radius: 999px;
+}
+
+.rec-canal-grid {
+  display:               grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap:                   6px;
+  padding:               10px;
+}
+
+.rec-canal-card {
+  display:         flex;
+  align-items:     center;
+  justify-content: center;
+  text-align:      center;
+  padding:         6px 8px;
+  min-height:      34px;
+  border:          1px solid rgba(21,27,59,.14);
+  border-radius:   8px;
+  background:      #fff;
+  color:           rgba(21,27,59,.88);
+  font-size:       calc(11px * var(--font-size-scale));
+  font-weight:     700;
+  line-height:     1.25;
+  cursor:          pointer;
+  user-select:     none;
+  word-break:      break-word;
+  transition:      all .12s ease;
+
+  &:hover {
+    border-color:  rgba(8,166,203,.45);
+    background:    rgba(8,166,203,.06);
+    transform:     translateY(-1px);
+    box-shadow:    0 4px 10px rgba(2,6,23,.08);
+  }
+
+  &--sel {
+    background:   var(--policia-gradiente-soft);
+    color:        #fff;
+    border-color: transparent;
+    box-shadow:   0 4px 12px rgba(0,42,102,.28);
+    transform:    translateY(-1px);
+
+    &:hover {
+      filter: brightness(1.08);
+    }
+  }
+}
+
+// ── Prioridad / Importancia ───────────────────────────────────────────────────
+.rec-prio-row {
+  display:     flex;
+  align-items: center;
+  gap:         20px;
+  padding:     12px 14px;
+  flex-wrap:   wrap;
+}
+
+.rec-prio-group {
+  display:     flex;
+  align-items: center;
+  gap:         10px;
+}
+
+.rec-prio-label {
+  font-size:   calc(12px * var(--font-size-scale));
+  font-weight: 900;
+  color:       rgba(21,27,59,.75);
+  white-space: nowrap;
+}
+
+.rec-prio-opts {
+  display: flex;
+  gap:     6px;
+}
+
+// Radio pill base
+.rec-radio-pill {
+  display:       inline-flex;
+  align-items:   center;
+  justify-content: center;
+  padding:       5px 14px;
+  border-radius: 999px;
+  font-size:     calc(12px * var(--font-size-scale));
+  font-weight:   900;
+  cursor:        pointer;
+  border:        1px solid transparent;
+  transition:    all .12s ease;
+
+  input[type="radio"] {
+    position:     absolute;
+    opacity:      0;
+    pointer-events: none;
+  }
+}
+
+// Rutina (amber)
+.rec-radio-pill--rutina {
+  background:   rgba(245,158,11,.10);
+  border-color: rgba(245,158,11,.30);
+  color:        #92400e;
+
+  &.active, &:hover {
+    background:   #f59e0b;
+    border-color: #d97706;
+    color:        #fff;
+  }
+}
+
+// Inmediata (green)
+.rec-radio-pill--inmd {
+  background:   rgba(34,197,94,.10);
+  border-color: rgba(34,197,94,.30);
+  color:        #166534;
+
+  &.active, &:hover {
+    background:   #22c55e;
+    border-color: #16a34a;
+    color:        #fff;
+  }
+}
+
+// Flash (red)
+.rec-radio-pill--flash {
+  background:   rgba(239,68,68,.10);
+  border-color: rgba(239,68,68,.30);
+  color:        #991b1b;
+
+  &.active, &:hover {
+    background:   #ef4444;
+    border-color: #dc2626;
+    color:        #fff;
+  }
+}
+
+// Importancia (blue)
+.rec-radio-pill--imp {
+  background:   rgba(8,166,203,.10);
+  border-color: rgba(8,166,203,.25);
+  color:        var(--policia-medio);
+  min-width:    36px;
+
+  &.active, &:hover {
+    background:   var(--policia-gradiente-soft);
+    border-color: transparent;
+    color:        #fff;
+  }
+}
+
+// ── Send button full-width inside its section ─────────────────────────────────
+.rec-send-btn {
+  flex:        1;
+  min-width:   160px;
+  font-size:   calc(14px * var(--font-size-scale));
+  font-weight: 900;
+  height:      44px;
+}
+
+// Ghost "Limpiar" button must be readable on the dark gradient background
+.rec-section--send .ui-btn.ghost {
+  background:   rgba(255,255,255,.14) !important;
+  border-color: rgba(255,255,255,.28) !important;
+  color:        #fff !important;
+
+  &:hover {
+    background:   rgba(255,255,255,.22) !important;
+    border-color: rgba(255,255,255,.45) !important;
+  }
+}
+
+// ── Extra grid column spans not in global styles ─────────────────────────────
+// The global ui-grid defines span 3/4/6/12; add 8 & 9 for this module.
+.ui-col-8 { grid-column: span 8; }
+.ui-col-9 { grid-column: span 9; }
+
+@media (max-width: 1024px) {
+  .ui-col-8,
+  .ui-col-9 { grid-column: span 12; }
+}
+
+// ── Required field asterisk ───────────────────────────────────────────────────
+.rec-required {
+  color:       #ef4444;
+  margin-left: 2px;
+}
+
+// ── Associate-modal XL width ──────────────────────────────────────────────────
+.rec-modal-xl {
+  width: min(1100px, 96vw) !important;
+}
+
+// ── Empty state inside modal ──────────────────────────────────────────────────
+.rec-empty-state {
+  display:         flex;
+  flex-direction:  column;
+  align-items:     center;
+  justify-content: center;
+  gap:             12px;
+  padding:         40px 20px;
+  color:           rgba(21,27,59,.5);
+
+  i    { font-size: calc(40px * var(--font-size-scale)); }
+  p    { margin: 0; font-size: calc(14px * var(--font-size-scale)); font-weight: 700; }
+}
+
+// ── Responsive: stack columns under 1100 px ───────────────────────────────────
+@media (max-width: 1100px) {
+  .rec-quick-btns {
+    display: none; // hidden on small screens; can expose via toggle if needed
+  }
+}
+
+// ── Dark-mode overrides ───────────────────────────────────────────────────────
+html.dark-mode {
+  .rec-section {
+    background:   var(--ui-surface);
+    border-color: var(--ui-border);
+  }
+
+  .rec-canal-card {
+    background:  var(--ui-surface);
+    border-color: var(--ui-border);
+    color:        var(--ui-text);
+
+    &:hover {
+      background:   rgba(8,166,203,.12);
+      border-color: rgba(8,166,203,.45);
+    }
+  }
+
+  .rec-suggest-list {
+    background:   var(--ui-surface);
+    border-color: var(--ui-border);
+  }
+
+  .rec-suggest-item:hover {
+    background: rgba(8,166,203,.12);
+  }
+
+  .rec-invalid {
+    background-color: rgba(239,68,68,.08) !important;
+    border-color:     #f87171 !important;
+  }
+
+  .rec-valid {
+    background-color: rgba(34,197,94,.08) !important;
+    border-color:     rgba(34,197,94,.45) !important;
+  }
+}

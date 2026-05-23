@@ -21,11 +21,11 @@ namespace Datos.Gestion
             await using var conn = await _masterDb.OpenConnectionAsync(ct);
             await using var cmd = conn.CreateCommand();
             cmd.CommandText = @"
-SELECT id, cod_dane, cod_unidad, nombre, departamento, municipio,
-       db_host, db_port, db_name, db_username, db_password
-FROM secad_tenants
-WHERE cod_dane = @codDane AND activo = true
-LIMIT 1";
+                                SELECT id, cod_dane, cod_unidad, nombre, departamento, municipio,
+                                       db_host, db_port, db_name, db_username, db_password
+                                FROM secad_tenants
+                                WHERE cod_dane = @codDane AND activo = true
+                                LIMIT 1";
             cmd.Parameters.AddWithValue("codDane", codDane);
 
             await using var reader = await cmd.ExecuteReaderAsync(ct);
@@ -41,11 +41,11 @@ LIMIT 1";
             await using var conn = await _masterDb.OpenConnectionAsync(ct);
             await using var cmd = conn.CreateCommand();
             cmd.CommandText = @"
-SELECT id, cod_dane, cod_unidad, nombre, departamento, municipio,
-       db_host, db_port, db_name, db_username, db_password
-FROM secad_tenants
-WHERE UPPER(cod_unidad) = UPPER(@codUnidad) AND activo = true
-LIMIT 1";
+                                SELECT id, cod_dane, cod_unidad, nombre, departamento, municipio,
+                                       db_host, db_port, db_name, db_username, db_password
+                                FROM secad_tenants
+                                WHERE UPPER(cod_unidad) = UPPER(@codUnidad) AND activo = true
+                                LIMIT 1";
             cmd.Parameters.AddWithValue("codUnidad", codUnidad);
 
             await using var reader = await cmd.ExecuteReaderAsync(ct);
@@ -61,10 +61,10 @@ LIMIT 1";
             await using var conn = await _masterDb.OpenConnectionAsync(ct);
             await using var cmd = conn.CreateCommand();
             cmd.CommandText = @"
-SELECT cod_dane, password_hash
-FROM secad_users_fallback
-WHERE UPPER(username) = UPPER(@username) AND activo = true
-LIMIT 1";
+                                SELECT cod_dane, password_hash
+                                FROM secad_users_fallback
+                                WHERE UPPER(username) = UPPER(@username) AND activo = true
+                                LIMIT 1";
             cmd.Parameters.AddWithValue("username", username);
 
             await using var reader = await cmd.ExecuteReaderAsync(ct);
@@ -85,8 +85,8 @@ LIMIT 1";
                 await using var conn = await _masterDb.OpenConnectionAsync(ct);
                 await using var cmd = conn.CreateCommand();
                 cmd.CommandText = @"
-INSERT INTO secad_audit_fallback (username, cod_dane, ip_origen, modo_fallback)
-VALUES (@username, @codDane, @ipOrigen, @modoFallback)";
+                                INSERT INTO secad_audit_fallback (username, cod_dane, ip_origen, modo_fallback)
+                                VALUES (@username, @codDane, @ipOrigen, @modoFallback)";
                 cmd.Parameters.AddWithValue("username", username);
                 cmd.Parameters.AddWithValue("codDane", codDane);
                 cmd.Parameters.AddWithValue("ipOrigen", (object?)ipOrigen ?? DBNull.Value);
