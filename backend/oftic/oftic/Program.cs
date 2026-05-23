@@ -12,6 +12,7 @@ using Npgsql;
 using Servicios.Api;
 using Servicios.ApiInterfaz;
 using System.Text;
+using System.IO;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -132,6 +133,15 @@ builder.Services.AddSwaggerGen(options =>
 var app = builder.Build();
 
 app.UseCors("DevCors");
+
+// Serve uploaded files (videos, backgrounds, etc.)
+var uploadsDir = Path.Combine(app.Environment.ContentRootPath, "uploads");
+Directory.CreateDirectory(uploadsDir);
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new PhysicalFileProvider(uploadsDir),
+    RequestPath = "/uploads"
+});
 
 if (app.Environment.IsDevelopment())
 {

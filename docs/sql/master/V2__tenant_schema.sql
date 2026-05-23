@@ -142,3 +142,18 @@ CREATE TABLE IF NOT EXISTS ctr_linea_mando (
 -- Seed: Super Admin role (id=1)
 INSERT INTO ctr_roles (descripcion, vigente) VALUES ('Administrador', 1);
 SELECT SETVAL('ctr_roles_id_rol_seq', (SELECT MAX(id_rol) FROM ctr_roles));
+
+-- Seed: Admin user (username must match OUD username or dev login; bloqueado=0 = active)
+INSERT INTO ctr_usuarios (username, identificacion, bloqueado, usuario_creacion, fecha_creacion)
+VALUES ('admin', '0000000000', 0, 1, NOW())
+ON CONFLICT (username) DO NOTHING;
+
+-- Assign Administrador role to admin user via both role tables
+INSERT INTO ctr_roles_user (id_usuario, id_rol)
+SELECT u.id_usuario, 1
+FROM ctr_usuarios u WHERE u.username = 'admin'
+ON CONFLICT (id_usuario, id_rol) DO NOTHING;
+
+INSERT INTO ctr_roles_user_admin (id_usuario, id_rol, justificacion, vigente, usuario_creacion, fecha_creacion)
+SELECT u.id_usuario, 1, 'Rol inicial de administración', 1, 1, NOW()
+FROM ctr_usuarios u WHERE u.username = 'admin';
