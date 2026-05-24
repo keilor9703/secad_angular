@@ -1,0 +1,644 @@
+// ═══════════════════════════════════════════════════════════════
+//  Módulo de Turnos – SECAD
+//  Mismo sistema de diseño que Eventos / Recepción.
+// ═══════════════════════════════════════════════════════════════
+
+// ── Tokens de color de clase de turno ─────────────────────────
+$clase1: #f59e0b;   // 1° turno — amarillo madrugada
+$clase2: #3b82f6;   // 2° turno — azul jornada
+$clase3: #8b5cf6;   // 3° turno — violeta noche
+
+// ── Host ──────────────────────────────────────────────────────
+:host { display: block; flex: 1; min-height: calc(100vh - 170px); }
+
+.tr-page {
+  display:        flex;
+  flex-direction: column;
+  flex:           1;
+}
+
+// ── Suprimir backdrop-filter que puede romper el layout ───────
+.ui-panel, .ui-panel__head { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
+
+// ══════════════════════════════════════════════════════════════
+//  CABECERA DEL PANEL
+// ══════════════════════════════════════════════════════════════
+
+.tr-head-right {
+  display:     flex;
+  align-items: center;
+  gap:         10px;
+  flex-wrap:   wrap;
+}
+
+.tr-msg-ok {
+  font-size:   calc(12px * var(--font-size-scale));
+  font-weight: 700;
+  color:       #22c55e;
+  display:     flex;
+  align-items: center;
+  gap:         5px;
+}
+
+// ══════════════════════════════════════════════════════════════
+//  BARRA DE FILTROS
+// ══════════════════════════════════════════════════════════════
+
+.tr-filter-bar {
+  display:       flex;
+  align-items:   flex-end;
+  gap:           12px;
+  padding:       10px 16px;
+  background:    rgba(21,27,59,.025);
+  border-bottom: 1px solid var(--ui-border, rgba(21,27,59,.14));
+  flex-shrink:   0;
+  flex-wrap:     wrap;
+}
+
+.tr-filter-group {
+  display:        flex;
+  flex-direction: column;
+  gap:            3px;
+}
+
+.tr-filter-label {
+  font-size:   calc(10px * var(--font-size-scale));
+  font-weight: 700;
+  color:       rgba(21,27,59,.52);
+  text-transform: uppercase;
+  letter-spacing: .2px;
+}
+
+.tr-filter-input {
+  width:      160px;
+  height:     32px;
+  padding:    0 8px !important;
+  font-size:  calc(12px * var(--font-size-scale)) !important;
+}
+
+// ── Error banner ──────────────────────────────────────────────
+.tr-error-banner {
+  padding:       8px 16px;
+  background:    #fee2e2;
+  color:         #ef4444;
+  font-size:     calc(12px * var(--font-size-scale));
+  font-weight:   700;
+  border-bottom: 1px solid #fecaca;
+  flex-shrink:   0;
+
+  i { margin-right: 6px; }
+}
+
+// ══════════════════════════════════════════════════════════════
+//  LAYOUT 3 COLUMNAS
+// ══════════════════════════════════════════════════════════════
+
+.tr-layout {
+  flex:                  1;
+  display:               grid;
+  grid-template-columns: 260px 280px 1fr;
+  overflow:              hidden;
+  min-height:            0;
+
+  @media (max-width: 1100px) { grid-template-columns: 220px 240px 1fr; }
+  @media (max-width: 860px)  { grid-template-columns: 1fr; }
+}
+
+// ── Shared column styles ──────────────────────────────────────
+
+.tr-col-turnos,
+.tr-col-unidades,
+.tr-col-medios {
+  display:        flex;
+  flex-direction: column;
+  overflow:       hidden;
+  min-height:     0;
+  border-right:   1px solid var(--ui-border, rgba(21,27,59,.14));
+
+  &:last-child { border-right: none; }
+}
+
+// ── Column header ─────────────────────────────────────────────
+.tr-col-head {
+  display:         flex;
+  align-items:     center;
+  justify-content: space-between;
+  padding:         8px 12px;
+  background:      var(--policia-gradiente-deep);
+  color:           #fff;
+  font-size:       calc(11px * var(--font-size-scale));
+  font-weight:     900;
+  letter-spacing:  .2px;
+  text-transform:  uppercase;
+  flex-shrink:     0;
+
+  span { display: flex; align-items: center; gap: 6px; }
+  i    { color: var(--policia-acento); }
+  em   { font-style: normal; font-weight: 400; }
+}
+
+.tr-col-head-actions {
+  display:     flex;
+  align-items: center;
+  gap:         5px;
+}
+
+.tr-count {
+  background:    rgba(255,255,255,.2);
+  border-radius: 999px;
+  padding:       1px 7px;
+  font-size:     calc(10px * var(--font-size-scale));
+  font-weight:   900;
+}
+
+// ── Turno info strip ─────────────────────────────────────────
+.tr-turno-info {
+  display:       flex;
+  align-items:   center;
+  gap:           6px;
+  flex-wrap:     wrap;
+  padding:       6px 10px;
+  background:    rgba(21,27,59,.03);
+  border-bottom: 1px solid var(--ui-border, rgba(21,27,59,.10));
+  flex-shrink:   0;
+  font-size:     calc(11px * var(--font-size-scale));
+
+  &__horario {
+    font-weight: 700;
+    color:       rgba(21,27,59,.80);
+  }
+}
+
+.tr-copy-btn {
+  margin-left: auto;
+  font-size:   calc(10px * var(--font-size-scale)) !important;
+  padding:     2px 8px !important;
+  background:  rgba(255,255,255,.12) !important;
+  border-color: rgba(21,27,59,.18) !important;
+}
+
+.tr-consignas {
+  padding:       5px 10px;
+  font-size:     calc(11px * var(--font-size-scale));
+  color:         rgba(21,27,59,.65);
+  background:    #fffbeb;
+  border-bottom: 1px solid #fde68a;
+  flex-shrink:   0;
+
+  i { margin-right: 5px; color: #f59e0b; }
+}
+
+// ══════════════════════════════════════════════════════════════
+//  LISTADOS SCROLLABLES
+// ══════════════════════════════════════════════════════════════
+
+.tr-list {
+  flex:       1;
+  overflow-y: auto;
+  min-height: 0;
+
+  &--units  { /* units list specific overrides if needed */ }
+  &--medios { /* medios list specific overrides if needed */ }
+}
+
+// ── Estado vacío ──────────────────────────────────────────────
+.tr-empty {
+  display:         flex;
+  flex-direction:  column;
+  align-items:     center;
+  justify-content: center;
+  gap:             8px;
+  padding:         30px 16px;
+  color:           rgba(21,27,59,.36);
+  font-size:       calc(12px * var(--font-size-scale));
+  text-align:      center;
+
+  i { font-size: calc(26px * var(--font-size-scale)); opacity: .4; }
+  p { margin: 0; }
+
+  &--full { flex: 1; height: 100%; }
+}
+
+// ══════════════════════════════════════════════════════════════
+//  ITEM DE TURNO
+// ══════════════════════════════════════════════════════════════
+
+.tr-turno-item {
+  display:       flex;
+  align-items:   center;
+  gap:           8px;
+  padding:       9px 10px;
+  cursor:        pointer;
+  border-bottom: 1px solid rgba(21,27,59,.07);
+  transition:    background .12s;
+
+  &:hover { background: rgba(21,27,59,.03); }
+
+  &--sel {
+    background:   rgba(8,166,203,.08) !important;
+    border-left:  3px solid var(--policia-acento, #08a6cb);
+    padding-left: 7px;
+  }
+
+  &__info  { flex: 1; min-width: 0; }
+
+  &__horario {
+    font-size:   calc(12px * var(--font-size-scale));
+    font-weight: 700;
+    color:       rgba(21,27,59,.88);
+    display:     flex;
+    align-items: center;
+    gap:         4px;
+
+    i { font-size: calc(10px * var(--font-size-scale)); color: rgba(21,27,59,.45); }
+  }
+
+  &__desc {
+    font-size:  calc(11px * var(--font-size-scale));
+    color:      rgba(21,27,59,.58);
+    margin-top: 2px;
+    white-space: nowrap;
+    overflow:   hidden;
+    text-overflow: ellipsis;
+  }
+
+  &__meta {
+    display:    flex;
+    gap:        8px;
+    margin-top: 4px;
+    font-size:  calc(10px * var(--font-size-scale));
+    color:      rgba(21,27,59,.45);
+    flex-wrap:  wrap;
+  }
+}
+
+// ── Badges de clase de turno ──────────────────────────────────
+.tr-clase-badge {
+  display:        inline-flex;
+  align-items:    center;
+  justify-content: center;
+  min-width:      34px;
+  height:         22px;
+  padding:        0 6px;
+  border-radius:  6px;
+  font-size:      calc(10px * var(--font-size-scale));
+  font-weight:    900;
+  letter-spacing: .03em;
+  flex-shrink:    0;
+  color:          #fff;
+
+  &.tr-clase-1 { background: $clase1; }
+  &.tr-clase-2 { background: $clase2; }
+  &.tr-clase-3 { background: $clase3; }
+}
+
+// ── Badges de estado del turno ────────────────────────────────
+.tr-estado-badge {
+  font-size:     calc(10px * var(--font-size-scale));
+  font-weight:   700;
+  padding:       2px 6px;
+  border-radius: 4px;
+  flex-shrink:   0;
+
+  &.tr-estado-a { background: #dcfce7; color: #15803d; }
+  &.tr-estado-c { background: rgba(21,27,59,.08); color: rgba(21,27,59,.52); }
+  &.tr-estado-v { background: #fee2e2; color: #ef4444; }
+}
+
+// ── SIVICC pill ───────────────────────────────────────────────
+.tr-sivicc-pill {
+  display:       inline-flex;
+  align-items:   center;
+  gap:           3px;
+  font-size:     calc(9px * var(--font-size-scale));
+  font-weight:   900;
+  padding:       1px 6px;
+  border-radius: 999px;
+  background:    #dbeafe;
+  color:         #1d4ed8;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+
+  &--sm { font-size: calc(8px * var(--font-size-scale)); padding: 1px 4px; }
+}
+
+// ══════════════════════════════════════════════════════════════
+//  ITEM DE UNIDAD
+// ══════════════════════════════════════════════════════════════
+
+.tr-unidad-item {
+  display:       flex;
+  align-items:   center;
+  gap:           8px;
+  padding:       8px 10px;
+  cursor:        pointer;
+  border-bottom: 1px solid rgba(21,27,59,.07);
+  transition:    background .12s;
+
+  &:hover { background: rgba(21,27,59,.03); }
+
+  &--sel {
+    background:   rgba(8,166,203,.08) !important;
+    border-left:  3px solid var(--policia-acento, #08a6cb);
+    padding-left: 7px;
+  }
+
+  &__icon {
+    width:        32px;
+    height:       32px;
+    border-radius: 50%;
+    background:   rgba(21,27,59,.07);
+    display:      flex;
+    align-items:  center;
+    justify-content: center;
+    flex-shrink:  0;
+
+    i { font-size: calc(14px * var(--font-size-scale)); color: rgba(21,27,59,.55); }
+  }
+
+  &__info  { flex: 1; min-width: 0; }
+
+  &__codigo {
+    display:   block;
+    font-size: calc(12px * var(--font-size-scale));
+    font-weight: 900;
+    color:     rgba(21,27,59,.88);
+  }
+
+  &__desc {
+    font-size:     calc(11px * var(--font-size-scale));
+    color:         rgba(21,27,59,.55);
+    white-space:   nowrap;
+    overflow:      hidden;
+    text-overflow: ellipsis;
+  }
+
+  &__meta {
+    display:    flex;
+    gap:        6px;
+    margin-top: 3px;
+    font-size:  calc(10px * var(--font-size-scale));
+    color:      rgba(21,27,59,.45);
+    align-items: center;
+  }
+
+  &__chevron {
+    font-size:   .8rem;
+    color:       rgba(21,27,59,.22);
+    flex-shrink: 0;
+  }
+}
+
+// ══════════════════════════════════════════════════════════════
+//  MAPA DE MEDIOS
+// ══════════════════════════════════════════════════════════════
+
+.tr-map-container {
+  padding:     8px 10px;
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--ui-border, rgba(21,27,59,.12));
+}
+
+.tr-map {
+  width:         100%;
+  height:        200px;
+  border-radius: 8px;
+  overflow:      hidden;
+  border:        1px solid rgba(21,27,59,.12);
+  background:    #e8eff8;
+}
+
+// ── Toggle map button "on" state ──────────────────────────────
+.tr-map-btn--on {
+  background:   rgba(8,166,203,.12) !important;
+  border-color: rgba(8,166,203,.40) !important;
+  color:        var(--policia-acento, #08a6cb) !important;
+}
+
+// ══════════════════════════════════════════════════════════════
+//  ITEM DE MEDIO
+// ══════════════════════════════════════════════════════════════
+
+.tr-medio-item {
+  display:       flex;
+  align-items:   flex-start;
+  gap:           10px;
+  padding:       9px 10px;
+  border-bottom: 1px solid rgba(21,27,59,.07);
+
+  &__tipo {
+    width:        36px;
+    height:       36px;
+    border-radius: 8px;
+    background:   rgba(21,27,59,.06);
+    display:      flex;
+    align-items:  center;
+    justify-content: center;
+    flex-shrink:  0;
+    margin-top:   2px;
+  }
+
+  &__info { flex: 1; min-width: 0; }
+
+  &__row1 {
+    display:     flex;
+    align-items: center;
+    gap:         6px;
+    margin-bottom: 2px;
+  }
+
+  &__codigo {
+    font-size:   calc(12px * var(--font-size-scale));
+    font-weight: 900;
+    color:       rgba(21,27,59,.88);
+  }
+
+  &__desc {
+    font-size:  calc(11px * var(--font-size-scale));
+    color:      rgba(21,27,59,.52);
+    margin-top: 1px;
+  }
+
+  &__canal {
+    font-size:  calc(10px * var(--font-size-scale));
+    color:      rgba(21,27,59,.50);
+    margin-top: 3px;
+    display:    flex;
+    align-items: center;
+    gap:        4px;
+
+    i { color: #8b5cf6; }
+  }
+
+  &__personal {
+    font-size:  calc(10px * var(--font-size-scale));
+    color:      rgba(21,27,59,.55);
+    margin-top: 3px;
+    display:    flex;
+    align-items: center;
+    gap:        4px;
+
+    i { color: #3b82f6; }
+  }
+
+  &__gps {
+    display:     flex;
+    align-items: center;
+    gap:         5px;
+    margin-top:  4px;
+  }
+}
+
+.tr-medio-icono {
+  font-size:   18px !important;
+  color:       rgba(21,27,59,.55);
+  line-height: 1;
+}
+
+// ── Estado badge de medio ────────────────────────────────────
+.tr-estado-medio-badge {
+  font-size:     calc(10px * var(--font-size-scale));
+  font-weight:   700;
+  padding:       2px 7px;
+  border-radius: 999px;
+  flex-shrink:   0;
+
+  &.badge-success   { background: #dcfce7; color: #15803d; }
+  &.badge-danger    { background: #fee2e2; color: #ef4444; }
+  &.badge-warning   { background: #fef9c3; color: #d97706; }
+  &.badge-dark      { background: rgba(21,27,59,.10); color: rgba(21,27,59,.60); }
+  &.badge-secondary { background: #f1f5f9; color: #64748b; }
+}
+
+// ── GPS dot indicator ─────────────────────────────────────────
+.tr-gps-dot {
+  width:        8px;
+  height:       8px;
+  border-radius: 50%;
+  background:   rgba(21,27,59,.22);
+  flex-shrink:  0;
+
+  &--on {
+    background: #22c55e;
+    box-shadow: 0 0 0 2px rgba(34,197,94,.3);
+    animation:  tr-gps-pulse 2s ease-in-out infinite;
+  }
+}
+
+@keyframes tr-gps-pulse {
+  0%, 100% { transform: scale(1);   }
+  50%      { transform: scale(1.3); }
+}
+
+.tr-gps-label {
+  font-size:   calc(10px * var(--font-size-scale));
+  color:       rgba(21,27,59,.45);
+}
+
+.tr-gps-coords {
+  font-size:   calc(9px * var(--font-size-scale));
+  color:       rgba(21,27,59,.35);
+  font-family: monospace;
+}
+
+// ══════════════════════════════════════════════════════════════
+//  MODALES
+// ══════════════════════════════════════════════════════════════
+
+.tr-modal {
+  width:          min(560px, 95vw) !important;
+  max-height:     90vh;
+  display:        flex !important;
+  flex-direction: column;
+
+  .ui-modal__body { overflow-y: auto; flex: 1; }
+
+  &--sm { width: min(440px, 95vw) !important; }
+}
+
+.tr-modal-error {
+  margin-top:  10px;
+  padding:     8px 12px;
+  background:  #fee2e2;
+  color:       #ef4444;
+  border-radius: 6px;
+  font-size:   calc(12px * var(--font-size-scale));
+  font-weight: 700;
+
+  i { margin-right: 5px; }
+}
+
+.tr-modal-hint {
+  margin:      0 0 12px;
+  font-size:   calc(12px * var(--font-size-scale));
+  color:       rgba(21,27,59,.60);
+  line-height: 1.5;
+
+  strong { color: rgba(21,27,59,.88); }
+}
+
+.tr-req { color: #ef4444; font-size: calc(12px * var(--font-size-scale)); }
+
+// ── Personal row en modal de medio ────────────────────────────
+.tr-personal-row {
+  grid-column:   span 12;
+  display:       flex;
+  align-items:   flex-end;
+  gap:           8px;
+  padding:       8px 10px;
+  background:    rgba(21,27,59,.025);
+  border-radius: 6px;
+  border:        1px solid rgba(21,27,59,.08);
+}
+
+.tr-personal-badge {
+  width:         22px;
+  height:        22px;
+  border-radius: 50%;
+  background:    var(--policia-gradiente-soft);
+  color:         #fff;
+  font-size:     calc(11px * var(--font-size-scale));
+  font-weight:   900;
+  display:       flex;
+  align-items:   center;
+  justify-content: center;
+  flex-shrink:   0;
+  margin-bottom: 4px; // align with bottom of input
+}
+
+// ══════════════════════════════════════════════════════════════
+//  DARK MODE
+// ══════════════════════════════════════════════════════════════
+
+html.dark-mode {
+  .tr-filter-bar  { background: var(--ui-bg); border-color: var(--ui-border); }
+
+  .tr-col-turnos,
+  .tr-col-unidades,
+  .tr-col-medios  { border-color: var(--ui-border); background: var(--ui-surface); }
+
+  .tr-turno-item,
+  .tr-unidad-item,
+  .tr-medio-item  { border-bottom-color: var(--ui-border); &:hover { background: rgba(255,255,255,.02); } }
+
+  .tr-turno-item--sel,
+  .tr-unidad-item--sel { background: rgba(8,166,203,.10) !important; }
+
+  .tr-empty { color: rgba(255,255,255,.28); }
+
+  .tr-consignas { background: rgba(245,158,11,.10); border-color: rgba(245,158,11,.30); color: #fef3c7; }
+
+  .tr-turno-info { background: rgba(255,255,255,.03); border-color: var(--ui-border); color: var(--ui-text); &__horario { color: var(--ui-text); } }
+
+  .tr-gps-label  { color: var(--ui-text-muted); }
+
+  .tr-unidad-item__icon { background: rgba(255,255,255,.07); i { color: rgba(255,255,255,.45); } }
+
+  .tr-medio-item__tipo  { background: rgba(255,255,255,.06); }
+
+  .tr-personal-row { background: rgba(255,255,255,.04); border-color: var(--ui-border); }
+
+  .tr-modal-hint { color: var(--ui-text-muted); strong { color: var(--ui-text); } }
+
+  .tr-map { border-color: var(--ui-border); }
+}

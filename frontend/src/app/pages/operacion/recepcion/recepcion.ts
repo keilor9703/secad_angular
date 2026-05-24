@@ -525,14 +525,14 @@ export class RecepcionComponent implements OnInit, AfterViewInit, OnDestroy {
   private construirGruposCanales(): void {
     const mapa: Record<string, DtoCanalRecepcion[]> = {};
     for (const c of this.canales) {
-      const k = (c.Fuerza || 'SIN FUERZA').trim();
+      const k = (c.fuerza || 'SIN FUERZA').trim();
       (mapa[k] ??= []).push(c);
     }
     this.gruposCanales = Object.keys(mapa)
       .sort((a, b) => a.localeCompare(b, 'es'))
       .map(f => ({
         fuerza: f,
-        canales: mapa[f].sort((a, b) => a.Descripcion.localeCompare(b.Descripcion, 'es'))
+        canales: mapa[f].sort((a, b) => a.descripcion.localeCompare(b.descripcion, 'es'))
       }));
   }
 
@@ -541,7 +541,7 @@ export class RecepcionComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private canalesSeleccionados(): number[] {
-    return this.canales.filter(c => c.seleccionado).map(c => c.Codigo);
+    return this.canales.filter(c => c.seleccionado).map(c => c.codigo);
   }
 
   // ── References ────────────────────────────────────────────────────────────
@@ -736,6 +736,9 @@ export class RecepcionComponent implements OnInit, AfterViewInit, OnDestroy {
       OPERADOR:              this.hdnCeldaMarcacion,
       ESTADO:                estado,
       ENVIAR:                enviar,
+      // Origen: 'CTI' si la llamada vino de la centralita (txtAbonado poblado por CTI poll),
+      // 'RECEPCION' si fue digitado manualmente por el operador.
+      Origen:                Number(this.txtAbonado) > 0 ? 'CTI' : 'RECEPCION',
       CANALES_SELECCIONADOS: canalesSel,
       CANAL_FUERZA:          this.fuerzaId || null,
       CADPEDI_SITIO_GRABA:   this.txtAsociarLlamada ? this.hdnSitioGrabaAsociada : null,
@@ -768,6 +771,7 @@ export class RecepcionComponent implements OnInit, AfterViewInit, OnDestroy {
       OPERADOR:              this.hdnCeldaMarcacion,
       ESTADO:                'C',
       ENVIAR:                'N',
+      Origen:                'RECEPCION',   // cierre rápido siempre es del operador
       CANALES_SELECCIONADOS: [],
       CANAL_FUERZA:          null,
       CADPEDI_SITIO_GRABA:   null,

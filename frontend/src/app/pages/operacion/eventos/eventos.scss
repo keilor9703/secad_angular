@@ -1,0 +1,1056 @@
+@use 'sass:color';
+
+// ═══════════════════════════════════════════════════════════════
+//  Módulo de Eventos – Cola de despacho – SECAD
+//  Styles complementary to the global ui-* design system.
+//  NO Bootstrap. Same design language as Recepción.
+// ═══════════════════════════════════════════════════════════════
+
+// ── Semáforo colour tokens ─────────────────────────────────────
+$sem-verde:    #22c55e;
+$sem-amarillo: #f59e0b;
+$sem-rojo:     #ef4444;
+
+// ── Host / page shell ─────────────────────────────────────────
+:host {
+  display:   block;
+  /* Removed height: 100% and isolation: isolate to match Pedido module 
+     and prevent stacking context conflicts with layout's backdrop-filter. */
+}
+
+.ev-page {
+  display:        flex;
+  flex-direction: column;
+  /* Instead of height 100% on host, we allow natural flow or use flex: 1 */
+  flex:           1;
+  min-height:     calc(100vh - 170px);
+}
+
+/* Debug: Force disable any nested backdrop-filter that might be bleeding */
+.ui-panel, .ui-panel__head, .ev-panel-body, .ev-layout, .ev-col-list, .ev-col-detail {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+}
+
+// ══════════════════════════════════════════════════════════════
+//  PANEL HEAD EXTRAS
+// ══════════════════════════════════════════════════════════════
+
+// Canal name tag inside the panel title
+.ev-canal-tag {
+  display:        inline-block;
+  font-size:      calc(11px * var(--font-size-scale));
+  font-weight:    700;
+  background:     rgba(255,255,255,.15);
+  border:         1px solid rgba(255,255,255,.22);
+  border-radius:  999px;
+  padding:        2px 10px;
+  margin-left:    8px;
+  vertical-align: middle;
+}
+
+// Right cluster in the panel head
+.ev-head-right {
+  display:     flex;
+  align-items: center;
+  gap:         8px;
+  flex-wrap:   wrap;
+}
+
+// Live indicator pill
+.ev-live-badge {
+  display:       flex;
+  align-items:   center;
+  gap:           6px;
+  font-size:     calc(11px * var(--font-size-scale));
+  background:    rgba(255,255,255,.12);
+  border:        1px solid rgba(255,255,255,.20);
+  border-radius: 999px;
+  padding:       3px 10px;
+  color:         rgba(255,255,255,.9);
+}
+
+.ev-live-dot {
+  width:        8px;
+  height:       8px;
+  background:   $sem-verde;
+  border-radius: 50%;
+  box-shadow:   0 0 0 2px rgba(34,197,94,.4);
+  animation:    ev-pulse 1.4s ease-in-out infinite;
+  flex-shrink:  0;
+}
+
+@keyframes ev-pulse {
+  0%, 100% { transform: scale(1);   opacity: 1;  }
+  50%      { transform: scale(1.3); opacity: .7; }
+}
+
+// Buttons inside the dark panel-head – mirrors .rec-qbtn
+.ev-head-btn {
+  font-size:    calc(11px * var(--font-size-scale)) !important;
+  height:       30px;
+  padding:      0 10px !important;
+  background:   rgba(255,255,255,.12) !important;
+  border-color: rgba(255,255,255,.22) !important;
+  color:        #fff !important;
+
+  &:hover {
+    background:   rgba(255,255,255,.22) !important;
+    border-color: rgba(255,255,255,.40) !important;
+    color:        #fff !important;
+  }
+}
+
+// ══════════════════════════════════════════════════════════════
+//  NO-CANAL WARNING BANNER (inline, non-blocking)
+// ══════════════════════════════════════════════════════════════
+
+// Shown when user has no canal configured and closed the selector modal.
+// Lives INSIDE the panel body — does NOT cover header or sidebar.
+.ev-no-canal-banner {
+  display:       flex;
+  align-items:   center;
+  gap:           12px;
+  padding:       10px 16px;
+  background:    #fffbeb;
+  border-bottom: 2px solid $sem-amarillo;
+  flex-shrink:   0;
+  flex-wrap:     wrap;
+
+  i    { color: $sem-amarillo; font-size: calc(14px * var(--font-size-scale)); }
+  span { flex: 1; font-size: calc(12px * var(--font-size-scale)); font-weight: 700; color: #92400e; }
+}
+
+html.dark-mode .ev-no-canal-banner {
+  background:   rgba(245,158,11,.12);
+  border-color: $sem-amarillo;
+
+  span { color: #fef3c7; }
+}
+
+// ══════════════════════════════════════════════════════════════
+//  TWO-COLUMN LAYOUT
+// ══════════════════════════════════════════════════════════════
+
+// Modifier on ui-panel__body — remove padding, allow full-height grid
+.ev-panel-body {
+  overflow:       hidden !important;
+  min-height:     0;
+  display:        flex !important;
+  flex-direction: column !important;
+  padding:        0 !important;
+}
+
+.ev-layout {
+  flex:                  1;
+  display:               grid;
+  grid-template-columns: 340px 1fr;
+  overflow:              hidden;
+  min-height:            0;
+}
+
+// ══════════════════════════════════════════════════════════════
+//  LEFT COLUMN — EVENT LIST
+// ══════════════════════════════════════════════════════════════
+
+.ev-col-list {
+  display:        flex;
+  flex-direction: column;
+  border-right:   1px solid var(--ui-border, rgba(21,27,59,.14));
+  background:     #fff;
+  overflow:       hidden;
+  min-height:     0;
+}
+
+// ── Filter bar ────────────────────────────────────────────────
+.ev-filter-bar {
+  padding:        10px 12px 8px;
+  border-bottom:  1px solid var(--ui-border, rgba(21,27,59,.14));
+  display:        flex;
+  flex-direction: column;
+  gap:            6px;
+  flex-shrink:    0;
+}
+
+.ev-search-wrap {
+  position: relative;
+}
+
+.ev-search-icon {
+  position:       absolute;
+  left:           9px;
+  top:            50%;
+  transform:      translateY(-50%);
+  color:          rgba(21,27,59,.38);
+  font-size:      calc(12px * var(--font-size-scale));
+  pointer-events: none;
+}
+
+.ev-search-input {
+  padding-left: 30px !important;
+}
+
+.ev-pills {
+  display:   flex;
+  gap:       4px;
+  flex-wrap: wrap;
+}
+
+.ev-pill {
+  font-size:     calc(10px * var(--font-size-scale));
+  padding:       3px 10px;
+  border:        1px solid var(--ui-border, rgba(21,27,59,.14));
+  border-radius: 999px;
+  background:    transparent;
+  cursor:        pointer;
+  color:         rgba(21,27,59,.60);
+  transition:    all .12s ease;
+
+  &--on {
+    background:   var(--policia-gradiente-soft);
+    border-color: transparent;
+    color:        #fff;
+  }
+
+  &:hover:not(.ev-pill--on) {
+    background:   rgba(21,27,59,.05);
+    border-color: rgba(21,27,59,.25);
+  }
+}
+
+// ── List meta info bar ────────────────────────────────────────
+.ev-list-meta {
+  padding:       6px 12px;
+  border-bottom: 1px solid rgba(21,27,59,.05);
+  font-size:     calc(11px * var(--font-size-scale));
+  color:         rgba(21,27,59,.50);
+  flex-shrink:   0;
+}
+
+.ev-err {
+  color:       $sem-rojo;
+  display:     flex;
+  align-items: center;
+  gap:         4px;
+}
+
+// ── Scrollable list area ──────────────────────────────────────
+.ev-list {
+  flex:       1;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+// ── Empty / loading state ─────────────────────────────────────
+.ev-empty-state {
+  display:         flex;
+  flex-direction:  column;
+  align-items:     center;
+  justify-content: center;
+  gap:             10px;
+  padding:         40px 20px;
+  color:           rgba(21,27,59,.38);
+  font-size:       calc(13px * var(--font-size-scale));
+  text-align:      center;
+
+  i { font-size: calc(28px * var(--font-size-scale)); opacity: .55; }
+  p { margin: 0; }
+}
+
+// ── Event list item ───────────────────────────────────────────
+.ev-item {
+  display:       flex;
+  align-items:   stretch;
+  cursor:        pointer;
+  border-bottom: 1px solid rgba(21,27,59,.07);
+  transition:    background .12s;
+
+  &:hover { background: rgba(21,27,59,.03); }
+
+  // Selected item
+  &--sel { background: rgba(8,166,203,.08) !important; }
+
+  // Left semáforo strip colour
+  &.semaforo-verde    .ev-item__strip { background: $sem-verde; }
+  &.semaforo-amarillo .ev-item__strip { background: $sem-amarillo; }
+  &.semaforo-rojo     .ev-item__strip { background: $sem-rojo; }
+
+  &__strip {
+    width:       5px;
+    flex-shrink: 0;
+  }
+
+  &__body {
+    flex:      1;
+    padding:   8px 10px;
+    min-width: 0;
+  }
+
+  &__row1 {
+    display:       flex;
+    align-items:   center;
+    gap:           6px;
+    margin-bottom: 2px;
+  }
+
+  &__codigo {
+    font-size:   calc(11px * var(--font-size-scale));
+    font-weight: 900;
+    color:       var(--policia-oscuro);
+  }
+
+  &__dir {
+    font-size:     calc(12px * var(--font-size-scale));
+    font-weight:   600;
+    color:         rgba(21,27,59,.88);
+    white-space:   nowrap;
+    overflow:      hidden;
+    text-overflow: ellipsis;
+  }
+
+  &__ciudad {
+    font-size:  calc(11px * var(--font-size-scale));
+    color:      rgba(21,27,59,.52);
+    margin-top: 2px;
+
+    i { font-size: calc(10px * var(--font-size-scale)); }
+  }
+
+  &__row3 {
+    display:         flex;
+    align-items:     center;
+    justify-content: space-between;
+    margin-top:      5px;
+    gap:             4px;
+  }
+
+  &__chevron {
+    font-size:    .85rem;
+    color:        rgba(21,27,59,.22);
+    align-self:   center;
+    flex-shrink:  0;
+    padding-right: 8px;
+  }
+}
+
+// Elapsed time indicator with semáforo tint
+.ev-elapsed {
+  display:     flex;
+  align-items: center;
+  gap:         3px;
+  font-size:   calc(10px * var(--font-size-scale));
+  font-weight: 700;
+
+  i { font-size: calc(10px * var(--font-size-scale)); }
+
+  &.semaforo-verde    { color: $sem-verde; }
+  &.semaforo-amarillo { color: color.adjust($sem-amarillo, $lightness: -5%); }
+  &.semaforo-rojo     { color: $sem-rojo; }
+}
+
+// ── Priority badges ───────────────────────────────────────────
+.ev-prio-badge {
+  font-size:      calc(10px * var(--font-size-scale));
+  font-weight:    900;
+  padding:        2px 8px;
+  border-radius:  999px;
+  letter-spacing: .03em;
+  text-transform: uppercase;
+  flex-shrink:    0;
+}
+
+.prio-flash     { background: #ef4444; color: #fff; }
+.prio-inmediata { background: #f59e0b; color: #fff; }
+.prio-rutina    { background: #22c55e; color: #fff; }
+.prio-default   { background: rgba(21,27,59,.10); color: rgba(21,27,59,.60); }
+
+// ── Estado badges ─────────────────────────────────────────────
+.ev-estado-badge {
+  font-size:     calc(10px * var(--font-size-scale));
+  font-weight:   700;
+  padding:       2px 8px;
+  border-radius: 999px;
+  border:        1px solid transparent;
+  flex-shrink:   0;
+}
+
+.estado-activo      { background: #eff6ff; color: #2563eb; border-color: #bfdbfe; }
+.estado-pendiente   { background: #fffbeb; color: #d97706; border-color: #fde68a; }
+.estado-proceso     { background: #f0fdf4; color: #15803d; border-color: #bbf7d0; }
+.estado-seguimiento { background: #ede9fe; color: #7c3aed; border-color: #ddd6fe; }
+.estado-revision    { background: #fff1f2; color: #e11d48; border-color: #fecdd3; }
+.estado-cerrado     { background: rgba(21,27,59,.05); color: rgba(21,27,59,.50); border-color: rgba(21,27,59,.12); }
+
+// ══════════════════════════════════════════════════════════════
+//  RIGHT COLUMN — EVENT DETAIL
+// ══════════════════════════════════════════════════════════════
+
+.ev-col-detail {
+  display:        flex;
+  flex-direction: column;
+  overflow:       hidden;
+  min-height:     0;
+  background:     rgba(21,27,59,.022);
+}
+
+// No-selection placeholder
+.ev-placeholder {
+  flex:            1;
+  display:         flex;
+  flex-direction:  column;
+  align-items:     center;
+  justify-content: center;
+  gap:             14px;
+  color:           rgba(21,27,59,.32);
+  padding:         40px;
+
+  i { font-size: calc(48px * var(--font-size-scale)); opacity: .35; }
+  p { margin: 0; font-size: calc(14px * var(--font-size-scale)); font-weight: 600; }
+}
+
+// ── Detail header strip ───────────────────────────────────────
+.ev-detail-head {
+  display:       flex;
+  align-items:   center;
+  gap:           14px;
+  padding:       11px 16px;
+  border-bottom: 3px solid transparent;
+  flex-shrink:   0;
+
+  &.semaforo-verde    { background: #dcfce7; border-bottom-color: $sem-verde; }
+  &.semaforo-amarillo { background: #fef9c3; border-bottom-color: $sem-amarillo; }
+  &.semaforo-rojo     { background: #fee2e2; border-bottom-color: $sem-rojo; }
+
+  &__info  { flex: 1; min-width: 0; }
+
+  &__title {
+    margin:        0;
+    font-size:     calc(14px * var(--font-size-scale));
+    font-weight:   900;
+    white-space:   nowrap;
+    overflow:      hidden;
+    text-overflow: ellipsis;
+    color:         rgba(21,27,59,.9);
+  }
+
+  &__sub {
+    display:    block;
+    font-size:  calc(11px * var(--font-size-scale));
+    color:      rgba(21,27,59,.60);
+    margin-top: 2px;
+  }
+
+  &__badges {
+    display:     flex;
+    align-items: center;
+    gap:         6px;
+    flex-shrink: 0;
+  }
+}
+
+// Icon-only back button
+.ev-back-btn {
+  background:    none;
+  border:        none;
+  cursor:        pointer;
+  color:         rgba(21,27,59,.52);
+  display:       flex;
+  align-items:   center;
+  padding:       6px;
+  border-radius: var(--ui-radius-sm, 10px);
+  transition:    background .12s;
+
+  i { font-size: calc(14px * var(--font-size-scale)); }
+
+  &:hover { background: rgba(21,27,59,.08); }
+}
+
+// ── Actions bar ───────────────────────────────────────────────
+.ev-actions-bar {
+  display:         flex;
+  align-items:     center;
+  justify-content: space-between;
+  padding:         8px 14px;
+  background:      #fff;
+  border-bottom:   1px solid var(--ui-border, rgba(21,27,59,.14));
+  flex-shrink:     0;
+  flex-wrap:       wrap;
+  gap:             8px;
+
+  &__left {
+    display:     flex;
+    align-items: center;
+    gap:         6px;
+    flex-wrap:   wrap;
+  }
+
+  &__label {
+    font-size:   calc(11px * var(--font-size-scale));
+    font-weight: 900;
+    color:       rgba(21,27,59,.52);
+    white-space: nowrap;
+  }
+}
+
+// Estado change buttons (small pill style)
+.ev-est-btn {
+  font-size:     calc(10px * var(--font-size-scale)) !important;
+  padding:       3px 10px !important;
+  border-radius: 999px !important;
+
+  &.estado-pendiente   { border-color: #fde68a !important; color: #d97706 !important; }
+  &.estado-proceso     { border-color: #bbf7d0 !important; color: #15803d !important; }
+  &.estado-seguimiento { border-color: #ddd6fe !important; color: #7c3aed !important; }
+  &.estado-revision    { border-color: #fecdd3 !important; color: #e11d48 !important; }
+}
+
+// ── Sections scroll area ──────────────────────────────────────
+.ev-sections {
+  flex:           1;
+  overflow-y:     auto;
+  padding:        14px 16px;
+  display:        flex;
+  flex-direction: column;
+  gap:            14px;
+  min-height:     0;
+}
+
+// ══════════════════════════════════════════════════════════════
+//  SECTION CARDS — mirrors .rec-section / .rec-section__head
+// ══════════════════════════════════════════════════════════════
+
+.ev-section {
+  background:    #fff;
+  border:        1px solid var(--ui-border, rgba(21,27,59,.14));
+  border-radius: var(--ui-radius-sm, 10px);
+  // No overflow:hidden — dropdowns must escape the card
+
+  &__head {
+    display:        flex;
+    align-items:    center;
+    gap:            8px;
+    padding:        10px 14px;
+    background:     var(--policia-gradiente-deep);
+    color:          #fff;
+    font-size:      calc(12px * var(--font-size-scale));
+    font-weight:    900;
+    letter-spacing: .25px;
+    text-transform: uppercase;
+    border-radius:  calc(var(--ui-radius-sm, 10px) - 1px)
+                    calc(var(--ui-radius-sm, 10px) - 1px)
+                    0 0;
+
+    i { color: var(--policia-acento); font-size: calc(13px * var(--font-size-scale)); }
+  }
+}
+
+// Override ui-grid gap inside a section — mirrors .rec-section .ui-grid
+.ev-section .ui-grid {
+  padding: 12px 14px;
+  gap:     10px;
+}
+
+// ── Leaflet map ───────────────────────────────────────────────
+.ev-map {
+  width:         100%;
+  height:        250px;
+  border-radius: var(--ui-radius-sm, 10px);
+  overflow:      hidden;
+  border:        1px solid rgba(21,27,59,.12);
+  background:    #e8eff8;
+}
+
+// ── Field modifiers ───────────────────────────────────────────
+.ev-field-highlight {
+  font-weight: 700 !important;
+  color:       var(--policia-oscuro) !important;
+}
+
+.ev-textarea-readonly {
+  resize:      none;
+  background:  rgba(21,27,59,.02) !important;
+  color:       rgba(21,27,59,.75) !important;
+  line-height: 1.5;
+}
+
+// ══════════════════════════════════════════════════════════════
+//  ANNOTATIONS
+// ══════════════════════════════════════════════════════════════
+
+.ev-anot-form {
+  background:    rgba(21,27,59,.025);
+  border:        1px solid var(--ui-border, rgba(21,27,59,.12));
+  border-radius: var(--ui-radius-sm, 10px);
+  padding:       12px;
+  margin-bottom: 14px;
+}
+
+.ev-anot-textarea {
+  resize:     vertical;
+  min-height: 70px;
+}
+
+.ev-anot-actions {
+  display:     flex;
+  align-items: center;
+  gap:         10px;
+  margin-top:  8px;
+}
+
+.ev-msg-ok {
+  font-size:   calc(12px * var(--font-size-scale));
+  font-weight: 600;
+  color:       #15803d;
+  display:     flex;
+  align-items: center;
+  gap:         4px;
+}
+
+.ev-anot-empty {
+  font-size:  calc(12px * var(--font-size-scale));
+  color:      rgba(21,27,59,.40);
+  text-align: center;
+  padding:    16px 0;
+  margin:     0;
+}
+
+.ev-anot-list {
+  display:        flex;
+  flex-direction: column;
+  gap:            8px;
+}
+
+.ev-anot-item {
+  border-left:   4px solid rgba(21,27,59,.15);
+  background:    rgba(21,27,59,.03);
+  border-radius: 0 var(--ui-radius-sm, 10px) var(--ui-radius-sm, 10px) 0;
+  padding:       9px 12px;
+
+  &[data-tipo="GENERAL"]          { border-left-color: #94a3b8; background: #f8fafc; }
+  &[data-tipo="OPERATIVA"]        { border-left-color: #3b82f6; background: #eff6ff; }
+  &[data-tipo="PREVENTIVA"]       { border-left-color: #f59e0b; background: #fffbeb; }
+  &[data-tipo="DESPACHO"]         { border-left-color: #8b5cf6; background: #f5f3ff; }
+  &[data-tipo="NOVEDAD_PERSONAL"] { border-left-color: #ec4899; background: #fdf2f8; }
+  &[data-tipo="CIERRE"]           { border-left-color: #22c55e; background: #f0fdf4; }
+
+  &__head {
+    display:       flex;
+    align-items:   baseline;
+    flex-wrap:     wrap;
+    gap:           5px;
+    margin-bottom: 5px;
+  }
+
+  &__tipo {
+    font-size:      calc(10px * var(--font-size-scale));
+    font-weight:    900;
+    text-transform: uppercase;
+    color:          rgba(21,27,59,.60);
+  }
+
+  &__titulo {
+    font-size:   calc(11px * var(--font-size-scale));
+    font-weight: 700;
+    color:       rgba(21,27,59,.85);
+  }
+
+  &__meta {
+    margin-left: auto;
+    font-size:   calc(10px * var(--font-size-scale));
+    color:       rgba(21,27,59,.42);
+  }
+
+  &__text {
+    margin:      0;
+    font-size:   calc(12px * var(--font-size-scale));
+    color:       rgba(21,27,59,.75);
+    line-height: 1.5;
+  }
+}
+
+// ══════════════════════════════════════════════════════════════
+//  CANAL SELECTOR MODAL
+// ══════════════════════════════════════════════════════════════
+
+.ev-modal-canal {
+  width:          min(520px, 95vw) !important;
+  max-height:     85vh;
+  display:        flex !important;
+  flex-direction: column;
+
+  .ui-modal__body { overflow-y: auto; }
+}
+
+.ev-canal-grid {
+  display:               grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap:                   8px;
+  padding:               4px 2px;
+}
+
+.ev-canal-card {
+  display:         flex;
+  flex-direction:  column;
+  align-items:     center;
+  justify-content: center;
+  text-align:      center;
+  gap:             4px;
+  padding:         10px 8px;
+  border:          1px solid var(--ui-border, rgba(21,27,59,.14));
+  border-radius:   var(--ui-radius-sm, 10px);
+  background:      #fff;
+  cursor:          pointer;
+  transition:      all .12s ease;
+  user-select:     none;
+  word-break:      break-word;
+
+  &:hover {
+    border-color: rgba(8,166,203,.45);
+    background:   rgba(8,166,203,.06);
+    transform:    translateY(-1px);
+    box-shadow:   0 4px 10px rgba(2,6,23,.08);
+  }
+
+  &__fuerza {
+    font-size:      calc(9px * var(--font-size-scale));
+    font-weight:    900;
+    text-transform: uppercase;
+    letter-spacing: .2px;
+    color:          #fff;
+    background:     var(--policia-gradiente-soft);
+    padding:        2px 8px;
+    border-radius:  999px;
+  }
+
+  &__nombre {
+    font-size:   calc(12px * var(--font-size-scale));
+    font-weight: 700;
+    color:       rgba(21,27,59,.88);
+  }
+
+  &__codigo {
+    font-size: calc(10px * var(--font-size-scale));
+    color:     rgba(21,27,59,.42);
+  }
+}
+
+// ── Close-event modal ─────────────────────────────────────────
+.ev-modal-cierre {
+  width: min(480px, 95vw) !important;
+}
+
+// ── Required asterisk ─────────────────────────────────────────
+.ev-req {
+  color:     #ef4444;
+  font-size: calc(12px * var(--font-size-scale));
+}
+
+// ══════════════════════════════════════════════════════════════
+//  SECCIÓN: RECURSOS EN TURNO
+// ══════════════════════════════════════════════════════════════
+
+.ev-section--recursos .ev-section__head {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+// Live badge dentro del head
+.ev-rec-live {
+  display:       flex;
+  align-items:   center;
+  gap:           5px;
+  font-size:     calc(10px * var(--font-size-scale));
+  font-weight:   700;
+  background:    rgba(255,255,255,.15);
+  border-radius: 999px;
+  padding:       1px 8px;
+  margin-left:   auto;
+}
+
+// Meta row: tiempo + count + error
+.ev-rec-meta {
+  display:     flex;
+  align-items: center;
+  gap:         12px;
+  flex-wrap:   wrap;
+  margin-bottom: 8px;
+  font-size:   calc(11px * var(--font-size-scale));
+  color:       rgba(21,27,59,.52);
+}
+
+.ev-rec-time { display: flex; align-items: center; gap: 4px; }
+.ev-rec-count {
+  font-weight:   700;
+  background:    rgba(21,27,59,.06);
+  border-radius: 999px;
+  padding:       1px 8px;
+}
+
+// ── Tabla de recursos ─────────────────────────────────────────
+.ev-rec-table-wrap {
+  overflow-x: auto;
+  border-radius: 8px;
+  border: 1px solid var(--ui-border, rgba(21,27,59,.12));
+}
+
+.ev-rec-table {
+  width:            100%;
+  border-collapse: collapse;
+  font-size:       calc(11px * var(--font-size-scale));
+
+  thead tr {
+    background:     var(--policia-gradiente-soft);
+    color:          #fff;
+    text-transform: uppercase;
+    font-size:      calc(9.5px * var(--font-size-scale));
+    letter-spacing: .3px;
+  }
+
+  th, td {
+    padding:     6px 10px;
+    text-align:  left;
+    white-space: nowrap;
+    border-bottom: 1px solid rgba(21,27,59,.07);
+    vertical-align: middle;
+  }
+
+  th { border-bottom: none; }
+
+  tbody tr {
+    transition: background .1s;
+    &:hover { background: rgba(21,27,59,.025); }
+    &:last-child td { border-bottom: none; }
+  }
+
+  // Fila para medios en ruta/ocupados
+  .ev-rec-row--ocupado { background: rgba(239,68,68,.04) !important; }
+}
+
+.ev-rec-tipo-icon {
+  font-size:    18px !important;
+  color:        rgba(21,27,59,.55);
+  display:      block;
+  line-height:  1;
+}
+
+.ev-rec-codigo {
+  display:     block;
+  font-weight: 900;
+  color:       rgba(21,27,59,.88);
+}
+
+.ev-rec-desc {
+  display:       block;
+  font-size:     calc(10px * var(--font-size-scale));
+  color:         rgba(21,27,59,.50);
+  white-space:   nowrap;
+  overflow:      hidden;
+  text-overflow: ellipsis;
+  max-width:     120px;
+}
+
+.ev-rec-canal {
+  display:     flex;
+  align-items: center;
+  gap:         3px;
+  font-size:   calc(9.5px * var(--font-size-scale));
+  color:       #7c3aed;
+  margin-top:  1px;
+}
+
+.ev-rec-personal {
+  font-size:     calc(10px * var(--font-size-scale));
+  color:         rgba(21,27,59,.60);
+  max-width:     150px;
+  white-space:   normal;
+  word-break:    break-word;
+}
+
+// ── Estado badge en tabla ─────────────────────────────────────
+.ev-rec-estado-badge {
+  display:       inline-block;
+  font-size:     calc(9.5px * var(--font-size-scale));
+  font-weight:   700;
+  padding:       2px 7px;
+  border-radius: 999px;
+
+  &.badge-success   { background: #dcfce7; color: #15803d; }
+  &.badge-danger    { background: #fee2e2; color: #ef4444; }
+  &.badge-warning   { background: #fef9c3; color: #d97706; }
+  &.badge-dark      { background: rgba(21,27,59,.09); color: rgba(21,27,59,.60); }
+  &.badge-secondary { background: #f1f5f9; color: #64748b; }
+}
+
+// ── GPS dot ───────────────────────────────────────────────────
+.ev-gps-dot {
+  display:       inline-block;
+  width:         9px;
+  height:        9px;
+  border-radius: 50%;
+  background:    rgba(21,27,59,.22);
+
+  &--on {
+    background: #22c55e;
+    box-shadow: 0 0 0 2px rgba(34,197,94,.3);
+    animation:  ev-gps-pulse 2s ease-in-out infinite;
+  }
+}
+
+@keyframes ev-gps-pulse {
+  0%, 100% { transform: scale(1);   }
+  50%      { transform: scale(1.25); }
+}
+
+// ── Distancia ─────────────────────────────────────────────────
+.ev-rec-dist {
+  font-size:   calc(11px * var(--font-size-scale));
+  font-weight: 600;
+  color:       rgba(21,27,59,.52);
+
+  &--near { color: #16a34a; font-weight: 900; }
+}
+
+// ── Botones de acción ─────────────────────────────────────────
+.ev-rec-actions {
+  display:     flex;
+  gap:         4px;
+  align-items: center;
+}
+
+.ev-rec-btn {
+  font-size: calc(10px * var(--font-size-scale)) !important;
+  padding:   2px 9px !important;
+  height:    26px !important;
+}
+
+// ── Extra grid column spans (mirrors recepcion.scss) ──────────
+.ui-col-8 { grid-column: span 8; }
+.ui-col-9 { grid-column: span 9; }
+
+@media (max-width: 1024px) {
+  .ui-col-8,
+  .ui-col-9 { grid-column: span 12; }
+}
+
+// ── Responsive: stack on narrow viewports ─────────────────────
+@media (max-width: 860px) {
+  .ev-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+// ══════════════════════════════════════════════════════════════
+//  DARK MODE  (html.dark-mode, NOT :host-context)
+// ══════════════════════════════════════════════════════════════
+
+html.dark-mode {
+  .ev-col-list {
+    background:   var(--ui-surface);
+    border-color: var(--ui-border);
+  }
+
+  .ev-col-detail {
+    background: var(--ui-bg);
+  }
+
+  .ev-filter-bar { border-color: var(--ui-border); }
+
+  .ev-list-meta {
+    color:        var(--ui-text-muted);
+    border-color: var(--ui-border);
+  }
+
+  .ev-item {
+    border-bottom-color: var(--ui-border);
+
+    &:hover { background: rgba(255,255,255,.03); }
+    &--sel  { background: rgba(8,166,203,.10) !important; }
+
+    &__dir    { color: var(--ui-text); }
+    &__ciudad { color: var(--ui-text-muted); }
+    &__codigo { color: var(--ui-text-muted); }
+  }
+
+  .ev-section {
+    background:   var(--ui-surface);
+    border-color: var(--ui-border);
+  }
+
+  .ev-detail-head {
+    &.semaforo-verde    { background: rgba(34,197,94,.12);  border-bottom-color: $sem-verde; }
+    &.semaforo-amarillo { background: rgba(245,158,11,.12); border-bottom-color: $sem-amarillo; }
+    &.semaforo-rojo     { background: rgba(239,68,68,.12);  border-bottom-color: $sem-rojo; }
+
+    &__title { color: var(--ui-text); }
+    &__sub   { color: var(--ui-text-muted); }
+  }
+
+  .ev-actions-bar {
+    background:   var(--ui-surface);
+    border-color: var(--ui-border);
+    &__label { color: var(--ui-text-muted); }
+  }
+
+  .ev-anot-form {
+    background:   var(--ui-bg);
+    border-color: var(--ui-border);
+  }
+
+  .ev-anot-item {
+    background: var(--ui-bg) !important;
+
+    &[data-tipo] { background: var(--ui-bg) !important; }
+  }
+
+  .ev-anot-empty { color: var(--ui-text-muted); }
+
+  .ev-canal-card {
+    background:   var(--ui-surface);
+    border-color: var(--ui-border);
+
+    &:hover {
+      background:   rgba(8,166,203,.10);
+      border-color: rgba(8,166,203,.45);
+    }
+
+    &__nombre { color: var(--ui-text); }
+    &__codigo { color: var(--ui-text-muted); }
+  }
+
+  .ev-placeholder { color: rgba(255,255,255,.22); }
+
+  .ev-empty-state { color: rgba(255,255,255,.28); }
+
+  // Recursos en turno
+  .ev-rec-table-wrap { border-color: var(--ui-border); }
+
+  .ev-rec-table {
+    th, td { border-color: var(--ui-border); }
+    tbody tr:hover   { background: rgba(255,255,255,.03) !important; }
+    .ev-rec-row--ocupado { background: rgba(239,68,68,.08) !important; }
+  }
+
+  .ev-rec-codigo  { color: var(--ui-text); }
+  .ev-rec-desc    { color: var(--ui-text-muted); }
+  .ev-rec-personal { color: var(--ui-text-muted); }
+  .ev-rec-dist    { color: var(--ui-text-muted); &--near { color: #4ade80; } }
+  .ev-rec-count   { background: rgba(255,255,255,.08); color: var(--ui-text-muted); }
+  .ev-rec-meta    { color: var(--ui-text-muted); }
+
+  .ev-textarea-readonly {
+    background: rgba(255,255,255,.03) !important;
+    color:      var(--ui-text-muted) !important;
+  }
+
+  .prio-default {
+    background: rgba(255,255,255,.10);
+    color:      rgba(255,255,255,.60);
+  }
+
+  .estado-cerrado {
+    background:   rgba(255,255,255,.06);
+    color:        rgba(255,255,255,.45);
+    border-color: rgba(255,255,255,.12);
+  }
+}

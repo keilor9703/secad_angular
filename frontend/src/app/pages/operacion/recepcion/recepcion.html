@@ -379,12 +379,12 @@
                       <span class="rec-canal-grupo__badge">{{ grupo.canales.length }}</span>
                     </div>
                     <div class="rec-canal-grid">
-                      @for (c of grupo.canales; track c.Codigo) {
+                      @for (c of grupo.canales; track c.codigo) {
                         <button type="button"
                                 class="rec-canal-card"
                                 [class.rec-canal-card--sel]="c.seleccionado"
                                 (click)="toggleCanal(c)">
-                          {{ c.Descripcion }}
+                          {{ c.descripcion }}
                         </button>
                       }
                     </div>

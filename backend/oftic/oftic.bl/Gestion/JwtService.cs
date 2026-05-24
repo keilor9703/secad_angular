@@ -17,7 +17,7 @@ namespace Negocio.Gestion
         }
 
         public string CreateToken(long idUsuario, string usuario, List<long> roles, string codDane, string? nombreCad,
-                                  int sitioGraba = 0, int acd = 0, int fuerzaId = 0)
+                                  int sitioGraba = 0, int acd = 0, int fuerzaId = 0, int canalId = 0)
         {
             var issuer = _cfg["Jwt:Issuer"] ?? "oftic.api";
             var audience = _cfg["Jwt:Audience"] ?? issuer;
@@ -33,7 +33,8 @@ namespace Negocio.Gestion
                 new("nombre_cad",   nombreCad ?? ""),
                 new("sitio_graba",  sitioGraba.ToString()),
                 new("acd",          acd.ToString()),
-                new("fuerza_id",    fuerzaId.ToString())
+                new("fuerza_id",    fuerzaId.ToString()),
+                new("canal_id",     canalId.ToString())
             };
 
             foreach (var r in roles)

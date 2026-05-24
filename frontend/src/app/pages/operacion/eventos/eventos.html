@@ -1,0 +1,687 @@
+<!-- ══════════════════════════════════════════════════════════════
+     Módulo de Eventos – Cola de despacho – SECAD
+     Mismo sistema de diseño que Recepción: ui-panel, ui-grid,
+     rec-section / rec-section__head, ui-btn, Font Awesome.
+     ══════════════════════════════════════════════════════════════ -->
+
+<section class="ev-page">
+
+  <!-- ════════════════════════════════════════════════════════════
+       SELECTOR DE CANAL (overlay cuando el usuario no tiene canal)
+       ════════════════════════════════════════════════════════════ -->
+  @if (mostrarSelectorCanal) {
+    <div class="ui-modal" (click)="cancelarSelector()">
+      <div class="ui-modal__dialog ev-modal-canal" (click)="$event.stopPropagation()">
+
+        <div class="ui-modal__head">
+          <div class="ui-modal__title">
+            <i class="fa-solid fa-tower-broadcast"></i>
+            Seleccione su canal de despacho
+          </div>
+          <button class="ui-icon-btn" type="button"
+                  title="Cerrar" (click)="cancelarSelector()">
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        </div>
+
+        <div class="ui-modal__body">
+          @if (canalesDisponibles.length === 0) {
+            <div class="ev-empty-state">
+              <i class="fa-solid fa-tower-broadcast"></i>
+              <p>No hay canales configurados para este sitio.</p>
+            </div>
+          } @else {
+            <div class="ev-canal-grid">
+              @for (c of canalesDisponibles; track c.codigo) {
+                <button class="ev-canal-card" (click)="seleccionarCanal(c.codigo)">
+                  <span class="ev-canal-card__fuerza">{{ c.fuerzaDesc }}</span>
+                  <span class="ev-canal-card__nombre">{{ c.descripcion }}</span>
+                  <span class="ev-canal-card__codigo">Canal {{ c.codigo }}</span>
+                </button>
+              }
+            </div>
+          }
+        </div>
+
+        <div class="ui-modal__foot">
+          <button class="ui-btn sm ghost" type="button" (click)="cancelarSelector()">
+            <i class="fa-solid fa-xmark"></i> Cerrar
+          </button>
+        </div>
+
+      </div>
+    </div>
+  }
+
+  <!-- ════════════════════════════════════════════════════════════
+       PANEL PRINCIPAL
+       ════════════════════════════════════════════════════════════ -->
+  <div class="ui-panel">
+
+    <!-- Cabecera del panel -->
+    <div class="ui-panel__head">
+      <div class="ui-panel__title">
+        <i class="fa-solid fa-tower-broadcast"></i>
+        Módulo de Eventos
+        <span class="ev-canal-tag">{{ canalNombre }}</span>
+      </div>
+
+      <div class="ev-head-right">
+        <span class="ev-live-badge">
+          <span class="ev-live-dot"></span>
+          En vivo · c/15s
+        </span>
+        <button class="ui-btn sm ghost ev-head-btn" type="button"
+                title="Cambiar canal de despacho"
+                (click)="cambiarCanal()">
+          <i class="fa-solid fa-shuffle"></i>
+          Canal
+        </button>
+        <button class="ui-btn sm ghost ev-head-btn" type="button"
+                [disabled]="cargando"
+                (click)="recargarAhora()">
+          <i class="fa-solid fa-rotate"></i>
+          {{ cargando ? 'Cargando…' : 'Recargar' }}
+        </button>
+      </div>
+    </div><!-- /ui-panel__head -->
+
+    <!-- Cuerpo del panel -->
+    <div class="ui-panel__body ev-panel-body">
+
+      <!-- Aviso inline: sin canal configurado (no bloquea la navegación) -->
+      @if (canalSeleccionado <= 0 && !mostrarSelectorCanal) {
+        <div class="ev-no-canal-banner">
+          <i class="fa-solid fa-triangle-exclamation"></i>
+          <span>No tiene un canal de despacho configurado.</span>
+          <button class="ui-btn sm primary" type="button" (click)="cambiarCanal()">
+            <i class="fa-solid fa-tower-broadcast"></i> Seleccionar canal
+          </button>
+        </div>
+      }
+
+      <div class="ev-layout">
+
+        <!-- ═════════════ COLUMNA IZQUIERDA – Lista de eventos ═════════════ -->
+        <aside class="ev-col-list">
+
+          <!-- Filtros -->
+          <div class="ev-filter-bar">
+            <div class="ev-search-wrap">
+              <i class="fa-solid fa-magnifying-glass ev-search-icon"></i>
+              <input
+                class="ui-control ev-search-input"
+                type="text"
+                placeholder="Buscar dirección, código…"
+                [(ngModel)]="filtroTexto"
+              />
+            </div>
+
+            <div class="ev-pills">
+              <button class="ev-pill" [class.ev-pill--on]="filtroEstado === ''"
+                      (click)="filtrarPorEstado('')">Todos</button>
+              <button class="ev-pill" [class.ev-pill--on]="filtroEstado === 'A'"
+                      (click)="filtrarPorEstado('A')">Activos</button>
+              <button class="ev-pill" [class.ev-pill--on]="filtroEstado === 'P'"
+                      (click)="filtrarPorEstado('P')">Pendientes</button>
+              <button class="ev-pill" [class.ev-pill--on]="filtroEstado === 'E'"
+                      (click)="filtrarPorEstado('E')">En proceso</button>
+            </div>
+          </div>
+
+          <!-- Meta info -->
+          <div class="ev-list-meta">
+            @if (errorCarga) {
+              <span class="ev-err">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+                {{ errorCarga }}
+              </span>
+            } @else {
+              <span>{{ totalMostrados }} evento(s)</span>
+            }
+          </div>
+
+          <!-- Lista scrollable -->
+          <div class="ev-list">
+
+            @if (cargando && eventos.length === 0) {
+              <div class="ev-empty-state">
+                <i class="fa-solid fa-hourglass-half fa-spin"></i>
+                <p>Cargando eventos…</p>
+              </div>
+
+            } @else if (eventosFiltrados.length === 0) {
+              <div class="ev-empty-state">
+                <i class="fa-solid fa-inbox"></i>
+                <p>No hay eventos para este canal.</p>
+              </div>
+
+            } @else {
+              @for (ev of eventosFiltrados; track trackById($index, ev)) {
+                <div
+                  class="ev-item"
+                  [ngClass]="{
+                    'semaforo-verde':    getSemaforoClass(ev) === 'semaforo-verde',
+                    'semaforo-amarillo': getSemaforoClass(ev) === 'semaforo-amarillo',
+                    'semaforo-rojo':     getSemaforoClass(ev) === 'semaforo-rojo',
+                    'ev-item--sel':      detalle?.id === ev.id
+                  }"
+                  (click)="abrirDetalle(ev)"
+                >
+                  <div class="ev-item__strip"></div>
+                  <div class="ev-item__body">
+
+                    <div class="ev-item__row1">
+                      <strong class="ev-item__codigo">
+                        {{ ev.codiPedido || ('#' + ev.id) }}
+                      </strong>
+                      <span class="ev-prio-badge" [ngClass]="getPrioridadClass(ev.prioridad)">
+                        {{ getPrioridadLabel(ev.prioridad) }}
+                      </span>
+                    </div>
+
+                    <div class="ev-item__dir">{{ ev.direCaso || 'Sin dirección' }}</div>
+
+                    @if (ev.ciudad) {
+                      <div class="ev-item__ciudad">
+                        <i class="fa-solid fa-location-dot"></i> {{ ev.ciudad }}
+                      </div>
+                    }
+
+                    <div class="ev-item__row3">
+                      <span class="ev-estado-badge" [ngClass]="getEstadoClase(ev.estado)">
+                        {{ getEstadoLabel(ev.estado) }}
+                      </span>
+                      <span class="ev-elapsed" [ngClass]="getSemaforoClass(ev)">
+                        <i class="fa-regular fa-clock"></i>
+                        {{ getElapsedLabel(ev) }}
+                      </span>
+                    </div>
+
+                  </div>
+                  <i class="fa-solid fa-chevron-right ev-item__chevron"></i>
+                </div>
+              }
+            }
+
+          </div><!-- /ev-list -->
+
+        </aside><!-- /ev-col-list -->
+
+        <!-- ═════════════ COLUMNA DERECHA – Detalle del evento ═════════════ -->
+        <main class="ev-col-detail">
+
+          @if (!detalle) {
+
+            <!-- Placeholder: sin selección -->
+            <div class="ev-placeholder">
+              <i class="fa-solid fa-tower-broadcast"></i>
+              <p>Seleccione un evento de la lista para gestionarlo.</p>
+            </div>
+
+          } @else {
+
+            <!-- ── Cabecera del detalle ─────────────────────────────────── -->
+            <div class="ev-detail-head" [ngClass]="getSemaforoClass(detalle)">
+              <button class="ui-icon-btn ev-back-btn" type="button"
+                      title="Volver a la lista"
+                      (click)="volverLista()">
+                <i class="fa-solid fa-arrow-left"></i>
+              </button>
+              <div class="ev-detail-head__info">
+                <h2 class="ev-detail-head__title">
+                  {{ detalle.codiPedido || ('Evento #' + detalle.id) }}
+                </h2>
+                <span class="ev-detail-head__sub">
+                  {{ detalle.direCaso }} &nbsp;·&nbsp;
+                  <i class="fa-regular fa-clock"></i>
+                  {{ getElapsedLabel(detalle) }} transcurridos
+                </span>
+              </div>
+              <div class="ev-detail-head__badges">
+                <span class="ev-prio-badge" [ngClass]="getPrioridadClass(detalle.prioridad)">
+                  {{ getPrioridadLabel(detalle.prioridad) }}
+                </span>
+                <span class="ev-estado-badge" [ngClass]="getEstadoClase(detalle.estado)">
+                  {{ getEstadoLabel(detalle.estado) }}
+                </span>
+              </div>
+            </div>
+
+            <!-- ── Barra de acciones ────────────────────────────────────── -->
+            <div class="ev-actions-bar">
+              <div class="ev-actions-bar__left">
+                <span class="ev-actions-bar__label">Cambiar estado:</span>
+                @for (est of ESTADOS; track est.valor) {
+                  @if (est.valor !== 'C' && est.valor !== detalle.estado) {
+                    <button class="ui-btn sm ghost ev-est-btn"
+                            [ngClass]="est.clase"
+                            type="button"
+                            [disabled]="cambiandoEstado"
+                            (click)="cambiarEstado(est.valor)">
+                      {{ est.label }}
+                    </button>
+                  }
+                }
+              </div>
+              @if (detalle.estado !== 'C') {
+                <button class="ui-btn sm danger" type="button"
+                        (click)="abrirModalCerrar()">
+                  <i class="fa-solid fa-lock"></i>
+                  Cerrar evento
+                </button>
+              }
+            </div>
+
+            <!-- Cargando detalle -->
+            @if (cargandoDetalle) {
+              <div class="ev-empty-state" style="padding:24px 0">
+                <i class="fa-solid fa-hourglass-half fa-spin"></i>
+                <p>Cargando detalle…</p>
+              </div>
+            }
+
+            <!-- ── Secciones del detalle ────────────────────────────────── -->
+            <div class="ev-sections">
+
+              <!-- DATOS DEL INCIDENTE -->
+              <div class="ev-section">
+                <div class="ev-section__head">
+                  <i class="fa-solid fa-file-shield"></i>
+                  Datos del incidente
+                </div>
+                <div class="ui-grid" style="padding:12px 14px; gap:10px;">
+
+                  <div class="ui-field ui-col-4">
+                    <label class="ui-label">N.º llamada</label>
+                    <input class="ui-control" type="text" readonly
+                           [value]="detalle.numeLlamada ?? '—'">
+                  </div>
+                  <div class="ui-field ui-col-4">
+                    <label class="ui-label">Teléfono</label>
+                    <input class="ui-control" type="text" readonly
+                           [value]="detalle.numeTelefono ?? '—'">
+                  </div>
+                  <div class="ui-field ui-col-4">
+                    <label class="ui-label">Hora del caso</label>
+                    <input class="ui-control" type="text" readonly
+                           [value]="formatHora(detalle.horaCaso)">
+                  </div>
+
+                  <div class="ui-field ui-col-6">
+                    <label class="ui-label">Llamante</label>
+                    <input class="ui-control" type="text" readonly
+                           [value]="detalle.nombLlamante || '—'">
+                  </div>
+                  <div class="ui-field ui-col-6">
+                    <label class="ui-label">Prop. teléfono</label>
+                    <input class="ui-control" type="text" readonly
+                           [value]="detalle.propTelefono || '—'">
+                  </div>
+
+                  <div class="ui-field ui-col-12">
+                    <label class="ui-label">Dirección del caso</label>
+                    <input class="ui-control ev-field-highlight" type="text" readonly
+                           [value]="detalle.direCaso || '—'">
+                  </div>
+
+                  <div class="ui-field ui-col-4">
+                    <label class="ui-label">Ciudad</label>
+                    <input class="ui-control" type="text" readonly
+                           [value]="detalle.ciudad || '—'">
+                  </div>
+                  <div class="ui-field ui-col-4">
+                    <label class="ui-label">Barrio</label>
+                    <input class="ui-control" type="text" readonly
+                           [value]="detalle.barrio || '—'">
+                  </div>
+                  <div class="ui-field ui-col-4">
+                    <label class="ui-label">Código caso</label>
+                    <input class="ui-control" type="text" readonly
+                           [value]="detalle.codiPedido || '—'">
+                  </div>
+
+                  <div class="ui-field ui-col-4">
+                    <label class="ui-label">Tipo</label>
+                    <input class="ui-control" type="text" readonly
+                           [value]="detalle.tipoPedido || '—'">
+                  </div>
+                  <div class="ui-field ui-col-4">
+                    <label class="ui-label">Calidad</label>
+                    <input class="ui-control" type="text" readonly
+                           [value]="detalle.caliPedido || '—'">
+                  </div>
+                  <div class="ui-field ui-col-4">
+                    <label class="ui-label">Importancia</label>
+                    <input class="ui-control" type="text" readonly
+                           [value]="detalle.importancia || '—'">
+                  </div>
+
+                  @if (detalle.comentario) {
+                    <div class="ui-field ui-col-12">
+                      <label class="ui-label">Descripción de hechos</label>
+                      <textarea class="ui-control ev-textarea-readonly" readonly
+                                rows="3">{{ detalle.comentario }}</textarea>
+                    </div>
+                  }
+
+                </div>
+              </div><!-- /DATOS -->
+
+              <!-- MAPA DE UBICACIÓN -->
+              @if (detalle.latitudCaso || detalle.longitudCaso) {
+                <div class="ev-section">
+                  <div class="ev-section__head">
+                    <i class="fa-solid fa-map-location-dot"></i>
+                    Ubicación del incidente
+                  </div>
+                  <div style="padding:12px 14px;">
+                    <div id="mapaEvento" class="ev-map"></div>
+                    <div class="ui-grid" style="padding:8px 0 0; gap:10px;">
+                      <div class="ui-field ui-col-6">
+                        <label class="ui-label">Latitud</label>
+                        <input class="ui-control" type="text" readonly
+                               [value]="detalle.latitudCaso || '—'">
+                      </div>
+                      <div class="ui-field ui-col-6">
+                        <label class="ui-label">Longitud</label>
+                        <input class="ui-control" type="text" readonly
+                               [value]="detalle.longitudCaso || '—'">
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              }
+
+              <!-- RECURSOS EN TURNO (panel de despacho) -->
+              @if (canalSeleccionado > 0) {
+                <div class="ev-section ev-section--recursos">
+                  <div class="ev-section__head">
+                    <i class="fa-solid fa-car-side"></i>
+                    Recursos disponibles en turno
+                    <span class="ev-rec-live">
+                      <span class="ev-live-dot"></span>
+                      c/8s
+                    </span>
+                  </div>
+
+                  <div style="padding:10px 14px">
+
+                    <!-- Cabecera y última actualización -->
+                    <div class="ev-rec-meta">
+                      @if (ultimaActRecursos) {
+                        <span class="ev-rec-time">
+                          <i class="fa-regular fa-clock"></i>
+                          Actualizado {{ ultimaActRecursos | date:'HH:mm:ss' }}
+                        </span>
+                      }
+                      <span class="ev-rec-count">{{ recursos.length }} recurso(s)</span>
+                      @if (errorRecursos) {
+                        <span class="ev-err">
+                          <i class="fa-solid fa-triangle-exclamation"></i>
+                          {{ errorRecursos }}
+                        </span>
+                      }
+                    </div>
+
+                    <!-- Estado de carga inicial -->
+                    @if (cargandoRecursos && recursos.length === 0) {
+                      <div class="ev-empty-state" style="padding:20px 0">
+                        <i class="fa-solid fa-hourglass-half fa-spin"></i>
+                        <p>Consultando recursos en turno…</p>
+                      </div>
+                    } @else if (recursos.length === 0 && !cargandoRecursos) {
+                      <div class="ev-empty-state" style="padding:16px 0">
+                        <i class="fa-solid fa-car-side"></i>
+                        <p>Sin recursos activos en turno para este canal.</p>
+                      </div>
+                    } @else {
+
+                      <!-- Tabla de recursos -->
+                      <div class="ev-rec-table-wrap">
+                        <table class="ev-rec-table">
+                          <thead>
+                            <tr>
+                              <th>Tipo</th>
+                              <th>Patrulla</th>
+                              <th>Estado</th>
+                              <th>Personal</th>
+                              <th title="GPS activo (< 10 min)">GPS</th>
+                              <th title="Distancia al incidente">Dist.</th>
+                              <th>Acciones</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            @for (r of recursos; track r.id) {
+                              <tr [class.ev-rec-row--ocupado]="r.estado === 28 || r.estado === 30">
+                                <!-- Tipo -->
+                                <td>
+                                  <span class="material-icons-outlined ev-rec-tipo-icon"
+                                        [title]="etiquetaTipoMedio(r.tipoMedio)">
+                                    {{ iconoTipo(r.tipoMedio) }}
+                                  </span>
+                                </td>
+                                <!-- Patrulla -->
+                                <td>
+                                  <strong class="ev-rec-codigo">{{ r.patrullaCodigo }}</strong>
+                                  @if (r.patrullaDesc) {
+                                    <span class="ev-rec-desc">{{ r.patrullaDesc }}</span>
+                                  }
+                                  @if (r.canalDesc) {
+                                    <span class="ev-rec-canal">
+                                      <i class="fa-solid fa-tower-broadcast"></i>
+                                      {{ r.canalDesc }}
+                                    </span>
+                                  }
+                                </td>
+                                <!-- Estado -->
+                                <td>
+                                  <span class="ev-rec-estado-badge"
+                                        [ngClass]="claseEstadoMedio(r.estado)">
+                                    {{ r.estadoDesc }}
+                                  </span>
+                                </td>
+                                <!-- Personal -->
+                                <td class="ev-rec-personal">
+                                  {{ r.personalResumen || '—' }}
+                                </td>
+                                <!-- GPS -->
+                                <td style="text-align:center">
+                                  <span class="ev-gps-dot"
+                                        [class.ev-gps-dot--on]="r.gpsActivo"
+                                        [title]="r.gpsActivo ? 'GPS activo' : 'Sin señal GPS'">
+                                  </span>
+                                </td>
+                                <!-- Distancia -->
+                                <td class="ev-rec-dist"
+                                    [class.ev-rec-dist--near]="r.distanciaKm != null && r.distanciaKm < 1">
+                                  {{ formatDistancia(r.distanciaKm) }}
+                                </td>
+                                <!-- Acciones -->
+                                <td>
+                                  <div class="ev-rec-actions">
+                                    @if (r.estado === 27) {
+                                      <!-- Libre → asignar al evento -->
+                                      <button class="ui-btn xs primary ev-rec-btn"
+                                              type="button"
+                                              [disabled]="asignandoMedioId === r.id || detalle!.estado === 'C'"
+                                              (click)="asignarMedioAlEvento(r.id)"
+                                              title="Enviar en ruta hacia el incidente">
+                                        <i class="fa-solid fa-location-arrow"></i>
+                                        {{ asignandoMedioId === r.id ? '…' : 'Asignar' }}
+                                      </button>
+                                    }
+                                    @if (r.estado === 30 || r.estado === 28) {
+                                      <!-- En ruta / Ocupado → liberar -->
+                                      <button class="ui-btn xs ghost ev-rec-btn"
+                                              type="button"
+                                              [disabled]="asignandoMedioId === r.id"
+                                              (click)="liberarMedio(r.id)"
+                                              title="Marcar como Libre">
+                                        <i class="fa-solid fa-check"></i>
+                                        {{ asignandoMedioId === r.id ? '…' : 'Liberar' }}
+                                      </button>
+                                    }
+                                  </div>
+                                </td>
+                              </tr>
+                            }
+                          </tbody>
+                        </table>
+                      </div>
+
+                    }
+                  </div>
+                </div>
+              }
+
+              <!-- ANOTACIONES -->
+              <div class="ev-section">
+                <div class="ev-section__head">
+                  <i class="fa-solid fa-notes-medical"></i>
+                  Anotaciones ({{ detalle.anotaciones.length }})
+                </div>
+                <div style="padding:12px 14px;">
+
+                  <!-- Formulario nueva anotación -->
+                  @if (detalle.estado !== 'C') {
+                    <div class="ev-anot-form">
+                      <div class="ui-grid" style="gap:10px;">
+                        <div class="ui-field ui-col-6">
+                          <label class="ui-label">Tipo</label>
+                          <select class="ui-control" [(ngModel)]="nuevaAnotacion.tipoAnotacion">
+                            <option value="GENERAL">General</option>
+                            <option value="OPERATIVA">Operativa</option>
+                            <option value="PREVENTIVA">Preventiva</option>
+                            <option value="DESPACHO">Despacho</option>
+                            <option value="NOVEDAD_PERSONAL">Novedad personal</option>
+                            <option value="CIERRE">Cierre</option>
+                          </select>
+                        </div>
+                        <div class="ui-field ui-col-6">
+                          <label class="ui-label">Título</label>
+                          <input class="ui-control" type="text"
+                                 [(ngModel)]="nuevaAnotacion.titulo"
+                                 placeholder="Título breve…">
+                        </div>
+                        <div class="ui-field ui-col-12">
+                          <label class="ui-label">
+                            Texto de la anotación <span class="ev-req">*</span>
+                          </label>
+                          <textarea class="ui-control ev-anot-textarea"
+                                    rows="3"
+                                    [(ngModel)]="nuevaAnotacion.anotacion"
+                                    placeholder="Registre la novedad o información relevante…">
+                          </textarea>
+                        </div>
+                      </div>
+                      <div class="ev-anot-actions">
+                        <button class="ui-btn sm primary" type="button"
+                                [disabled]="guardandoAnotacion || !nuevaAnotacion.anotacion.trim()"
+                                (click)="guardarAnotacion()">
+                          <i class="fa-solid fa-floppy-disk"></i>
+                          {{ guardandoAnotacion ? 'Guardando…' : 'Registrar anotación' }}
+                        </button>
+                        @if (mensajeAnotacion) {
+                          <span class="ev-msg-ok">
+                            <i class="fa-solid fa-circle-check"></i>
+                            {{ mensajeAnotacion }}
+                          </span>
+                        }
+                      </div>
+                    </div>
+                  }
+
+                  <!-- Listado de anotaciones -->
+                  @if (!detalle.anotaciones.length) {
+                    <p class="ev-anot-empty">Sin anotaciones registradas.</p>
+                  } @else {
+                    <div class="ev-anot-list">
+                      @for (anot of detalle.anotaciones; track trackByIdAnot($index, anot)) {
+                        <div class="ev-anot-item" [attr.data-tipo]="anot.tipoAnotacion">
+                          <div class="ev-anot-item__head">
+                            <span class="ev-anot-item__tipo">
+                              {{ getTipoAnotacionLabel(anot.tipoAnotacion) }}
+                            </span>
+                            @if (anot.titulo) {
+                              <span class="ev-anot-item__titulo">— {{ anot.titulo }}</span>
+                            }
+                            <span class="ev-anot-item__meta">
+                              {{ anot.usernameCreacion }} · {{ formatHora(anot.fechaCreacion) }}
+                            </span>
+                          </div>
+                          <p class="ev-anot-item__text">{{ anot.anotacion }}</p>
+                        </div>
+                      }
+                    </div>
+                  }
+
+                </div>
+              </div><!-- /ANOTACIONES -->
+
+            </div><!-- /ev-sections -->
+
+          }
+        </main><!-- /ev-col-detail -->
+
+      </div><!-- /ev-layout -->
+
+    </div><!-- /ui-panel__body -->
+  </div><!-- /ui-panel -->
+
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════
+     MODAL: Cerrar evento
+     ══════════════════════════════════════════════════════════════ -->
+@if (modalCerrarVisible) {
+  <div class="ui-modal" (click)="cancelarCierre()">
+    <div class="ui-modal__dialog ev-modal-cierre" (click)="$event.stopPropagation()">
+
+      <div class="ui-modal__head">
+        <div class="ui-modal__title">
+          <i class="fa-solid fa-lock"></i>
+          Cerrar evento
+        </div>
+        <button class="ui-icon-btn" type="button"
+                title="Cancelar" (click)="cancelarCierre()">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <div class="ui-modal__body">
+        <div class="ui-grid" style="gap:12px;">
+          <div class="ui-field ui-col-12">
+            <label class="ui-label">Código de cierre</label>
+            <input class="ui-control" type="text"
+                   [(ngModel)]="cerrarCodiPedido"
+                   placeholder="Código del pedido…">
+          </div>
+          <div class="ui-field ui-col-12">
+            <label class="ui-label">
+              Comentario de cierre <span class="ev-req">*</span>
+            </label>
+            <textarea class="ui-control ev-anot-textarea"
+                      rows="4"
+                      [(ngModel)]="cerrarComentario"
+                      placeholder="Describa el resultado del evento…">
+            </textarea>
+          </div>
+        </div>
+      </div>
+
+      <div class="ui-modal__foot">
+        <button class="ui-btn sm ghost" type="button" (click)="cancelarCierre()">
+          <i class="fa-solid fa-xmark"></i> Cancelar
+        </button>
+        <button class="ui-btn sm danger" type="button"
+                [disabled]="cerrandoEvento || !cerrarComentario.trim()"
+                (click)="confirmarCierre()">
+          <i class="fa-solid fa-lock"></i>
+          {{ cerrandoEvento ? 'Cerrando…' : 'Confirmar cierre' }}
+        </button>
+      </div>
+
+    </div>
+  </div>
+}

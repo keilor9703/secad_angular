@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace Comun.Dtos.Recepcion
 {
     // ── Incoming telephony event (from CTI interface) ───────────────────────────
@@ -16,7 +18,11 @@ namespace Comun.Dtos.Recepcion
     // ── Case code autocomplete item ─────────────────────────────────────────────
     public class DtoCasoItem
     {
-        public string CODIGO_CASO      { get; set; } = "";
+        // 2. Obliga al serializador a usar el nombre exacto
+        [JsonPropertyName("CODIGO_CASO")]
+        public string CODIGO_CASO { get; set; } = "";
+
+        [JsonPropertyName("DESCRIPCION_CASO")]
         public string DESCRIPCION_CASO { get; set; } = "";
     }
 
@@ -88,6 +94,13 @@ namespace Comun.Dtos.Recepcion
         public string OPERADOR       { get; set; } = "";
         public string ESTADO         { get; set; } = "A";
         public string ENVIAR         { get; set; } = "N";
+        /// <summary>
+        /// Origen del evento a registrar en cad_eventos.
+        /// Valores: CTI | RECEPCION | APP_MOVIL | INTEGRACION | SIEDCO | INTERNO | MANUAL.
+        /// El frontend envía "CTI" cuando la llamada llega de la centralita,
+        /// "RECEPCION" cuando el operador la digita manualmente.
+        /// </summary>
+        public string Origen         { get; set; } = "RECEPCION";
         public List<int> CANALES_SELECCIONADOS { get; set; } = new();
         public int?   CANAL_FUERZA   { get; set; }
         public string? CADPEDI_SITIO_GRABA  { get; set; }

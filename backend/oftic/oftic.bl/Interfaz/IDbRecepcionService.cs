@@ -1,3 +1,4 @@
+using Comun.Dtos.Eventos;
 using Comun.Dtos.Recepcion;
 
 namespace Negocio.Interfaz
@@ -10,8 +11,21 @@ namespace Negocio.Interfaz
         Task<DtoCasoItem?> F_GetCasoPorCodigoAsync(string codigo, CancellationToken ct);
         Task<List<DtoCanalRecepcion>> F_GetCanalesAsync(int sitioGraba, CancellationToken ct);
         Task<List<DtoReferenciaSecad>> F_GetReferenciasAsync(string nombre, CancellationToken ct);
-        Task<List<DtoLlamadaAsociar>> F_BuscarLlamadasAsociarAsync(int sitioGraba, string horaCaso, long numeLlamada, CancellationToken ct);
-        Task<DtoRecepcionResult> P_GuardarLlamadaAsync(DtoRecepcion datos, int canalFuerza, string usuario, long idEmpleado, CancellationToken ct);
-        Task<DtoRecepcionResult> P_CerrarLlamadaRapidaAsync(DtoRecepcion datos, string usuario, CancellationToken ct);
+        Task<List<DtoLlamadaAsociar>> F_BuscarLlamadasAsociarAsync(
+            int sitioGraba, string horaCaso, long numeLlamada, CancellationToken ct);
+
+        Task<DtoRecepcionResult> P_GuardarLlamadaAsync(
+            DtoRecepcion datos, int canalFuerza, string usuario, long idEmpleado, CancellationToken ct);
+        Task<DtoRecepcionResult> P_CerrarLlamadaRapidaAsync(
+            DtoRecepcion datos, string usuario, CancellationToken ct);
+
+        Task<DtoEvento?> G_GetEventoAsync(long eventoId, CancellationToken ct);
+        Task<List<DtoEventoListItem>> G_GetEventosPorPedidoAsync(long pedidoId, CancellationToken ct);
+        Task<DtoEventoResult> P_ActualizarEstadoEventoAsync(
+            long eventoId, string estado, string usuario, CancellationToken ct);
+        Task<DtoEventoResult> P_CerrarEventoAsync(
+            DtoCierreEventoRequest request, string usuario, CancellationToken ct);
+        Task<DtoEventoResult> P_CrearEventoIntegracionAsync(
+            DtoEventoIntegracionRequest request, string usuario, CancellationToken ct);
     }
 }

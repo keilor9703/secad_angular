@@ -14,6 +14,8 @@ import { DominioAdminComponent } from './pages/administracion/dominio/dominio';
 import { authGuard } from './core/auth/auth.guard';
 import { PedidoComponent } from './pages/operacion/pedido/pedido';
 import { RecepcionComponent } from './pages/operacion/recepcion/recepcion';
+import { EventosComponent } from './pages/operacion/eventos/eventos';
+import { TurnosComponent }  from './pages/operacion/turnos/turnos';
 
 export const routes: Routes = [
   { path: '', redirectTo: 'login', pathMatch: 'full' },
@@ -51,11 +53,15 @@ export const routes: Routes = [
         children: [
           { path: '', redirectTo: 'recepcion', pathMatch: 'full' },
           { path: 'recepcion', component: RecepcionComponent, canActivate: [authGuard] },
-          { path: 'pedido', component: PedidoComponent, canActivate: [authGuard] }
+          { path: 'pedido',    component: PedidoComponent,   canActivate: [authGuard] },
+          { path: 'eventos',   component: EventosComponent,  canActivate: [authGuard] },
+          { path: 'turnos',    component: TurnosComponent,   canActivate: [authGuard] }
         ]
       },
       { path: 'pedido',    redirectTo: 'operacion/pedido',    pathMatch: 'full' },
       { path: 'recepcion', redirectTo: 'operacion/recepcion', pathMatch: 'full' },
+      { path: 'eventos',   redirectTo: 'operacion/eventos',   pathMatch: 'full' },
+      { path: 'turnos',    redirectTo: 'operacion/turnos',    pathMatch: 'full' },
       // ─── Administracion shortcuts ─────────────────────────────────────────
       { path: 'formularios', redirectTo: 'administracion/formularios', pathMatch: 'full' },
       { path: 'usuarios', redirectTo: 'administracion/usuarios', pathMatch: 'full' },

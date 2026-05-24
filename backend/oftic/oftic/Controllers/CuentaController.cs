@@ -123,11 +123,11 @@ namespace Api.Controllers
                 }
 
                 // Query user and roles from tenant DB
-                var (idUsuario, roles, sitioGraba, acd, fuerzaId) = await _dbAuthRepository.GetUsuarioYRolesAsync(
+                var (idUsuario, roles, sitioGraba, acd, fuerzaId, canalCodigo) = await _dbAuthRepository.GetUsuarioYRolesAsync(
                     request.Usuario, CancellationToken.None);
 
-                _logger.LogInformation("User {Usuario} — idUsuario: {Id}, roles: {Count}, tenant: {Tenant}, sitio: {Sitio}, acd: {Acd}",
-                    request.Usuario, idUsuario, roles?.Count, codDane, sitioGraba, acd);
+                _logger.LogInformation("User {Usuario} — idUsuario: {Id}, roles: {Count}, tenant: {Tenant}, sitio: {Sitio}, acd: {Acd}, canal: {Canal}",
+                    request.Usuario, idUsuario, roles?.Count, codDane, sitioGraba, acd, canalCodigo);
 
                 if (idUsuario is null)
                 {
@@ -140,7 +140,7 @@ namespace Api.Controllers
 
                 var jwtToken = _jwtService.CreateToken(
                     idUsuario.Value, request.Usuario, roles, codDane!, nombreCad,
-                    sitioGraba, acd, fuerzaId);
+                    sitioGraba, acd, fuerzaId, canalCodigo);
 
                 return Ok(new DtoTokenResponse
                 {

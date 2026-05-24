@@ -135,4 +135,28 @@ namespace Comun.Dtos.Incidentes
         public string Estado { get; set; } = string.Empty;
         public int SitioGraba { get; set; }
     }
+
+    // ─── Eventos (dispatcher queue) DTOs ──────────────────────────────────────
+
+    /// <summary>
+    /// List item for the dispatcher's queue. Extends DtoPedidoListItem with
+    /// fields needed for semaforización without loading the full detail.
+    /// </summary>
+    public class DtoEventoListItem : DtoPedidoListItem
+    {
+        public string Prioridad  { get; set; } = string.Empty;
+        public string CaliPedido { get; set; } = string.Empty;
+        public string Ciudad     { get; set; } = string.Empty;
+    }
+
+    /// <summary>
+    /// Represents a dispatch channel available in the site.
+    /// </summary>
+    public class DtoCanalItem
+    {
+        public int    Codigo      { get; set; }
+        public int    FuerzaId    { get; set; }
+        public string Descripcion { get; set; } = string.Empty;
+        public string FuerzaDesc  { get; set; } = string.Empty;
+    }
 }

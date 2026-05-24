@@ -13,5 +13,9 @@ namespace Negocio.Interfaz
         Task<List<DtoAnotacion>> GetAnotacionesAsync(long idPedido, CancellationToken ct);
         Task<DtoPedidoResult> CreateAnotacionAsync(long idPedido, DtoAnotacionRequest request, long usuarioAuditoria, string usernameAuditoria, string maquinaAuditoria, CancellationToken ct);
         Task<List<DtoPedidoAsociar>> BuscarParaAsociarAsync(int sitioGraba, CancellationToken ct);
+
+        // ─── Eventos (dispatcher queue) ──────────────────────────────────────
+        Task<List<DtoEventoListItem>> GetEventosByCanalAsync(int canalCodigo, int fuerzaId, string? estado, CancellationToken ct);
+        Task<List<DtoCanalItem>> GetCanalesPorSitioAsync(int sitioGraba, CancellationToken ct);
     }
 }

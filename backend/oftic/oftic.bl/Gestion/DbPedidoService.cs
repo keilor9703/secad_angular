@@ -78,5 +78,17 @@ namespace Negocio.Gestion
 
         public Task<List<DtoPedidoAsociar>> BuscarParaAsociarAsync(int sitioGraba, CancellationToken ct)
             => _repository.BuscarParaAsociarAsync(sitioGraba, ct);
+
+        // ─── Eventos (dispatcher queue) ──────────────────────────────────────
+
+        public Task<List<DtoEventoListItem>> GetEventosByCanalAsync(int canalCodigo, int fuerzaId, string? estado, CancellationToken ct)
+        {
+            if (canalCodigo <= 0)
+                return Task.FromResult(new List<DtoEventoListItem>());
+            return _repository.GetEventosByCanalAsync(canalCodigo, fuerzaId, estado, ct);
+        }
+
+        public Task<List<DtoCanalItem>> GetCanalesPorSitioAsync(int sitioGraba, CancellationToken ct)
+            => _repository.GetCanalesPorSitioAsync(sitioGraba, ct);
     }
 }

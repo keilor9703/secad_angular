@@ -1,4 +1,5 @@
 using Api.Middleware;
+using Comun.Snowflake;
 using Datos.Gestion;
 using Datos.Interfaz;
 using Datos.Tenant;
@@ -11,8 +12,9 @@ using Negocio.Interfaz;
 using Npgsql;
 using Servicios.Api;
 using Servicios.ApiInterfaz;
-using System.Text;
+using Servicios.Snowflake;
 using System.IO;
+using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -76,6 +78,11 @@ builder.Services.AddSingleton(NpgsqlDataSource.Create(masterConnStr));
 builder.Services.AddSingleton<ConnectionPoolManager>();
 builder.Services.AddScoped<TenantContext>();
 
+// Snowflake ID generator — singleton: one instance per process, shared across all requests.
+// NodeId is read from appsettings.json "Snowflake:NodeId".
+// Main node = 1, Edge node = 2. Never share the same NodeId between two live nodes.
+builder.Services.AddSingleton<ISnowflakeGenerator, SnowflakeGenerator>();
+
 // HTTP clients for external APIs
 builder.Services.AddHttpClient("AuthClient");
 builder.Services.AddScoped<ITokenProvider, TokenProvider>();
@@ -104,6 +111,10 @@ builder.Services.AddScoped<IDbPedidoRepository, DbPedidoRepository>();
 builder.Services.AddScoped<IDbPedidoService, DbPedidoService>();
 builder.Services.AddScoped<IDbRecepcionRepository, DbRecepcionRepository>();
 builder.Services.AddScoped<IDbRecepcionService, DbRecepcionService>();
+builder.Services.AddScoped<IDbActuacionRepository, DbActuacionRepository>();
+builder.Services.AddScoped<IDbActuacionService, DbActuacionService>();
+builder.Services.AddScoped<IDbTurnoRepository, DbTurnoRepository>();
+builder.Services.AddScoped<IDbTurnoService, DbTurnoService>();
 
 // Business services
 builder.Services.AddScoped<IJwtService, JwtService>();

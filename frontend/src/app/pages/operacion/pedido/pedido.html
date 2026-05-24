@@ -1,399 +1,649 @@
-<section class="pedido-page" *ngIf="visible">
+<!-- ══════════════════════════════════════════════════════════════════════════
+     Gestión de Incidentes CAD – SECAD  §6.11
+     Sistema de diseño propio (ui-panel / ui-grid / ui-field / ui-btn).
+     Control flow Angular 17: @if / @for.  Sin Bootstrap.
+     ══════════════════════════════════════════════════════════════════════════ -->
+
+@if (visible) {
+
+<section class="pedido-page">
   <div class="ui-panel">
 
-    <!-- Header -->
+    <!-- ── CABECERA ──────────────────────────────────────────────────────── -->
     <div class="ui-panel__head">
       <div class="ui-panel__title">
         <i class="fa-solid fa-tower-broadcast"></i>
-        Recepcion de Casos CAD
+        Gestión de Incidentes CAD
       </div>
-      <div class="ui-panel__actions ui-window-controls">
-        <button class="ui-btn secondary" type="button" (click)="nuevoCaso()" title="Nuevo caso">
-          <i class="fa-solid fa-plus"></i> Nuevo
-        </button>
-        <button class="ui-icon-btn ui-win-btn is-min" type="button" title="Minimizar" (click)="toggleMinimize()">
-          <i class="fa-solid fa-minus"></i>
-        </button>
+
+      <div class="ped-head-right">
+        <!-- Filtros de estado (pills) -->
+        <div class="ped-filter-pills">
+          <button type="button"
+                  class="ped-pill"
+                  [class.ped-pill--active]="filtroEstado === 'A'"
+                  (click)="filtroEstado = 'A'; cargarLista()">
+            <i class="fa-solid fa-circle-dot"></i> Activos
+          </button>
+          <button type="button"
+                  class="ped-pill"
+                  [class.ped-pill--active]="filtroEstado === 'P'"
+                  (click)="filtroEstado = 'P'; cargarLista()">
+            <i class="fa-solid fa-clock"></i> Pendientes
+          </button>
+          <button type="button"
+                  class="ped-pill"
+                  [class.ped-pill--active]="filtroEstado === 'C'"
+                  (click)="filtroEstado = 'C'; cargarLista()">
+            <i class="fa-solid fa-check-circle"></i> Cerrados
+          </button>
+          <button type="button"
+                  class="ped-pill"
+                  [class.ped-pill--active]="filtroEstado === ''"
+                  (click)="filtroEstado = ''; cargarLista()">
+            <i class="fa-solid fa-list"></i> Todos
+          </button>
+        </div>
+
+        <!-- Controles de ventana -->
+        <div class="ui-window-controls" style="margin-left:10px;">
+          <button type="button" class="ui-btn secondary" (click)="nuevoCaso()" title="Nuevo incidente">
+            <i class="fa-solid fa-plus"></i> Nuevo
+          </button>
+          <button class="ui-icon-btn ui-win-btn is-min" type="button"
+                  title="Minimizar" (click)="toggleMinimize()">
+            <i class="fa-solid fa-minus"></i>
+          </button>
+          <button class="ui-icon-btn ui-win-btn is-close" type="button"
+                  title="Cerrar" (click)="closePanel()">
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        </div>
       </div>
     </div>
 
-    <div class="ui-panel__body" *ngIf="!minimized">
+    <!-- ── CUERPO ─────────────────────────────────────────────────────────── -->
+    @if (!minimized) {
+    <div class="ui-panel__body">
 
-      <!-- ─── Filters ──────────────────────────────────────────────────────── -->
-      <div class="pedido-filters">
-        <div class="filter-group">
-          <label class="ui-label">Estado</label>
-          <select class="ui-control" [(ngModel)]="filtroEstado" (change)="cargarLista()">
-            <option value="">Todos</option>
-            <option value="A">Activos</option>
-            <option value="C">Cerrados</option>
-            <option value="P">Pendientes</option>
-          </select>
-        </div>
-        <div class="filter-group">
-          <label class="ui-label">Sitio</label>
-          <input class="ui-control" type="number" [(ngModel)]="filtroSitio" placeholder="Todos" min="0">
-        </div>
-        <button class="ui-btn primary" type="button" (click)="cargarLista()">
-          <i class="fa-solid fa-magnifying-glass"></i> Buscar
-        </button>
-      </div>
+      <!-- ── LAYOUT PRINCIPAL (lista | detalle/formulario) ──────────────── -->
+      <div class="ped-layout">
 
-      <!-- ─── Main grid ────────────────────────────────────────────────────── -->
-      <div class="pedido-grid">
+        <!-- ════════════════════════════════
+             COLUMNA IZQUIERDA — LISTA
+             ════════════════════════════════ -->
+        <div class="ped-col-list">
 
-        <!-- Left: list -->
-        <article class="tab-card list-card">
-          <h3>
-            Casos
-            <span class="badge-count">{{ listaPedidos.length }}</span>
-          </h3>
-
-          <div class="list-loading" *ngIf="loading && panelMode === 'list'">Cargando...</div>
-
-          <div class="pedido-list" *ngIf="!loading || panelMode !== 'list'">
-            <div
-              class="pedido-row"
-              *ngFor="let item of listaPedidos"
-              [class.is-selected]="item.id === selectedId"
-              (click)="seleccionarCaso(item)"
-            >
-              <div class="pedido-row__header">
-                <span class="pedido-id">#{{ item.id }}</span>
-                <span class="estado-badge" [ngClass]="getEstadoClass(item.estado)">
-                  {{ getEstadoLabel(item.estado) }}
-                </span>
-              </div>
-              <div class="pedido-row__body">
-                <div class="pedido-codi">{{ item.codiPedido || '—' }}</div>
-                <div class="pedido-dir">{{ item.direCaso || 'Sin direccion' }}</div>
-                <div class="pedido-meta">
-                  <span><i class="fa-solid fa-clock"></i> {{ (item.horaCaso | date:'dd/MM HH:mm') || '—' }}</span>
-                  <span><i class="fa-solid fa-user"></i> {{ item.usernameCreacion || '—' }}</span>
-                </div>
-              </div>
-              <div class="pedido-row__actions" (click)="$event.stopPropagation()">
-                <button class="ui-btn secondary" type="button" (click)="editarCaso(item)" title="Editar">
-                  <i class="fa-solid fa-pen"></i>
-                </button>
-                <button
-                  class="ui-btn danger"
-                  type="button"
-                  *ngIf="item.estado !== 'C'"
-                  (click)="abrirCerrarModal(item.id)"
-                  title="Cierre rapido"
-                >
-                  <i class="fa-solid fa-xmark"></i>
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <div class="news-state" *ngIf="!loading && listaPedidos.length === 0">
-            No hay casos para mostrar.
-          </div>
-        </article>
-
-        <!-- Right: form or detail -->
-        <article class="tab-card form-card">
-
-          <!-- ─── Empty state ─────────────────────────────────────────────── -->
-          <div class="empty-state" *ngIf="panelMode === 'list'">
-            <i class="fa-solid fa-tower-broadcast"></i>
-            <p>Seleccione un caso para ver el detalle, o haga clic en <strong>Nuevo</strong> para registrar uno.</p>
-          </div>
-
-          <!-- ─── CREATE / EDIT form ─────────────────────────────────────── -->
-          <ng-container *ngIf="panelMode === 'form'">
-            <h3>{{ editingId ? 'Editar caso #' + editingId : 'Nuevo caso' }}</h3>
-
-            <div class="ui-grid">
-
-              <!-- Caller info -->
-              <div class="ui-field ui-col-6">
-                <label class="ui-label">Telefono</label>
-                <input class="ui-control" type="number" [(ngModel)]="form.numeTelefono" placeholder="3001234567">
-              </div>
-              <div class="ui-field ui-col-6">
-                <label class="ui-label">Propietario telefono</label>
-                <input class="ui-control" type="text" [(ngModel)]="form.propTelefono" maxlength="200">
-              </div>
-              <div class="ui-field ui-col-6">
-                <label class="ui-label">Nombre llamante</label>
-                <input class="ui-control" type="text" [(ngModel)]="form.nombLlamante" maxlength="200">
-              </div>
-              <div class="ui-field ui-col-6">
-                <label class="ui-label">Direccion llamante</label>
-                <input class="ui-control" type="text" [(ngModel)]="form.direLlamante" maxlength="300">
-              </div>
-
-              <!-- Incident location -->
-              <div class="ui-field ui-col-12">
-                <label class="ui-label">Direccion del caso *</label>
-                <input class="ui-control" type="text" [(ngModel)]="form.direCaso" maxlength="300" placeholder="Calle 1 # 2-3">
-              </div>
-              <div class="ui-field ui-col-6">
-                <label class="ui-label">Barrio</label>
-                <input class="ui-control" type="text" [(ngModel)]="form.barrio" maxlength="200">
-              </div>
-              <div class="ui-field ui-col-6">
-                <label class="ui-label">Ciudad</label>
-                <input class="ui-control" type="text" [(ngModel)]="form.ciudad" maxlength="200">
-              </div>
-              <div class="ui-field ui-col-6">
-                <label class="ui-label">Latitud</label>
-                <input class="ui-control" type="text" [(ngModel)]="form.latitudCaso" maxlength="50" placeholder="4.7110">
-              </div>
-              <div class="ui-field ui-col-6">
-                <label class="ui-label">Longitud</label>
-                <input class="ui-control" type="text" [(ngModel)]="form.longitudCaso" maxlength="50" placeholder="-74.0721">
-              </div>
-
-              <!-- Incident classification -->
-              <div class="ui-field ui-col-6">
-                <label class="ui-label">Codigo pedido *</label>
-                <input class="ui-control" type="text" [(ngModel)]="form.codiPedido" maxlength="50" placeholder="Ej: 11-A">
-              </div>
-              <div class="ui-field ui-col-6">
-                <label class="ui-label">Codigo secundario</label>
-                <input class="ui-control" type="text" [(ngModel)]="form.codiPedido2" maxlength="50">
-              </div>
-              <div class="ui-field ui-col-6">
-                <label class="ui-label">Tipo pedido</label>
-                <input class="ui-control" type="text" [(ngModel)]="form.tipoPedido" maxlength="50">
-              </div>
-              <div class="ui-field ui-col-6">
-                <label class="ui-label">Calidad pedido</label>
-                <input class="ui-control" type="text" [(ngModel)]="form.caliPedido" maxlength="50">
-              </div>
-              <div class="ui-field ui-col-4">
-                <label class="ui-label">Importancia</label>
-                <select class="ui-control" [(ngModel)]="form.importancia">
-                  <option value="">Seleccione</option>
-                  <option value="ALTA">Alta</option>
-                  <option value="MEDIA">Media</option>
-                  <option value="BAJA">Baja</option>
-                </select>
-              </div>
-              <div class="ui-field ui-col-4">
-                <label class="ui-label">Prioridad</label>
-                <select class="ui-control" [(ngModel)]="form.prioridad">
-                  <option value="">Seleccione</option>
-                  <option value="1">1 - Urgente</option>
-                  <option value="2">2 - Alta</option>
-                  <option value="3">3 - Normal</option>
-                  <option value="4">4 - Baja</option>
-                </select>
-              </div>
-              <div class="ui-field ui-col-4">
-                <label class="ui-label">Estado</label>
-                <select class="ui-control" [(ngModel)]="form.estado">
-                  <option value="A">Activo</option>
-                  <option value="P">Pendiente</option>
-                  <option value="C">Cerrado</option>
-                </select>
-              </div>
-              <div class="ui-field ui-col-6">
-                <label class="ui-label">Enviar a despacho</label>
-                <select class="ui-control" [(ngModel)]="form.enviar">
-                  <option value="N">No</option>
-                  <option value="S">Si</option>
-                </select>
-              </div>
-              <div class="ui-field ui-col-6">
-                <label class="ui-label">Sitio CAD</label>
-                <input class="ui-control" type="number" [(ngModel)]="form.sitioGraba" min="0">
-              </div>
-
-              <!-- Commentary -->
-              <div class="ui-field ui-col-12">
-                <label class="ui-label">Comentario</label>
-                <textarea class="ui-control" rows="3" [(ngModel)]="form.comentario" maxlength="2000" placeholder="Descripcion del incidente..."></textarea>
-              </div>
-            </div>
-
-            <div class="tab-actions">
-              <button class="ui-btn secondary" type="button" (click)="cancelar()">Cancelar</button>
-              <button class="ui-btn primary" type="button" (click)="guardar()" [disabled]="saving">
-                <i class="fa-solid fa-floppy-disk"></i>
-                {{ saving ? 'Guardando...' : 'Guardar' }}
+          <!-- Buscador -->
+          <div class="ped-search-bar">
+            <i class="fa-solid fa-magnifying-glass ped-search-bar__icon"></i>
+            <input class="ped-search-bar__input"
+                   type="text"
+                   [(ngModel)]="filtroTexto"
+                   placeholder="Buscar por ID, dirección, código…">
+            @if (filtroTexto) {
+              <button class="ped-search-bar__clear" type="button"
+                      (click)="filtroTexto = ''" title="Limpiar">
+                <i class="fa-solid fa-xmark"></i>
               </button>
+            }
+          </div>
+
+          <!-- Leyenda semáforo -->
+          <div class="ped-semaforo-legend">
+            <span class="ped-legend-dot ped-legend-dot--verde"></span><span>Normal</span>
+            <span class="ped-legend-dot ped-legend-dot--amarillo"></span><span>Atención</span>
+            <span class="ped-legend-dot ped-legend-dot--rojo"></span><span>Crítico</span>
+          </div>
+
+          <!-- Contador -->
+          <div class="ped-list-header">
+            <span class="ped-list-count">
+              {{ listadoFiltrado.length }} caso{{ listadoFiltrado.length !== 1 ? 's' : '' }}
+            </span>
+            <button type="button" class="ped-refresh-btn" (click)="cargarLista()" title="Actualizar lista">
+              <i class="fa-solid fa-arrows-rotate" [class.fa-spin]="loading"></i>
+            </button>
+          </div>
+
+          <!-- Lista de casos -->
+          @if (loading && listadoFiltrado.length === 0) {
+            <div class="ped-list-loading">
+              <i class="fa-solid fa-spinner fa-spin"></i> Cargando casos…
             </div>
-          </ng-container>
+          }
 
-          <!-- ─── DETAIL view ────────────────────────────────────────────── -->
-          <ng-container *ngIf="panelMode === 'detail'">
-            <div class="detail-loading" *ngIf="loading">Cargando detalle...</div>
+          @if (!loading && listadoFiltrado.length === 0) {
+            <div class="ped-empty-list">
+              <i class="fa-solid fa-inbox"></i>
+              <p>No hay casos para mostrar.</p>
+            </div>
+          }
 
-            <ng-container *ngIf="!loading && detalle">
-              <div class="detail-header">
-                <h3>Caso #{{ detalle.id }}</h3>
-                <span class="estado-badge is-large" [ngClass]="getEstadoClass(detalle.estado)">
-                  {{ getEstadoLabel(detalle.estado) }}
-                </span>
-              </div>
+          <div class="ped-list">
+            @for (item of listadoFiltrado; track item.id) {
+              <div class="ped-item"
+                   [ngClass]="getSemaforoClass(item)"
+                   [class.ped-item--sel]="item.id === selectedId"
+                   (click)="seleccionarCaso(item)">
 
-              <div class="detail-grid">
-                <div class="detail-field">
-                  <span class="detail-label">Codigo</span>
-                  <span class="detail-value">{{ detalle.codiPedido || '—' }}
-                    <ng-container *ngIf="detalle.codiPedido2"> / {{ detalle.codiPedido2 }}</ng-container>
-                  </span>
-                </div>
-                <div class="detail-field">
-                  <span class="detail-label">Hora caso</span>
-                  <span class="detail-value">{{ (detalle.horaCaso | date:'dd/MM/yyyy HH:mm:ss') || '—' }}</span>
-                </div>
-                <div class="detail-field span-2">
-                  <span class="detail-label">Direccion del caso</span>
-                  <span class="detail-value">{{ detalle.direCaso || '—' }}</span>
-                </div>
-                <div class="detail-field">
-                  <span class="detail-label">Barrio</span>
-                  <span class="detail-value">{{ detalle.barrio || '—' }}</span>
-                </div>
-                <div class="detail-field">
-                  <span class="detail-label">Ciudad</span>
-                  <span class="detail-value">{{ detalle.ciudad || '—' }}</span>
-                </div>
-                <div class="detail-field">
-                  <span class="detail-label">Telefono</span>
-                  <span class="detail-value">{{ detalle.numeTelefono || '—' }}</span>
-                </div>
-                <div class="detail-field">
-                  <span class="detail-label">Llamante</span>
-                  <span class="detail-value">{{ detalle.nombLlamante || '—' }}</span>
-                </div>
-                <div class="detail-field">
-                  <span class="detail-label">Importancia</span>
-                  <span class="detail-value">{{ detalle.importancia || '—' }}</span>
-                </div>
-                <div class="detail-field">
-                  <span class="detail-label">Prioridad</span>
-                  <span class="detail-value">{{ detalle.prioridad || '—' }}</span>
-                </div>
-                <div class="detail-field">
-                  <span class="detail-label">Coordenadas</span>
-                  <span class="detail-value">
-                    <ng-container *ngIf="detalle.latitudCaso && detalle.longitudCaso">
-                      {{ detalle.latitudCaso }}, {{ detalle.longitudCaso }}
-                    </ng-container>
-                    <ng-container *ngIf="!detalle.latitudCaso || !detalle.longitudCaso">—</ng-container>
-                  </span>
-                </div>
-                <div class="detail-field">
-                  <span class="detail-label">Enviar a despacho</span>
-                  <span class="detail-value">{{ detalle.enviar === 'S' ? 'Si' : 'No' }}</span>
-                </div>
-                <div class="detail-field span-2" *ngIf="detalle.comentario">
-                  <span class="detail-label">Comentario</span>
-                  <span class="detail-value">{{ detalle.comentario }}</span>
-                </div>
-                <div class="detail-field">
-                  <span class="detail-label">Operador</span>
-                  <span class="detail-value">{{ detalle.usernameCreacion || '—' }}</span>
-                </div>
-                <div class="detail-field">
-                  <span class="detail-label">Sitio CAD</span>
-                  <span class="detail-value">{{ detalle.sitioGraba }}</span>
-                </div>
-              </div>
+                <!-- Franja de color semáforo -->
+                <div class="ped-item__strip"></div>
 
-              <div class="detail-actions">
-                <button class="ui-btn secondary" type="button" (click)="editarCaso(detalle)">
-                  <i class="fa-solid fa-pen"></i> Editar
-                </button>
-                <button
-                  class="ui-btn danger"
-                  type="button"
-                  *ngIf="detalle.estado !== 'C'"
-                  (click)="abrirCerrarModal(detalle.id)"
-                >
-                  <i class="fa-solid fa-xmark"></i> Cierre rapido
-                </button>
-                <button class="ui-btn secondary" type="button" (click)="cancelar()">
-                  <i class="fa-solid fa-list"></i> Volver
-                </button>
-              </div>
-
-              <!-- Annotations -->
-              <div class="anotaciones-section">
-                <h4><i class="fa-solid fa-comments"></i> Anotaciones ({{ detalle.anotaciones.length }})</h4>
-
-                <!-- Add annotation -->
-                <div class="anotacion-form" *ngIf="detalle.estado !== 'C'">
-                  <div class="ui-grid">
-                    <div class="ui-field ui-col-6">
-                      <label class="ui-label">Titulo</label>
-                      <input class="ui-control" type="text" [(ngModel)]="anotacionForm.titulo" maxlength="200" placeholder="Titulo de la anotacion">
-                    </div>
-                    <div class="ui-field ui-col-6">
-                      <label class="ui-label">Tipo</label>
-                      <select class="ui-control" [(ngModel)]="anotacionForm.tipoAnotacion">
-                        <option value="GENERAL">General</option>
-                        <option value="DESPACHO">Despacho</option>
-                        <option value="NOVEDAD">Novedad</option>
-                        <option value="CIERRE">Cierre</option>
-                      </select>
-                    </div>
-                    <div class="ui-field ui-col-12">
-                      <label class="ui-label">Texto *</label>
-                      <textarea class="ui-control" rows="2" [(ngModel)]="anotacionForm.anotacion" maxlength="2000" placeholder="Escriba la anotacion..."></textarea>
-                    </div>
+                <div class="ped-item__body">
+                  <div class="ped-item__top">
+                    <span class="ped-item__id">#{{ item.id }}</span>
+                    <span class="ped-badge" [ngClass]="getEstadoClass(item.estado)">
+                      {{ getEstadoLabel(item.estado) }}
+                    </span>
+                    <span class="ped-item__elapsed">
+                      <i class="fa-regular fa-clock"></i> {{ getElapsedLabel(item) }}
+                    </span>
                   </div>
-                  <div class="tab-actions">
-                    <button class="ui-btn primary" type="button" (click)="guardarAnotacion()" [disabled]="savingAnotacion">
-                      <i class="fa-solid fa-plus"></i>
-                      {{ savingAnotacion ? 'Guardando...' : 'Agregar anotacion' }}
+
+                  <div class="ped-item__codi">
+                    @if (item.codiPedido) { {{ item.codiPedido }} }
+                    @if (item.codiPedido2) { <span class="ped-item__codi2">/ {{ item.codiPedido2 }}</span> }
+                    @if (!item.codiPedido && !item.codiPedido2) { <span class="ped-item__no-codi">Sin código</span> }
+                  </div>
+
+                  <div class="ped-item__dir">{{ item.direCaso || 'Sin dirección' }}</div>
+
+                  <div class="ped-item__meta">
+                    <span><i class="fa-solid fa-calendar-day"></i>
+                      {{ (item.horaCaso | date:'dd/MM HH:mm') || '—' }}
+                    </span>
+                    <span><i class="fa-solid fa-user"></i> {{ item.usernameCreacion || '—' }}</span>
+                  </div>
+
+                  <div class="ped-item__actions" (click)="$event.stopPropagation()">
+                    <button type="button" class="ui-btn sm secondary"
+                            (click)="editarCaso(item)" title="Editar caso">
+                      <i class="fa-solid fa-pen-to-square"></i>
                     </button>
+                    @if (item.estado !== 'C') {
+                      <button type="button" class="ui-btn sm danger"
+                              (click)="abrirCerrarModal(item.id)" title="Cierre rápido">
+                        <i class="fa-solid fa-flag-checkered"></i>
+                      </button>
+                    }
                   </div>
-                </div>
-
-                <!-- Annotations list -->
-                <div class="anotacion-list" *ngIf="detalle.anotaciones.length > 0">
-                  <div class="anotacion-item" *ngFor="let an of detalle.anotaciones">
-                    <div class="anotacion-header">
-                      <span class="anotacion-titulo">{{ an.titulo || 'Sin titulo' }}</span>
-                      <span class="anotacion-tipo">{{ an.tipoAnotacion }}</span>
-                      <span class="anotacion-fecha">{{ (an.fechaCreacion | date:'dd/MM/yyyy HH:mm') || '—' }}</span>
-                      <span class="anotacion-usuario">{{ an.usernameCreacion }}</span>
-                    </div>
-                    <div class="anotacion-texto">{{ an.anotacion }}</div>
-                  </div>
-                </div>
-
-                <div class="news-state" *ngIf="detalle.anotaciones.length === 0">
-                  Sin anotaciones registradas.
                 </div>
               </div>
-            </ng-container>
-          </ng-container>
+            }
+          </div>
+        </div><!-- /ped-col-list -->
 
-        </article>
-      </div>
-    </div>
-  </div>
+
+        <!-- ════════════════════════════════
+             COLUMNA DERECHA — PANEL ACTIVO
+             ════════════════════════════════ -->
+        <div class="ped-col-detail">
+
+          <!-- ── ESTADO VACÍO ──────────────────────────────────────────── -->
+          @if (panelMode === 'list') {
+            <div class="ped-empty-state">
+              <i class="fa-solid fa-tower-broadcast"></i>
+              <p>Seleccione un caso de la lista para ver el detalle,<br>
+                 o haga clic en <strong>Nuevo</strong> para registrar un incidente.</p>
+            </div>
+          }
+
+          <!-- ════════════════════════════════
+               FORMULARIO CREAR / EDITAR
+               ════════════════════════════════ -->
+          @if (panelMode === 'form') {
+            <div class="ped-form-scroll">
+
+              <div class="ped-form-title">
+                <i class="fa-solid fa-{{ editingId ? 'pen-to-square' : 'plus-circle' }}"></i>
+                {{ editingId ? 'Editar caso #' + editingId : 'Nuevo incidente' }}
+              </div>
+
+              <!-- ── Sección: Llamante ──────────────────────────────── -->
+              <div class="ped-section">
+                <div class="ped-section__head">
+                  <i class="fa-solid fa-phone"></i> Información del llamante
+                </div>
+                <div class="ui-grid" style="padding:12px 14px;">
+                  <div class="ui-field ui-col-6">
+                    <label class="ui-label">Teléfono</label>
+                    <input class="ui-control" type="number" [(ngModel)]="form.numeTelefono"
+                           placeholder="3001234567">
+                  </div>
+                  <div class="ui-field ui-col-6">
+                    <label class="ui-label">Propietario teléfono</label>
+                    <input class="ui-control" type="text" [(ngModel)]="form.propTelefono" maxlength="200">
+                  </div>
+                  <div class="ui-field ui-col-6">
+                    <label class="ui-label">Nombre llamante</label>
+                    <input class="ui-control" type="text" [(ngModel)]="form.nombLlamante" maxlength="200">
+                  </div>
+                  <div class="ui-field ui-col-6">
+                    <label class="ui-label">Dirección llamante</label>
+                    <input class="ui-control" type="text" [(ngModel)]="form.direLlamante" maxlength="300">
+                  </div>
+                </div>
+              </div>
+
+              <!-- ── Sección: Ubicación del caso ──────────────────── -->
+              <div class="ped-section">
+                <div class="ped-section__head">
+                  <i class="fa-solid fa-location-dot"></i> Ubicación del incidente
+                </div>
+                <div class="ui-grid" style="padding:12px 14px;">
+                  <div class="ui-field ui-col-12">
+                    <label class="ui-label">Dirección del caso <span class="ped-req">*</span></label>
+                    <input class="ui-control" type="text" [(ngModel)]="form.direCaso"
+                           maxlength="300" placeholder="Calle 1 # 2-3">
+                  </div>
+                  <div class="ui-field ui-col-6">
+                    <label class="ui-label">Barrio</label>
+                    <input class="ui-control" type="text" [(ngModel)]="form.barrio" maxlength="200">
+                  </div>
+                  <div class="ui-field ui-col-6">
+                    <label class="ui-label">Ciudad</label>
+                    <input class="ui-control" type="text" [(ngModel)]="form.ciudad" maxlength="200">
+                  </div>
+                  <div class="ui-field ui-col-6">
+                    <label class="ui-label">Latitud</label>
+                    <input class="ui-control" type="text" [(ngModel)]="form.latitudCaso"
+                           maxlength="50" placeholder="4.7110">
+                  </div>
+                  <div class="ui-field ui-col-6">
+                    <label class="ui-label">Longitud</label>
+                    <input class="ui-control" type="text" [(ngModel)]="form.longitudCaso"
+                           maxlength="50" placeholder="-74.0721">
+                  </div>
+                </div>
+              </div>
+
+              <!-- ── Sección: Clasificación ────────────────────────── -->
+              <div class="ped-section">
+                <div class="ped-section__head">
+                  <i class="fa-solid fa-tags"></i> Clasificación del incidente
+                </div>
+                <div class="ui-grid" style="padding:12px 14px;">
+                  <div class="ui-field ui-col-6">
+                    <label class="ui-label">Código pedido <span class="ped-req">*</span></label>
+                    <input class="ui-control" type="text" [(ngModel)]="form.codiPedido"
+                           maxlength="50" placeholder="Ej: 11-A">
+                  </div>
+                  <div class="ui-field ui-col-6">
+                    <label class="ui-label">Código secundario</label>
+                    <input class="ui-control" type="text" [(ngModel)]="form.codiPedido2" maxlength="50">
+                  </div>
+                  <div class="ui-field ui-col-6">
+                    <label class="ui-label">Tipo pedido</label>
+                    <input class="ui-control" type="text" [(ngModel)]="form.tipoPedido" maxlength="50">
+                  </div>
+                  <div class="ui-field ui-col-6">
+                    <label class="ui-label">Calidad pedido</label>
+                    <input class="ui-control" type="text" [(ngModel)]="form.caliPedido" maxlength="50">
+                  </div>
+                  <div class="ui-field ui-col-4">
+                    <label class="ui-label">Importancia</label>
+                    <select class="ui-control" [(ngModel)]="form.importancia">
+                      <option value="">Seleccione</option>
+                      <option value="ALTA">Alta</option>
+                      <option value="MEDIA">Media</option>
+                      <option value="BAJA">Baja</option>
+                    </select>
+                  </div>
+                  <div class="ui-field ui-col-4">
+                    <label class="ui-label">Prioridad</label>
+                    <select class="ui-control" [(ngModel)]="form.prioridad">
+                      <option value="">Seleccione</option>
+                      <option value="FLASH">FLASH</option>
+                      <option value="INMEDIATA">INMEDIATA</option>
+                      <option value="RUTINA">RUTINA</option>
+                    </select>
+                  </div>
+                  <div class="ui-field ui-col-4">
+                    <label class="ui-label">Estado</label>
+                    <select class="ui-control" [(ngModel)]="form.estado">
+                      <option value="A">Activo</option>
+                      <option value="P">Pendiente</option>
+                      <option value="C">Cerrado</option>
+                    </select>
+                  </div>
+                  <div class="ui-field ui-col-6">
+                    <label class="ui-label">Enviar a despacho</label>
+                    <select class="ui-control" [(ngModel)]="form.enviar">
+                      <option value="N">No</option>
+                      <option value="S">Sí</option>
+                    </select>
+                  </div>
+                  <div class="ui-field ui-col-6">
+                    <label class="ui-label">Sitio CAD</label>
+                    <input class="ui-control" type="number" [(ngModel)]="form.sitioGraba" min="0">
+                  </div>
+                  <div class="ui-field ui-col-12">
+                    <label class="ui-label">Comentario del incidente</label>
+                    <textarea class="ui-control ped-textarea" rows="3"
+                              [(ngModel)]="form.comentario" maxlength="2000"
+                              placeholder="Descripción del incidente…"></textarea>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Acciones del formulario -->
+              <div class="ped-form-actions">
+                <button type="button" class="ui-btn secondary" (click)="cancelar()">
+                  <i class="fa-solid fa-xmark"></i> Cancelar
+                </button>
+                <button type="button" class="ui-btn primary" (click)="guardar()" [disabled]="saving">
+                  <i class="fa-solid fa-{{ saving ? 'spinner fa-spin' : 'floppy-disk' }}"></i>
+                  {{ saving ? 'Guardando…' : 'Guardar caso' }}
+                </button>
+              </div>
+
+            </div><!-- /ped-form-scroll -->
+          }
+
+
+          <!-- ════════════════════════════════
+               DETALLE DEL CASO
+               ════════════════════════════════ -->
+          @if (panelMode === 'detail') {
+
+            @if (loading) {
+              <div class="ped-detail-loading">
+                <i class="fa-solid fa-spinner fa-spin"></i> Cargando detalle…
+              </div>
+            }
+
+            @if (!loading && detalle) {
+              <div class="ped-detail-scroll">
+
+                <!-- Cabecera del detalle con semáforo -->
+                <div class="ped-detail-header" [ngClass]="getSemaforoClass(detalle)">
+                  <div class="ped-detail-header__left">
+                    <span class="ped-detail-id">Caso #{{ detalle.id }}</span>
+                    <span class="ped-badge ped-badge--lg" [ngClass]="getEstadoClass(detalle.estado)">
+                      {{ getEstadoLabel(detalle.estado) }}
+                    </span>
+                    @if (detalle.prioridad) {
+                      <span class="ped-prio-badge" [ngClass]="getPrioridadClass(detalle.prioridad)">
+                        <i class="fa-solid fa-bolt"></i> {{ getPrioridadLabel(detalle.prioridad) }}
+                      </span>
+                    }
+                  </div>
+                  <div class="ped-detail-header__elapsed">
+                    <i class="fa-regular fa-clock"></i> {{ getElapsedLabel(detalle) }}
+                  </div>
+                </div>
+
+                <!-- Acciones del detalle -->
+                <div class="ped-detail-actions">
+                  <button type="button" class="ui-btn secondary" (click)="editarCaso(detalle)">
+                    <i class="fa-solid fa-pen-to-square"></i> Editar
+                  </button>
+                  @if (detalle.estado !== 'C') {
+                    <button type="button" class="ui-btn danger"
+                            (click)="abrirCerrarModal(detalle.id)">
+                      <i class="fa-solid fa-flag-checkered"></i> Cierre rápido
+                    </button>
+                  }
+                  <button type="button" class="ui-btn secondary" (click)="cancelar()">
+                    <i class="fa-solid fa-list"></i> Volver
+                  </button>
+                </div>
+
+                <!-- ── Sección: Ubicación ─────────────────────────── -->
+                <div class="ped-section">
+                  <div class="ped-section__head">
+                    <i class="fa-solid fa-location-dot"></i> Ubicación del incidente
+                  </div>
+                  <div class="ped-detail-grid">
+                    <div class="ped-df span-2">
+                      <span class="ped-dl">Dirección</span>
+                      <span class="ped-dv ped-dv--highlight">{{ detalle.direCaso || '—' }}</span>
+                    </div>
+                    <div class="ped-df">
+                      <span class="ped-dl">Barrio</span>
+                      <span class="ped-dv">{{ detalle.barrio || '—' }}</span>
+                    </div>
+                    <div class="ped-df">
+                      <span class="ped-dl">Ciudad</span>
+                      <span class="ped-dv">{{ detalle.ciudad || '—' }}</span>
+                    </div>
+                    <div class="ped-df">
+                      <span class="ped-dl">Latitud</span>
+                      <span class="ped-dv">{{ detalle.latitudCaso || '—' }}</span>
+                    </div>
+                    <div class="ped-df">
+                      <span class="ped-dl">Longitud</span>
+                      <span class="ped-dv">{{ detalle.longitudCaso || '—' }}</span>
+                    </div>
+                  </div>
+
+                  <!-- Mapa Leaflet -->
+                  <div class="ped-map-body">
+                    <div id="mapaDetalle" class="ped-map"></div>
+                    @if (!detalle.latitudCaso || !detalle.longitudCaso) {
+                      <p class="ped-map-hint">
+                        <i class="fa-solid fa-circle-info"></i>
+                        Sin coordenadas registradas — mapa centrado en Bogotá.
+                      </p>
+                    }
+                  </div>
+                </div>
+
+                <!-- ── Sección: Llamante ──────────────────────────── -->
+                <div class="ped-section">
+                  <div class="ped-section__head">
+                    <i class="fa-solid fa-phone"></i> Información del llamante
+                  </div>
+                  <div class="ped-detail-grid">
+                    <div class="ped-df">
+                      <span class="ped-dl">Teléfono</span>
+                      <span class="ped-dv">{{ detalle.numeTelefono || '—' }}</span>
+                    </div>
+                    <div class="ped-df">
+                      <span class="ped-dl">Propietario</span>
+                      <span class="ped-dv">{{ detalle.propTelefono || '—' }}</span>
+                    </div>
+                    <div class="ped-df">
+                      <span class="ped-dl">Nombre llamante</span>
+                      <span class="ped-dv">{{ detalle.nombLlamante || '—' }}</span>
+                    </div>
+                    <div class="ped-df">
+                      <span class="ped-dl">Dir. llamante</span>
+                      <span class="ped-dv">{{ detalle.direLlamante || '—' }}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- ── Sección: Clasificación ────────────────────── -->
+                <div class="ped-section">
+                  <div class="ped-section__head">
+                    <i class="fa-solid fa-tags"></i> Clasificación
+                  </div>
+                  <div class="ped-detail-grid">
+                    <div class="ped-df">
+                      <span class="ped-dl">Código pedido</span>
+                      <span class="ped-dv">
+                        {{ detalle.codiPedido || '—' }}
+                        @if (detalle.codiPedido2) { / {{ detalle.codiPedido2 }} }
+                      </span>
+                    </div>
+                    <div class="ped-df">
+                      <span class="ped-dl">Hora caso</span>
+                      <span class="ped-dv">{{ (detalle.horaCaso | date:'dd/MM/yyyy HH:mm:ss') || '—' }}</span>
+                    </div>
+                    <div class="ped-df">
+                      <span class="ped-dl">Tipo pedido</span>
+                      <span class="ped-dv">{{ detalle.tipoPedido || '—' }}</span>
+                    </div>
+                    <div class="ped-df">
+                      <span class="ped-dl">Calidad</span>
+                      <span class="ped-dv">{{ detalle.caliPedido || '—' }}</span>
+                    </div>
+                    <div class="ped-df">
+                      <span class="ped-dl">Importancia</span>
+                      <span class="ped-dv">{{ detalle.importancia || '—' }}</span>
+                    </div>
+                    <div class="ped-df">
+                      <span class="ped-dl">Prioridad</span>
+                      <span class="ped-dv">{{ getPrioridadLabel(detalle.prioridad) }}</span>
+                    </div>
+                    <div class="ped-df">
+                      <span class="ped-dl">Enviar despacho</span>
+                      <span class="ped-dv">{{ detalle.enviar === 'S' ? 'Sí' : 'No' }}</span>
+                    </div>
+                    <div class="ped-df">
+                      <span class="ped-dl">Operador</span>
+                      <span class="ped-dv">{{ detalle.usernameCreacion || '—' }}</span>
+                    </div>
+                    @if (detalle.comentario) {
+                      <div class="ped-df span-2">
+                        <span class="ped-dl">Comentario</span>
+                        <span class="ped-dv">{{ detalle.comentario }}</span>
+                      </div>
+                    }
+                  </div>
+                </div>
+
+                <!-- ════════════════════════════════
+                     ANOTACIONES
+                     ════════════════════════════════ -->
+                <div class="ped-section">
+                  <div class="ped-section__head">
+                    <i class="fa-solid fa-comments"></i>
+                    Anotaciones
+                    <span class="ped-section__badge">{{ detalle.anotaciones.length }}</span>
+                  </div>
+
+                  <!-- Formulario nueva anotación -->
+                  @if (detalle.estado !== 'C') {
+                    <div class="ped-anot-form">
+                      <div class="ui-grid" style="padding:0; gap:10px;">
+                        <div class="ui-field ui-col-6">
+                          <label class="ui-label">Título</label>
+                          <input class="ui-control" type="text"
+                                 [(ngModel)]="anotacionForm.titulo"
+                                 maxlength="200" placeholder="Título de la anotación">
+                        </div>
+                        <div class="ui-field ui-col-6">
+                          <label class="ui-label">Tipo</label>
+                          <select class="ui-control" [(ngModel)]="anotacionForm.tipoAnotacion">
+                            <option value="GENERAL">General</option>
+                            <option value="OPERATIVA">Operativa</option>
+                            <option value="PREVENTIVA">Preventiva</option>
+                            <option value="DESPACHO">Despacho</option>
+                            <option value="NOVEDAD_PERSONAL">Nov. Personal</option>
+                            <option value="CIERRE">Cierre</option>
+                          </select>
+                        </div>
+                        <div class="ui-field ui-col-12">
+                          <label class="ui-label">Texto <span class="ped-req">*</span></label>
+                          <textarea class="ui-control ped-textarea" rows="2"
+                                    [(ngModel)]="anotacionForm.anotacion"
+                                    maxlength="2000"
+                                    placeholder="Escriba la anotación…"></textarea>
+                        </div>
+                      </div>
+                      <div class="ped-anot-form__footer">
+                        <button type="button" class="ui-btn primary"
+                                (click)="guardarAnotacion()" [disabled]="savingAnotacion">
+                          <i class="fa-solid fa-{{ savingAnotacion ? 'spinner fa-spin' : 'plus' }}"></i>
+                          {{ savingAnotacion ? 'Guardando…' : 'Agregar anotación' }}
+                        </button>
+                      </div>
+                    </div>
+                  }
+
+                  <!-- Lista de anotaciones -->
+                  <div class="ped-anot-list">
+                    @if (detalle.anotaciones.length === 0) {
+                      <div class="ped-anot-empty">
+                        <i class="fa-regular fa-comment"></i> Sin anotaciones registradas.
+                      </div>
+                    }
+
+                    @for (an of detalle.anotaciones; track an.id) {
+                      <div class="ped-anot-item" [attr.data-tipo]="an.tipoAnotacion">
+                        <div class="ped-anot-item__head">
+                          <i [class]="getTipoAnotacionIcon(an.tipoAnotacion)"></i>
+                          <span class="ped-anot-item__titulo">{{ an.titulo || 'Sin título' }}</span>
+                          <span class="ped-anot-tipo-badge">{{ getTipoAnotacionLabel(an.tipoAnotacion) }}</span>
+                          <span class="ped-anot-item__meta">
+                            {{ an.usernameCreacion }}
+                            · {{ (an.fechaCreacion | date:'dd/MM/yy HH:mm') || '—' }}
+                          </span>
+                        </div>
+                        <div class="ped-anot-item__texto">{{ an.anotacion }}</div>
+                      </div>
+                    }
+                  </div>
+
+                </div><!-- /anotaciones section -->
+
+              </div><!-- /ped-detail-scroll -->
+            }
+          }
+
+        </div><!-- /ped-col-detail -->
+
+      </div><!-- /ped-layout -->
+
+    </div><!-- /ui-panel__body -->
+    }
+
+  </div><!-- /ui-panel -->
 </section>
 
-<!-- ─── Quick-close modal ──────────────────────────────────────────────────── -->
-<div class="modal-overlay" *ngIf="showCerrarModal" (click)="cancelarCerrar()">
-  <div class="modal-box" (click)="$event.stopPropagation()">
-    <h4><i class="fa-solid fa-xmark-circle"></i> Cierre rapido de caso</h4>
-    <div class="ui-grid">
-      <div class="ui-field ui-col-12">
-        <label class="ui-label">Codigo de cierre</label>
-        <input class="ui-control" type="text" [(ngModel)]="cerrarForm.codiPedido" maxlength="50" placeholder="Ej: 99-X">
+}<!-- /@if visible -->
+
+
+<!-- ══════════════════════════════════════════════════════════════════════════
+     MODAL — CIERRE RÁPIDO
+     ══════════════════════════════════════════════════════════════════════════ -->
+@if (showCerrarModal) {
+  <div class="ped-modal-overlay" (click)="cancelarCerrar()">
+    <div class="ped-modal" (click)="$event.stopPropagation()">
+
+      <div class="ped-modal__head">
+        <i class="fa-solid fa-flag-checkered"></i>
+        Cierre rápido de caso
       </div>
-      <div class="ui-field ui-col-12">
-        <label class="ui-label">Comentario de cierre</label>
-        <textarea class="ui-control" rows="3" [(ngModel)]="cerrarForm.comentario" maxlength="2000" placeholder="Motivo del cierre..."></textarea>
+
+      <div class="ped-modal__body">
+        <div class="ui-grid" style="padding:0; gap:12px;">
+          <div class="ui-field ui-col-12">
+            <label class="ui-label">Código de cierre</label>
+            <input class="ui-control" type="text"
+                   [(ngModel)]="cerrarForm.codiPedido"
+                   maxlength="50" placeholder="Ej: 99-X">
+          </div>
+          <div class="ui-field ui-col-12">
+            <label class="ui-label">Comentario de cierre</label>
+            <textarea class="ui-control ped-textarea" rows="3"
+                      [(ngModel)]="cerrarForm.comentario"
+                      maxlength="2000"
+                      placeholder="Motivo del cierre…"></textarea>
+          </div>
+          <div class="ui-field ui-col-6">
+            <label class="ui-label">Enviar a despacho</label>
+            <select class="ui-control" [(ngModel)]="cerrarForm.enviar">
+              <option value="N">No</option>
+              <option value="S">Sí</option>
+            </select>
+          </div>
+        </div>
       </div>
-    </div>
-    <div class="modal-actions">
-      <button class="ui-btn secondary" type="button" (click)="cancelarCerrar()">Cancelar</button>
-      <button class="ui-btn danger" type="button" (click)="confirmarCerrar()" [disabled]="saving">
-        {{ saving ? 'Cerrando...' : 'Confirmar cierre' }}
-      </button>
+
+      <div class="ped-modal__foot">
+        <button type="button" class="ui-btn secondary" (click)="cancelarCerrar()">
+          <i class="fa-solid fa-xmark"></i> Cancelar
+        </button>
+        <button type="button" class="ui-btn danger" (click)="confirmarCerrar()" [disabled]="saving">
+          <i class="fa-solid fa-{{ saving ? 'spinner fa-spin' : 'check' }}"></i>
+          {{ saving ? 'Cerrando…' : 'Confirmar cierre' }}
+        </button>
+      </div>
+
     </div>
   </div>
-</div>
+}

@@ -1,0 +1,189 @@
+namespace Comun.Dtos.Actuaciones;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Constantes de estado de actuación.
+// Deben coincidir exactamente con el CHECK constraint de cad_actuaciones.estado.
+// ─────────────────────────────────────────────────────────────────────────────
+public static class EstadoActuacion
+{
+    public const string Pendiente  = "P";  // asignada, sin despachar
+    public const string Despachada = "D";  // unidad en camino
+    public const string Atendida   = "A";  // unidad en el lugar del hecho
+    public const string Cerrada    = "C";  // actuación finalizada con código
+    public const string Anulada    = "V";  // no fue necesaria / error / duplicado
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// DTO completo de una actuación (usado en el panel de detalle del despachador).
+// ─────────────────────────────────────────────────────────────────────────────
+public class DtoActuacion
+{
+    public long    Id                    { get; set; }
+    public long    EventoId              { get; set; }
+    public long?   PedidoId             { get; set; }
+    public int     SitioGraba           { get; set; }
+
+    // Agencia / Canal
+    public int?    FuerzaId             { get; set; }
+    public int?    CanalCodigo          { get; set; }
+    /// <summary>Snapshot de la descripción al momento del despacho.</summary>
+    public string  FuerzaDescripcion    { get; set; } = "";
+    public string  CanalDescripcion     { get; set; } = "";
+
+    // Quién despachó
+    public string? DespachadorUsuario   { get; set; }
+    /// <summary>D=Despachador, O=Operador, S=Sistema, N=N/A</summary>
+    public string? TipoDespachador      { get; set; }
+
+    // Recurso/Unidad principal (la principal; las adicionales en Unidades)
+    public string? UnidadAsignada       { get; set; }
+    public string? PlacaUnidad          { get; set; }
+
+    // Estado propio de esta actuación (independiente de las demás del evento)
+    public string  Estado               { get; set; } = EstadoActuacion.Pendiente;
+
+    // Timestamps propios
+    public string  FechaCreacion        { get; set; } = "";
+    public string? FechaDespacho        { get; set; }
+    public string? FechaLlegada         { get; set; }
+    public string? FechaCierre          { get; set; }
+
+    // Cierre
+    public string? CodigoCierrePrimario { get; set; }
+    public string? ClasifCierre         { get; set; }
+    public string? ObservacionCierre    { get; set; }
+
+    // Calificación de esta actuación específica (puede diferir del pedido)
+    public string? CaliPedido           { get; set; }
+
+    // Auditoría
+    public string? FechaModificacion    { get; set; }
+    public string? UsuarioModifica      { get; set; }
+
+    // Sub-colecciones (se cargan en el endpoint de detalle)
+    public List<DtoCodigoCierreActuacion> CodigosCierre { get; set; } = new();
+    public List<DtoActuacionUnidad>       Unidades      { get; set; } = new();
+    public List<DtoActuacionNota>         Notas         { get; set; } = new();
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Item reducido para la grilla de actuaciones de un evento.
+// ─────────────────────────────────────────────────────────────────────────────
+public class DtoActuacionListItem
+{
+    public long    Id              { get; set; }
+    public long    EventoId        { get; set; }
+    public string  FuerzaDesc      { get; set; } = "";
+    public string  CanalDesc       { get; set; } = "";
+    public string? UnidadAsignada  { get; set; }
+    public string  Estado          { get; set; } = "";
+    public string  FechaCreacion   { get; set; } = "";
+    public string? FechaDespacho   { get; set; }
+    public string? FechaLlegada    { get; set; }
+    public string? FechaCierre     { get; set; }
+    public string? CaliPedido      { get; set; }
+    public int?    TotalUnidades   { get; set; }
+    public int?    TotalNotas      { get; set; }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Código de cierre de una actuación (tabla cad_actuaciones_codigos).
+// ─────────────────────────────────────────────────────────────────────────────
+public class DtoCodigoCierreActuacion
+{
+    /// <summary>Posición: 1=primario, 2=secundario, etc.</summary>
+    public int    Orden             { get; set; } = 1;
+    public string CodigoCierre      { get; set; } = "";
+    /// <summary>CIERRE | DISPOSICION | NOVEDAD</summary>
+    public string TipoCodigo        { get; set; } = "CIERRE";
+    public string? DescripcionLibre { get; set; }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Unidad individual despachada dentro de una actuación
+// (tabla cad_actuaciones_unidades).
+// ─────────────────────────────────────────────────────────────────────────────
+public class DtoActuacionUnidad
+{
+    public long    Id               { get; set; }
+    public string  UnidadCodigo     { get; set; } = "";
+    public string? Placa            { get; set; }
+    /// <summary>PATRULLA | AMBULANCIA | CAMION | MOTO | etc.</summary>
+    public string? TipoUnidad       { get; set; }
+    /// <summary>D=Despachada, A=Atendiendo, L=Liberada, V=Anulada</summary>
+    public string  Estado           { get; set; } = "D";
+    public string? FechaDespacho    { get; set; }
+    public string? FechaLlegada     { get; set; }
+    public string? FechaLiberacion  { get; set; }
+    public string? Observacion      { get; set; }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Nota de campo de una actuación (tabla cad_actuaciones_notas).
+// ─────────────────────────────────────────────────────────────────────────────
+public class DtoActuacionNota
+{
+    public long   Id              { get; set; }
+    public string Nota            { get; set; } = "";
+    /// <summary>GENERAL | NOVEDAD | ALERTA | CIERRE</summary>
+    public string TipoNota        { get; set; } = "GENERAL";
+    public string UsuarioRegistra { get; set; } = "";
+    public string FechaRegistra   { get; set; } = "";
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Request: avanzar el estado operativo de la actuación (despacho → llegada).
+// ─────────────────────────────────────────────────────────────────────────────
+public class DtoActualizarEstadoActuacionRequest
+{
+    /// <summary>D=Despachada, A=Atendida (en sitio).</summary>
+    public string  Estado         { get; set; } = "";
+    public string? UnidadAsignada { get; set; }
+    public string? PlacaUnidad    { get; set; }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Request: cerrar una actuación con uno o más códigos.
+// ─────────────────────────────────────────────────────────────────────────────
+public class DtoCierreActuacionRequest
+{
+    public long   ActuacionId        { get; set; }
+    /// <summary>C=Cerrada, V=Anulada.</summary>
+    public string Estado             { get; set; } = EstadoActuacion.Cerrada;
+    public string? ClasifCierre      { get; set; }
+    public string? ObservacionCierre { get; set; }
+    public List<DtoCodigoCierreActuacion> CodigosCierre { get; set; } = new();
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Request: agregar una nota de campo a una actuación.
+// ─────────────────────────────────────────────────────────────────────────────
+public class DtoAgregarNotaActuacionRequest
+{
+    public string Nota     { get; set; } = "";
+    /// <summary>GENERAL | NOVEDAD | ALERTA | CIERRE</summary>
+    public string TipoNota { get; set; } = "GENERAL";
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Request: registrar una unidad adicional a la actuación.
+// ─────────────────────────────────────────────────────────────────────────────
+public class DtoAgregarUnidadActuacionRequest
+{
+    public string  UnidadCodigo  { get; set; } = "";
+    public string? Placa         { get; set; }
+    public string? TipoUnidad    { get; set; }
+    public string? Observacion   { get; set; }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Resultado genérico para operaciones sobre actuaciones.
+// ─────────────────────────────────────────────────────────────────────────────
+public class DtoActuacionResult
+{
+    public bool   Success     { get; set; }
+    public string Message     { get; set; } = "";
+    public long   ActuacionId { get; set; }
+    /// <summary>ID del sub-registro creado (nota, unidad, etc.).</summary>
+    public long?  SubId       { get; set; }
+}
