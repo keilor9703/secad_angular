@@ -181,7 +181,13 @@ onItemTap(item: MenuItem, ev: MouseEvent) {
           return;
         }
         const mapped = this.mapDbMenu(items);
-        this.menuItems = this.ensureInicioItem(this.groupAdministrationItems(mapped));
+        this.menuItems = this.ensureInicioItem(
+          this.ensureOperacionItems(
+            this.groupAdministrationItems(
+              this.groupOperacionItems(mapped)
+            )
+          )
+        );
       },
       error: () => {
         this.loadMenuByUserFallback();
@@ -198,10 +204,17 @@ onItemTap(item: MenuItem, ev: MouseEvent) {
 
     this.menuService.getByUser(userId).subscribe({
       next: (items) => {
-        this.menuItems = this.ensureInicioItem(this.groupAdministrationItems(this.mapDbMenu(items)));
+        const mapped = this.mapDbMenu(items);
+        this.menuItems = this.ensureInicioItem(
+          this.ensureOperacionItems(
+            this.groupAdministrationItems(
+              this.groupOperacionItems(mapped)
+            )
+          )
+        );
       },
       error: () => {
-        this.menuItems = this.ensureInicioItem([]);
+        this.menuItems = this.ensureInicioItem(this.ensureOperacionItems([]));
       }
     });
   }
@@ -319,7 +332,12 @@ onItemTap(item: MenuItem, ev: MouseEvent) {
       '/roles': '/administracion/roles',
       '/linea-mando': '/administracion/linea-mando',
       '/menu': '/administracion/menu',
-      '/auditoria': '/administracion/auditoria'
+      '/auditoria': '/administracion/auditoria',
+      // Operación
+      '/recepcion': '/operacion/recepcion',
+      '/pedido':    '/operacion/pedido',
+      '/eventos':   '/operacion/eventos',
+      '/turnos':    '/operacion/turnos'
     };
 
     return routeMap[value] || (value.startsWith('/') ? value : `/${value}`);
@@ -412,6 +430,82 @@ onItemTap(item: MenuItem, ev: MouseEvent) {
       route === '/configuracion-imagen-sitio' ||
       route === '/admin-multimedia'
     );
+  }
+
+  // ─── Operación ──────────────────────────────────────────────────────────────
+
+  private isOperacionRoute(route: string): boolean {
+    return route.startsWith('/operacion/');
+  }
+
+  /**
+   * Agrupa los ítems de menú cuya ruta es /operacion/... bajo un
+   * nodo padre "Operación" (mismo patrón que groupAdministrationItems).
+   */
+  private groupOperacionItems(items: MenuItem[]): MenuItem[] {
+    const kept: MenuItem[]     = [];
+    const opSubmenu: SubMenuItem[] = [];
+
+    for (const item of items) {
+      if (item.route && this.isOperacionRoute(item.route)) {
+        opSubmenu.push({ id: item.id, label: item.label, route: item.route });
+        continue;
+      }
+
+      if (item.submenu?.length) {
+        const opSubs     = item.submenu.filter(sub => this.isOperacionRoute(sub.route));
+        const normalSubs = item.submenu.filter(sub => !this.isOperacionRoute(sub.route));
+        opSubmenu.push(...opSubs);
+        if (normalSubs.length > 0) {
+          kept.push({ ...item, submenu: normalSubs });
+        } else if (item.route && !this.isOperacionRoute(item.route)) {
+          kept.push({ ...item, submenu: undefined });
+        }
+        continue;
+      }
+
+      kept.push(item);
+    }
+
+    const deduped = opSubmenu.filter(
+      (sub, idx, arr) => arr.findIndex(x => x.route === sub.route) === idx
+    );
+
+    if (deduped.length > 0) {
+      kept.push({
+        id: 999002,
+        icon: 'fa-solid fa-tower-broadcast',
+        label: 'Operación',
+        submenu: deduped
+      });
+    }
+
+    return kept;
+  }
+
+  /**
+   * Garantiza que exista un nodo "Operación" con los módulos clave
+   * incluso cuando la BD todavía no tiene esas entradas configuradas.
+   */
+  private ensureOperacionItems(items: MenuItem[]): MenuItem[] {
+    const yaExiste = items.some(
+      item =>
+        (item.route && this.isOperacionRoute(item.route)) ||
+        item.submenu?.some(sub => this.isOperacionRoute(sub.route))
+    );
+    if (yaExiste) return items;
+
+    const opItem: MenuItem = {
+      id: 999002,
+      icon: 'fa-solid fa-tower-broadcast',
+      label: 'Operación',
+      submenu: [
+        { id: 999010, label: 'Recepción', route: '/operacion/recepcion' },
+        { id: 999011, label: 'Eventos',   route: '/operacion/eventos'   },
+        { id: 999012, label: 'Turnos',    route: '/operacion/turnos'    }
+      ]
+    };
+    return [...items, opItem];
   }
 
   private ensureInicioItem(items: MenuItem[]): MenuItem[] {

@@ -14,11 +14,12 @@ import {
   TurnosService,
   DtoTurnoListItem, DtoTurno, DtoTurnoUnidad, DtoMedioDisponible, DtoPersonalMedio,
   DtoCrearTurnoRequest, DtoCopiarTurnoRequest,
-  DtoAgregarUnidadRequest, DtoAgregarMedioRequest,
-  DtoImportarSiviccRequest,
+  DtoAgregarUnidadRequest, DtoAgregarMedioRequest, DtoActualizarMedioRequest,
+  DtoImportarSiviccRequest, DtoUnidadSivicc,
   CLASE_TURNO, TIPO_MEDIO, EstadoMedio
 } from '../../../core/services/operacion/turnos.service';
 import { AuthService } from '../../../core/auth/auth.service';
+import { EventoService, DtoCanalItem } from '../../../core/services/operacion/evento.service';
 
 // Leaflet cargado vía CDN en index.html
 declare const L: any;
@@ -51,9 +52,14 @@ interface FormMedio extends DtoAgregarMedioRequest {
 export class TurnosComponent implements OnInit, OnDestroy, AfterViewChecked {
 
   // ── Services ─────────────────────────────────────────────────────────────────
-  private turnosSvc = inject(TurnosService);
-  private authSvc   = inject(AuthService);
-  private cdr       = inject(ChangeDetectorRef);
+  private turnosSvc  = inject(TurnosService);
+  private authSvc    = inject(AuthService);
+  private cdr        = inject(ChangeDetectorRef);
+  private eventoSvc  = inject(EventoService);
+
+  // ── Canales de radio (cargados una vez) ───────────────────────────────────────
+  canales: DtoCanalItem[] = [];
+  cargandoCanales = false;
 
   // ── Claims JWT ────────────────────────────────────────────────────────────────
   fuerzaId   = 0;
@@ -98,13 +104,13 @@ export class TurnosComponent implements OnInit, OnDestroy, AfterViewChecked {
   modalCopiar      = false;
   guardandoCopiar  = false;
   errorCopiar      = '';
-  formCopiar: FormCopiarConFecha = { turnoOrigenId: 0, claseTurno: 1, horaInicia: '', horaTermina: '', _inicio: '', _fin: '' };
+  formCopiar: FormCopiarConFecha = { turnoOrigenId: '', claseTurno: 1, horaInicia: '', horaTermina: '', _inicio: '', _fin: '' };
 
   // ── Modal: Agregar unidad ─────────────────────────────────────────────────────
   modalUnidad      = false;
   guardandoUnidad  = false;
   errorUnidad      = '';
-  formUnidad: DtoAgregarUnidadRequest = { turnoId: 0, unidadCodigo: '', unidadDesc: '', consignas: '' };
+  formUnidad: DtoAgregarUnidadRequest = { turnoId: '', unidadCodigo: '', unidadDesc: '', consignas: '' };
 
   // ── Modal: Agregar medio ──────────────────────────────────────────────────────
   modalMedio       = false;
@@ -112,12 +118,26 @@ export class TurnosComponent implements OnInit, OnDestroy, AfterViewChecked {
   errorMedio       = '';
   formMedio: FormMedio = this.nuevoFormMedio();
 
-  // ── Modal: Importar SIVICC ────────────────────────────────────────────────────
-  modalSivicc      = false;
+  // ── Modal: Editar medio ───────────────────────────────────────────────────────
+  modalEditarMedio      = false;
+  guardandoEditarMedio  = false;
+  errorEditarMedio      = '';
+  medioEditando: DtoMedioDisponible | null = null;
+  formEditarMedio: FormMedio = this.nuevoFormMedio();
+
+  // ── Modal: Importar SIVICC (wizard 2 pasos) ──────────────────────────────────
+  modalSivicc           = false;
+  /** Paso 1: consultando unidades en SIVICC */
+  cargandoUnidadesSivicc = false;
+  /** Unidades disponibles retornadas por GET .../sivicc/unidades */
+  unidadesSivicc: DtoUnidadSivicc[] = [];
+  /** Paso 3: importando */
   guardandoSivicc  = false;
   errorSivicc      = '';
+  /** Canal radio a asignar (opcional) */
+  siviccCanalCodigo: number | undefined = undefined;
   formSivicc: DtoImportarSiviccRequest = {
-    turnoId: 0, siviccMinutaId: 0, siviccConsecutivo: 0, canalCodigo: undefined, fuerzaId: 0, sitioGraba: 0
+    turnoId: '', fuerzaId: 0, sitioGraba: 0, unidades: []
   };
 
   // ── Mensajes de éxito inline ──────────────────────────────────────────────────
@@ -209,7 +229,7 @@ export class TurnosComponent implements OnInit, OnDestroy, AfterViewChecked {
     this.cargarMedios(u.turnoId, u.id);
   }
 
-  cargarMedios(turnoId: number, unidadId?: number): void {
+  cargarMedios(turnoId: string, unidadId?: string): void {
     if (!this.turnoSeleccionado) return;
     this.cargandoMedios = true;
     this.turnosSvc.getMedios(turnoId, unidadId).subscribe({
@@ -455,7 +475,7 @@ export class TurnosComponent implements OnInit, OnDestroy, AfterViewChecked {
 
   abrirModalMedio(): void {
     if (!this.turnoSeleccionado) return;
-    this.formMedio       = this.nuevoFormMedio();
+    this.formMedio              = this.nuevoFormMedio();
     this.formMedio.turnoId      = this.turnoSeleccionado.id;
     this.formMedio.turnoUnidadId = this.unidadActiva?.id ?? undefined;
     this.formMedio.unidadCodigo  = this.unidadActiva?.unidadCodigo ?? undefined;
@@ -464,9 +484,122 @@ export class TurnosComponent implements OnInit, OnDestroy, AfterViewChecked {
     this.guardandoMedio = false;
     this.modalMedio    = true;
     this.bloquearScroll(true);
+    // Cargar canales si aún no están disponibles
+    this.cargarCanales();
+  }
+
+  /** Carga los canales de radio del sitio una sola vez (lazy). */
+  private cargarCanales(): void {
+    if (this.canales.length > 0 || this.cargandoCanales) return;
+    this.cargandoCanales = true;
+    this.eventoSvc.getCanales(this.sitioGraba).subscribe({
+      next:  c  => { this.canales = c; this.cargandoCanales = false; },
+      error: () => { this.cargandoCanales = false; }
+    });
   }
 
   cerrarModalMedio(): void { this.modalMedio = false; this.bloquearScroll(false); }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // MODAL: EDITAR MEDIO
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  abrirModalEditarMedio(m: DtoMedioDisponible): void {
+    this.medioEditando      = m;
+    this.errorEditarMedio   = '';
+    this.guardandoEditarMedio = false;
+
+    // Pre-cargar el formulario con los datos actuales del medio
+    this.formEditarMedio = {
+      turnoId:        m.turnoId,
+      turnoUnidadId:  m.turnoUnidadId,
+      unidadCodigo:   m.unidadCodigo,
+      fuerzaId:       m.fuerzaId ?? 0,
+      canalCodigo:    m.canalCodigo,
+      canalFuerzaId:  m.canalFuerzaId,
+      patrullaCodigo: m.patrullaCodigo,
+      patrullaDesc:   m.patrullaDesc || undefined,
+      tipoMedio:      m.tipoMedio,
+      personal:       [],
+      _personal1Cedu: m.personal[0]?.ceduEmpleado  ?? '',
+      _personal1Nomb: m.personal[0]?.nombrePolicial ?? '',
+      _personal2Cedu: m.personal[1]?.ceduEmpleado  ?? '',
+      _personal2Nomb: m.personal[1]?.nombrePolicial ?? ''
+    };
+
+    this.modalEditarMedio = true;
+    this.bloquearScroll(true);
+    this.cargarCanales();
+  }
+
+  cerrarModalEditarMedio(): void {
+    this.modalEditarMedio = false;
+    this.medioEditando    = null;
+    this.bloquearScroll(false);
+  }
+
+  /** Llama al endpoint PUT /medios/{id} con los campos editados. */
+  guardarEditarMedio(): void {
+    if (!this.medioEditando) return;
+    if (!this.formEditarMedio.patrullaCodigo.trim()) {
+      this.errorEditarMedio = 'El código de patrulla es obligatorio.';
+      return;
+    }
+
+    this.guardandoEditarMedio = true;
+    this.errorEditarMedio     = '';
+
+    const personal: DtoPersonalMedio[] = [];
+    if (this.formEditarMedio._personal1Cedu.trim()) {
+      personal.push({
+        ceduEmpleado:   this.formEditarMedio._personal1Cedu.trim(),
+        nombrePolicial: this.formEditarMedio._personal1Nomb.trim() || undefined
+      });
+    }
+    if (this.formEditarMedio._personal2Cedu.trim()) {
+      personal.push({
+        ceduEmpleado:   this.formEditarMedio._personal2Cedu.trim(),
+        nombrePolicial: this.formEditarMedio._personal2Nomb.trim() || undefined
+      });
+    }
+
+    const req: DtoActualizarMedioRequest = {
+      canalCodigo:    this.formEditarMedio.canalCodigo,
+      canalFuerzaId:  this.formEditarMedio.canalFuerzaId,
+      patrullaCodigo: this.formEditarMedio.patrullaCodigo.trim().toUpperCase(),
+      patrullaDesc:   this.formEditarMedio.patrullaDesc?.trim(),
+      tipoMedio:      this.formEditarMedio.tipoMedio,
+      personal
+    };
+
+    this.turnosSvc.actualizarMedio(this.medioEditando.id, req).subscribe({
+      next: (r) => {
+        this.guardandoEditarMedio = false;
+        if (r.success) {
+          this.cerrarModalEditarMedio();
+          this.msgExito = '✔ Medio actualizado.';
+          setTimeout(() => (this.msgExito = ''), 3000);
+          // Recargar la lista de medios de la unidad activa
+          if (this.unidadActiva) {
+            this.cargarMedios(this.unidadActiva.turnoId, this.unidadActiva.id);
+          }
+        } else {
+          this.errorEditarMedio = r.message;
+        }
+      },
+      error: (e) => {
+        this.guardandoEditarMedio = false;
+        this.errorEditarMedio = e.error?.message ?? 'Error al actualizar el medio.';
+      }
+    });
+  }
+
+  /** Handler del canal en el modal de edición (sincroniza canalFuerzaId). */
+  onCanalChangeEditar(codigo: number | undefined): void {
+    const canal = this.canales.find(c => c.codigo === Number(codigo));
+    this.formEditarMedio.canalCodigo   = canal?.codigo;
+    this.formEditarMedio.canalFuerzaId = canal?.fuerzaId;
+  }
 
   guardarMedio(): void {
     if (!this.formMedio.patrullaCodigo.trim()) { this.errorMedio = 'El código de patrulla es obligatorio.'; return; }
@@ -511,30 +644,80 @@ export class TurnosComponent implements OnInit, OnDestroy, AfterViewChecked {
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // MODAL: IMPORTAR SIVICC
+  // MODAL: IMPORTAR SIVICC  (wizard de 2 pasos)
+  // Paso 1: abrir → consultar automáticamente las unidades en SIVICC
+  // Paso 3: confirmar → importar los medios de las unidades seleccionadas
   // ═══════════════════════════════════════════════════════════════════════════
 
   abrirModalSivicc(): void {
     if (!this.turnoSeleccionado) return;
     this.formSivicc = {
-      turnoId: this.turnoSeleccionado.id,
-      siviccMinutaId: 0, siviccConsecutivo: 0,
-      fuerzaId: this.fuerzaFiltro,
-      sitioGraba: this.sitioGraba
+      turnoId:    this.turnoSeleccionado.id,
+      fuerzaId:   this.fuerzaFiltro,
+      sitioGraba: this.sitioGraba,
+      unidades:   []
     };
-    this.errorSivicc     = '';
-    this.guardandoSivicc = false;
-    this.modalSivicc     = true;
+    this.siviccCanalCodigo        = undefined;
+    this.errorSivicc              = '';
+    this.guardandoSivicc          = false;
+    this.unidadesSivicc           = [];
+    this.cargandoUnidadesSivicc   = true;
+    this.modalSivicc              = true;
     this.bloquearScroll(true);
+    this.cargarCanales(); // para el select de canal opcional
+
+    // Paso 1: consultar unidades automáticamente
+    this.turnosSvc.getUnidadesSivicc(this.turnoSeleccionado.id).subscribe({
+      next: (lista) => {
+        this.cargandoUnidadesSivicc = false;
+        // Todas comienzan seleccionadas si no existen aún en CAD
+        this.unidadesSivicc = lista.map(u => ({ ...u, seleccionada: !u.existeEnCadMedios }));
+        // Si no hay unidades se muestra el estado vacío en el template (no es un error)
+      },
+      error: (e) => {
+        this.cargandoUnidadesSivicc = false;
+        this.errorSivicc = 'Error al consultar SIVICC: ' + (e.error?.message ?? e.message ?? 'Error desconocido.');
+      }
+    });
   }
 
-  cerrarModalSivicc(): void { this.modalSivicc = false; this.bloquearScroll(false); }
+  cerrarModalSivicc(): void {
+    this.modalSivicc    = false;
+    this.bloquearScroll(false);
+  }
+
+  /** Seleccionar / deseleccionar todas las unidades. */
+  toggleTodaSivicc(seleccionar: boolean): void {
+    this.unidadesSivicc.forEach(u => (u.seleccionada = seleccionar));
+  }
+
+  get todasSiviccSeleccionadas(): boolean {
+    return this.unidadesSivicc.length > 0 && this.unidadesSivicc.every(u => u.seleccionada);
+  }
+
+  get algunaSiviccSeleccionada(): boolean {
+    return this.unidadesSivicc.some(u => u.seleccionada);
+  }
 
   guardarSivicc(): void {
-    if (!this.formSivicc.siviccMinutaId) { this.errorSivicc = 'ID de minuta SIVICC requerido.'; return; }
+    if (!this.algunaSiviccSeleccionada) {
+      this.errorSivicc = 'Seleccione al menos una unidad para importar.';
+      return;
+    }
     this.guardandoSivicc = true;
     this.errorSivicc     = '';
-    this.turnosSvc.importarSivicc(this.formSivicc.turnoId, this.formSivicc).subscribe({
+
+    const unidades = this.unidadesSivicc
+      .filter(u => u.seleccionada)
+      .map(u => ({ minutaId: u.minutaId, consecutivo: u.consecutivo }));
+
+    const req: DtoImportarSiviccRequest = {
+      ...this.formSivicc,
+      canalCodigo: this.siviccCanalCodigo,
+      unidades
+    };
+
+    this.turnosSvc.importarSivicc(req.turnoId, req).subscribe({
       next: (r) => {
         this.guardandoSivicc = false;
         if (r.success) {
@@ -545,9 +728,14 @@ export class TurnosComponent implements OnInit, OnDestroy, AfterViewChecked {
           if (this.turnoSeleccionado) {
             this.turnosSvc.getUnidades(this.turnoSeleccionado.id).subscribe(u => this.unidades = u);
           }
-        } else { this.errorSivicc = r.message; }
+        } else {
+          this.errorSivicc = r.message;
+        }
       },
-      error: (e) => { this.guardandoSivicc = false; this.errorSivicc = e.error?.message ?? 'Error SIVICC.'; }
+      error: (e) => {
+        this.guardandoSivicc = false;
+        this.errorSivicc = e.error?.message ?? 'Error al importar desde SIVICC.';
+      }
     });
   }
 
@@ -583,8 +771,25 @@ export class TurnosComponent implements OnInit, OnDestroy, AfterViewChecked {
     return this.turnosSvc.claseEstadoMedio(estado as EstadoMedio);
   }
 
+  /** Cuando el usuario elige un canal del select, actualiza canalCodigo y canalFuerzaId. */
+  onCanalChange(codigo: number | undefined): void {
+    const canal = this.canales.find(c => c.codigo === Number(codigo));
+    this.formMedio.canalCodigo   = canal?.codigo;
+    this.formMedio.canalFuerzaId = canal?.fuerzaId;
+  }
+
+  /** Devuelve las clases FontAwesome para el tipo de medio (reemplaza Material Icons). */
   iconoTipo(tipo: number): string {
-    return this.turnosSvc.iconoTipoMedio(tipo as any);
+    const map: Record<number, string> = {
+      20: 'fa-solid fa-motorcycle',        // Motocicleta
+      21: 'fa-solid fa-bicycle',           // Bicicleta
+      22: 'fa-solid fa-car-side',          // Patrulla
+      23: 'fa-solid fa-truck-medical',     // Ambulancia
+      24: 'fa-solid fa-fire-flame-curved', // Camión Bomberos
+      25: 'fa-solid fa-helicopter',        // Helicóptero
+      26: 'fa-solid fa-sailboat',          // Lancha
+    };
+    return map[tipo] ?? 'fa-solid fa-car';
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -635,7 +840,7 @@ export class TurnosComponent implements OnInit, OnDestroy, AfterViewChecked {
 
   private nuevoFormMedio(): FormMedio {
     return {
-      turnoId: 0, turnoUnidadId: undefined, unidadCodigo: undefined,
+      turnoId: '', turnoUnidadId: undefined, unidadCodigo: undefined,
       fuerzaId: 0, canalCodigo: undefined, canalFuerzaId: undefined,
       patrullaCodigo: '', patrullaDesc: undefined, tipoMedio: 22, personal: [],
       _personal1Cedu: '', _personal1Nomb: '',
@@ -649,7 +854,7 @@ export class TurnosComponent implements OnInit, OnDestroy, AfterViewChecked {
   }
 
   // ─── trackBy helpers ──────────────────────────────────────────────────────
-  trackByTurno(_: number, t: DtoTurnoListItem): number { return t.id; }
-  trackByUnidad(_: number, u: DtoTurnoUnidad): number  { return u.id; }
-  trackByMedio(_: number, m: DtoMedioDisponible): number { return m.id; }
+  trackByTurno(_: number, t: DtoTurnoListItem): string { return t.id; }
+  trackByUnidad(_: number, u: DtoTurnoUnidad): string  { return u.id; }
+  trackByMedio(_: number, m: DtoMedioDisponible): string { return m.id; }
 }

@@ -153,6 +153,54 @@ public class DtoCierreActuacionRequest
     public string? ClasifCierre      { get; set; }
     public string? ObservacionCierre { get; set; }
     public List<DtoCodigoCierreActuacion> CodigosCierre { get; set; } = new();
+
+    // ── Resultado operativo estructurado (opcional) ──────────────────────────
+    /// <summary>Código de la actividad policial (de cad_act_policial.codigo).</summary>
+    public string? ActividadCodigo { get; set; }
+    /// <summary>O=Operativa, P=Preventiva.</summary>
+    public string? ActividadTipo   { get; set; }
+    /// <summary>Snapshot de la descripción al momento del registro.</summary>
+    public string? ActividadDesc   { get; set; }
+    /// <summary>Artículo del Código Penal (de cad_delitos.articulo).</summary>
+    public string? DelitoArticulo  { get; set; }
+    /// <summary>Snapshot de la descripción del delito.</summary>
+    public string? DelitoDesc      { get; set; }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Item del catálogo de actividades policiales (cad_act_policial).
+// ─────────────────────────────────────────────────────────────────────────────
+public class DtoActividadPolicial
+{
+    public int    Id             { get; set; }
+    /// <summary>O=Operativa, P=Preventiva.</summary>
+    public string Tipo           { get; set; } = "";
+    public string Codigo         { get; set; } = "";
+    public string Descripcion    { get; set; } = "";
+    /// <summary>Si true, se debe seleccionar el artículo del Código Penal al cerrar.</summary>
+    public bool   RequiereDelito { get; set; }
+    public int    Orden          { get; set; }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Item del catálogo de delitos — Código Penal Colombiano (cad_delitos).
+// ─────────────────────────────────────────────────────────────────────────────
+public class DtoDelitoItem
+{
+    public int     Id           { get; set; }
+    public string  Articulo     { get; set; } = "";
+    public string  Descripcion  { get; set; } = "";
+    public string? BienJuridico { get; set; }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Item del catálogo de casos/códigos de tipificación (cad_casos).
+// Usado para la búsqueda de códigos de cierre en el panel de despacho.
+// ─────────────────────────────────────────────────────────────────────────────
+public class DtoCodigoCasoItem
+{
+    public string Codigo      { get; set; } = "";
+    public string Descripcion { get; set; } = "";
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -166,6 +214,27 @@ public class DtoAgregarNotaActuacionRequest
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Request: crear una nueva actuación (primer despacho desde el módulo Eventos).
+// ─────────────────────────────────────────────────────────────────────────────
+public class DtoCrearActuacionRequest
+{
+    public long    EventoId        { get; set; }
+    public int     SitioGraba      { get; set; }
+    public int?    FuerzaId        { get; set; }
+    public int?    CanalCodigo     { get; set; }
+    /// <summary>Código de la patrulla/unidad asignada (snapshot del recurso).</summary>
+    public string? UnidadAsignada  { get; set; }
+    public string? PlacaUnidad     { get; set; }
+    /// <summary>
+    /// ID del medio en cad_medios_disponibles, enviado como string para preservar
+    /// la precisión del Snowflake ID en el transporte JSON.
+    /// </summary>
+    public string? MedioId         { get; set; }
+    /// <summary>D=Despachador, O=Operador, S=Sistema.</summary>
+    public string  TipoDespachador { get; set; } = "D";
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Request: registrar una unidad adicional a la actuación.
 // ─────────────────────────────────────────────────────────────────────────────
 public class DtoAgregarUnidadActuacionRequest
@@ -174,6 +243,15 @@ public class DtoAgregarUnidadActuacionRequest
     public string? Placa         { get; set; }
     public string? TipoUnidad    { get; set; }
     public string? Observacion   { get; set; }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Request: desasignar un recurso de una actuación (solo si estado = P).
+// ─────────────────────────────────────────────────────────────────────────────
+public class DtoDesasignarActuacionRequest
+{
+    /// <summary>Razón del desasignado (opcional, por defecto "Desasignado por operador").</summary>
+    public string? Motivo { get; set; }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

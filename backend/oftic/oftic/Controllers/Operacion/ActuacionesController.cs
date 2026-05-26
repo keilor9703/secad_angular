@@ -89,6 +89,42 @@ namespace Api.Controllers.Operacion
         }
 
         // ════════════════════════════════════════════════════════════════════════
+        // CREACIÓN
+        // ════════════════════════════════════════════════════════════════════════
+
+        /// <summary>
+        /// Crea una actuación en estado P (Pendiente/Asignado) — primer paso del
+        /// flujo de despacho.  Si se proporciona MedioId, el medio queda vinculado
+        /// al evento con evento_id y actuacion_id.
+        /// </summary>
+        /// <remarks>
+        /// POST api/Actuaciones
+        /// Body: { "eventoId": 123, "fuerzaId": 1, "canalCodigo": 5,
+        ///         "unidadAsignada": "PAT-01", "medioId": 1234567890 }
+        /// </remarks>
+        [HttpPost]
+        public async Task<IActionResult> CrearActuacion(
+            [FromBody] DtoCrearActuacionRequest req,
+            CancellationToken ct)
+        {
+            if (req is null || req.EventoId <= 0)
+                return BadRequest(new { success = false, message = "EventoId es obligatorio." });
+            try
+            {
+                var result = await _svc.P_CrearActuacionAsync(req, UsuarioClaim, ct);
+                return result.Success
+                    ? Ok(new { success = true, message = result.Message,
+                               actuacionId = result.ActuacionId.ToString() })
+                    : BadRequest(new { success = false, message = result.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "CrearActuacion error eventoId={Id}", req?.EventoId);
+                return StatusCode(500, new { success = false, message = ex.Message });
+            }
+        }
+
+        // ════════════════════════════════════════════════════════════════════════
         // CICLO OPERATIVO
         // ════════════════════════════════════════════════════════════════════════
 
@@ -196,6 +232,117 @@ namespace Api.Controllers.Operacion
             catch (Exception ex)
             {
                 _logger.LogError(ex, "AgregarNota error id={Id}", id);
+                return StatusCode(500, new { success = false, message = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// Desasigna el recurso de una actuación que aún no ha salido en ruta (estado P).
+        /// Anula la actuación (estado → V), libera el medio (estado → 27 Libre) y
+        /// recalcula el estado global del evento.
+        ///
+        /// Solo funciona en estado P. Si el recurso ya salió en ruta, use novedad.
+        /// </summary>
+        /// <remarks>
+        /// POST api/Actuaciones/{id}/desasignar
+        /// Body (opcional): { "motivo": "Asignado por error" }
+        /// </remarks>
+        [HttpPost("{id:long}/desasignar")]
+        public async Task<IActionResult> DesasignarActuacion(
+            long id,
+            [FromBody] DtoDesasignarActuacionRequest? req,
+            CancellationToken ct)
+        {
+            try
+            {
+                var motivo = req?.Motivo?.Trim() is { Length: > 0 } m ? m : "Desasignado por operador";
+                var result = await _svc.P_DesasignarActuacionAsync(id, motivo, UsuarioClaim, ct);
+                return result.Success
+                    ? Ok(new { success = true, message = result.Message, actuacionId = id })
+                    : BadRequest(new { success = false, message = result.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "DesasignarActuacion error id={Id}", id);
+                return StatusCode(500, new { success = false, message = ex.Message });
+            }
+        }
+
+        // ════════════════════════════════════════════════════════════════════════
+        // CATÁLOGOS
+        // ════════════════════════════════════════════════════════════════════════
+
+        /// <summary>
+        /// Retorna el catálogo de actividades policiales.
+        /// Usar al abrir el modal de cierre para mostrar la clasificación de la actuación.
+        /// </summary>
+        /// <remarks>
+        /// GET api/Actuaciones/actividades-policiales?tipo=O
+        /// tipo: O=Operativa, P=Preventiva, omitir para todas.
+        /// </remarks>
+        [HttpGet("actividades-policiales")]
+        public async Task<IActionResult> GetActividadesPoliciales(
+            [FromQuery] string? tipo, CancellationToken ct)
+        {
+            try
+            {
+                var data = await _svc.G_GetActividadesPolicialesAsync(tipo, ct);
+                return Ok(new { success = true, data });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "GetActividadesPoliciales error tipo={Tipo}", tipo);
+                return StatusCode(500, new { success = false, message = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// Búsqueda de delitos del Código Penal Colombiano (Ley 599/2000).
+        /// Retorna hasta 10 coincidencias por artículo, descripción o bien jurídico.
+        /// </summary>
+        /// <remarks>
+        /// GET api/Actuaciones/delitos?q=hurto
+        /// </remarks>
+        [HttpGet("delitos")]
+        public async Task<IActionResult> BuscarDelitos(
+            [FromQuery] string? q, CancellationToken ct)
+        {
+            if (string.IsNullOrWhiteSpace(q))
+                return Ok(new { success = true, data = Array.Empty<object>() });
+            try
+            {
+                var data = await _svc.G_BuscarDelitosAsync(q, 10, ct);
+                return Ok(new { success = true, data });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "BuscarDelitos error q={Q}", q);
+                return StatusCode(500, new { success = false, message = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// Búsqueda de códigos de tipificación/cierre en cad_casos.
+        /// Misma tabla que el módulo de Recepción; retorna hasta 10 coincidencias.
+        /// Usar para el autocomplete de códigos en los modales de cierre.
+        /// </summary>
+        /// <remarks>
+        /// GET api/Actuaciones/codigos-cierre?q=333
+        /// </remarks>
+        [HttpGet("codigos-cierre")]
+        public async Task<IActionResult> BuscarCodigosCierre(
+            [FromQuery] string? q, CancellationToken ct)
+        {
+            if (string.IsNullOrWhiteSpace(q))
+                return Ok(new { success = true, data = Array.Empty<object>() });
+            try
+            {
+                var data = await _svc.G_BuscarCodigosCierreAsync(q, 10, ct);
+                return Ok(new { success = true, data });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "BuscarCodigosCierre error q={Q}", q);
                 return StatusCode(500, new { success = false, message = ex.Message });
             }
         }

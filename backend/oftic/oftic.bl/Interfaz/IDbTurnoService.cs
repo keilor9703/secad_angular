@@ -24,6 +24,9 @@ namespace Negocio.Interfaz
         Task<List<DtoMedioDisponibleResumen>> G_GetResumenMediosCanalAsync(
             int canalCodigo, int sitioGraba, CancellationToken ct);
 
+        Task<List<Dictionary<string, object?>>> G_DiagnosticoCanalAsync(
+            int canalCodigo, int sitioGraba, CancellationToken ct);
+
         // ── Creación / edición de turnos ────────────────────────────────────────
 
         Task<DtoTurnoResult> P_CrearTurnoAsync(
@@ -41,6 +44,16 @@ namespace Negocio.Interfaz
 
         Task<DtoTurnoResult> P_AgregarMedioAsync(
             DtoAgregarMedioRequest req, string usuario, CancellationToken ct);
+
+        Task<DtoTurnoResult> P_ActualizarMedioAsync(
+            long medioId, DtoActualizarMedioRequest req, string usuario, CancellationToken ct);
+
+        /// <summary>
+        /// Consulta las unidades disponibles en SIVICC para el turno.
+        /// Los filtros (sigla física, clase turno, fecha) se obtienen del turno en BD.
+        /// </summary>
+        Task<List<DtoUnidadSivicc>> G_GetUnidadesSiviccAsync(
+            long turnoId, CancellationToken ct);
 
         Task<DtoTurnoResult> P_ImportarDesdeSiviccAsync(
             DtoImportarSiviccRequest req, string usuario, CancellationToken ct);

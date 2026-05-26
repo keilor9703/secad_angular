@@ -1048,6 +1048,18 @@ textarea.ui-control {
 }
 
 /* Button sizes */
+.ui-btn.xs {
+  height: 26px;
+  padding: 0 9px;
+  border-radius: 7px;
+  font-weight: 800;
+  font-size: calc(11px * var(--font-size-scale));
+  letter-spacing: .01em;
+  gap: 4px !important;
+}
+
+.ui-btn.xs i { font-size: calc(11px * var(--font-size-scale)); }
+
 .ui-btn.sm {
   height: 34px;
   padding: 0 12px;

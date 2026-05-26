@@ -53,7 +53,8 @@ SELECT a.id, a.evento_id,
 FROM   cad_actuaciones a
 LEFT   JOIN cad_fuerzas f ON f.id     = a.fuerza_id
 LEFT   JOIN cad_canales c ON c.codigo = a.canal_codigo
-WHERE  a.evento_id = @eid
+WHERE  a.pedido_id = @eid          -- cad_pedidos.id enviado por el frontend
+   OR  a.evento_id = @eid          -- compatibilidad si se pasó cad_eventos.id
 ORDER  BY a.fecha_creacion ASC";
             cmd.Parameters.AddWithValue("eid", eventoId);
 
@@ -259,6 +260,20 @@ WHERE  id = @id
             cmd.Parameters.AddWithValue("id",      actuacionId);
 
             var rows = await cmd.ExecuteNonQueryAsync(ct);
+            if (rows > 0)
+            {
+                // Actualizar estado operativo del medio vinculado a esta actuación
+                // D=Despachada → medio 30 (En ruta) | A=Atendida → medio 28 (En sitio/Ocupado)
+                int medioEstado = req.Estado == EstadoActuacion.Despachada ? 30 : 28;
+                await using var updMedio = conn.CreateCommand();
+                updMedio.CommandText = @"
+UPDATE cad_medios_disponibles
+SET    estado = @medioEstado
+WHERE  actuacion_id = @actId";
+                updMedio.Parameters.AddWithValue("medioEstado", medioEstado);
+                updMedio.Parameters.AddWithValue("actId",       actuacionId);
+                await updMedio.ExecuteNonQueryAsync(ct);
+            }
             return new DtoActuacionResult
             {
                 Success     = rows > 0,
@@ -383,6 +398,39 @@ VALUES (@actId, @orden, @codigo, @tipo, @desc, @usuario, NOW())";
                     await insCod.ExecuteNonQueryAsync(ct);
                 }
 
+                // ── 4b. INSERT resultado operativo estructurado (si se informó) ──
+                // Requiere migración V12 (cad_actuaciones_resultados).
+                if (!string.IsNullOrWhiteSpace(req.ActividadCodigo)
+                    || !string.IsNullOrWhiteSpace(req.DelitoArticulo))
+                {
+                    await using var insRes = conn.CreateCommand();
+                    insRes.Transaction = tx;
+                    insRes.CommandText = @"
+INSERT INTO cad_actuaciones_resultados
+    (actuacion_id, actividad_codigo, actividad_tipo, actividad_desc,
+     delito_articulo, delito_desc, observacion, usuario_registra, fecha_registra)
+VALUES (@actId, @actCod, @actTipo, @actDesc,
+        @delitoArt, @delitoDesc, @obs, @usuario, NOW())
+ON CONFLICT (actuacion_id) DO UPDATE
+  SET actividad_codigo  = EXCLUDED.actividad_codigo,
+      actividad_tipo    = EXCLUDED.actividad_tipo,
+      actividad_desc    = EXCLUDED.actividad_desc,
+      delito_articulo   = EXCLUDED.delito_articulo,
+      delito_desc       = EXCLUDED.delito_desc,
+      observacion       = EXCLUDED.observacion,
+      usuario_registra  = EXCLUDED.usuario_registra,
+      fecha_registra    = NOW()";
+                    insRes.Parameters.AddWithValue("actId",     req.ActuacionId);
+                    insRes.Parameters.AddWithValue("actCod",    NullOrString(req.ActividadCodigo));
+                    insRes.Parameters.AddWithValue("actTipo",   NullOrString(req.ActividadTipo));
+                    insRes.Parameters.AddWithValue("actDesc",   NullOrString(req.ActividadDesc));
+                    insRes.Parameters.AddWithValue("delitoArt", NullOrString(req.DelitoArticulo));
+                    insRes.Parameters.AddWithValue("delitoDesc",NullOrString(req.DelitoDesc));
+                    insRes.Parameters.AddWithValue("obs",       NullOrString(req.ObservacionCierre));
+                    insRes.Parameters.AddWithValue("usuario",   usuario);
+                    await insRes.ExecuteNonQueryAsync(ct);
+                }
+
                 // ── 5. Recalcular estado global del evento ────────────────────
                 // fn_recalcular_estado_evento ya existe en BD (creada en V8).
                 await using (var fnEvt = conn.CreateCommand())
@@ -391,6 +439,20 @@ VALUES (@actId, @orden, @codigo, @tipo, @desc, @usuario, NOW())";
                     fnEvt.CommandText = "SELECT fn_recalcular_estado_evento(@eid)";
                     fnEvt.Parameters.AddWithValue("eid", eventoId);
                     await fnEvt.ExecuteNonQueryAsync(ct);
+                }
+
+                // ── 6. Liberar el medio vinculado (estado=27, limpiar vínculos) ──
+                await using (var libMedio = conn.CreateCommand())
+                {
+                    libMedio.Transaction = tx;
+                    libMedio.CommandText = @"
+UPDATE cad_medios_disponibles
+SET    estado      = 27,
+       evento_id   = NULL,
+       actuacion_id = NULL
+WHERE  actuacion_id = @actId";
+                    libMedio.Parameters.AddWithValue("actId", req.ActuacionId);
+                    await libMedio.ExecuteNonQueryAsync(ct);
                 }
 
                 await tx.CommitAsync(ct);
@@ -500,6 +562,408 @@ RETURNING id";
                 SubId       = newId is null ? null : Convert.ToInt64(newId),
                 Message     = $"Unidad '{req.UnidadCodigo}' despachada."
             };
+        }
+
+        // ════════════════════════════════════════════════════════════════════════
+        // CREAR ACTUACIÓN  (primer despacho — estado inicial P)
+        // Flujo completo: P → D (En ruta) → A (En sitio) → C (Cerrada)
+        // ════════════════════════════════════════════════════════════════════════
+
+        public async Task<DtoActuacionResult> P_CrearActuacionAsync(
+            DtoCrearActuacionRequest req,
+            string usuario,
+            CancellationToken ct)
+        {
+            if (req.EventoId <= 0)
+                return new DtoActuacionResult { Success = false, Message = "EventoId inválido." };
+
+            await using var conn = await _tenant.DataSource.OpenConnectionAsync(ct);
+            await using var tx   = await conn.BeginTransactionAsync(ct);
+
+            try
+            {
+                // ── Paso 0: Resolver el cad_eventos.id ──────────────────────────
+                // req.EventoId contiene cad_pedidos.id (lo que el frontend envía).
+                // cad_actuaciones.evento_id → FK → cad_eventos(id), tabla distinta.
+                // Buscamos o creamos el registro en cad_eventos para este pedido.
+                long realEventoId;
+                await using (var qEvt = conn.CreateCommand())
+                {
+                    qEvt.Transaction = tx;
+                    qEvt.CommandText = "SELECT id FROM cad_eventos WHERE pedido_id = @pid LIMIT 1";
+                    qEvt.Parameters.AddWithValue("pid", req.EventoId);
+                    var rawEvt = await qEvt.ExecuteScalarAsync(ct);
+
+                    if (rawEvt is not null and not DBNull)
+                    {
+                        // Ya existe un cad_eventos para este pedido
+                        realEventoId = Convert.ToInt64(rawEvt);
+                    }
+                    else
+                    {
+                        // Crear cad_eventos on-demand (el pedido aún no tiene evento formal)
+                        realEventoId = _snowflake.NextId();
+                        await using var insEvt = conn.CreateCommand();
+                        insEvt.Transaction = tx;
+                        insEvt.CommandText = @"
+INSERT INTO cad_eventos
+    (id, sitio_graba, pedido_id, fuerza_id, canal_codigo,
+     origen, usuario_genera, estado, fecha_creacion)
+VALUES
+    (@id, @sg, @pedidoId, @fuerza, @canal,
+     'RECEPCION', @usuario, 'P', NOW())";
+                        insEvt.Parameters.AddWithValue("id",       realEventoId);
+                        insEvt.Parameters.AddWithValue("sg",       req.SitioGraba);
+                        insEvt.Parameters.AddWithValue("pedidoId", req.EventoId);
+                        insEvt.Parameters.AddWithValue("fuerza",   req.FuerzaId.HasValue
+                                                                    ? (object)req.FuerzaId.Value : DBNull.Value);
+                        insEvt.Parameters.AddWithValue("canal",    req.CanalCodigo.HasValue
+                                                                    ? (object)req.CanalCodigo.Value : DBNull.Value);
+                        insEvt.Parameters.AddWithValue("usuario",  usuario);
+                        await insEvt.ExecuteNonQueryAsync(ct);
+                        _logger.LogInformation(
+                            "cad_eventos {EvId} creado on-demand para pedido {PedId}",
+                            realEventoId, req.EventoId);
+                    }
+                }
+
+                // ── Paso 0b: Verificar que el medio no tenga despacho activo ────
+                // Protege contra asignación múltiple del mismo recurso al mismo caso.
+                if (!string.IsNullOrWhiteSpace(req.MedioId)
+                    && long.TryParse(req.MedioId, out var medioChkId))
+                {
+                    await using var qMedChk = conn.CreateCommand();
+                    qMedChk.Transaction = tx;
+                    qMedChk.CommandText = @"
+SELECT COUNT(*) FROM cad_medios_disponibles
+WHERE  id = @mid AND actuacion_id IS NOT NULL";
+                    qMedChk.Parameters.AddWithValue("mid", medioChkId);
+                    var yaAsignado = Convert.ToInt64(await qMedChk.ExecuteScalarAsync(ct));
+                    if (yaAsignado > 0)
+                    {
+                        await tx.RollbackAsync(ct);
+                        return new DtoActuacionResult
+                        {
+                            Success     = false,
+                            ActuacionId = 0,
+                            Message     = "Este recurso ya tiene un despacho activo. " +
+                                          "Cierre o desasigne la actuación anterior antes de reasignarlo."
+                        };
+                    }
+                }
+
+                // ── Paso 1: Snapshots de fuerza y canal ─────────────────────────
+                string fuerzaDesc = "", canalDesc = "";
+                if (req.FuerzaId.HasValue)
+                {
+                    await using var qF = conn.CreateCommand();
+                    qF.Transaction = tx;
+                    qF.CommandText = "SELECT descripcion FROM cad_fuerzas WHERE id = @id LIMIT 1";
+                    qF.Parameters.AddWithValue("id", req.FuerzaId.Value);
+                    var raw = await qF.ExecuteScalarAsync(ct);
+                    if (raw is not null and not DBNull) fuerzaDesc = raw.ToString()!;
+                }
+                if (req.CanalCodigo.HasValue)
+                {
+                    await using var qC = conn.CreateCommand();
+                    qC.Transaction = tx;
+                    qC.CommandText = "SELECT descripcion FROM cad_canales WHERE codigo = @c LIMIT 1";
+                    qC.Parameters.AddWithValue("c", req.CanalCodigo.Value);
+                    var raw = await qC.ExecuteScalarAsync(ct);
+                    if (raw is not null and not DBNull) canalDesc = raw.ToString()!;
+                }
+
+                // ── Paso 2: INSERT cad_actuaciones (estado inicial P) ────────────
+                long actuacionId = _snowflake.NextId();
+                await using (var ins = conn.CreateCommand())
+                {
+                    ins.Transaction = tx;
+                    ins.CommandText = @"
+INSERT INTO cad_actuaciones
+    (id, evento_id, pedido_id, sitio_graba, fuerza_id, canal_codigo,
+     fuerza_descripcion, canal_descripcion,
+     despachador_usuario, tipo_despachador,
+     unidad_asignada, placa_unidad,
+     estado, fecha_creacion)
+VALUES
+    (@id, @eventoId, @pedidoId, @sg, @fuerza, @canal,
+     @fuerzaDesc, @canalDesc,
+     @usuario, @tipoDep,
+     @unidad, @placa,
+     'P', NOW())";
+                    ins.Parameters.AddWithValue("id",         actuacionId);
+                    ins.Parameters.AddWithValue("eventoId",   realEventoId);   // ← cad_eventos.id
+                    ins.Parameters.AddWithValue("pedidoId",   req.EventoId);   // ← cad_pedidos.id
+                    ins.Parameters.AddWithValue("sg",         req.SitioGraba);
+                    ins.Parameters.AddWithValue("fuerza",     req.FuerzaId.HasValue
+                                                              ? (object)req.FuerzaId.Value : DBNull.Value);
+                    ins.Parameters.AddWithValue("canal",      req.CanalCodigo.HasValue
+                                                              ? (object)req.CanalCodigo.Value : DBNull.Value);
+                    ins.Parameters.AddWithValue("fuerzaDesc", NullOrString(fuerzaDesc));
+                    ins.Parameters.AddWithValue("canalDesc",  NullOrString(canalDesc));
+                    ins.Parameters.AddWithValue("usuario",    usuario);
+                    ins.Parameters.AddWithValue("tipoDep",    string.IsNullOrWhiteSpace(req.TipoDespachador)
+                                                              ? "D" : req.TipoDespachador);
+                    ins.Parameters.AddWithValue("unidad",     NullOrString(req.UnidadAsignada));
+                    ins.Parameters.AddWithValue("placa",      NullOrString(req.PlacaUnidad));
+                    await ins.ExecuteNonQueryAsync(ct);
+                }
+
+                // Vincular el medio al evento y a esta actuación (no cambia estado operativo aún)
+                if (!string.IsNullOrWhiteSpace(req.MedioId)
+                    && long.TryParse(req.MedioId, out var medioIdLong))
+                {
+                    await using var updM = conn.CreateCommand();
+                    updM.Transaction = tx;
+                    updM.CommandText = @"
+UPDATE cad_medios_disponibles
+SET    evento_id    = @eventoId,
+       actuacion_id = @actId
+WHERE  id = @medioId";
+                    updM.Parameters.AddWithValue("eventoId", req.EventoId);
+                    updM.Parameters.AddWithValue("actId",    actuacionId);
+                    updM.Parameters.AddWithValue("medioId",  medioIdLong);
+                    await updM.ExecuteNonQueryAsync(ct);
+                }
+
+                await tx.CommitAsync(ct);
+                _logger.LogInformation(
+                    "Actuación {Id} creada por {U} (evento={E}, unidad={Un})",
+                    actuacionId, usuario, req.EventoId, req.UnidadAsignada);
+                return new DtoActuacionResult
+                {
+                    Success     = true,
+                    ActuacionId = actuacionId,
+                    Message     = $"Recurso '{req.UnidadAsignada}' asignado al evento. " +
+                                  $"Presione 'En ruta' cuando salga hacia el lugar."
+                };
+            }
+            catch (Exception ex)
+            {
+                await tx.RollbackAsync(ct);
+                _logger.LogError(ex, "P_CrearActuacion error");
+                return new DtoActuacionResult { Success = false, Message = ex.Message };
+            }
+        }
+
+        // ════════════════════════════════════════════════════════════════════════
+        // DESASIGNAR ACTUACIÓN (solo estado P — aún no salió en ruta)
+        // Anula la actuación (→V), libera el medio (estado=27) y recalcula evento.
+        // ════════════════════════════════════════════════════════════════════════
+
+        public async Task<DtoActuacionResult> P_DesasignarActuacionAsync(
+            long actuacionId,
+            string motivo,
+            string usuario,
+            CancellationToken ct)
+        {
+            await using var conn = await _tenant.DataSource.OpenConnectionAsync(ct);
+            await using var tx   = await conn.BeginTransactionAsync(ct);
+
+            try
+            {
+                // ── 1. Verificar que existe y está en estado P ────────────────
+                long eventoId = 0;
+                await using (var qChk = conn.CreateCommand())
+                {
+                    qChk.Transaction = tx;
+                    qChk.CommandText = @"
+SELECT evento_id FROM cad_actuaciones
+WHERE  id = @id AND estado = 'P'";
+                    qChk.Parameters.AddWithValue("id", actuacionId);
+                    var raw = await qChk.ExecuteScalarAsync(ct);
+                    if (raw is null or DBNull)
+                    {
+                        await tx.RollbackAsync(ct);
+                        return new DtoActuacionResult
+                        {
+                            Success     = false,
+                            ActuacionId = actuacionId,
+                            Message     = "Solo se puede desasignar un recurso que aún no ha " +
+                                          "salido en ruta (estado Pendiente). " +
+                                          "Si el recurso ya está en camino, registre una novedad."
+                        };
+                    }
+                    eventoId = Convert.ToInt64(raw);
+                }
+
+                // ── 2. Anular la actuación ────────────────────────────────────
+                await using (var upd = conn.CreateCommand())
+                {
+                    upd.Transaction = tx;
+                    upd.CommandText = @"
+UPDATE cad_actuaciones
+SET    estado             = 'V',
+       fecha_cierre       = NOW(),
+       observacion_cierre = @obs,
+       fecha_modificacion = NOW(),
+       usuario_modifica   = @usuario
+WHERE  id = @id";
+                    upd.Parameters.AddWithValue("obs",     NullOrString(
+                        string.IsNullOrWhiteSpace(motivo) ? "Desasignado por operador" : motivo));
+                    upd.Parameters.AddWithValue("usuario", usuario);
+                    upd.Parameters.AddWithValue("id",      actuacionId);
+                    await upd.ExecuteNonQueryAsync(ct);
+                }
+
+                // ── 3. Liberar el medio vinculado ─────────────────────────────
+                await using (var libMedio = conn.CreateCommand())
+                {
+                    libMedio.Transaction = tx;
+                    libMedio.CommandText = @"
+UPDATE cad_medios_disponibles
+SET    estado       = 27,
+       evento_id    = NULL,
+       actuacion_id = NULL
+WHERE  actuacion_id = @actId";
+                    libMedio.Parameters.AddWithValue("actId", actuacionId);
+                    await libMedio.ExecuteNonQueryAsync(ct);
+                }
+
+                // ── 4. Recalcular estado global del evento ────────────────────
+                await using (var fnEvt = conn.CreateCommand())
+                {
+                    fnEvt.Transaction = tx;
+                    fnEvt.CommandText = "SELECT fn_recalcular_estado_evento(@eid)";
+                    fnEvt.Parameters.AddWithValue("eid", eventoId);
+                    await fnEvt.ExecuteNonQueryAsync(ct);
+                }
+
+                await tx.CommitAsync(ct);
+                _logger.LogInformation(
+                    "Actuación {Id} desasignada por {U}. Motivo: {M}",
+                    actuacionId, usuario, motivo);
+                return new DtoActuacionResult
+                {
+                    Success     = true,
+                    ActuacionId = actuacionId,
+                    Message     = "Recurso desasignado correctamente. El medio quedó disponible."
+                };
+            }
+            catch (Exception ex)
+            {
+                await tx.RollbackAsync(ct);
+                _logger.LogError(ex, "P_DesasignarActuacion error id={Id}", actuacionId);
+                return new DtoActuacionResult
+                {
+                    Success     = false,
+                    ActuacionId = actuacionId,
+                    Message     = ex.Message
+                };
+            }
+        }
+
+        // ════════════════════════════════════════════════════════════════════════
+        // CATÁLOGOS — Actividades policiales, delitos y códigos de cierre
+        // ════════════════════════════════════════════════════════════════════════
+
+        /// <summary>
+        /// Retorna el catálogo de actividades policiales.
+        /// tipo = "O" (Operativas), "P" (Preventivas), null = todas.
+        /// </summary>
+        public async Task<List<DtoActividadPolicial>> G_GetActividadesPolicialesAsync(
+            string? tipo, CancellationToken ct)
+        {
+            var result = new List<DtoActividadPolicial>();
+            await using var conn = await _tenant.DataSource.OpenConnectionAsync(ct);
+            await using var cmd  = conn.CreateCommand();
+
+            if (string.IsNullOrWhiteSpace(tipo))
+            {
+                cmd.CommandText = @"
+SELECT id, tipo, codigo, descripcion, requiere_delito, orden
+FROM   cad_act_policial
+WHERE  vigente = true
+ORDER  BY tipo, orden";
+            }
+            else
+            {
+                cmd.CommandText = @"
+SELECT id, tipo, codigo, descripcion, requiere_delito, orden
+FROM   cad_act_policial
+WHERE  vigente = true AND tipo = @tipo
+ORDER  BY orden";
+                cmd.Parameters.AddWithValue("tipo", tipo.ToUpperInvariant());
+            }
+
+            await using var rdr = await cmd.ExecuteReaderAsync(ct);
+            while (await rdr.ReadAsync(ct))
+                result.Add(new DtoActividadPolicial
+                {
+                    Id             = rdr.GetInt32(0),
+                    Tipo           = rdr.GetString(1),
+                    Codigo         = rdr.GetString(2),
+                    Descripcion    = rdr.GetString(3),
+                    RequiereDelito = rdr.GetBoolean(4),
+                    Orden          = rdr.GetInt16(5)
+                });
+            return result;
+        }
+
+        /// <summary>
+        /// Búsqueda por texto libre en cad_delitos.
+        /// Filtra por descripción, artículo o bien jurídico (ILIKE).
+        /// </summary>
+        public async Task<List<DtoDelitoItem>> G_BuscarDelitosAsync(
+            string q, int limit, CancellationToken ct)
+        {
+            var result = new List<DtoDelitoItem>();
+            if (string.IsNullOrWhiteSpace(q)) return result;
+
+            await using var conn = await _tenant.DataSource.OpenConnectionAsync(ct);
+            await using var cmd  = conn.CreateCommand();
+            cmd.CommandText = @"
+SELECT id, articulo, descripcion, bien_juridico
+FROM   cad_delitos
+WHERE  vigente = true
+  AND (descripcion ILIKE @q OR articulo ILIKE @q OR bien_juridico ILIKE @q)
+ORDER  BY articulo
+LIMIT  @lim";
+            cmd.Parameters.AddWithValue("q",   $"%{q}%");
+            cmd.Parameters.AddWithValue("lim", limit > 0 ? limit : 10);
+
+            await using var rdr = await cmd.ExecuteReaderAsync(ct);
+            while (await rdr.ReadAsync(ct))
+                result.Add(new DtoDelitoItem
+                {
+                    Id           = rdr.GetInt32(0),
+                    Articulo     = rdr.GetString(1),
+                    Descripcion  = rdr.GetString(2),
+                    BienJuridico = rdr.IsDBNull(3) ? null : rdr.GetString(3)
+                });
+            return result;
+        }
+
+        /// <summary>
+        /// Búsqueda de códigos de tipificación en cad_casos.
+        /// Misma tabla que usa el módulo de Recepción para tipificar casos.
+        /// </summary>
+        public async Task<List<DtoCodigoCasoItem>> G_BuscarCodigosCierreAsync(
+            string q, int limit, CancellationToken ct)
+        {
+            var result = new List<DtoCodigoCasoItem>();
+            if (string.IsNullOrWhiteSpace(q)) return result;
+
+            await using var conn = await _tenant.DataSource.OpenConnectionAsync(ct);
+            await using var cmd  = conn.CreateCommand();
+            cmd.CommandText = @"
+SELECT codigo, descripcion
+FROM   cad_casos
+WHERE  vigente = 'S'
+  AND (codigo ILIKE @q OR descripcion ILIKE @q)
+ORDER  BY codigo
+LIMIT  @lim";
+            cmd.Parameters.AddWithValue("q",   $"%{q}%");
+            cmd.Parameters.AddWithValue("lim", limit > 0 ? limit : 10);
+
+            await using var rdr = await cmd.ExecuteReaderAsync(ct);
+            while (await rdr.ReadAsync(ct))
+                result.Add(new DtoCodigoCasoItem
+                {
+                    Codigo      = rdr.GetString(0),
+                    Descripcion = rdr.GetString(1)
+                });
+            return result;
         }
 
         // ════════════════════════════════════════════════════════════════════════

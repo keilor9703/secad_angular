@@ -89,6 +89,20 @@ export interface DtoActuacionListItem {
   totalNotas?:     number;
 }
 
+/** Request: crear nueva actuación (primer paso del flujo de despacho) */
+export interface DtoCrearActuacionRequest {
+  eventoId:        number;
+  sitioGraba?:     number;
+  fuerzaId?:       number;
+  canalCodigo?:    number;
+  /** Código de patrulla/unidad — snapshot del recurso asignado */
+  unidadAsignada?: string;
+  placaUnidad?:    string;
+  /** ID del medio (string para preservar precisión del Snowflake ID en JSON) */
+  medioId?:        string;
+  tipoDespachador?: string;
+}
+
 /** Request: avanzar estado operativo (D o A) */
 export interface DtoActualizarEstadoActuacionRequest {
   estado:          'D' | 'A';
@@ -102,6 +116,36 @@ export interface DtoCierreActuacionRequest {
   clasifCierre?:      string;
   observacionCierre?: string;
   codigosCierre:      DtoCodigoCierreActuacion[];
+  /** Resultado operativo estructurado (V12) */
+  actividadCodigo?:  string;
+  actividadTipo?:    string;   // 'O' | 'P'
+  actividadDesc?:    string;
+  delitoArticulo?:   string;
+  delitoDesc?:       string;
+}
+
+/** Item del catálogo de actividades policiales (cad_act_policial) */
+export interface DtoActividadPolicial {
+  id:             number;
+  tipo:           'O' | 'P';
+  codigo:         string;
+  descripcion:    string;
+  requiereDelito: boolean;
+  orden:          number;
+}
+
+/** Item del catálogo de delitos — Código Penal Colombiano (cad_delitos) */
+export interface DtoDelitoItem {
+  id:            number;
+  articulo:      string;
+  descripcion:   string;
+  bienJuridico?: string;
+}
+
+/** Item de código de tipificación/cierre (cad_casos) */
+export interface DtoCodigoCasoItem {
+  codigo:      string;
+  descripcion: string;
 }
 
 /** Request: agregar nota de campo */
@@ -152,6 +196,20 @@ export class ActuacionesService {
   getActuacion(id: number): Observable<{ success: boolean; data: DtoActuacion }> {
     return this.http.get<{ success: boolean; data: DtoActuacion }>(
       `${this.base}/${id}`
+    );
+  }
+
+  // ── Creación ──────────────────────────────────────────────────────────────────
+
+  /**
+   * Crea una actuación en estado P (Asignado) — primer paso del flujo de despacho.
+   * Vincula el medio al evento si se proporciona medioId.
+   */
+  crearActuacion(
+    req: DtoCrearActuacionRequest
+  ): Observable<{ success: boolean; message: string; actuacionId: string }> {
+    return this.http.post<{ success: boolean; message: string; actuacionId: string }>(
+      this.base, req
     );
   }
 
@@ -215,6 +273,21 @@ export class ActuacionesService {
     );
   }
 
+  /**
+   * Desasigna un recurso de una actuación en estado P (aún no salió en ruta).
+   * Anula la actuación (→V) y libera el medio (→Libre 27).
+   * Falla si la actuación ya avanzó a estado D, A o C.
+   */
+  desasignarActuacion(
+    id: number,
+    motivo?: string
+  ): Observable<{ success: boolean; message: string; actuacionId: number }> {
+    return this.http.post<{ success: boolean; message: string; actuacionId: number }>(
+      `${this.base}/${id}/desasignar`,
+      { motivo: motivo ?? 'Desasignado por operador' }
+    );
+  }
+
   // ── Helpers UI ────────────────────────────────────────────────────────────────
 
   /** Etiqueta legible para el estado de una actuación */
@@ -239,5 +312,41 @@ export class ActuacionesService {
       V: 'badge-danger'
     };
     return map[estado] ?? '';
+  }
+
+  // ── Catálogos ─────────────────────────────────────────────────────────────
+
+  /**
+   * Catálogo de actividades policiales.
+   * tipo = 'O' (Operativas), 'P' (Preventivas), undefined = todas.
+   */
+  getActividadesPoliciales(tipo?: 'O' | 'P'):
+    Observable<{ success: boolean; data: DtoActividadPolicial[] }> {
+    const qs = tipo ? `?tipo=${tipo}` : '';
+    return this.http.get<{ success: boolean; data: DtoActividadPolicial[] }>(
+      `${this.base}/actividades-policiales${qs}`
+    );
+  }
+
+  /**
+   * Búsqueda de delitos del Código Penal Colombiano por texto libre.
+   * Busca en artículo, descripción y bien jurídico.
+   */
+  buscarDelitos(q: string):
+    Observable<{ success: boolean; data: DtoDelitoItem[] }> {
+    return this.http.get<{ success: boolean; data: DtoDelitoItem[] }>(
+      `${this.base}/delitos?q=${encodeURIComponent(q)}`
+    );
+  }
+
+  /**
+   * Búsqueda de códigos de tipificación/cierre en cad_casos.
+   * Misma tabla que usa Recepción para tipificar casos.
+   */
+  buscarCodigosCierre(q: string):
+    Observable<{ success: boolean; data: DtoCodigoCasoItem[] }> {
+    return this.http.get<{ success: boolean; data: DtoCodigoCasoItem[] }>(
+      `${this.base}/codigos-cierre?q=${encodeURIComponent(q)}`
+    );
   }
 }

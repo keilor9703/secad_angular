@@ -48,7 +48,7 @@ export type TipoMedio = typeof TIPO_MEDIO[keyof typeof TIPO_MEDIO];
 
 /** Ítem de la grilla de turnos (lista resumida) */
 export interface DtoTurnoListItem {
-  id:             number;
+  id:             string;   // Snowflake — serializado como string para evitar pérdida de precisión JS
   claseTurno:     ClaseTurno;
   claseTurnoDesc: string;
   fuerzaDesc:     string;
@@ -62,7 +62,7 @@ export interface DtoTurnoListItem {
 
 /** Detalle completo del turno (header) */
 export interface DtoTurno {
-  id:                 number;
+  id:                 string;   // Snowflake
   sitioGraba:         number;
   fuerzaId:           number;
   fuerzaDescripcion:  string;
@@ -85,8 +85,8 @@ export interface DtoTurno {
 
 /** Unidad/estación dentro de un turno */
 export interface DtoTurnoUnidad {
-  id:                 number;
-  turnoId:            number;
+  id:                 string;   // Snowflake
+  turnoId:            string;   // Snowflake
   unidadCodigo:       string;
   unidadDesc:         string;
   fuerzaId?:          number;
@@ -109,10 +109,10 @@ export interface DtoPersonalMedio {
  * Incluye posición GPS y personal asignado.
  */
 export interface DtoMedioDisponible {
-  id:              number;
+  id:              string;   // Snowflake
   sitioGraba:      number;
-  turnoId:         number;
-  turnoUnidadId?:  number;
+  turnoId:         string;   // Snowflake
+  turnoUnidadId?:  string;   // Snowflake
   unidadCodigo?:   string;
   fuerzaId?:       number;
 
@@ -141,8 +141,8 @@ export interface DtoMedioDisponible {
   gpsActivo:       boolean;
 
   // Incidente activo (si estado es Ocupado/En ruta)
-  eventoId?:       number;
-  actuacionId?:    number;
+  eventoId?:       string;   // Snowflake
+  actuacionId?:    string;   // Snowflake
 
   // Personal asignado
   personal:        DtoPersonalMedio[];
@@ -156,7 +156,7 @@ export interface DtoMedioDisponible {
  * Minimiza el payload enviado al cliente.
  */
 export interface DtoMedioDisponibleResumen {
-  id:              number;
+  id:              string;   // Snowflake
   patrullaCodigo:  string;
   patrullaDesc:    string;
   tipoMedio:       TipoMedio;
@@ -166,7 +166,7 @@ export interface DtoMedioDisponibleResumen {
   lat?:            number;
   lng?:            number;
   gpsActivo:       boolean;
-  eventoId?:       number;
+  eventoId?:       string;   // Snowflake
   distanciaKm?:    number;
   /** "Cédula1 / Cédula2" — personal concatenado */
   personalResumen: string;
@@ -188,7 +188,7 @@ export interface DtoCrearTurnoRequest {
 
 /** Request: copiar turno existente a nueva franja horaria */
 export interface DtoCopiarTurnoRequest {
-  turnoOrigenId: number;
+  turnoOrigenId: string;   // Snowflake
   claseTurno:    ClaseTurno;
   tipoTurno?:    number;
   horaInicia:    string;
@@ -197,7 +197,7 @@ export interface DtoCopiarTurnoRequest {
 
 /** Request: agregar unidad/estación al turno */
 export interface DtoAgregarUnidadRequest {
-  turnoId:           number;
+  turnoId:           string;   // Snowflake
   unidadCodigo:      string;
   unidadDesc?:       string;
   fuerzaId?:         number;
@@ -209,8 +209,8 @@ export interface DtoAgregarUnidadRequest {
 
 /** Request: agregar medio/patrulla al turno */
 export interface DtoAgregarMedioRequest {
-  turnoId:        number;
-  turnoUnidadId?: number;
+  turnoId:        string;   // Snowflake
+  turnoUnidadId?: string;   // Snowflake
   unidadCodigo?:  string;
   fuerzaId?:      number;
   canalFuerzaId?: number;
@@ -221,22 +221,66 @@ export interface DtoAgregarMedioRequest {
   personal:       DtoPersonalMedio[];
 }
 
-/** Request: importar medios desde minuta SIVICC */
+// ─── SIVICC — paso 1: unidades disponibles ────────────────────────────────────
+
+/**
+ * Unidad disponible en SIVICC para el turno activo.
+ * Retornada por GET api/Turnos/{id}/sivicc/unidades.
+ */
+export interface DtoUnidadSivicc {
+  /** ID de la minuta (necesario para el paso 3 de importación). */
+  minutaId:          number;
+  /** Consecutivo SIATH de la unidad. */
+  consecutivo:       number;
+  /** Código SECAD de la unidad. */
+  unidadCodigo:      string;
+  /** Nombre en SIVICC. */
+  descripcion:       string;
+  /** true si ya tiene medios importados para este turno. */
+  existeEnCadMedios: boolean;
+  /** Marcado por el usuario en el checkbox del modal (solo UI). */
+  seleccionada: boolean;
+}
+
+/** Unidad seleccionada para importar (enviada en el body del POST). */
+export interface DtoUnidadSiviccSeleccionada {
+  minutaId:    number;
+  consecutivo: number;
+}
+
+/** Request: importar medios de las unidades SIVICC seleccionadas */
 export interface DtoImportarSiviccRequest {
-  turnoId:           number;
-  siviccMinutaId:    number;
-  siviccConsecutivo: number;
-  canalCodigo?:      number;
-  canalFuerzaId?:    number;
-  fuerzaId:          number;
-  sitioGraba:        number;
+  turnoId:        string;   // Snowflake
+  canalCodigo?:   number;
+  canalFuerzaId?: number;
+  fuerzaId:       number;
+  sitioGraba:     number;
+  /**
+   * Unidades a importar. Si está vacío el backend importa TODAS.
+   * minutaId/consecutivo vienen del GET .../sivicc/unidades.
+   */
+  unidades: DtoUnidadSiviccSeleccionada[];
+}
+
+/**
+ * Campos editables de un medio ya registrado.
+ * Excluye turnoId, unidadId, fuerza, sitioGraba y estado operativo.
+ */
+export interface DtoActualizarMedioRequest {
+  canalFuerzaId?: number;
+  canalCodigo?:   number;
+  patrullaCodigo: string;
+  patrullaDesc?:  string;
+  tipoMedio:      TipoMedio;
+  /** Reemplaza completamente la lista anterior (máx. 2). */
+  personal:       DtoPersonalMedio[];
 }
 
 /** Request: cambiar estado operativo de un medio */
 export interface DtoCambiarEstadoMedioRequest {
   nuevoEstado:   EstadoMedio;
-  eventoId?:     number;
-  actuacionId?:  number;
+  eventoId?:     string;   // Snowflake
+  actuacionId?:  string;   // Snowflake
   observacion?:  string;
 }
 
@@ -255,7 +299,7 @@ export interface DtoGespoUbicacion {
 export interface DtoTurnoResult {
   success: boolean;
   message: string;
-  id:      number;
+  id:      string;   // Snowflake — serializado como string desde el backend
 }
 
 // ─── Service ───────────────────────────────────────────────────────────────────
@@ -287,7 +331,7 @@ export class TurnosService {
   /**
    * Detalle completo de un turno.
    */
-  getTurno(id: number): Observable<DtoTurno> {
+  getTurno(id: string): Observable<DtoTurno> {
     return this.http
       .get<{ success: boolean; data: DtoTurno }>(`${this.base}/${id}`)
       .pipe(map(r => r.data));
@@ -296,7 +340,7 @@ export class TurnosService {
   /**
    * Lista las unidades/estaciones de un turno.
    */
-  getUnidades(turnoId: number): Observable<DtoTurnoUnidad[]> {
+  getUnidades(turnoId: string): Observable<DtoTurnoUnidad[]> {
     return this.http
       .get<{ success: boolean; data: DtoTurnoUnidad[] }>(`${this.base}/${turnoId}/unidades`)
       .pipe(map(r => r.data));
@@ -306,7 +350,7 @@ export class TurnosService {
    * Lista los medios/patrullas de un turno.
    * Opcionalmente filtra por turnoUnidadId para ver los de una unidad específica.
    */
-  getMedios(turnoId: number, turnoUnidadId?: number): Observable<DtoMedioDisponible[]> {
+  getMedios(turnoId: string, turnoUnidadId?: string): Observable<DtoMedioDisponible[]> {
     let params = new HttpParams();
     if (turnoUnidadId != null) params = params.set('turnoUnidadId', turnoUnidadId);
     return this.http
@@ -374,7 +418,7 @@ export class TurnosService {
    * Agrega una unidad/estación al turno de forma manual.
    */
   agregarUnidad(
-    turnoId: number,
+    turnoId: string,
     req:     DtoAgregarUnidadRequest
   ): Observable<DtoTurnoResult> {
     return this.http.post<DtoTurnoResult>(`${this.base}/${turnoId}/unidades`, req);
@@ -387,18 +431,31 @@ export class TurnosService {
    * Acepta hasta 2 policías en el campo `personal`.
    */
   agregarMedio(
-    turnoId: number,
+    turnoId: string,
     req:     DtoAgregarMedioRequest
   ): Observable<DtoTurnoResult> {
     return this.http.post<DtoTurnoResult>(`${this.base}/${turnoId}/medios`, req);
   }
 
   /**
-   * Importa medios y personal desde la minuta oficial SIVICC.
+   * PASO 1 — Consulta las unidades disponibles en SIVICC para el turno.
+   * Los filtros (sigla de la fuerza, clase de turno, fecha) los obtiene
+   * el backend a partir del propio turno; el usuario no ingresa IDs.
+   */
+  getUnidadesSivicc(turnoId: string): Observable<DtoUnidadSivicc[]> {
+    return this.http
+      .get<{ success: boolean; data: DtoUnidadSivicc[] }>(
+        `${this.base}/${turnoId}/sivicc/unidades`
+      )
+      .pipe(map(r => r.data ?? []));
+  }
+
+  /**
+   * PASO 3 — Importa medios y personal de las unidades seleccionadas.
    * Marca el turno como sincronizado con SIVICC al finalizar.
    */
   importarSivicc(
-    turnoId: number,
+    turnoId: string,
     req:     DtoImportarSiviccRequest
   ): Observable<DtoTurnoResult> {
     return this.http.post<DtoTurnoResult>(`${this.base}/${turnoId}/sivicc`, req);
@@ -407,12 +464,23 @@ export class TurnosService {
   // ── Estado de medios ──────────────────────────────────────────────────────────
 
   /**
+   * Actualiza los datos editables de un medio ya registrado en el turno.
+   * El personal anterior se reemplaza completamente.
+   */
+  actualizarMedio(
+    medioId: string,
+    req:     DtoActualizarMedioRequest
+  ): Observable<DtoTurnoResult> {
+    return this.http.put<DtoTurnoResult>(`${this.base}/medios/${medioId}`, req);
+  }
+
+  /**
    * Cambia el estado operativo de un medio en tiempo real.
    * Al asignar estado Ocupado (28) o En ruta (30), vincula al evento/actuación.
    * Al liberar (27/29/31), limpia la asociación de evento automáticamente.
    */
   cambiarEstadoMedio(
-    medioId: number,
+    medioId: string,
     req:     DtoCambiarEstadoMedioRequest
   ): Observable<DtoTurnoResult> {
     return this.http.put<DtoTurnoResult>(

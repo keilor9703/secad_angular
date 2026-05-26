@@ -8,8 +8,8 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Subscription, interval } from 'rxjs';
-import { switchMap, startWith } from 'rxjs/operators';
+import { Subscription, Subject, interval } from 'rxjs';
+import { switchMap, startWith, debounceTime, distinctUntilChanged } from 'rxjs/operators';
 
 import { EventoService, DtoEventoListItem, DtoCanalItem } from '../../../core/services/operacion/evento.service';
 import { DtoAnotacionRequest, DtoPedidoDetalle, DtoAnotacion } from '../../../core/services/operacion/pedido.service';
@@ -20,6 +20,17 @@ import {
   DtoCambiarEstadoMedioRequest,
   ESTADO_MEDIO
 } from '../../../core/services/operacion/turnos.service';
+import {
+  ActuacionesService,
+  DtoActuacionListItem,
+  DtoCrearActuacionRequest,
+  DtoCierreActuacionRequest,
+  DtoActividadPolicial,
+  DtoDelitoItem,
+  DtoCodigoCasoItem,
+  DtoCodigoCierreActuacion,
+  ESTADO_ACTUACION
+} from '../../../core/services/operacion/actuaciones.service';
 
 // Leaflet is loaded via CDN (index.html) – type-only reference
 declare const L: any;
@@ -38,10 +49,11 @@ type EstadoEvento = 'A' | 'P' | 'E' | 'T' | 'R' | 'C';
 export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
 
   // ─── Services ────────────────────────────────────────────────────────────────
-  private eventoSvc  = inject(EventoService);
-  private turnosSvc  = inject(TurnosService);
-  private authSvc    = inject(AuthService);
-  private cdr        = inject(ChangeDetectorRef);
+  private eventoSvc     = inject(EventoService);
+  private turnosSvc     = inject(TurnosService);
+  private actuacionSvc  = inject(ActuacionesService);
+  private authSvc       = inject(AuthService);
+  private cdr           = inject(ChangeDetectorRef);
 
   // ─── JWT claims ──────────────────────────────────────────────────────────────
   canalId    = 0;
@@ -75,10 +87,15 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
   mensajeAnotacion   = '';
 
   // ─── Close-event modal ───────────────────────────────────────────────────────
-  modalCerrarVisible = false;
-  cerrarComentario   = '';
-  cerrarCodiPedido   = '';
-  cerrandoEvento     = false;
+  modalCerrarVisible   = false;
+  cerrarComentario     = '';
+  cerrandoEvento       = false;
+  // Multi-code para cierre de evento
+  private eventoCodSubj        = new Subject<string>();
+  eventoCodBusqueda            = '';
+  eventoSugerencias:           DtoCodigoCasoItem[] = [];
+  eventoCodsSelec:             { codigo: string; descripcion: string }[] = [];
+  mostrarSugerenciasEvento     = false;
 
   // ─── Estado change ───────────────────────────────────────────────────────────
   cambiandoEstado = false;
@@ -96,9 +113,75 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
   cargandoRecursos          = false;
   errorRecursos             = '';
   ultimaActRecursos:        Date | null = null;
-  asignandoMedioId:         number | null = null;
+  asignandoMedioId:         string | null = null;
   private recursoMarkers:   any[]  = [];
   private recursosSub:      Subscription | null = null;
+
+  // ─── Actuaciones / timeline de despacho ──────────────────────────────────────
+  actuaciones:              DtoActuacionListItem[] = [];
+  cargandoActuaciones       = false;
+  errorActuaciones          = '';
+  operandoActuacionId:      number | null = null;   // ID de la actuación en proceso
+  private actuacionesSub:   Subscription | null = null;
+
+  // ─── Modal: Cierre de actuación (paso "Atendió") — expandido ────────────────
+  modalCierreActuacion      = false;
+  actuacionACerrar:         DtoActuacionListItem | null = null;
+  cerrandoActuacion         = false;
+  errorCierreActuacion      = '';
+
+  // Multi-código tipificación (cad_casos)
+  private cierreCodSubj            = new Subject<string>();
+  cierreCodBusqueda                = '';
+  cierreSugerencias:               DtoCodigoCasoItem[] = [];
+  cierreCodsSeleccionados:         DtoCodigoCierreActuacion[] = [];
+  mostrarSugerenciasCierre         = false;
+
+  // Clasificación y actividad policial
+  actividadesPoliciales:           DtoActividadPolicial[] = [];
+  actividadesFiltered:             DtoActividadPolicial[] = [];
+  cierreClasifActividad:           'O' | 'P' | '' = '';
+  cierreActividadSelec:            DtoActividadPolicial | null = null;
+
+  // Delito (Código Penal) — solo si actividad.requiereDelito = true
+  private cierreDelitoSubj         = new Subject<string>();
+  cierreDelitoBusqueda             = '';
+  cierreDelitoSugs:                DtoDelitoItem[] = [];
+  cierreDelitoSelec:               DtoDelitoItem | null = null;
+  mostrarSugerenciasDelito         = false;
+
+  // Observación libre
+  cierreObservacion                = '';
+
+  // ¿Cerrar el evento después de cerrar la actuación?
+  cerrarEventoAlAtender:           boolean | null = null;
+
+  // Anotaciones OPERATIVA: sub-campos dinámicos
+  anotActividadCodigo  = '';
+  anotActividadDesc    = '';
+  anotRequiereDelito   = false;
+  anotDelitoArticulo   = '';
+  anotDelitoDesc       = '';
+
+  // ─── Modal: Desasignar recurso (solo estado P) ───────────────────────────────
+  modalDesasignarVisible    = false;
+  actuacionADesasignar:     DtoActuacionListItem | null = null;
+  desasignarMotivo          = '';
+  desasignando              = false;
+  errorDesasignar           = '';
+
+  // ─── Modal: Registrar novedad operativa ──────────────────────────────────────
+  modalNovedadVisible       = false;
+  actuacionNovedad:         DtoActuacionListItem | null = null;
+  novedadTexto              = '';
+  novedadTipo:              'GENERAL' | 'NOVEDAD' | 'ALERTA' = 'NOVEDAD';
+  guardandoNovedad          = false;
+  errorNovedad              = '';
+
+  // ─── Error de asignación (para mostrar feedback en tabla de recursos) ────────
+  errorAsignacion           = '';
+
+  readonly ESTADO_ACT = ESTADO_ACTUACION;
 
   // ─── Subscriptions ───────────────────────────────────────────────────────────
   private subs = new Subscription();
@@ -135,6 +218,42 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
 
     // Load available channels for the selector
     this.cargarCanales();
+
+    // ── Autocomplete: códigos de cierre (modal Atendió) ───────────────────────
+    this.subs.add(
+      this.cierreCodSubj.pipe(debounceTime(300), distinctUntilChanged())
+        .subscribe(q => {
+          if (!q.trim()) { this.cierreSugerencias = []; return; }
+          this.actuacionSvc.buscarCodigosCierre(q).subscribe({
+            next: r => { this.cierreSugerencias = r.data ?? []; },
+            error: () => { this.cierreSugerencias = []; }
+          });
+        })
+    );
+
+    // ── Autocomplete: delito (modal Atendió) ──────────────────────────────────
+    this.subs.add(
+      this.cierreDelitoSubj.pipe(debounceTime(300), distinctUntilChanged())
+        .subscribe(q => {
+          if (!q.trim()) { this.cierreDelitoSugs = []; return; }
+          this.actuacionSvc.buscarDelitos(q).subscribe({
+            next: r => { this.cierreDelitoSugs = r.data ?? []; },
+            error: () => { this.cierreDelitoSugs = []; }
+          });
+        })
+    );
+
+    // ── Autocomplete: códigos de cierre (modal Cerrar Evento) ─────────────────
+    this.subs.add(
+      this.eventoCodSubj.pipe(debounceTime(300), distinctUntilChanged())
+        .subscribe(q => {
+          if (!q.trim()) { this.eventoSugerencias = []; return; }
+          this.actuacionSvc.buscarCodigosCierre(q).subscribe({
+            next: r => { this.eventoSugerencias = r.data ?? []; },
+            error: () => { this.eventoSugerencias = []; }
+          });
+        })
+    );
 
     // Semáforo tick every 60s
     this.subs.add(
@@ -177,6 +296,7 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
     this.subs.unsubscribe();
     this.destroyMapaDetalle();
     this.detenerPollingRecursos();
+    this.detenerPollingActuaciones();
   }
 
   ngAfterViewChecked(): void {
@@ -286,6 +406,7 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
         this.cargandoDetalle = false;
         // Map will init in ngAfterViewChecked once DOM is ready
         this.iniciarPollingRecursos();
+        this.iniciarPollingActuaciones(evento.id);
       },
       error: () => {
         this.cargandoDetalle = false;
@@ -297,8 +418,10 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
   volverLista(): void {
     this.destroyMapaDetalle();
     this.detenerPollingRecursos();
-    this.panelMode = 'list';
-    this.detalle   = null;
+    this.detenerPollingActuaciones();
+    this.panelMode    = 'list';
+    this.detalle      = null;
+    this.actuaciones  = [];
   }
 
   // ─── Estado change ────────────────────────────────────────────────────────────
@@ -334,12 +457,31 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
     this.guardandoAnotacion = true;
     this.mensajeAnotacion   = '';
 
-    this.eventoSvc.createAnotacion(this.detalle.id, this.nuevaAnotacion).subscribe({
+    // Componer título enriquecido para anotaciones OPERATIVA
+    let titulo = this.nuevaAnotacion.titulo;
+    if (this.nuevaAnotacion.tipoAnotacion === 'OPERATIVA' && this.anotActividadCodigo) {
+      const parts: string[] = [this.anotActividadDesc || this.anotActividadCodigo];
+      if (this.anotDelitoArticulo)
+        parts.push(`${this.anotDelitoArticulo}: ${this.anotDelitoDesc || ''}`);
+      titulo = titulo
+        ? `${parts.join(' | ')} — ${titulo}`
+        : parts.join(' | ');
+    }
+
+    const req: DtoAnotacionRequest = { ...this.nuevaAnotacion, titulo };
+
+    this.eventoSvc.createAnotacion(this.detalle.id, req).subscribe({
       next: (r) => {
         this.guardandoAnotacion = false;
         if (r.success) {
           this.mensajeAnotacion = '✔ Anotación registrada.';
           this.nuevaAnotacion   = { titulo: '', anotacion: '', tipoAnotacion: 'GENERAL' };
+          // Resetear sub-campos OPERATIVA
+          this.anotActividadCodigo = '';
+          this.anotActividadDesc   = '';
+          this.anotRequiereDelito  = false;
+          this.anotDelitoArticulo  = '';
+          this.anotDelitoDesc      = '';
           // Reload annotations
           this.eventoSvc.getAnotaciones(this.detalle!.id).subscribe(anots => {
             if (this.detalle) this.detalle.anotaciones = anots;
@@ -353,6 +495,35 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
         this.mensajeAnotacion   = 'Error al guardar la anotación.';
       }
     });
+  }
+
+  /** Al cambiar el tipo de anotación, resetear sub-campos OPERATIVA */
+  onTipoAnotacionChange(): void {
+    this.anotActividadCodigo = '';
+    this.anotActividadDesc   = '';
+    this.anotRequiereDelito  = false;
+    this.anotDelitoArticulo  = '';
+    this.anotDelitoDesc      = '';
+    // Pre-cargar actividades si tipo OPERATIVA y no cargadas aún
+    if (this.nuevaAnotacion.tipoAnotacion === 'OPERATIVA' && !this.actividadesPoliciales.length) {
+      this.actuacionSvc.getActividadesPoliciales().subscribe({
+        next: r => { this.actividadesPoliciales = r.data ?? []; },
+        error: () => {}
+      });
+    }
+  }
+
+  /** Al cambiar actividad en el formulario de anotación */
+  onAnotActividadChange(event: Event): void {
+    const codigo = (event.target as HTMLSelectElement).value;
+    const act = this.actividadesPoliciales.find(a => a.codigo === codigo);
+    this.anotActividadCodigo  = act?.codigo ?? '';
+    this.anotActividadDesc    = act?.descripcion ?? '';
+    this.anotRequiereDelito   = act?.requiereDelito ?? false;
+    if (!this.anotRequiereDelito) {
+      this.anotDelitoArticulo = '';
+      this.anotDelitoDesc     = '';
+    }
   }
 
   getTipoAnotacionIcon(tipo: string): string {
@@ -382,9 +553,12 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
   // ─── Close event modal ────────────────────────────────────────────────────────
 
   abrirModalCerrar(): void {
-    this.cerrarComentario  = '';
-    this.cerrarCodiPedido  = this.detalle?.codiPedido ?? '';
-    this.modalCerrarVisible = true;
+    this.cerrarComentario        = '';
+    this.eventoCodsSelec         = [];
+    this.eventoCodBusqueda       = '';
+    this.eventoSugerencias       = [];
+    this.mostrarSugerenciasEvento = false;
+    this.modalCerrarVisible      = true;
     this.toggleBodyModalClass(true);
   }
 
@@ -393,13 +567,55 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
     this.toggleBodyModalClass(false);
   }
 
+  // ── Multi-código: Cerrar Evento ────────────────────────────────────────────
+
+  onEventoCodInput(valor: string): void {
+    this.eventoCodBusqueda = valor;
+    this.eventoCodSubj.next(valor);
+    this.mostrarSugerenciasEvento = true;
+  }
+
+  seleccionarEventoCod(item: DtoCodigoCasoItem): void {
+    if (!this.eventoCodsSelec.some(c => c.codigo === item.codigo)) {
+      this.eventoCodsSelec.push({ codigo: item.codigo, descripcion: item.descripcion });
+    }
+    this.eventoCodBusqueda       = '';
+    this.eventoSugerencias       = [];
+    this.mostrarSugerenciasEvento = false;
+  }
+
+  agregarEventoCodManual(): void {
+    const cod = this.eventoCodBusqueda.trim().toUpperCase();
+    if (!cod) return;
+    if (!this.eventoCodsSelec.some(c => c.codigo === cod)) {
+      this.eventoCodsSelec.push({ codigo: cod, descripcion: '' });
+    }
+    this.eventoCodBusqueda       = '';
+    this.eventoSugerencias       = [];
+    this.mostrarSugerenciasEvento = false;
+  }
+
+  quitarEventoCod(idx: number): void {
+    this.eventoCodsSelec.splice(idx, 1);
+  }
+
+  cerrarSugerenciasEvento(): void {
+    setTimeout(() => { this.mostrarSugerenciasEvento = false; }, 200);
+  }
+
   confirmarCierre(): void {
     if (!this.detalle || this.cerrandoEvento) return;
-    this.cerrandoEvento = true;
+    // Use first selected code as codiPedido; append all to comentario
+    const codiPedido = this.eventoCodsSelec[0]?.codigo ?? '';
+    const codigosStr = this.eventoCodsSelec.map(c => `[${c.codigo}]${c.descripcion ? ' ' + c.descripcion : ''}`).join(', ');
+    const comentario = this.cerrarComentario.trim()
+      ? (codigosStr ? `${this.cerrarComentario} | Códigos: ${codigosStr}` : this.cerrarComentario)
+      : codigosStr;
 
+    this.cerrandoEvento = true;
     this.eventoSvc.cerrar(this.detalle.id, {
-      comentario:  this.cerrarComentario,
-      codiPedido:  this.cerrarCodiPedido,
+      comentario:  comentario,
+      codiPedido:  codiPedido,
       enviar:      'S'
     }).subscribe({
       next: (r) => {
@@ -521,12 +737,13 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
   }
 
   /** Cambia estado de un medio a En ruta (30) vinculado al evento activo. */
-  asignarMedioAlEvento(medioId: number): void {
+  asignarMedioAlEvento(medioId: string): void {
     if (!this.detalle || this.asignandoMedioId) return;
     this.asignandoMedioId = medioId;
     const req: DtoCambiarEstadoMedioRequest = {
       nuevoEstado:  ESTADO_MEDIO.EN_RUTA,
-      eventoId:     this.detalle.id,
+      // detalle.id es un long de pedido; lo convertimos a string para el campo Snowflake
+      eventoId:     this.detalle.id.toString(),
       observacion:  `Asignado desde evento ${this.detalle.codiPedido ?? this.detalle.id}`
     };
     this.turnosSvc.cambiarEstadoMedio(medioId, req).subscribe({
@@ -535,15 +752,469 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
     });
   }
 
-  /** Libera un medio (Libre = 27). */
-  liberarMedio(medioId: number): void {
+  /** Libera un medio manualmente (Libre = 27). */
+  liberarMedio(medioId: string): void {
     if (this.asignandoMedioId) return;
     this.asignandoMedioId = medioId;
     const req: DtoCambiarEstadoMedioRequest = { nuevoEstado: ESTADO_MEDIO.LIBRE };
     this.turnosSvc.cambiarEstadoMedio(medioId, req).subscribe({
-      next: () => { this.asignandoMedioId = null; },
-      error: ()=> { this.asignandoMedioId = null; }
+      next: () => {
+        this.asignandoMedioId = null;
+        this.recargarRecursos();   // refleja inmediatamente la liberación del medio
+      },
+      error: () => { this.asignandoMedioId = null; }
     });
+  }
+
+  // ─── Flujo de despacho 4 pasos ────────────────────────────────────────────────
+
+  /**
+   * PASO 1 — Asignar recurso al incidente.
+   * Crea la actuación en estado P y vincula el medio al evento.
+   * El medio queda asignado pero no cambia su estado operativo todavía.
+   */
+  asignarRecursoAlEvento(r: DtoMedioDisponibleResumen): void {
+    if (!this.detalle || this.asignandoMedioId) return;
+    this.asignandoMedioId = r.id;
+    this.errorAsignacion  = '';
+
+    const req: DtoCrearActuacionRequest = {
+      eventoId:       this.detalle.id,
+      sitioGraba:     this.sitioGraba,
+      fuerzaId:       this.fuerzaId || undefined,
+      canalCodigo:    this.canalSeleccionado || undefined,
+      unidadAsignada: r.patrullaCodigo,
+      medioId:        r.id          // string — preserves Snowflake 64-bit precision
+    };
+    this.actuacionSvc.crearActuacion(req).subscribe({
+      next: (res) => {
+        this.asignandoMedioId = null;
+        if (res.success) {
+          this.errorAsignacion = '';
+          this.recargarActuaciones();
+          this.recargarRecursos();   // refleja inmediatamente el nuevo estado del medio
+        } else {
+          this.errorAsignacion = res.message ?? 'No se pudo asignar el recurso.';
+        }
+      },
+      error: (e) => {
+        this.asignandoMedioId = null;
+        this.errorAsignacion  = e.error?.message ?? 'Error al asignar el recurso.';
+      }
+    });
+  }
+
+  // ─── Desasignar (solo estado P) ──────────────────────────────────────────────
+
+  abrirModalDesasignar(act: DtoActuacionListItem): void {
+    this.actuacionADesasignar  = act;
+    this.desasignarMotivo      = '';
+    this.errorDesasignar       = '';
+    this.desasignando          = false;
+    this.modalDesasignarVisible = true;
+    this.toggleBodyModalClass(true);
+  }
+
+  cancelarDesasignar(): void {
+    this.modalDesasignarVisible = false;
+    this.actuacionADesasignar   = null;
+    this.toggleBodyModalClass(false);
+  }
+
+  confirmarDesasignar(): void {
+    if (!this.actuacionADesasignar || this.desasignando) return;
+    this.desasignando    = true;
+    this.errorDesasignar = '';
+
+    this.actuacionSvc.desasignarActuacion(
+      this.actuacionADesasignar.id,
+      this.desasignarMotivo.trim() || 'Desasignado por operador'
+    ).subscribe({
+      next: (res) => {
+        this.desasignando = false;
+        if (res.success) {
+          this.modalDesasignarVisible = false;
+          this.actuacionADesasignar   = null;
+          this.toggleBodyModalClass(false);
+          this.recargarActuaciones();
+          this.recargarRecursos();   // medio vuelve a estado Libre (27)
+        } else {
+          this.errorDesasignar = res.message ?? 'No se pudo desasignar.';
+        }
+      },
+      error: (e) => {
+        this.desasignando    = false;
+        this.errorDesasignar = e.error?.message ?? 'Error al desasignar el recurso.';
+      }
+    });
+  }
+
+  // ─── Novedad operativa ────────────────────────────────────────────────────────
+
+  abrirModalNovedad(act: DtoActuacionListItem): void {
+    this.actuacionNovedad     = act;
+    this.novedadTexto         = '';
+    this.novedadTipo          = 'NOVEDAD';
+    this.errorNovedad         = '';
+    this.guardandoNovedad     = false;
+    this.modalNovedadVisible  = true;
+    this.toggleBodyModalClass(true);
+  }
+
+  cancelarNovedad(): void {
+    this.modalNovedadVisible = false;
+    this.actuacionNovedad    = null;
+    this.toggleBodyModalClass(false);
+  }
+
+  confirmarNovedad(): void {
+    if (!this.actuacionNovedad || this.guardandoNovedad) return;
+    if (!this.novedadTexto.trim()) {
+      this.errorNovedad = 'Ingrese el texto de la novedad.';
+      return;
+    }
+    this.guardandoNovedad = true;
+    this.errorNovedad     = '';
+
+    this.actuacionSvc.agregarNota(this.actuacionNovedad.id, {
+      nota:     this.novedadTexto.trim(),
+      tipoNota: this.novedadTipo
+    }).subscribe({
+      next: (res) => {
+        this.guardandoNovedad = false;
+        if (res.success) {
+          this.modalNovedadVisible = false;
+          this.actuacionNovedad    = null;
+          this.toggleBodyModalClass(false);
+          // Actualizar conteo de notas en la lista sin recargar todo
+          this.recargarActuaciones();
+        } else {
+          this.errorNovedad = res.message ?? 'No se pudo registrar la novedad.';
+        }
+      },
+      error: (e) => {
+        this.guardandoNovedad = false;
+        this.errorNovedad     = e.error?.message ?? 'Error al registrar la novedad.';
+      }
+    });
+  }
+
+  /**
+   * PASO 2 — Marcar inicio de ruta (En camino).
+   * Actuación P → D · registra fecha_despacho · medio → 30 (En ruta).
+   */
+  marcarEnRuta(act: DtoActuacionListItem): void {
+    if (this.operandoActuacionId) return;
+    this.operandoActuacionId = act.id;
+    this.actuacionSvc.actualizarEstado(act.id, { estado: 'D' }).subscribe({
+      next: () => {
+        this.operandoActuacionId = null;
+        this.recargarActuaciones();
+        this.recargarRecursos();   // refleja medio → En ruta (30)
+      },
+      error: () => { this.operandoActuacionId = null; }
+    });
+  }
+
+  /**
+   * PASO 3 — Marcar llegada al lugar del incidente (En sitio).
+   * Actuación D → A · registra fecha_llegada · medio → 28 (Ocupado/Atendiendo).
+   */
+  marcarEnSitio(act: DtoActuacionListItem): void {
+    if (this.operandoActuacionId) return;
+    this.operandoActuacionId = act.id;
+    this.actuacionSvc.actualizarEstado(act.id, { estado: 'A' }).subscribe({
+      next: () => {
+        this.operandoActuacionId = null;
+        this.recargarActuaciones();
+        this.recargarRecursos();   // refleja medio → En sitio (28)
+      },
+      error: () => { this.operandoActuacionId = null; }
+    });
+  }
+
+  /**
+   * PASO 4 — Abrir modal para marcar atención completada y cerrar la actuación.
+   * Carga el catálogo de actividades policiales si no se ha cargado aún.
+   */
+  abrirCierreActuacion(act: DtoActuacionListItem): void {
+    this.actuacionACerrar          = act;
+    this.cerrandoActuacion         = false;
+    this.errorCierreActuacion      = '';
+    // Multi-código
+    this.cierreCodBusqueda         = '';
+    this.cierreSugerencias         = [];
+    this.cierreCodsSeleccionados   = [];
+    this.mostrarSugerenciasCierre  = false;
+    // Actividad policial
+    this.cierreClasifActividad     = '';
+    this.cierreActividadSelec      = null;
+    this.actividadesFiltered       = [];
+    // Delito
+    this.cierreDelitoBusqueda      = '';
+    this.cierreDelitoSugs          = [];
+    this.cierreDelitoSelec         = null;
+    this.mostrarSugerenciasDelito  = false;
+    // Observación y decisión evento
+    this.cierreObservacion         = '';
+    this.cerrarEventoAlAtender     = null;
+
+    // Cargar catálogo de actividades (se cachea en memoria para la sesión)
+    if (!this.actividadesPoliciales.length) {
+      this.actuacionSvc.getActividadesPoliciales().subscribe({
+        next: r => { this.actividadesPoliciales = r.data ?? []; },
+        error: () => {}
+      });
+    }
+
+    this.modalCierreActuacion = true;
+    this.toggleBodyModalClass(true);
+  }
+
+  cancelarCierreActuacion(): void {
+    this.modalCierreActuacion = false;
+    this.actuacionACerrar     = null;
+    this.toggleBodyModalClass(false);
+  }
+
+  // ── Multi-código: modal Atendió ────────────────────────────────────────────
+
+  onCierreCodInput(valor: string): void {
+    this.cierreCodBusqueda = valor;
+    this.cierreCodSubj.next(valor);
+    this.mostrarSugerenciasCierre = true;
+  }
+
+  seleccionarCierreCod(item: DtoCodigoCasoItem): void {
+    const orden = this.cierreCodsSeleccionados.length + 1;
+    if (!this.cierreCodsSeleccionados.some(c => c.codigoCierre === item.codigo)) {
+      this.cierreCodsSeleccionados.push({
+        orden, codigoCierre: item.codigo, tipoCodigo: 'CIERRE',
+        descripcionLibre: item.descripcion || undefined
+      });
+    }
+    this.cierreCodBusqueda        = '';
+    this.cierreSugerencias        = [];
+    this.mostrarSugerenciasCierre = false;
+  }
+
+  agregarCierreCodManual(): void {
+    const cod = this.cierreCodBusqueda.trim().toUpperCase();
+    if (!cod) return;
+    if (!this.cierreCodsSeleccionados.some(c => c.codigoCierre === cod)) {
+      const orden = this.cierreCodsSeleccionados.length + 1;
+      this.cierreCodsSeleccionados.push({ orden, codigoCierre: cod, tipoCodigo: 'CIERRE' });
+    }
+    this.cierreCodBusqueda        = '';
+    this.cierreSugerencias        = [];
+    this.mostrarSugerenciasCierre = false;
+  }
+
+  quitarCierreCod(idx: number): void {
+    this.cierreCodsSeleccionados.splice(idx, 1);
+    // Renumerar
+    this.cierreCodsSeleccionados.forEach((c, i) => c.orden = i + 1);
+  }
+
+  cerrarSugerenciasCierre(): void {
+    setTimeout(() => { this.mostrarSugerenciasCierre = false; }, 200);
+  }
+
+  // ── Clasificación de actividad ────────────────────────────────────────────
+
+  onClasifActividadChange(tipo: 'O' | 'P' | ''): void {
+    this.cierreClasifActividad = tipo;
+    this.cierreActividadSelec  = null;
+    this.cierreDelitoSelec     = null;
+    this.cierreDelitoBusqueda  = '';
+    this.actividadesFiltered   = tipo
+      ? this.actividadesPoliciales.filter(a => a.tipo === tipo)
+      : [];
+  }
+
+  onActividadChange(codigo: string): void {
+    this.cierreActividadSelec = this.actividadesFiltered.find(a => a.codigo === codigo) ?? null;
+    this.cierreDelitoSelec    = null;
+    this.cierreDelitoBusqueda = '';
+    this.cierreDelitoSugs     = [];
+  }
+
+  // ── Delito autocomplete ────────────────────────────────────────────────────
+
+  onCierreDelitoInput(valor: string): void {
+    this.cierreDelitoBusqueda      = valor;
+    this.cierreDelitoSubj.next(valor);
+    this.mostrarSugerenciasDelito  = true;
+  }
+
+  seleccionarCierreDelito(item: DtoDelitoItem): void {
+    this.cierreDelitoSelec         = item;
+    this.cierreDelitoBusqueda      = `${item.articulo} – ${item.descripcion}`;
+    this.cierreDelitoSugs          = [];
+    this.mostrarSugerenciasDelito  = false;
+  }
+
+  cerrarSugerenciasDelito(): void {
+    setTimeout(() => { this.mostrarSugerenciasDelito = false; }, 200);
+  }
+
+  /**
+   * Confirma el cierre de la actuación (Atendió).
+   * Actuación A → C · registra fecha_cierre · medio → 27 (Libre).
+   * Si cerrarEventoAlAtender = true, encadena el cierre del evento.
+   */
+  confirmarCierreActuacion(): void {
+    if (!this.actuacionACerrar || this.cerrandoActuacion) return;
+    if (!this.cierreCodsSeleccionados.length) {
+      this.errorCierreActuacion = 'Agregue al menos un código de cierre.';
+      return;
+    }
+    if (this.cerrarEventoAlAtender === null) {
+      this.errorCierreActuacion = 'Indique si desea cerrar el evento al finalizar.';
+      return;
+    }
+
+    this.cerrandoActuacion    = true;
+    this.errorCierreActuacion = '';
+
+    const req: DtoCierreActuacionRequest = {
+      estado:             'C',
+      observacionCierre:  this.cierreObservacion.trim() || undefined,
+      codigosCierre:      this.cierreCodsSeleccionados,
+      actividadCodigo:    this.cierreActividadSelec?.codigo,
+      actividadTipo:      this.cierreClasifActividad || undefined,
+      actividadDesc:      this.cierreActividadSelec?.descripcion,
+      delitoArticulo:     this.cierreDelitoSelec?.articulo,
+      delitoDesc:         this.cierreDelitoSelec?.descripcion
+    };
+
+    const actuacionId = this.actuacionACerrar.id;
+
+    this.actuacionSvc.cerrarActuacion(actuacionId, req).subscribe({
+      next: () => {
+        this.cerrandoActuacion    = false;
+        this.modalCierreActuacion = false;
+        this.actuacionACerrar     = null;
+        this.toggleBodyModalClass(false);
+
+        if (this.cerrarEventoAlAtender && this.detalle) {
+          // Cerrar también el evento
+          const codiPrimario = req.codigosCierre[0]?.codigoCierre ?? '';
+          const codigosStr   = req.codigosCierre.map(c => c.codigoCierre).join(', ');
+          const comentario   = req.observacionCierre
+            ? `${req.observacionCierre} | Códigos: ${codigosStr}`
+            : `Cerrado automáticamente. Códigos: ${codigosStr}`;
+          this.eventoSvc.cerrar(this.detalle.id, {
+            comentario,
+            codiPedido: codiPrimario,
+            enviar:     'S'
+          }).subscribe({
+            next: (r) => {
+              if (r.success) { this.volverLista(); }
+              this.recargarAhora();
+            },
+            error: () => { this.recargarAhora(); }
+          });
+        } else {
+          this.recargarActuaciones();
+          this.recargarRecursos();   // refleja medio → Libre (27)
+          this.recargarAhora();      // recalcula el estado del evento
+        }
+      },
+      error: (e) => {
+        this.cerrandoActuacion    = false;
+        this.errorCierreActuacion = e.error?.message ?? 'Error al cerrar la actuación.';
+      }
+    });
+  }
+
+  // ─── Polling de actuaciones ───────────────────────────────────────────────────
+
+  private iniciarPollingActuaciones(eventoId: number): void {
+    this.detenerPollingActuaciones();
+    this.actuacionesSub = interval(8_000)
+      .pipe(startWith(0), switchMap(() => {
+        this.cargandoActuaciones = true;
+        return this.actuacionSvc.getActuacionesEvento(eventoId);
+      }))
+      .subscribe({
+        next: (r) => {
+          this.actuaciones         = r.data ?? [];
+          this.cargandoActuaciones = false;
+          this.errorActuaciones    = '';
+          this.cdr.markForCheck();
+        },
+        error: () => {
+          this.cargandoActuaciones = false;
+          this.errorActuaciones    = 'Error al cargar actuaciones.';
+        }
+      });
+  }
+
+  private detenerPollingActuaciones(): void {
+    if (this.actuacionesSub) {
+      this.actuacionesSub.unsubscribe();
+      this.actuacionesSub = null;
+    }
+  }
+
+  private recargarActuaciones(): void {
+    if (!this.detalle) return;
+    this.actuacionSvc.getActuacionesEvento(this.detalle.id).subscribe({
+      next: (r) => { this.actuaciones = r.data ?? []; this.cdr.markForCheck(); },
+      error: () => {}
+    });
+  }
+
+  /**
+   * Recarga inmediata de recursos (single-shot, sin esperar el ciclo de 8 s).
+   * Aplica las mismas transformaciones que el polling: distancias, orden y marcadores.
+   */
+  private recargarRecursos(): void {
+    if (this.canalSeleccionado <= 0) return;
+    this.turnosSvc.getResumenRecursosCanal(
+      this.canalSeleccionado, this.sitioGraba || 1
+    ).subscribe({
+      next: (data) => {
+        this.recursos          = data;
+        this.errorRecursos     = '';
+        this.ultimaActRecursos = new Date();
+        // Re-calcular distancias al incidente (Haversine)
+        if (this.detalle?.latitudCaso && this.detalle?.longitudCaso) {
+          const lat0 = parseFloat(this.detalle.latitudCaso);
+          const lng0 = parseFloat(this.detalle.longitudCaso);
+          this.recursos.forEach(r => {
+            r.distanciaKm = (r.lat != null && r.lng != null)
+              ? this.haversineKm(lat0, lng0, r.lat, r.lng) : undefined;
+          });
+          // Libres primero, luego por distancia
+          this.recursos.sort((a, b) => {
+            const libre = (x: DtoMedioDisponibleResumen) => x.estado === 27 ? 0 : 1;
+            const df = libre(a) - libre(b);
+            if (df !== 0) return df;
+            return (a.distanciaKm ?? 9999) - (b.distanciaKm ?? 9999);
+          });
+        }
+        this.actualizarMarcadoresRecursos();
+        this.cdr.markForCheck();
+      },
+      error: () => {}
+    });
+  }
+
+  /** Helpers para la plantilla */
+  etiquetaEstadoActuacion(estado: string): string {
+    return this.actuacionSvc.etiquetaEstado(estado as any);
+  }
+
+  claseEstadoActuacion(estado: string): string {
+    return this.actuacionSvc.claseEstado(estado as any);
+  }
+
+  /** Determina si el medio ya está asignado a ESTE evento */
+  medioAsignadoAEsteEvento(r: DtoMedioDisponibleResumen): boolean {
+    if (!this.detalle || !r.eventoId) return false;
+    return String(r.eventoId) === String(this.detalle.id);
   }
 
   /** Fórmula de Haversine — retorna distancia en km. */

@@ -1,3 +1,4 @@
+using Api.Converters;
 using Api.Middleware;
 using Comun.Snowflake;
 using Datos.Gestion;
@@ -28,6 +29,10 @@ builder.Services.AddControllers()
     .AddJsonOptions(options =>
     {
         options.JsonSerializerOptions.PropertyNameCaseInsensitive = true;
+        // Serializar long / long? como cadena JSON para evitar pérdida de precisión
+        // en JavaScript (Number.MAX_SAFE_INTEGER ≈ 9 × 10^15; Snowflake IDs ≈ 10^18).
+        options.JsonSerializerOptions.Converters.Add(new LongToStringJsonConverter());
+        options.JsonSerializerOptions.Converters.Add(new NullableLongToStringJsonConverter());
     });
 
 // CORS

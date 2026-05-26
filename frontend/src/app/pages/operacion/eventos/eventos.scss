@@ -1053,4 +1053,624 @@ html.dark-mode {
     color:        rgba(255,255,255,.45);
     border-color: rgba(255,255,255,.12);
   }
+
+  // ── Dispatch timeline dark ─────────────────────────────────────
+  .ev-dispatch-row {
+    background:   var(--ui-surface);
+    border-color: var(--ui-border);
+
+    &__head { border-color: var(--ui-border); }
+    &__canal { color: var(--ui-text-muted); }
+    &__unidad { color: var(--ui-text); }
+  }
+
+  .ev-tl-step {
+    &__label { color: var(--ui-text-muted); }
+    &__ts    { color: var(--ui-text-muted); }
+    &__dot   { background: rgba(255,255,255,.15); }
+    &--done .ev-tl-step__dot   { background: #22c55e; }
+    &--done .ev-tl-step__label { color: #4ade80; }
+  }
+
+  .ev-dispatch-badge {
+    &.badge-warning   { background: rgba(245,158,11,.20); color: #fbbf24; }
+    &.badge-info      { background: rgba(59,130,246,.20); color: #60a5fa; }
+    &.badge-success   { background: rgba(34,197,94,.20);  color: #4ade80; }
+    &.badge-secondary { background: rgba(255,255,255,.08); color: rgba(255,255,255,.38); }
+    &.badge-danger    { background: rgba(239,68,68,.20);  color: #f87171; }
+  }
+
+  .ev-modal-act-info {
+    background: rgba(255,255,255,.04);
+    border-color: rgba(255,255,255,.10);
+    color: var(--ui-text);
+  }
+}
+
+// ══════════════════════════════════════════════════════════════
+//  DISPATCH TIMELINE  (light mode)
+// ══════════════════════════════════════════════════════════════
+
+// "Asignado" badge en tabla de recursos
+.ev-rec-asignado-badge {
+  display:       inline-flex;
+  align-items:   center;
+  gap:           4px;
+  font-size:     calc(10px * var(--font-size-scale));
+  font-weight:   600;
+  color:         #16a34a;
+  background:    #dcfce7;
+  border-radius: 999px;
+  padding:       2px 8px;
+}
+
+// Sección de despacho activo
+.ev-section--dispatch {
+  border-top: 2px solid rgba(59,130,246,.20) !important;
+}
+
+.ev-dispatch-count {
+  margin-left:   auto;
+  font-size:     calc(11px * var(--font-size-scale));
+  font-weight:   600;
+  background:    rgba(21,27,59,.07);
+  border-radius: 999px;
+  padding:       2px 9px;
+  color:         rgba(21,27,59,.55);
+}
+
+// Lista de actuaciones
+.ev-dispatch-list {
+  display:        flex;
+  flex-direction: column;
+  gap:            10px;
+}
+
+// Fila de actuación
+.ev-dispatch-row {
+  background:    #fff;
+  border:        1px solid rgba(21,27,59,.10);
+  border-radius: 8px;
+  padding:       10px 12px;
+  transition:    box-shadow 120ms;
+
+  &:hover { box-shadow: 0 2px 8px rgba(21,27,59,.08); }
+
+  &--cerrada { opacity: .72; }
+
+  &__head {
+    display:       flex;
+    align-items:   center;
+    gap:           8px;
+    margin-bottom: 8px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid rgba(21,27,59,.07);
+    flex-wrap:     wrap;
+  }
+
+  &__unidad {
+    font-size:  calc(13px * var(--font-size-scale));
+    color:      rgba(21,27,59,.85);
+    i { margin-right: 4px; color: rgba(21,27,59,.45); }
+  }
+
+  &__canal {
+    font-size:  calc(10.5px * var(--font-size-scale));
+    color:      rgba(21,27,59,.50);
+    i { margin-right: 3px; }
+  }
+
+  &__actions {
+    display:     flex;
+    gap:         6px;
+    margin-top:  8px;
+    flex-wrap:   wrap;
+  }
+}
+
+// Badge de estado de actuación
+.ev-dispatch-badge {
+  display:       inline-block;
+  font-size:     calc(9.5px * var(--font-size-scale));
+  font-weight:   700;
+  padding:       2px 8px;
+  border-radius: 999px;
+  letter-spacing:.3px;
+
+  &.badge-warning   { background: #fef9c3; color: #d97706; }
+  &.badge-info      { background: #dbeafe; color: #1d4ed8; }
+  &.badge-success   { background: #dcfce7; color: #15803d; }
+  &.badge-secondary { background: #f1f5f9; color: #64748b; }
+  &.badge-danger    { background: #fee2e2; color: #ef4444; }
+}
+
+// Timeline horizontal de 4 pasos
+.ev-dispatch-timeline {
+  display:   flex;
+  gap:       0;
+  margin:    4px 0 6px;
+  position:  relative;
+}
+
+.ev-tl-step {
+  display:   flex;
+  flex:      1;
+  flex-direction: column;
+  align-items: center;
+  position:  relative;
+
+  // Connector line between steps
+  &:not(:last-child)::after {
+    content:    '';
+    position:   absolute;
+    top:        6px;
+    left:       calc(50% + 6px);
+    width:      calc(100% - 12px);
+    height:     2px;
+    background: rgba(21,27,59,.12);
+    z-index:    0;
+  }
+  &:not(:last-child).ev-tl-step--done::after {
+    background: #22c55e;
+  }
+
+  &__dot {
+    width:         12px;
+    height:        12px;
+    border-radius: 50%;
+    background:    rgba(21,27,59,.15);
+    margin-bottom: 4px;
+    position:      relative;
+    z-index:       1;
+    transition:    background 200ms;
+  }
+
+  &--done &__dot {
+    background: #22c55e;
+    box-shadow: 0 0 0 3px rgba(34,197,94,.25);
+  }
+
+  &__info {
+    display:        flex;
+    flex-direction: column;
+    align-items:    center;
+    gap:            2px;
+  }
+
+  &__label {
+    font-size:   calc(9.5px * var(--font-size-scale));
+    font-weight: 700;
+    color:       rgba(21,27,59,.45);
+    text-align:  center;
+  }
+
+  &--done &__label { color: #16a34a; }
+
+  &__ts {
+    font-size:  calc(8.5px * var(--font-size-scale));
+    color:      rgba(21,27,59,.40);
+    text-align: center;
+    max-width:  80px;
+    word-break: break-all;
+  }
+}
+
+// Botón de acción del despacho
+.ev-dispatch-btn {
+  font-size: calc(11px * var(--font-size-scale)) !important;
+  padding:   4px 12px !important;
+  height:    28px !important;
+}
+
+// Variante de color "success" para botones
+.ui-btn.success {
+  background: #16a34a;
+  color:      #fff;
+  border:     1px solid #15803d;
+
+  &:hover:not(:disabled) {
+    background: #15803d;
+  }
+  &:disabled {
+    opacity: .55;
+    cursor:  not-allowed;
+  }
+}
+
+// Variante "warning" para botones
+.ui-btn.warning {
+  background: #d97706;
+  color:      #fff;
+  border:     1px solid #b45309;
+
+  &:hover:not(:disabled) {
+    background: #b45309;
+  }
+  &:disabled {
+    opacity: .55;
+    cursor:  not-allowed;
+  }
+}
+
+// ── Botón de novedad dentro de la fila de despacho ────────────
+.ev-btn-novedad {
+  position: relative;
+  color:    rgba(21,27,59,.70) !important;
+  border-color: rgba(21,27,59,.20) !important;
+}
+
+.ev-novedad-count {
+  display:       inline-flex;
+  align-items:   center;
+  justify-content: center;
+  min-width:     16px;
+  height:        16px;
+  padding:       0 4px;
+  border-radius: 999px;
+  background:    #f59e0b;
+  color:         #fff;
+  font-size:     calc(9px * var(--font-size-scale));
+  font-weight:   700;
+  margin-left:   4px;
+}
+
+// ── Badge "Ocupado" en tabla de recursos ──────────────────────
+.ev-rec-ocupado-badge {
+  display:       inline-flex;
+  align-items:   center;
+  gap:           4px;
+  font-size:     calc(10px * var(--font-size-scale));
+  color:         #d97706;
+  font-weight:   600;
+}
+
+// ── Badge "Otro caso" en tabla de recursos ───────────────────
+.ev-rec-otro-evento {
+  display:       inline-flex;
+  align-items:   center;
+  gap:           4px;
+  font-size:     calc(10px * var(--font-size-scale));
+  color:         rgba(21,27,59,.45);
+  font-weight:   600;
+}
+
+// ── Error de asignación (banner en tabla de recursos) ─────────
+.ev-assign-error {
+  display:       flex;
+  align-items:   center;
+  gap:           8px;
+  padding:       8px 12px;
+  margin-bottom: 8px;
+  background:    #fef2f2;
+  border:        1px solid #fca5a5;
+  border-radius: 6px;
+  font-size:     calc(12px * var(--font-size-scale));
+  color:         #991b1b;
+
+  i { flex-shrink: 0; }
+
+  &__close {
+    margin-left:  auto;
+    background:   none;
+    border:       none;
+    cursor:       pointer;
+    color:        #991b1b;
+    padding:      0;
+    font-size:    12px;
+    opacity:      .70;
+    &:hover { opacity: 1; }
+  }
+}
+
+// ── Aviso dentro del modal de desasignar ──────────────────────
+.ev-modal-desasignar-aviso {
+  margin:        12px 0 0;
+  padding:       8px 12px;
+  background:    #fffbeb;
+  border:        1px solid #fcd34d;
+  border-radius: 6px;
+  font-size:     calc(12px * var(--font-size-scale));
+  color:         #78350f;
+
+  i { margin-right: 5px; }
+}
+
+// ── Título "danger" en cabecera de modal ──────────────────────
+.ev-modal-title-danger {
+  color: #dc2626 !important;
+  i { margin-right: 6px; }
+}
+
+// Modal de cierre de actuación — expandido
+.ev-modal-cierre-act {
+  max-width: 600px;
+}
+
+// Modal de desasignar
+.ev-modal-desasignar {
+  max-width: 460px;
+}
+
+// Modal de novedad
+.ev-modal-novedad {
+  max-width: 500px;
+}
+
+.ev-modal-act-info {
+  display:       flex;
+  flex-direction: column;
+  gap:           4px;
+  padding:       10px 12px;
+  background:    rgba(21,27,59,.04);
+  border:        1px solid rgba(21,27,59,.08);
+  border-radius: 6px;
+  font-size:     calc(12px * var(--font-size-scale));
+  color:         rgba(21,27,59,.75);
+
+  i { margin-right: 5px; }
+
+  strong { color: rgba(21,27,59,.90); }
+}
+
+.ev-modal-act-ts {
+  font-size: calc(11px * var(--font-size-scale));
+  color:     rgba(21,27,59,.50);
+}
+
+// ══════════════════════════════════════════════════════════════
+//  MODAL ATENDIÓ EXPANDIDO — Secciones, chips, radio buttons
+// ══════════════════════════════════════════════════════════════
+
+// Scroll body for tall modal
+.ev-cierre-body {
+  max-height: 70vh;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+// Sección con título dentro del modal de cierre
+.ev-cierre-section {
+  margin-bottom: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid rgba(21,27,59,.07);
+
+  &:last-of-type { border-bottom: none; margin-bottom: 0; }
+
+  &__title {
+    display:     flex;
+    align-items: center;
+    gap:         6px;
+    font-size:   calc(11px * var(--font-size-scale));
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .4px;
+    color:       rgba(21,27,59,.55);
+    margin-bottom: 8px;
+
+    i { font-size: 13px; }
+  }
+
+  // Sección de delito — fondo tenue
+  &--delito {
+    background:    #fffbeb;
+    border:        1px solid #fcd34d;
+    border-radius: 8px;
+    padding:       10px 12px;
+    margin-bottom: 12px;
+
+    .ev-cierre-section__title {
+      color: #78350f;
+    }
+  }
+
+  // Sección de decisión evento — fondo azul tenue
+  &--decision {
+    background:    rgba(59,130,246,.04);
+    border:        1px solid rgba(59,130,246,.15);
+    border-radius: 8px;
+    padding:       10px 12px;
+    border-bottom: none;
+
+    .ev-cierre-section__title {
+      color: #1d4ed8;
+    }
+  }
+}
+
+// Hint de decisión
+.ev-cierre-decision-hint {
+  font-size:   calc(11px * var(--font-size-scale));
+  color:       rgba(21,27,59,.60);
+  margin:      0 0 10px;
+  line-height: 1.5;
+}
+
+// ── Radio label seleccionable ─────────────────────────────────
+.ev-clasif-radio-row {
+  display:   flex;
+  gap:       8px;
+  flex-wrap: wrap;
+}
+
+.ev-radio-label {
+  display:       flex;
+  align-items:   center;
+  gap:           6px;
+  padding:       6px 12px;
+  border:        1px solid rgba(21,27,59,.15);
+  border-radius: 999px;
+  font-size:     calc(12px * var(--font-size-scale));
+  font-weight:   600;
+  color:         rgba(21,27,59,.65);
+  cursor:        pointer;
+  transition:    all .12s;
+  user-select:   none;
+
+  input[type="radio"] { display: none; }
+
+  i { font-size: 13px; }
+
+  &:hover {
+    border-color: rgba(8,166,203,.45);
+    color:        rgba(8,166,203,.85);
+    background:   rgba(8,166,203,.05);
+  }
+
+  // Estado seleccionado
+  &--on {
+    border-color: #0891b2;
+    background:   rgba(8,145,178,.10);
+    color:        #0e7490;
+  }
+}
+
+// ── Chips de códigos seleccionados ────────────────────────────
+.ev-chips-row {
+  display:   flex;
+  flex-wrap: wrap;
+  gap:       6px;
+  margin-top: 6px;
+}
+
+.ev-chip {
+  display:       inline-flex;
+  align-items:   center;
+  gap:           5px;
+  padding:       3px 8px;
+  background:    rgba(8,145,178,.10);
+  border:        1px solid rgba(8,145,178,.25);
+  border-radius: 999px;
+  font-size:     calc(11px * var(--font-size-scale));
+  font-weight:   700;
+  color:         #0e7490;
+
+  &__num {
+    display:        inline-flex;
+    align-items:    center;
+    justify-content: center;
+    width:          16px;
+    height:         16px;
+    background:     #0891b2;
+    color:          #fff;
+    border-radius:  50%;
+    font-size:      calc(9px * var(--font-size-scale));
+    font-weight:    900;
+    flex-shrink:    0;
+  }
+
+  &__desc {
+    font-weight:   400;
+    font-size:     calc(10px * var(--font-size-scale));
+    color:         rgba(14,116,144,.75);
+    max-width:     160px;
+    white-space:   nowrap;
+    overflow:      hidden;
+    text-overflow: ellipsis;
+  }
+
+  &__rm {
+    background:   none;
+    border:       none;
+    cursor:       pointer;
+    color:        rgba(14,116,144,.60);
+    padding:      0;
+    font-size:    10px;
+    line-height:  1;
+    flex-shrink:  0;
+    &:hover { color: #dc2626; }
+  }
+}
+
+// ── Sugerencia de bien jurídico ───────────────────────────────
+.ev-sug-bien {
+  display:       block;
+  font-size:     calc(9.5px * var(--font-size-scale));
+  color:         rgba(21,27,59,.45);
+  margin-top:    1px;
+}
+
+// ── Delito seleccionado ───────────────────────────────────────
+.ev-delito-selec {
+  display:       flex;
+  align-items:   center;
+  gap:           6px;
+  flex-wrap:     wrap;
+  padding:       6px 10px;
+  background:    rgba(34,197,94,.08);
+  border:        1px solid rgba(34,197,94,.25);
+  border-radius: 6px;
+  font-size:     calc(12px * var(--font-size-scale));
+  color:         #166534;
+  margin-top:    8px;
+
+  i { color: #16a34a; }
+  strong { font-weight: 700; }
+}
+
+// ── Autocomplete row con botón ─────────────────────────────────
+.rec-autocomplete {
+  position: relative;
+  display:  flex;
+  gap:      6px;
+  align-items: flex-start;
+
+  input { flex: 1; }
+}
+
+// ══════════════════════════════════════════════════════════════
+//  DARK MODE — nuevos elementos
+// ══════════════════════════════════════════════════════════════
+[data-theme="dark"] {
+  .ev-radio-label {
+    border-color: rgba(255,255,255,.15);
+    color:        rgba(255,255,255,.60);
+
+    &:hover {
+      border-color: rgba(8,166,203,.55);
+      color:        rgba(8,166,203,.85);
+      background:   rgba(8,166,203,.08);
+    }
+
+    &--on {
+      border-color: #22d3ee;
+      background:   rgba(34,211,238,.12);
+      color:        #67e8f9;
+    }
+  }
+
+  .ev-chip {
+    background:  rgba(34,211,238,.10);
+    border-color: rgba(34,211,238,.25);
+    color:       #67e8f9;
+
+    &__num { background: #0891b2; }
+    &__desc { color: rgba(103,232,249,.65); }
+    &__rm { color: rgba(103,232,249,.55); }
+  }
+
+  .ev-cierre-section {
+    border-color: rgba(255,255,255,.07);
+
+    &--delito {
+      background:  rgba(120,83,20,.12);
+      border-color: rgba(252,211,77,.20);
+      .ev-cierre-section__title { color: #fbbf24; }
+    }
+
+    &--decision {
+      background:  rgba(59,130,246,.06);
+      border-color: rgba(59,130,246,.20);
+      .ev-cierre-section__title { color: #60a5fa; }
+    }
+  }
+
+  .ev-delito-selec {
+    background:  rgba(34,197,94,.08);
+    border-color: rgba(34,197,94,.20);
+    color:       #4ade80;
+  }
+
+  .ev-cierre-decision-hint {
+    color: rgba(255,255,255,.50);
+  }
 }

@@ -437,6 +437,18 @@
                       </div>
                     } @else {
 
+                      <!-- Error de asignación -->
+                      @if (errorAsignacion) {
+                        <div class="ev-assign-error">
+                          <i class="fa-solid fa-triangle-exclamation"></i>
+                          {{ errorAsignacion }}
+                          <button class="ev-assign-error__close" type="button"
+                                  (click)="errorAsignacion = ''">
+                            <i class="fa-solid fa-xmark"></i>
+                          </button>
+                        </div>
+                      }
+
                       <!-- Tabla de recursos -->
                       <div class="ev-rec-table-wrap">
                         <table class="ev-rec-table">
@@ -500,27 +512,36 @@
                                 <!-- Acciones -->
                                 <td>
                                   <div class="ev-rec-actions">
-                                    @if (r.estado === 27) {
-                                      <!-- Libre → asignar al evento -->
+                                    @if (r.estado === 27 && !medioAsignadoAEsteEvento(r) && !r.eventoId) {
+                                      <!-- Libre y sin evento → Asignar -->
                                       <button class="ui-btn xs primary ev-rec-btn"
                                               type="button"
-                                              [disabled]="asignandoMedioId === r.id || detalle!.estado === 'C'"
-                                              (click)="asignarMedioAlEvento(r.id)"
-                                              title="Enviar en ruta hacia el incidente">
-                                        <i class="fa-solid fa-location-arrow"></i>
+                                              [disabled]="!!asignandoMedioId || detalle!.estado === 'C'"
+                                              (click)="asignarRecursoAlEvento(r)"
+                                              title="Paso 1: Asignar recurso a este incidente">
+                                        <i class="fa-solid fa-plus"></i>
                                         {{ asignandoMedioId === r.id ? '…' : 'Asignar' }}
                                       </button>
                                     }
+                                    @if (r.estado === 27 && r.eventoId && !medioAsignadoAEsteEvento(r)) {
+                                      <!-- Libre pero asignado a otro evento → indicar -->
+                                      <span class="ev-rec-otro-evento" title="Este recurso ya está vinculado a otro caso">
+                                        <i class="fa-solid fa-link"></i> Otro caso
+                                      </span>
+                                    }
+                                    @if (medioAsignadoAEsteEvento(r)) {
+                                      <!-- Ya asignado a este evento -->
+                                      <span class="ev-rec-asignado-badge">
+                                        <i class="fa-solid fa-link"></i> Asignado
+                                      </span>
+                                    }
                                     @if (r.estado === 30 || r.estado === 28) {
-                                      <!-- En ruta / Ocupado → liberar -->
-                                      <button class="ui-btn xs ghost ev-rec-btn"
-                                              type="button"
-                                              [disabled]="asignandoMedioId === r.id"
-                                              (click)="liberarMedio(r.id)"
-                                              title="Marcar como Libre">
-                                        <i class="fa-solid fa-check"></i>
-                                        {{ asignandoMedioId === r.id ? '…' : 'Liberar' }}
-                                      </button>
+                                      <!-- En ruta / Atendiendo → sin acción en tabla (gestionar desde DESPACHO) -->
+                                      <span class="ev-rec-ocupado-badge"
+                                            [title]="'Estado: ' + etiquetaEstadoMedio(r.estado)">
+                                        <i class="fa-solid fa-circle-dot"></i>
+                                        {{ etiquetaEstadoMedio(r.estado) }}
+                                      </span>
                                     }
                                   </div>
                                 </td>
@@ -534,6 +555,185 @@
                   </div>
                 </div>
               }
+
+              <!-- ════════════ TIMELINE DE DESPACHO ════════════ -->
+              <div class="ev-section ev-section--dispatch">
+                <div class="ev-section__head">
+                  <i class="fa-solid fa-route"></i>
+                  Despacho activo
+                  <span class="ev-rec-live">
+                    <span class="ev-live-dot"></span>
+                    c/8s
+                  </span>
+                  <span class="ev-dispatch-count">{{ actuaciones.length }} actuación(es)</span>
+                </div>
+
+                <div style="padding:10px 14px">
+
+                  @if (errorActuaciones) {
+                    <p class="ev-err">
+                      <i class="fa-solid fa-triangle-exclamation"></i>
+                      {{ errorActuaciones }}
+                    </p>
+                  }
+
+                  @if (cargandoActuaciones && actuaciones.length === 0) {
+                    <div class="ev-empty-state" style="padding:16px 0">
+                      <i class="fa-solid fa-hourglass-half fa-spin"></i>
+                      <p>Cargando actuaciones…</p>
+                    </div>
+                  } @else if (actuaciones.length === 0) {
+                    <div class="ev-empty-state" style="padding:14px 0">
+                      <i class="fa-solid fa-route"></i>
+                      <p>Sin recursos asignados a este evento.<br>
+                         Use el botón <strong>Asignar</strong> en la tabla de recursos.</p>
+                    </div>
+                  } @else {
+
+                    <div class="ev-dispatch-list">
+                      @for (act of actuaciones; track act.id) {
+                        <div class="ev-dispatch-row"
+                             [class.ev-dispatch-row--cerrada]="act.estado === 'C' || act.estado === 'V'">
+
+                          <!-- Encabezado fila: unidad + badge estado -->
+                          <div class="ev-dispatch-row__head">
+                            <strong class="ev-dispatch-row__unidad">
+                              <i class="fa-solid fa-car-side"></i>
+                              {{ act.unidadAsignada || '—' }}
+                            </strong>
+                            <span class="ev-dispatch-badge"
+                                  [ngClass]="claseEstadoActuacion(act.estado)">
+                              {{ etiquetaEstadoActuacion(act.estado) }}
+                            </span>
+                            @if (act.canalDesc) {
+                              <span class="ev-dispatch-row__canal">
+                                <i class="fa-solid fa-tower-broadcast"></i>
+                                {{ act.canalDesc }}
+                              </span>
+                            }
+                          </div>
+
+                          <!-- Timeline de timestamps -->
+                          <div class="ev-dispatch-timeline">
+
+                            <!-- Paso 1: Asignado -->
+                            <div class="ev-tl-step ev-tl-step--done">
+                              <span class="ev-tl-step__dot"></span>
+                              <div class="ev-tl-step__info">
+                                <span class="ev-tl-step__label">Asignado</span>
+                                <span class="ev-tl-step__ts">{{ act.fechaCreacion }}</span>
+                              </div>
+                            </div>
+
+                            <!-- Paso 2: En ruta -->
+                            <div class="ev-tl-step"
+                                 [class.ev-tl-step--done]="act.estado === 'D' || act.estado === 'A' || act.estado === 'C'">
+                              <span class="ev-tl-step__dot"></span>
+                              <div class="ev-tl-step__info">
+                                <span class="ev-tl-step__label">En ruta</span>
+                                <span class="ev-tl-step__ts">
+                                  {{ act.fechaDespacho || '—' }}
+                                </span>
+                              </div>
+                            </div>
+
+                            <!-- Paso 3: En sitio -->
+                            <div class="ev-tl-step"
+                                 [class.ev-tl-step--done]="act.estado === 'A' || act.estado === 'C'">
+                              <span class="ev-tl-step__dot"></span>
+                              <div class="ev-tl-step__info">
+                                <span class="ev-tl-step__label">En sitio</span>
+                                <span class="ev-tl-step__ts">
+                                  {{ act.fechaLlegada || '—' }}
+                                </span>
+                              </div>
+                            </div>
+
+                            <!-- Paso 4: Cerrado -->
+                            <div class="ev-tl-step"
+                                 [class.ev-tl-step--done]="act.estado === 'C'">
+                              <span class="ev-tl-step__dot"></span>
+                              <div class="ev-tl-step__info">
+                                <span class="ev-tl-step__label">Atendió</span>
+                                <span class="ev-tl-step__ts">
+                                  {{ act.fechaCierre || '—' }}
+                                </span>
+                              </div>
+                            </div>
+
+                          </div><!-- /ev-dispatch-timeline -->
+
+                          <!-- Botones de acción según estado actual -->
+                          @if (act.estado !== 'C' && act.estado !== 'V' && detalle!.estado !== 'C') {
+                            <div class="ev-dispatch-row__actions">
+
+                              @if (act.estado === 'P') {
+                                <!-- Paso 2: Despachar → En ruta -->
+                                <button class="ui-btn xs primary ev-dispatch-btn"
+                                        type="button"
+                                        [disabled]="operandoActuacionId === act.id"
+                                        (click)="marcarEnRuta(act)"
+                                        title="Paso 2: Marcar recurso en ruta hacia el lugar">
+                                  <i class="fa-solid fa-truck-fast"></i>
+                                  {{ operandoActuacionId === act.id ? '…' : 'Salió en ruta' }}
+                                </button>
+                                <!-- Desasignar: solo disponible en estado P -->
+                                <button class="ui-btn xs danger ev-dispatch-btn"
+                                        type="button"
+                                        [disabled]="operandoActuacionId === act.id"
+                                        (click)="abrirModalDesasignar(act)"
+                                        title="Desasignar recurso (solo si aún no ha salido en ruta)">
+                                  <i class="fa-solid fa-link-slash"></i>
+                                  Desasignar
+                                </button>
+                              }
+
+                              @if (act.estado === 'D') {
+                                <!-- Paso 3: En sitio → llegó al lugar -->
+                                <button class="ui-btn xs warning ev-dispatch-btn"
+                                        type="button"
+                                        [disabled]="operandoActuacionId === act.id"
+                                        (click)="marcarEnSitio(act)"
+                                        title="Paso 3: Marcar que el recurso llegó al lugar">
+                                  <i class="fa-solid fa-map-pin"></i>
+                                  {{ operandoActuacionId === act.id ? '…' : 'Llegó al lugar' }}
+                                </button>
+                              }
+
+                              @if (act.estado === 'A') {
+                                <!-- Paso 4: Atendió → cerrar actuación -->
+                                <button class="ui-btn xs success ev-dispatch-btn"
+                                        type="button"
+                                        [disabled]="operandoActuacionId === act.id"
+                                        (click)="abrirCierreActuacion(act)"
+                                        title="Paso 4: Marcar que el recurso atendió el incidente">
+                                  <i class="fa-solid fa-circle-check"></i>
+                                  {{ operandoActuacionId === act.id ? '…' : 'Atendió' }}
+                                </button>
+                              }
+
+                              <!-- Registrar novedad: disponible en cualquier estado activo -->
+                              <button class="ui-btn xs ghost ev-dispatch-btn ev-btn-novedad"
+                                      type="button"
+                                      (click)="abrirModalNovedad(act)"
+                                      title="Registrar novedad u observación sobre este recurso">
+                                <i class="fa-solid fa-circle-exclamation"></i>
+                                Novedad
+                                @if (act.totalNotas && act.totalNotas > 0) {
+                                  <span class="ev-novedad-count">{{ act.totalNotas }}</span>
+                                }
+                              </button>
+
+                            </div>
+                          }
+
+                        </div><!-- /ev-dispatch-row -->
+                      }
+                    </div><!-- /ev-dispatch-list -->
+
+                  }
+                </div>
+              </div><!-- /DESPACHO ACTIVO -->
 
               <!-- ANOTACIONES -->
               <div class="ev-section">
@@ -549,7 +749,9 @@
                       <div class="ui-grid" style="gap:10px;">
                         <div class="ui-field ui-col-6">
                           <label class="ui-label">Tipo</label>
-                          <select class="ui-control" [(ngModel)]="nuevaAnotacion.tipoAnotacion">
+                          <select class="ui-control"
+                                  [(ngModel)]="nuevaAnotacion.tipoAnotacion"
+                                  (change)="onTipoAnotacionChange()">
                             <option value="GENERAL">General</option>
                             <option value="OPERATIVA">Operativa</option>
                             <option value="PREVENTIVA">Preventiva</option>
@@ -564,6 +766,42 @@
                                  [(ngModel)]="nuevaAnotacion.titulo"
                                  placeholder="Título breve…">
                         </div>
+
+                        <!-- Sub-campos OPERATIVA dinámicos -->
+                        @if (nuevaAnotacion.tipoAnotacion === 'OPERATIVA') {
+                          <div class="ui-field ui-col-12">
+                            <label class="ui-label">Tipo de actividad</label>
+                            <select class="ui-control"
+                                    [value]="anotActividadCodigo"
+                                    (change)="onAnotActividadChange($event)">
+                              <option value="">— Seleccione —</option>
+                              @for (a of actividadesPoliciales; track a.codigo) {
+                                <option [value]="a.codigo">
+                                  {{ a.tipo === 'O' ? '⚡' : '🛡' }} {{ a.descripcion }}
+                                </option>
+                              }
+                            </select>
+                          </div>
+
+                          @if (anotRequiereDelito) {
+                            <div class="ui-field ui-col-6">
+                              <label class="ui-label">
+                                Artículo del delito
+                              </label>
+                              <input class="ui-control" type="text"
+                                     [(ngModel)]="anotDelitoArticulo"
+                                     placeholder="Ej: Art. 239, Art. 103…"
+                                     style="text-transform:uppercase">
+                            </div>
+                            <div class="ui-field ui-col-6">
+                              <label class="ui-label">Nombre del delito</label>
+                              <input class="ui-control" type="text"
+                                     [(ngModel)]="anotDelitoDesc"
+                                     placeholder="Ej: Hurto calificado…">
+                            </div>
+                          }
+                        }
+
                         <div class="ui-field ui-col-12">
                           <label class="ui-label">
                             Texto de la anotación <span class="ev-req">*</span>
@@ -632,6 +870,401 @@
 </section>
 
 <!-- ══════════════════════════════════════════════════════════════
+     MODAL: Cerrar actuación (Paso 4 — Atendió) — EXPANDIDO
+     ══════════════════════════════════════════════════════════════ -->
+@if (modalCierreActuacion) {
+  <div class="ui-modal" (click)="cancelarCierreActuacion()">
+    <div class="ui-modal__dialog ev-modal-cierre-act" (click)="$event.stopPropagation()">
+
+      <div class="ui-modal__head">
+        <div class="ui-modal__title">
+          <i class="fa-solid fa-circle-check"></i>
+          Registrar resultado de atención
+        </div>
+        <button class="ui-icon-btn" type="button"
+                title="Cancelar" (click)="cancelarCierreActuacion()">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <div class="ui-modal__body ev-cierre-body">
+
+        <!-- ── Resumen del recurso ──────────────────────────────────────── -->
+        @if (actuacionACerrar) {
+          <div class="ev-modal-act-info">
+            <i class="fa-solid fa-car-side"></i>
+            <strong>{{ actuacionACerrar.unidadAsignada || '—' }}</strong>
+            @if (actuacionACerrar.canalDesc) {
+              <span class="ev-modal-act-ts">· {{ actuacionACerrar.canalDesc }}</span>
+            }
+            @if (actuacionACerrar.fechaCreacion) {
+              <span class="ev-modal-act-ts">
+                <i class="fa-regular fa-clock"></i> Asignado: {{ actuacionACerrar.fechaCreacion }}
+              </span>
+            }
+            @if (actuacionACerrar.fechaLlegada) {
+              <span class="ev-modal-act-ts">
+                <i class="fa-solid fa-map-pin"></i> En sitio: {{ actuacionACerrar.fechaLlegada }}
+              </span>
+            }
+          </div>
+        }
+
+        <!-- ── Sección 1: Tipificación / Códigos de cierre ─────────────── -->
+        <div class="ev-cierre-section">
+          <div class="ev-cierre-section__title">
+            <i class="fa-solid fa-tag"></i>
+            Códigos de tipificación <span class="ev-req">*</span>
+          </div>
+
+          <!-- Autocomplete -->
+          <div class="rec-autocomplete" style="margin-bottom:8px">
+            <input class="ui-control" type="text"
+                   [value]="cierreCodBusqueda"
+                   (input)="onCierreCodInput($any($event.target).value)"
+                   (blur)="cerrarSugerenciasCierre()"
+                   (focus)="mostrarSugerenciasCierre = cierreCodBusqueda.length > 0"
+                   placeholder="Buscar código de caso (tipificación)…">
+            <button class="ui-btn xs ghost" type="button"
+                    title="Agregar código tal como está escrito"
+                    (click)="agregarCierreCodManual()"
+                    [disabled]="!cierreCodBusqueda.trim()">
+              <i class="fa-solid fa-plus"></i> Agregar
+            </button>
+            @if (mostrarSugerenciasCierre && cierreSugerencias.length > 0) {
+              <ul class="rec-suggest-list">
+                @for (s of cierreSugerencias; track s.codigo) {
+                  <li class="rec-suggest-item"
+                      (mousedown)="seleccionarCierreCod(s)">
+                    <strong>{{ s.codigo }}</strong>
+                    @if (s.descripcion) { <span>— {{ s.descripcion }}</span> }
+                  </li>
+                }
+              </ul>
+            }
+          </div>
+
+          <!-- Chips seleccionados -->
+          @if (cierreCodsSeleccionados.length > 0) {
+            <div class="ev-chips-row">
+              @for (cod of cierreCodsSeleccionados; track cod.orden) {
+                <span class="ev-chip">
+                  <span class="ev-chip__num">{{ cod.orden }}</span>
+                  {{ cod.codigoCierre }}
+                  @if (cod.descripcionLibre) {
+                    <span class="ev-chip__desc">– {{ cod.descripcionLibre }}</span>
+                  }
+                  <button class="ev-chip__rm" type="button"
+                          (click)="quitarCierreCod(cod.orden - 1)">
+                    <i class="fa-solid fa-xmark"></i>
+                  </button>
+                </span>
+              }
+            </div>
+          }
+        </div>
+
+        <!-- ── Sección 2: Clasificación de actividad policial ──────────── -->
+        <div class="ev-cierre-section">
+          <div class="ev-cierre-section__title">
+            <i class="fa-solid fa-shield-halved"></i>
+            Clasificación de actividad
+          </div>
+          <div class="ev-clasif-radio-row">
+            <label class="ev-radio-label"
+                   [class.ev-radio-label--on]="cierreClasifActividad === 'O'">
+              <input type="radio" name="clasifAct" value="O"
+                     [checked]="cierreClasifActividad === 'O'"
+                     (change)="onClasifActividadChange('O')">
+              <i class="fa-solid fa-bolt"></i> Operativa
+            </label>
+            <label class="ev-radio-label"
+                   [class.ev-radio-label--on]="cierreClasifActividad === 'P'">
+              <input type="radio" name="clasifAct" value="P"
+                     [checked]="cierreClasifActividad === 'P'"
+                     (change)="onClasifActividadChange('P')">
+              <i class="fa-solid fa-shield"></i> Preventiva
+            </label>
+            <label class="ev-radio-label"
+                   [class.ev-radio-label--on]="cierreClasifActividad === ''">
+              <input type="radio" name="clasifAct" value=""
+                     [checked]="cierreClasifActividad === ''"
+                     (change)="onClasifActividadChange('')">
+              Sin clasificar
+            </label>
+          </div>
+
+          <!-- Tipo de actividad (solo si clasif seleccionada) -->
+          @if (cierreClasifActividad && actividadesFiltered.length > 0) {
+            <div class="ui-field" style="margin-top:8px">
+              <label class="ui-label">Tipo de actividad</label>
+              <select class="ui-control"
+                      [value]="cierreActividadSelec?.codigo ?? ''"
+                      (change)="onActividadChange($any($event.target).value)">
+                <option value="">— Seleccione —</option>
+                @for (a of actividadesFiltered; track a.codigo) {
+                  <option [value]="a.codigo">{{ a.descripcion }}</option>
+                }
+              </select>
+            </div>
+          }
+        </div>
+
+        <!-- ── Sección 3: Delito (solo si requiereDelito = true) ──────── -->
+        @if (cierreActividadSelec?.requiereDelito) {
+          <div class="ev-cierre-section ev-cierre-section--delito">
+            <div class="ev-cierre-section__title">
+              <i class="fa-solid fa-gavel"></i>
+              Delito — Código Penal (Ley 599/2000)
+            </div>
+            <div class="rec-autocomplete">
+              <input class="ui-control" type="text"
+                     [value]="cierreDelitoBusqueda"
+                     (input)="onCierreDelitoInput($any($event.target).value)"
+                     (blur)="cerrarSugerenciasDelito()"
+                     placeholder="Buscar artículo o nombre del delito…">
+              @if (mostrarSugerenciasDelito && cierreDelitoSugs.length > 0) {
+                <ul class="rec-suggest-list">
+                  @for (d of cierreDelitoSugs; track d.id) {
+                    <li class="rec-suggest-item"
+                        (mousedown)="seleccionarCierreDelito(d)">
+                      <strong>{{ d.articulo }}</strong> — {{ d.descripcion }}
+                      @if (d.bienJuridico) {
+                        <span class="ev-sug-bien">{{ d.bienJuridico }}</span>
+                      }
+                    </li>
+                  }
+                </ul>
+              }
+            </div>
+            @if (cierreDelitoSelec) {
+              <div class="ev-delito-selec">
+                <i class="fa-solid fa-check-circle"></i>
+                <strong>{{ cierreDelitoSelec.articulo }}</strong>
+                — {{ cierreDelitoSelec.descripcion }}
+                @if (cierreDelitoSelec.bienJuridico) {
+                  <span class="ev-sug-bien">{{ cierreDelitoSelec.bienJuridico }}</span>
+                }
+                <button class="ev-chip__rm" type="button"
+                        (click)="cierreDelitoSelec = null; cierreDelitoBusqueda = ''">
+                  <i class="fa-solid fa-xmark"></i>
+                </button>
+              </div>
+            }
+          </div>
+        }
+
+        <!-- ── Sección 4: Observación ──────────────────────────────────── -->
+        <div class="ev-cierre-section">
+          <div class="ev-cierre-section__title">
+            <i class="fa-solid fa-comment-dots"></i>
+            Observación
+          </div>
+          <textarea class="ui-control ev-anot-textarea"
+                    rows="3"
+                    [(ngModel)]="cierreObservacion"
+                    placeholder="Descripción del resultado de la atención (opcional)…">
+          </textarea>
+        </div>
+
+        <!-- ── Sección 5: ¿Cerrar el evento? ──────────────────────────── -->
+        <div class="ev-cierre-section ev-cierre-section--decision">
+          <div class="ev-cierre-section__title">
+            <i class="fa-solid fa-question-circle"></i>
+            ¿Desea cerrar el evento? <span class="ev-req">*</span>
+          </div>
+          <p class="ev-cierre-decision-hint">
+            <strong>Sí</strong> = cierra esta actuación <em>y</em> el evento completo.
+            <strong>No</strong> = solo cierra esta actuación; el evento permanece activo.
+          </p>
+          <div class="ev-clasif-radio-row">
+            <label class="ev-radio-label"
+                   [class.ev-radio-label--on]="cerrarEventoAlAtender === true">
+              <input type="radio" name="cerrarEvt" [value]="true"
+                     [checked]="cerrarEventoAlAtender === true"
+                     (change)="cerrarEventoAlAtender = true">
+              <i class="fa-solid fa-lock"></i> Sí, cerrar evento
+            </label>
+            <label class="ev-radio-label"
+                   [class.ev-radio-label--on]="cerrarEventoAlAtender === false">
+              <input type="radio" name="cerrarEvt" [value]="false"
+                     [checked]="cerrarEventoAlAtender === false"
+                     (change)="cerrarEventoAlAtender = false">
+              <i class="fa-solid fa-check"></i> No, solo esta actuación
+            </label>
+          </div>
+        </div>
+
+        @if (errorCierreActuacion) {
+          <p class="ev-err" style="margin-top:8px">
+            <i class="fa-solid fa-triangle-exclamation"></i>
+            {{ errorCierreActuacion }}
+          </p>
+        }
+      </div><!-- /ui-modal__body -->
+
+      <div class="ui-modal__foot">
+        <button class="ui-btn sm ghost" type="button"
+                (click)="cancelarCierreActuacion()">
+          <i class="fa-solid fa-xmark"></i> Cancelar
+        </button>
+        <button class="ui-btn sm success" type="button"
+                [disabled]="cerrandoActuacion || !cierreCodsSeleccionados.length || cerrarEventoAlAtender === null"
+                (click)="confirmarCierreActuacion()">
+          <i class="fa-solid fa-circle-check"></i>
+          {{ cerrandoActuacion ? 'Cerrando…' : 'Confirmar: Atendió' }}
+        </button>
+      </div>
+
+    </div>
+  </div>
+}
+
+<!-- ══════════════════════════════════════════════════════════════
+     MODAL: Desasignar recurso (solo estado P)
+     ══════════════════════════════════════════════════════════════ -->
+@if (modalDesasignarVisible) {
+  <div class="ui-modal" (click)="cancelarDesasignar()">
+    <div class="ui-modal__dialog ev-modal-desasignar" (click)="$event.stopPropagation()">
+
+      <div class="ui-modal__head">
+        <div class="ui-modal__title ev-modal-title-danger">
+          <i class="fa-solid fa-link-slash"></i>
+          Desasignar recurso
+        </div>
+        <button class="ui-icon-btn" type="button"
+                title="Cancelar" (click)="cancelarDesasignar()">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <div class="ui-modal__body">
+
+        @if (actuacionADesasignar) {
+          <div class="ev-modal-act-info">
+            <i class="fa-solid fa-car-side"></i>
+            Recurso: <strong>{{ actuacionADesasignar.unidadAsignada || '—' }}</strong>
+            <span class="ev-modal-act-ts">
+              Asignado: {{ actuacionADesasignar.fechaCreacion }}
+            </span>
+          </div>
+          <p class="ev-modal-desasignar-aviso">
+            <i class="fa-solid fa-triangle-exclamation"></i>
+            Esta acción <strong>anulará</strong> el despacho y devolverá el recurso al estado
+            <strong>Libre</strong>. Solo disponible si el recurso aún <strong>no ha salido en ruta</strong>.
+          </p>
+        }
+
+        <div class="ui-grid" style="gap:12px; margin-top:12px">
+          <div class="ui-field ui-col-12">
+            <label class="ui-label">Motivo del desasignado (opcional)</label>
+            <input class="ui-control" type="text"
+                   [(ngModel)]="desasignarMotivo"
+                   placeholder="Ej: Asignado por error, recurso no disponible…">
+          </div>
+        </div>
+
+        @if (errorDesasignar) {
+          <p class="ev-err" style="margin-top:10px">
+            <i class="fa-solid fa-triangle-exclamation"></i>
+            {{ errorDesasignar }}
+          </p>
+        }
+      </div>
+
+      <div class="ui-modal__foot">
+        <button class="ui-btn sm ghost" type="button" (click)="cancelarDesasignar()">
+          <i class="fa-solid fa-xmark"></i> Cancelar
+        </button>
+        <button class="ui-btn sm danger" type="button"
+                [disabled]="desasignando"
+                (click)="confirmarDesasignar()">
+          <i class="fa-solid fa-link-slash"></i>
+          {{ desasignando ? 'Desasignando…' : 'Confirmar desasignado' }}
+        </button>
+      </div>
+
+    </div>
+  </div>
+}
+
+<!-- ══════════════════════════════════════════════════════════════
+     MODAL: Registrar novedad operativa
+     ══════════════════════════════════════════════════════════════ -->
+@if (modalNovedadVisible) {
+  <div class="ui-modal" (click)="cancelarNovedad()">
+    <div class="ui-modal__dialog ev-modal-novedad" (click)="$event.stopPropagation()">
+
+      <div class="ui-modal__head">
+        <div class="ui-modal__title">
+          <i class="fa-solid fa-circle-exclamation"></i>
+          Registrar novedad
+        </div>
+        <button class="ui-icon-btn" type="button"
+                title="Cancelar" (click)="cancelarNovedad()">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <div class="ui-modal__body">
+
+        @if (actuacionNovedad) {
+          <div class="ev-modal-act-info">
+            <i class="fa-solid fa-car-side"></i>
+            Recurso: <strong>{{ actuacionNovedad.unidadAsignada || '—' }}</strong>
+            <span class="ev-dispatch-badge" [ngClass]="claseEstadoActuacion(actuacionNovedad.estado)"
+                  style="margin-left:8px">
+              {{ etiquetaEstadoActuacion(actuacionNovedad.estado) }}
+            </span>
+          </div>
+        }
+
+        <div class="ui-grid" style="gap:12px; margin-top:12px">
+          <div class="ui-field ui-col-4">
+            <label class="ui-label">Tipo</label>
+            <select class="ui-control" [(ngModel)]="novedadTipo">
+              <option value="NOVEDAD">Novedad</option>
+              <option value="ALERTA">Alerta</option>
+              <option value="GENERAL">General</option>
+            </select>
+          </div>
+          <div class="ui-field ui-col-12">
+            <label class="ui-label">
+              Descripción <span class="ev-req">*</span>
+            </label>
+            <textarea class="ui-control ev-anot-textarea"
+                      rows="4"
+                      [(ngModel)]="novedadTexto"
+                      placeholder="Describa la novedad, situación o información relevante que ocurrió durante el recorrido o la atención…">
+            </textarea>
+          </div>
+        </div>
+
+        @if (errorNovedad) {
+          <p class="ev-err" style="margin-top:8px">
+            <i class="fa-solid fa-triangle-exclamation"></i>
+            {{ errorNovedad }}
+          </p>
+        }
+      </div>
+
+      <div class="ui-modal__foot">
+        <button class="ui-btn sm ghost" type="button" (click)="cancelarNovedad()">
+          <i class="fa-solid fa-xmark"></i> Cancelar
+        </button>
+        <button class="ui-btn sm warning" type="button"
+                [disabled]="guardandoNovedad || !novedadTexto.trim()"
+                (click)="confirmarNovedad()">
+          <i class="fa-solid fa-circle-exclamation"></i>
+          {{ guardandoNovedad ? 'Guardando…' : 'Registrar novedad' }}
+        </button>
+      </div>
+
+    </div>
+  </div>
+}
+
+<!-- ══════════════════════════════════════════════════════════════
      MODAL: Cerrar evento
      ══════════════════════════════════════════════════════════════ -->
 @if (modalCerrarVisible) {
@@ -650,24 +1283,80 @@
       </div>
 
       <div class="ui-modal__body">
-        <div class="ui-grid" style="gap:12px;">
-          <div class="ui-field ui-col-12">
-            <label class="ui-label">Código de cierre</label>
+
+        <!-- Evento info -->
+        @if (detalle) {
+          <div class="ev-modal-act-info" style="margin-bottom:12px">
+            <i class="fa-solid fa-file-shield"></i>
+            <strong>{{ detalle.codiPedido || ('Evento #' + detalle.id) }}</strong>
+            @if (detalle.direCaso) {
+              <span class="ev-modal-act-ts">· {{ detalle.direCaso }}</span>
+            }
+          </div>
+        }
+
+        <!-- Códigos de tipificación (multi-código) -->
+        <div class="ev-cierre-section">
+          <div class="ev-cierre-section__title">
+            <i class="fa-solid fa-tag"></i>
+            Códigos de cierre
+          </div>
+          <div class="rec-autocomplete" style="margin-bottom:8px">
             <input class="ui-control" type="text"
-                   [(ngModel)]="cerrarCodiPedido"
-                   placeholder="Código del pedido…">
+                   [value]="eventoCodBusqueda"
+                   (input)="onEventoCodInput($any($event.target).value)"
+                   (blur)="cerrarSugerenciasEvento()"
+                   (focus)="mostrarSugerenciasEvento = eventoCodBusqueda.length > 0"
+                   placeholder="Buscar código de tipificación…">
+            <button class="ui-btn xs ghost" type="button"
+                    title="Agregar código"
+                    (click)="agregarEventoCodManual()"
+                    [disabled]="!eventoCodBusqueda.trim()">
+              <i class="fa-solid fa-plus"></i> Agregar
+            </button>
+            @if (mostrarSugerenciasEvento && eventoSugerencias.length > 0) {
+              <ul class="rec-suggest-list">
+                @for (s of eventoSugerencias; track s.codigo) {
+                  <li class="rec-suggest-item"
+                      (mousedown)="seleccionarEventoCod(s)">
+                    <strong>{{ s.codigo }}</strong>
+                    @if (s.descripcion) { <span>— {{ s.descripcion }}</span> }
+                  </li>
+                }
+              </ul>
+            }
           </div>
-          <div class="ui-field ui-col-12">
-            <label class="ui-label">
-              Comentario de cierre <span class="ev-req">*</span>
-            </label>
-            <textarea class="ui-control ev-anot-textarea"
-                      rows="4"
-                      [(ngModel)]="cerrarComentario"
-                      placeholder="Describa el resultado del evento…">
-            </textarea>
-          </div>
+          @if (eventoCodsSelec.length > 0) {
+            <div class="ev-chips-row">
+              @for (cod of eventoCodsSelec; track $index) {
+                <span class="ev-chip">
+                  {{ cod.codigo }}
+                  @if (cod.descripcion) {
+                    <span class="ev-chip__desc">– {{ cod.descripcion }}</span>
+                  }
+                  <button class="ev-chip__rm" type="button"
+                          (click)="quitarEventoCod($index)">
+                    <i class="fa-solid fa-xmark"></i>
+                  </button>
+                </span>
+              }
+            </div>
+          }
         </div>
+
+        <!-- Comentario -->
+        <div class="ev-cierre-section">
+          <div class="ev-cierre-section__title">
+            <i class="fa-solid fa-comment-dots"></i>
+            Comentario de cierre
+          </div>
+          <textarea class="ui-control ev-anot-textarea"
+                    rows="4"
+                    [(ngModel)]="cerrarComentario"
+                    placeholder="Describa el resultado final del evento…">
+          </textarea>
+        </div>
+
       </div>
 
       <div class="ui-modal__foot">
@@ -675,7 +1364,7 @@
           <i class="fa-solid fa-xmark"></i> Cancelar
         </button>
         <button class="ui-btn sm danger" type="button"
-                [disabled]="cerrandoEvento || !cerrarComentario.trim()"
+                [disabled]="cerrandoEvento || (!cerrarComentario.trim() && !eventoCodsSelec.length)"
                 (click)="confirmarCierre()">
           <i class="fa-solid fa-lock"></i>
           {{ cerrandoEvento ? 'Cerrando…' : 'Confirmar cierre' }}

@@ -249,15 +249,46 @@ public class DtoAgregarMedioRequest
     public List<DtoPersonalMedio> Personal { get; set; } = new();
 }
 
+/// <summary>
+/// Request para importar medios y personal de las unidades seleccionadas desde SIVICC.
+///
+/// Flujo correcto:
+///   1. GET  api/Turnos/{id}/sivicc/unidades  →  obtiene lista de unidades disponibles
+///   2. El usuario selecciona cuáles importar
+///   3. POST api/Turnos/{id}/sivicc           →  envía las unidades seleccionadas aquí
+///
+/// MinutaId y Consecutivo de cada unidad vienen del paso 1;
+/// el usuario nunca los introduce manualmente.
+/// </summary>
 public class DtoImportarSiviccRequest
 {
-    public long   TurnoId           { get; set; }
-    public int    SiviccMinutaId    { get; set; }
-    public int    SiviccConsecutivo { get; set; }  // CONS_SIATH de la unidad
-    public int?   CanalCodigo       { get; set; }  // canal de radio a asignar
-    public int?   CanalFuerzaId     { get; set; }
-    public int    FuerzaId          { get; set; }
-    public int    SitioGraba        { get; set; }
+    public long   TurnoId       { get; set; }
+    public int?   CanalCodigo   { get; set; }   // canal de radio (opcional)
+    public int?   CanalFuerzaId { get; set; }
+    public int    FuerzaId      { get; set; }
+    public int    SitioGraba    { get; set; }
+
+    /// <summary>
+    /// Unidades seleccionadas por el usuario.
+    /// Si está vacía se importan TODAS las unidades del turno en SIVICC.
+    /// </summary>
+    public List<DtoUnidadSiviccSeleccionada> Unidades { get; set; } = new();
+}
+
+/// <summary>
+/// Campos editables de un medio ya registrado en turno.
+/// Solo se actualizan datos de identificación, tipo, canal y personal;
+/// los campos estructurales (turnoId, unidadId, fuerza, sitioGraba) no cambian.
+/// </summary>
+public class DtoActualizarMedioRequest
+{
+    public int?    CanalFuerzaId   { get; set; }
+    public int?    CanalCodigo     { get; set; }
+    public string  PatrullaCodigo  { get; set; } = "";
+    public string? PatrullaDesc    { get; set; }
+    public int     TipoMedio       { get; set; } = global::Comun.Dtos.Turnos.TipoMedio.Patrulla;
+    /// <summary>Lista de policías asignados (máx. 2). Reemplaza completamente la lista anterior.</summary>
+    public List<DtoPersonalMedio> Personal { get; set; } = new();
 }
 
 public class DtoCambiarEstadoMedioRequest
@@ -266,6 +297,38 @@ public class DtoCambiarEstadoMedioRequest
     public long?   EventoId       { get; set; }
     public long?   ActuacionId    { get; set; }
     public string? Observacion    { get; set; }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// DTOs de integración SIVICC
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// <summary>
+/// Unidad disponible en la minuta SIVICC para el turno y fuerza indicados.
+/// Se obtiene consultando <c>v_unidades_minuta</c> (FDW → V_MINUTA_SIVICC_POST2).
+/// </summary>
+public class DtoUnidadSivicc
+{
+    /// <summary>ID de la minuta SIVICC (minutaid en v_unidades_minuta).</summary>
+    public int    MinutaId          { get; set; }
+    /// <summary>Consecutivo SIATH de la unidad (consec_siath).</summary>
+    public int    Consecutivo       { get; set; }
+    /// <summary>Código SECAD de la unidad (ej. "EST-01").</summary>
+    public string UnidadCodigo      { get; set; } = "";
+    /// <summary>Descripción / nombre de la unidad en SIVICC.</summary>
+    public string Descripcion       { get; set; } = "";
+    /// <summary>true si ya tiene medios registrados en cad_medios_disponibles.</summary>
+    public bool   ExisteEnCadMedios { get; set; }
+}
+
+/// <summary>
+/// Unidad seleccionada por el usuario para importar desde SIVICC.
+/// Contiene los identificadores obtenidos en el paso de consulta de unidades.
+/// </summary>
+public class DtoUnidadSiviccSeleccionada
+{
+    public int MinutaId    { get; set; }
+    public int Consecutivo { get; set; }
 }
 
 /// <summary>

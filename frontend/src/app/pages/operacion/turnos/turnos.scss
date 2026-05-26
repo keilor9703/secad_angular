@@ -96,14 +96,16 @@ $clase3: #8b5cf6;   // 3° turno — violeta noche
 .tr-layout {
   flex:                  1;
   display:               grid;
-  grid-template-columns: 260px 280px 1fr;
+  // Se amplían un poco las col 1 y 2 para mejorar la lectura del contenido.
+  // La columna 3 (medios) ahora usa 1fr para ocupar todo el espacio sobrante a la derecha.
+  grid-template-columns: 360px 400px 1fr; 
   overflow:              hidden;
   min-height:            0;
 
-  @media (max-width: 1100px) { grid-template-columns: 220px 240px 1fr; }
-  @media (max-width: 860px)  { grid-template-columns: 1fr; }
+  // Ajustes responsivos
+  @media (max-width: 900px)  { grid-template-columns: 240px 280px 1fr; }
+  @media (max-width: 720px)  { grid-template-columns: 1fr; }
 }
-
 // ── Shared column styles ──────────────────────────────────────
 
 .tr-col-turnos,
@@ -123,7 +125,7 @@ $clase3: #8b5cf6;   // 3° turno — violeta noche
   display:         flex;
   align-items:     center;
   justify-content: space-between;
-  padding:         8px 12px;
+  padding:         6px 10px;
   background:      var(--policia-gradiente-deep);
   color:           #fff;
   font-size:       calc(11px * var(--font-size-scale));
@@ -131,16 +133,41 @@ $clase3: #8b5cf6;   // 3° turno — violeta noche
   letter-spacing:  .2px;
   text-transform:  uppercase;
   flex-shrink:     0;
+  min-height:      36px;
 
-  span { display: flex; align-items: center; gap: 6px; }
-  i    { color: var(--policia-acento); }
-  em   { font-style: normal; font-weight: 400; }
+  span { display: flex; align-items: center; gap: 6px; flex-shrink: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  i    { color: var(--policia-acento); flex-shrink: 0; }
+  em   { font-style: normal; font-weight: 400; opacity: .85; }
+}
+
+// Botones en cabecera oscura — variantes adaptadas al fondo oscuro
+.tr-head-btn-primary {
+  background:   rgba(205,255,0,.18) !important;
+  border-color: rgba(205,255,0,.45) !important;
+  color:        #cdff00 !important;
+
+  &:hover { background: rgba(205,255,0,.28) !important; }
+}
+
+.tr-head-btn-ghost {
+  background:   rgba(255,255,255,.10) !important;
+  border-color: rgba(255,255,255,.22) !important;
+  color:        rgba(255,255,255,.90) !important;
+
+  &:hover { background: rgba(255,255,255,.18) !important; }
+
+  &.tr-map-btn--on {
+    background:   rgba(8,166,203,.28) !important;
+    border-color: rgba(8,166,203,.60) !important;
+    color:        #5ee4ff !important;
+  }
 }
 
 .tr-col-head-actions {
   display:     flex;
   align-items: center;
   gap:         5px;
+  flex-shrink: 0;
 }
 
 .tr-count {
@@ -156,25 +183,38 @@ $clase3: #8b5cf6;   // 3° turno — violeta noche
   display:       flex;
   align-items:   center;
   gap:           6px;
-  flex-wrap:     wrap;
-  padding:       6px 10px;
+  flex-wrap:     nowrap;
+  padding:       5px 10px;
   background:    rgba(21,27,59,.03);
   border-bottom: 1px solid var(--ui-border, rgba(21,27,59,.10));
   flex-shrink:   0;
   font-size:     calc(11px * var(--font-size-scale));
+  overflow:      hidden;
 
   &__horario {
-    font-weight: 700;
-    color:       rgba(21,27,59,.80);
+    font-weight: 800;
+    color:       rgba(21,27,59,.88);
+    font-size:   calc(12px * var(--font-size-scale));
+    white-space: nowrap;
+  }
+
+  &__fecha {
+    font-size:   calc(10px * var(--font-size-scale));
+    color:       rgba(21,27,59,.45);
+    white-space: nowrap;
+
+    &::before { content: '·'; margin-right: 4px; }
   }
 }
 
 .tr-copy-btn {
-  margin-left: auto;
-  font-size:   calc(10px * var(--font-size-scale)) !important;
-  padding:     2px 8px !important;
-  background:  rgba(255,255,255,.12) !important;
-  border-color: rgba(21,27,59,.18) !important;
+  margin-left:  auto;
+  flex-shrink:  0;
+  background:   rgba(21,27,59,.06) !important;
+  border-color: rgba(21,27,59,.16) !important;
+  color:        rgba(21,27,59,.65) !important;
+
+  &:hover { background: rgba(21,27,59,.10) !important; color: rgba(21,27,59,.88) !important; }
 }
 
 .tr-consignas {
@@ -445,7 +485,17 @@ $clase3: #8b5cf6;   // 3° turno — violeta noche
     align-items: center;
     gap:         6px;
     margin-bottom: 2px;
+
+    // Botón lápiz: oculto por defecto, aparece al hacer hover sobre el ítem
+    .tr-medio-edit-btn {
+      margin-left: auto;
+      opacity:     0;
+      transition:  opacity 120ms;
+      flex-shrink: 0;
+    }
   }
+
+  &:hover .tr-medio-edit-btn { opacity: 1; }
 
   &__codigo {
     font-size:   calc(12px * var(--font-size-scale));
@@ -490,7 +540,7 @@ $clase3: #8b5cf6;   // 3° turno — violeta noche
 }
 
 .tr-medio-icono {
-  font-size:   18px !important;
+  font-size:   calc(16px * var(--font-size-scale));
   color:       rgba(21,27,59,.55);
   line-height: 1;
 }
@@ -607,6 +657,144 @@ $clase3: #8b5cf6;   // 3° turno — violeta noche
 }
 
 // ══════════════════════════════════════════════════════════════
+//  MODAL SIVICC – WIZARD
+// ══════════════════════════════════════════════════════════════
+
+// Modal size variant
+.tr-modal--md { width: min(620px, 95vw) !important; }
+
+.tr-optional {
+  font-size:   calc(10px * var(--font-size-scale));
+  color:       rgba(21,27,59,.45);
+  font-weight: 400;
+  margin-left: 4px;
+}
+
+// Loading state
+.tr-sivicc-loading {
+  display:         flex;
+  align-items:     center;
+  justify-content: center;
+  gap:             12px;
+  padding:         32px 0;
+  font-size:       calc(13px * var(--font-size-scale));
+  color:           rgba(21,27,59,.65);
+}
+
+// CSS spinner
+.tr-spinner {
+  display:       inline-block;
+  width:         22px;
+  height:        22px;
+  border:        3px solid rgba(21,27,59,.15);
+  border-top:    3px solid var(--policia-acento, #08a6cb);
+  border-radius: 50%;
+  animation:     tr-spin .75s linear infinite;
+  flex-shrink:   0;
+}
+
+@keyframes tr-spin { to { transform: rotate(360deg); } }
+
+// Toolbar: select-all / deselect-all
+.tr-sivicc-actions {
+  display:     flex;
+  align-items: center;
+  gap:         8px;
+  margin-bottom: 8px;
+}
+
+// Scrollable unit list
+.tr-sivicc-list {
+  display:        flex;
+  flex-direction: column;
+  gap:            4px;
+  max-height:     320px;
+  overflow-y:     auto;
+  padding:        2px 0;
+  border:         1px solid rgba(21,27,59,.10);
+  border-radius:  8px;
+  padding:        6px;
+}
+
+// Individual unit row (label wraps checkbox)
+.tr-sivicc-item {
+  display:       flex;
+  align-items:   center;
+  gap:           10px;
+  padding:       8px 10px;
+  border-radius: 6px;
+  cursor:        pointer;
+  transition:    background .12s;
+  border:        1px solid transparent;
+
+  &:hover { background: rgba(21,27,59,.04); }
+
+  input[type="checkbox"] {
+    width:        16px;
+    height:       16px;
+    flex-shrink:  0;
+    accent-color: var(--policia-acento, #08a6cb);
+    cursor:       pointer;
+  }
+
+  &--exists {
+    background:   rgba(59,130,246,.04);
+    border-color: rgba(59,130,246,.15);
+  }
+
+  &__info {
+    display:        flex;
+    flex-direction: column;
+    gap:            2px;
+    flex:           1;
+    min-width:      0;
+  }
+
+  &__cod {
+    font-size:   calc(12px * var(--font-size-scale));
+    font-weight: 900;
+    color:       rgba(21,27,59,.88);
+  }
+
+  &__desc {
+    font-size:     calc(11px * var(--font-size-scale));
+    color:         rgba(21,27,59,.55);
+    white-space:   nowrap;
+    overflow:      hidden;
+    text-overflow: ellipsis;
+  }
+}
+
+// New / exists badge
+.tr-sivicc-badge {
+  display:       inline-flex;
+  align-items:   center;
+  gap:           4px;
+  font-size:     calc(10px * var(--font-size-scale));
+  font-weight:   700;
+  padding:       2px 7px;
+  border-radius: 999px;
+  flex-shrink:   0;
+
+  &--new    { background: #dcfce7; color: #15803d; }
+  &--update { background: #dbeafe; color: #1d4ed8; }
+}
+
+// Empty state (no units found)
+.tr-empty-state {
+  display:         flex;
+  align-items:     center;
+  justify-content: center;
+  gap:             10px;
+  padding:         30px 16px;
+  color:           rgba(21,27,59,.45);
+  font-size:       calc(13px * var(--font-size-scale));
+  text-align:      center;
+
+  i { font-size: calc(20px * var(--font-size-scale)); opacity: .6; }
+}
+
+// ══════════════════════════════════════════════════════════════
 //  DARK MODE
 // ══════════════════════════════════════════════════════════════
 
@@ -641,4 +829,37 @@ html.dark-mode {
   .tr-modal-hint { color: var(--ui-text-muted); strong { color: var(--ui-text); } }
 
   .tr-map { border-color: var(--ui-border); }
+
+  .tr-turno-info {
+    background: rgba(255,255,255,.03);
+    border-color: var(--ui-border);
+    &__horario { color: var(--ui-text); }
+    &__fecha   { color: var(--ui-text-muted); }
+  }
+
+  .tr-copy-btn {
+    background:   rgba(255,255,255,.07) !important;
+    border-color: rgba(255,255,255,.14) !important;
+    color:        rgba(255,255,255,.60) !important;
+    &:hover { background: rgba(255,255,255,.12) !important; color: #fff !important; }
+  }
+
+  // SIVICC wizard dark overrides
+  .tr-sivicc-loading { color: var(--ui-text-muted); }
+  .tr-spinner        { border-color: rgba(255,255,255,.12); border-top-color: var(--policia-acento, #08a6cb); }
+
+  .tr-sivicc-list {
+    border-color: var(--ui-border);
+    background:   var(--ui-surface);
+  }
+
+  .tr-sivicc-item {
+    &:hover        { background: rgba(255,255,255,.04); }
+    &--exists      { background: rgba(59,130,246,.07); border-color: rgba(59,130,246,.25); }
+    &__cod         { color: var(--ui-text); }
+    &__desc        { color: var(--ui-text-muted); }
+  }
+
+  .tr-empty-state { color: var(--ui-text-muted); }
+  .tr-optional    { color: var(--ui-text-muted); }
 }

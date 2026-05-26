@@ -21,6 +21,12 @@ namespace Negocio.Gestion
             long actuacionId, CancellationToken ct)
             => _repo.G_GetActuacionAsync(actuacionId, ct);
 
+        public Task<DtoActuacionResult> P_CrearActuacionAsync(
+            DtoCrearActuacionRequest req,
+            string usuario,
+            CancellationToken ct)
+            => _repo.P_CrearActuacionAsync(req, usuario, ct);
+
         public Task<DtoActuacionResult> P_ActualizarEstadoActuacionAsync(
             long actuacionId,
             DtoActualizarEstadoActuacionRequest req,
@@ -47,5 +53,24 @@ namespace Negocio.Gestion
             string usuario,
             CancellationToken ct)
             => _repo.P_AgregarUnidadActuacionAsync(actuacionId, req, usuario, ct);
+
+        public Task<DtoActuacionResult> P_DesasignarActuacionAsync(
+            long actuacionId,
+            string motivo,
+            string usuario,
+            CancellationToken ct)
+            => _repo.P_DesasignarActuacionAsync(actuacionId, motivo, usuario, ct);
+
+        public Task<List<DtoActividadPolicial>> G_GetActividadesPolicialesAsync(
+            string? tipo, CancellationToken ct)
+            => _repo.G_GetActividadesPolicialesAsync(tipo, ct);
+
+        public Task<List<DtoDelitoItem>> G_BuscarDelitosAsync(
+            string q, int limit, CancellationToken ct)
+            => _repo.G_BuscarDelitosAsync(q, limit, ct);
+
+        public Task<List<DtoCodigoCasoItem>> G_BuscarCodigosCierreAsync(
+            string q, int limit, CancellationToken ct)
+            => _repo.G_BuscarCodigosCierreAsync(q, limit, ct);
     }
 }

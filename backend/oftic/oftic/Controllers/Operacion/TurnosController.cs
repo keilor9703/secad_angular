@@ -214,6 +214,33 @@ namespace Api.Controllers.Operacion
             }
         }
 
+        /// <summary>
+        /// DIAGNÓSTICO: devuelve todos los medios con el estado de cada condición
+        /// del filtro (canal, estado turno, ventana horaria, sitio_graba).
+        /// Usar desde Swagger para identificar exactamente qué condición falla.
+        /// SOLO DESARROLLO — remover antes de pasar a producción.
+        /// </summary>
+        /// <remarks>
+        /// GET api/Turnos/canal/{canalCodigo}/recursos/diagnostico?sitioGraba=1
+        /// </remarks>
+        [HttpGet("canal/{canalCodigo:int}/recursos/diagnostico")]
+        public async Task<IActionResult> DiagnosticoRecursosCanal(
+            int               canalCodigo,
+            [FromQuery] int   sitioGraba = 1,
+            CancellationToken ct         = default)
+        {
+            try
+            {
+                var data = await _svc.G_DiagnosticoCanalAsync(canalCodigo, sitioGraba, ct);
+                return Ok(new { success = true, canal = canalCodigo, sitioGraba, totalRegistros = data.Count, data });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "DiagnosticoRecursosCanal error canal={C}", canalCodigo);
+                return StatusCode(500, new { success = false, message = ex.Message });
+            }
+        }
+
         // ════════════════════════════════════════════════════════════════════════
         // CREACIÓN / EDICIÓN DE TURNOS
         // ════════════════════════════════════════════════════════════════════════
@@ -361,16 +388,61 @@ namespace Api.Controllers.Operacion
         }
 
         /// <summary>
-        /// Importa medios y personal desde la minuta oficial del sistema SIVICC.
+        /// PASO 1 del wizard SIVICC.
         ///
-        /// Lee la vista v_personal_minuta accesible vía Foreign Data Wrapper.
-        /// Agrupa por cuadrante, crea o actualiza los medios, asigna personal (máx. 2),
+        /// Consulta las unidades disponibles en la minuta de SIVICC para el turno indicado.
+        /// Los filtros de búsqueda (sigla de la fuerza, clase de turno, fecha) se derivan
+        /// automáticamente del turno en BD — el usuario no introduce ningún ID manualmente.
+        ///
+        /// Retorna la lista de unidades con:
+        ///   · <c>minutaId</c>    — ID de la minuta SIVICC (necesario para el paso 3)
+        ///   · <c>consecutivo</c> — Consecutivo SIATH de la unidad
+        ///   · <c>descripcion</c> — Nombre de la unidad
+        ///   · <c>existeEnCadMedios</c> — true si ya se importó antes
+        ///
+        /// Requiere que la vista FDW <c>v_unidades_minuta</c> esté disponible.
+        /// </summary>
+        /// <remarks>
+        /// GET api/Turnos/{id}/sivicc/unidades
+        /// </remarks>
+        [HttpGet("{id:long}/sivicc/unidades")]
+        public async Task<IActionResult> GetUnidadesSivicc(long id, CancellationToken ct)
+        {
+            try
+            {
+                var data = await _svc.G_GetUnidadesSiviccAsync(id, ct);
+                return Ok(new { success = true, data });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "GetUnidadesSivicc error turnoId={Id}", id);
+                return StatusCode(500, new
+                {
+                    success = false,
+                    message = "Error al consultar SIVICC: " + ex.Message
+                });
+            }
+        }
+
+        /// <summary>
+        /// PASO 3 del wizard SIVICC — Importa medios y personal de las unidades seleccionadas.
+        ///
+        /// Flujo correcto:
+        ///   1. GET  api/Turnos/{id}/sivicc/unidades  → obtiene lista de unidades SIVICC
+        ///   2. El usuario selecciona cuáles importar
+        ///   3. POST api/Turnos/{id}/sivicc           → envía las unidades seleccionadas
+        ///
+        /// Para cada unidad seleccionada, lee v_personal_minuta (FDW) filtrando por
+        /// minutaId y consecutivo, crea o actualiza los medios en cad_medios_disponibles,
+        /// asigna personal (máx. 2) en cad_personal_disponible,
         /// y marca el turno como sivicc_sincronizado = TRUE.
+        ///
+        /// Si el campo <c>unidades</c> está vacío, importa TODAS las unidades disponibles.
         /// </summary>
         /// <remarks>
         /// POST api/Turnos/{id}/sivicc
-        /// Body: { "turnoId": 123, "siviccMinutaId": 456, "siviccConsecutivo": 1,
-        ///         "fuerzaId": 1, "sitioGraba": 1, "canalCodigo": 5 }
+        /// Body: { "fuerzaId": 1, "sitioGraba": 1, "canalCodigo": 5,
+        ///         "unidades": [{ "minutaId": 456, "consecutivo": 1 }] }
         /// </remarks>
         [HttpPost("{id:long}/sivicc")]
         public async Task<IActionResult> ImportarSivicc(
@@ -378,8 +450,8 @@ namespace Api.Controllers.Operacion
             [FromBody] DtoImportarSiviccRequest req,
             CancellationToken ct)
         {
-            if (req is null || req.SiviccMinutaId <= 0)
-                return BadRequest(new { success = false, message = "SiviccMinutaId requerido." });
+            if (req is null)
+                return BadRequest(new { success = false, message = "Datos requeridos." });
 
             req.TurnoId = id;
             try
@@ -399,6 +471,42 @@ namespace Api.Controllers.Operacion
         // ════════════════════════════════════════════════════════════════════════
         // ESTADO DE MEDIOS (TIEMPO REAL)
         // ════════════════════════════════════════════════════════════════════════
+
+        /// <summary>
+        /// Actualiza los datos editables de un medio ya registrado en el turno.
+        ///
+        /// Campos modificables: código de patrulla, descripción, tipo de medio,
+        /// canal de radio y lista de personal asignado (máx. 2 policías).
+        /// El personal anterior se reemplaza en su totalidad.
+        ///
+        /// No modifica: turnoId, unidadId, estado operativo, posición GPS ni fuerza.
+        /// </summary>
+        /// <remarks>
+        /// PUT api/Turnos/medios/{medioId}
+        /// Body: { "patrullaCodigo": "PAT-01", "tipoMedio": 22,
+        ///         "canalCodigo": 5, "personal": [{ "ceduEmpleado": "12345678" }] }
+        /// </remarks>
+        [HttpPut("medios/{medioId:long}")]
+        public async Task<IActionResult> ActualizarMedio(
+            long medioId,
+            [FromBody] DtoActualizarMedioRequest req,
+            CancellationToken ct)
+        {
+            if (req is null || string.IsNullOrWhiteSpace(req.PatrullaCodigo))
+                return BadRequest(new { success = false, message = "PatrullaCodigo es obligatorio." });
+            try
+            {
+                var result = await _svc.P_ActualizarMedioAsync(medioId, req, UsuarioClaim, ct);
+                return result.Success
+                    ? Ok(new { success = true, message = result.Message, id = result.Id })
+                    : BadRequest(new { success = false, message = result.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "ActualizarMedio error medioId={Id}", medioId);
+                return StatusCode(500, new { success = false, message = ex.Message });
+            }
+        }
 
         /// <summary>
         /// Cambia el estado operativo de un medio en tiempo real.

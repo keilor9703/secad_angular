@@ -35,6 +35,10 @@ namespace Negocio.Gestion
             int canalCodigo, int sitioGraba, CancellationToken ct)
             => _repo.G_GetResumenMediosCanalAsync(canalCodigo, sitioGraba, ct);
 
+        public Task<List<Dictionary<string, object?>>> G_DiagnosticoCanalAsync(
+            int canalCodigo, int sitioGraba, CancellationToken ct)
+            => _repo.G_DiagnosticoCanalAsync(canalCodigo, sitioGraba, ct);
+
         public Task<DtoTurnoResult> P_CrearTurnoAsync(
             DtoCrearTurnoRequest req, string usuario, CancellationToken ct)
             => _repo.P_CrearTurnoAsync(req, usuario, ct);
@@ -50,6 +54,14 @@ namespace Negocio.Gestion
         public Task<DtoTurnoResult> P_AgregarMedioAsync(
             DtoAgregarMedioRequest req, string usuario, CancellationToken ct)
             => _repo.P_AgregarMedioAsync(req, usuario, ct);
+
+        public Task<DtoTurnoResult> P_ActualizarMedioAsync(
+            long medioId, DtoActualizarMedioRequest req, string usuario, CancellationToken ct)
+            => _repo.P_ActualizarMedioAsync(medioId, req, usuario, ct);
+
+        public Task<List<DtoUnidadSivicc>> G_GetUnidadesSiviccAsync(
+            long turnoId, CancellationToken ct)
+            => _repo.G_GetUnidadesSiviccAsync(turnoId, ct);
 
         public Task<DtoTurnoResult> P_ImportarDesdeSiviccAsync(
             DtoImportarSiviccRequest req, string usuario, CancellationToken ct)

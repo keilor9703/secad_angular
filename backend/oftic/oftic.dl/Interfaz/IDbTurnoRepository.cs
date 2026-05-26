@@ -34,6 +34,14 @@ namespace Datos.Interfaz
         Task<List<DtoMedioDisponibleResumen>> G_GetResumenMediosCanalAsync(
             int canalCodigo, int sitioGraba, CancellationToken ct);
 
+        /// <summary>
+        /// Diagnóstico: devuelve TODOS los medios de la BD con el estado de cada
+        /// condición del filtro, para identificar cuál está fallando.
+        /// Solo para uso en desarrollo/depuración.
+        /// </summary>
+        Task<List<Dictionary<string, object?>>> G_DiagnosticoCanalAsync(
+            int canalCodigo, int sitioGraba, CancellationToken ct);
+
         // ── Creación / edición de turnos ────────────────────────────────────────
 
         /// <summary>
@@ -61,9 +69,25 @@ namespace Datos.Interfaz
             DtoAgregarMedioRequest req, string usuario, CancellationToken ct);
 
         /// <summary>
-        /// Importa medios y personal desde la minuta SIVICC
-        /// (equivalente a P_InsMediosEnTurnoSivicc del Oracle anterior).
-        /// Requiere que la vista SIVICC esté accesible.
+        /// Actualiza los datos editables de un medio existente (código, descripción, tipo,
+        /// canal y personal). Reemplaza completamente la lista de personal anterior.
+        /// No modifica turnoId, unidadId, fuerza ni estado operativo.
+        /// </summary>
+        Task<DtoTurnoResult> P_ActualizarMedioAsync(
+            long medioId, DtoActualizarMedioRequest req, string usuario, CancellationToken ct);
+
+        /// <summary>
+        /// Consulta las unidades disponibles en la minuta SIVICC para el turno indicado.
+        /// Usa la vista FDW <c>v_unidades_minuta</c> (equivale a V_MINUTA_SIVICC_POST2 en Oracle).
+        /// Los parámetros de filtro (sigla física, clase turno, fecha) se derivan del propio turno.
+        /// </summary>
+        Task<List<DtoUnidadSivicc>> G_GetUnidadesSiviccAsync(
+            long turnoId, CancellationToken ct);
+
+        /// <summary>
+        /// Importa medios y personal de las unidades seleccionadas desde SIVICC.
+        /// Las unidades vienen del resultado de G_GetUnidadesSiviccAsync; el usuario
+        /// nunca introduce MinutaId ni Consecutivo manualmente.
         /// </summary>
         Task<DtoTurnoResult> P_ImportarDesdeSiviccAsync(
             DtoImportarSiviccRequest req, string usuario, CancellationToken ct);

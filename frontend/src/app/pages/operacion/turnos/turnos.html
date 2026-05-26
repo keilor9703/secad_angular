@@ -134,15 +134,15 @@
 
           <!-- Cabecera de unidades -->
           <div class="tr-col-head">
-            <span>
-              <i class="fa-solid fa-building-shield"></i>
-              Unidades en servicio
-            </span>
+            <span><i class="fa-solid fa-building-shield"></i> Unidades</span>
             <div class="tr-col-head-actions">
-              <button class="ui-btn xs primary" type="button" (click)="abrirModalUnidad()">
+              <button class="ui-btn xs tr-head-btn-primary" type="button"
+                      (click)="abrirModalUnidad()"
+                      title="Agregar unidad manualmente">
                 <i class="fa-solid fa-plus"></i> Agregar
               </button>
-              <button class="ui-btn xs ghost" type="button" (click)="abrirModalSivicc()"
+              <button class="ui-btn xs tr-head-btn-ghost" type="button"
+                      (click)="abrirModalSivicc()"
                       title="Importar desde minuta SIVICC">
                 <i class="fa-solid fa-file-import"></i> SIVICC
               </button>
@@ -156,17 +156,18 @@
                 {{ claseTurnoCorto(turnoDetalle.claseTurno) }}
               </span>
               <span class="tr-turno-info__horario">
-                {{ turnoDetalle.horaInicia }} — {{ turnoDetalle.horaTermina }}
+                {{ turnoDetalle.horaInicia.slice(11) }} — {{ turnoDetalle.horaTermina.slice(11) }}
               </span>
+              <span class="tr-turno-info__fecha">{{ turnoDetalle.diaInicia }}</span>
               @if (turnoDetalle.siviccSincronizado) {
                 <span class="tr-sivicc-pill">
-                  <i class="fa-solid fa-check-double"></i> SIVICC sync
+                  <i class="fa-solid fa-check-double"></i> SIVICC
                 </span>
               }
-              <button class="ui-btn xs ghost tr-copy-btn" type="button"
+              <button class="ui-btn xs tr-copy-btn" type="button"
                       (click)="abrirModalCopiar()"
                       title="Copiar este turno a otra franja horaria">
-                <i class="fa-solid fa-copy"></i> Copiar turno
+                <i class="fa-solid fa-copy"></i> Copiar
               </button>
             </div>
             @if (turnoDetalle.consignas) {
@@ -240,15 +241,17 @@
               Medios — <em>{{ unidadActiva.unidadCodigo }}</em>
             </span>
             <div class="tr-col-head-actions">
-              <button class="ui-btn xs primary" type="button" (click)="abrirModalMedio()">
+              <button class="ui-btn xs tr-head-btn-primary" type="button"
+                      (click)="abrirModalMedio()"
+                      title="Agregar medio manualmente">
                 <i class="fa-solid fa-plus"></i> Agregar
               </button>
-              <button class="ui-btn xs ghost" type="button"
+              <button class="ui-btn xs tr-head-btn-ghost" type="button"
                       [class.tr-map-btn--on]="mapaVisible"
                       (click)="toggleMapa()"
                       title="Ver mapa de posiciones GPS">
                 <i class="fa-solid fa-map-location-dot"></i>
-                {{ mapaVisible ? 'Ocultar mapa' : 'Ver mapa' }}
+                {{ mapaVisible ? 'Ocultar' : 'Mapa' }}
               </button>
             </div>
           </div>
@@ -278,9 +281,7 @@
 
                   <!-- Icono tipo -->
                   <div class="tr-medio-item__tipo">
-                    <span class="material-icons-outlined tr-medio-icono">
-                      {{ iconoTipo(m.tipoMedio) }}
-                    </span>
+                    <i [class]="iconoTipo(m.tipoMedio) + ' tr-medio-icono'"></i>
                   </div>
 
                   <div class="tr-medio-item__info">
@@ -289,6 +290,12 @@
                       <span class="tr-estado-medio-badge" [ngClass]="estadoMedioCss(m.estado)">
                         {{ m.estadoDesc }}
                       </span>
+                      <!-- Botón editar — solo visble en hover via CSS -->
+                      <button class="ui-btn xs ghost tr-medio-edit-btn" type="button"
+                              title="Editar datos del medio"
+                              (click)="abrirModalEditarMedio(m); $event.stopPropagation()">
+                        <i class="fa-solid fa-pencil"></i>
+                      </button>
                     </div>
                     <div class="tr-medio-item__desc">{{ m.patrullaDesc || m.tipoMedioDesc }}</div>
 
@@ -364,9 +371,9 @@
             <select class="ui-control"
                     [ngModel]="formCrear.claseTurno"
                     (ngModelChange)="onClaseTurnoCrear($event)">
-              <option [value]="1">1° Turno — 06:00 a 14:00</option>
-              <option [value]="2">2° Turno — 14:00 a 22:00</option>
-              <option [value]="3">3° Turno — 22:00 a 06:00</option>
+              <option [ngValue]="2">2° Turno — 06:00 a 14:00</option>
+              <option [ngValue]="3">3° Turno — 14:00 a 22:00</option>
+              <option [ngValue]="1">1° Turno — 22:00 a 06:00</option>
             </select>
           </div>
 
@@ -449,9 +456,9 @@
             <select class="ui-control"
                     [ngModel]="formCopiar.claseTurno"
                     (ngModelChange)="onClaseTurnoCopiar($event)">
-              <option [value]="1">1° Turno — 06:00 a 14:00</option>
-              <option [value]="2">2° Turno — 14:00 a 22:00</option>
-              <option [value]="3">3° Turno — 22:00 a 06:00</option>
+              <option [ngValue]="1">1° Turno — 06:00 a 14:00</option>
+              <option [ngValue]="2">2° Turno — 14:00 a 22:00</option>
+              <option [ngValue]="3">3° Turno — 22:00 a 06:00</option>
             </select>
           </div>
 
@@ -586,15 +593,25 @@
             <label class="ui-label">Tipo de medio</label>
             <select class="ui-control" [(ngModel)]="formMedio.tipoMedio">
               @for (t of TIPOS_MEDIO_LIST; track t.value) {
-                <option [value]="t.value">{{ t.label }}</option>
+                <option [ngValue]="t.value">{{ t.label }}</option>
               }
             </select>
           </div>
           <div class="ui-field ui-col-4">
-            <label class="ui-label">Canal radio (código)</label>
-            <input class="ui-control" type="number"
-                   [(ngModel)]="formMedio.canalCodigo"
-                   placeholder="N.º canal…">
+            <label class="ui-label">Canal radio</label>
+            <!-- [ngModel] + (ngModelChange) en lugar de [(ngModel)] para que
+                 onCanalChange() sincronice también canalFuerzaId -->
+            <select class="ui-control"
+                    [ngModel]="formMedio.canalCodigo"
+                    (ngModelChange)="onCanalChange($event)">
+              <option [ngValue]="undefined">— Sin canal —</option>
+              @if (cargandoCanales) {
+                <option disabled>Cargando canales…</option>
+              }
+              @for (c of canales; track c.codigo) {
+                <option [ngValue]="c.codigo">{{ c.descripcion }}</option>
+              }
+            </select>
           </div>
 
           <div class="ui-field ui-col-12">
@@ -664,11 +681,127 @@
 }
 
 <!-- ══════════════════════════════════════════════════════════════
+     MODAL: Editar medio
+     ══════════════════════════════════════════════════════════════ -->
+@if (modalEditarMedio) {
+  <div class="ui-modal" (click)="cerrarModalEditarMedio()">
+    <div class="ui-modal__dialog tr-modal" (click)="$event.stopPropagation()">
+
+      <div class="ui-modal__head">
+        <div class="ui-modal__title">
+          <i class="fa-solid fa-pencil"></i>
+          Editar medio — {{ medioEditando?.patrullaCodigo }}
+        </div>
+        <button class="ui-icon-btn" type="button" (click)="cerrarModalEditarMedio()">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <div class="ui-modal__body">
+        <div class="ui-grid" style="gap:12px">
+
+          <div class="ui-field ui-col-4">
+            <label class="ui-label">Código patrulla <span class="tr-req">*</span></label>
+            <input class="ui-control" type="text"
+                   [(ngModel)]="formEditarMedio.patrullaCodigo"
+                   placeholder="PAT-01"
+                   style="text-transform:uppercase">
+          </div>
+          <div class="ui-field ui-col-4">
+            <label class="ui-label">Tipo de medio</label>
+            <select class="ui-control" [(ngModel)]="formEditarMedio.tipoMedio">
+              @for (t of TIPOS_MEDIO_LIST; track t.value) {
+                <option [ngValue]="t.value">{{ t.label }}</option>
+              }
+            </select>
+          </div>
+          <div class="ui-field ui-col-4">
+            <label class="ui-label">Canal radio</label>
+            <select class="ui-control"
+                    [ngModel]="formEditarMedio.canalCodigo"
+                    (ngModelChange)="onCanalChangeEditar($event)">
+              <option [ngValue]="undefined">— Sin canal —</option>
+              @if (cargandoCanales) {
+                <option disabled>Cargando canales…</option>
+              }
+              @for (c of canales; track c.codigo) {
+                <option [ngValue]="c.codigo">{{ c.descripcion }}</option>
+              }
+            </select>
+          </div>
+
+          <div class="ui-field ui-col-12">
+            <label class="ui-label">Descripción del medio</label>
+            <input class="ui-control" type="text"
+                   [(ngModel)]="formEditarMedio.patrullaDesc"
+                   placeholder="Ej: Patrulla Toyota Hilux placa ABC-123">
+          </div>
+
+          <!-- Personal 1 -->
+          <div class="tr-personal-row">
+            <div class="tr-personal-badge">1</div>
+            <div class="ui-field" style="flex:0 0 160px">
+              <label class="ui-label">Cédula (policía 1)</label>
+              <input class="ui-control" type="text"
+                     [(ngModel)]="formEditarMedio._personal1Cedu"
+                     placeholder="Número de cédula">
+            </div>
+            <div class="ui-field" style="flex:1">
+              <label class="ui-label">Nombre</label>
+              <input class="ui-control" type="text"
+                     [(ngModel)]="formEditarMedio._personal1Nomb"
+                     placeholder="Nombre del funcionario…">
+            </div>
+          </div>
+
+          <!-- Personal 2 -->
+          <div class="tr-personal-row">
+            <div class="tr-personal-badge">2</div>
+            <div class="ui-field" style="flex:0 0 160px">
+              <label class="ui-label">Cédula (policía 2)</label>
+              <input class="ui-control" type="text"
+                     [(ngModel)]="formEditarMedio._personal2Cedu"
+                     placeholder="Número de cédula">
+            </div>
+            <div class="ui-field" style="flex:1">
+              <label class="ui-label">Nombre</label>
+              <input class="ui-control" type="text"
+                     [(ngModel)]="formEditarMedio._personal2Nomb"
+                     placeholder="Nombre del funcionario…">
+            </div>
+          </div>
+
+        </div>
+
+        @if (errorEditarMedio) {
+          <div class="tr-modal-error">
+            <i class="fa-solid fa-triangle-exclamation"></i> {{ errorEditarMedio }}
+          </div>
+        }
+      </div>
+
+      <div class="ui-modal__foot">
+        <button class="ui-btn sm ghost" type="button" (click)="cerrarModalEditarMedio()">
+          <i class="fa-solid fa-xmark"></i> Cancelar
+        </button>
+        <button class="ui-btn sm primary" type="button"
+                [disabled]="guardandoEditarMedio"
+                (click)="guardarEditarMedio()">
+          <i class="fa-solid fa-floppy-disk"></i>
+          {{ guardandoEditarMedio ? 'Guardando…' : 'Guardar cambios' }}
+        </button>
+      </div>
+
+    </div>
+  </div>
+}
+
+<!-- ══════════════════════════════════════════════════════════════
      MODAL: Importar desde SIVICC
      ══════════════════════════════════════════════════════════════ -->
 @if (modalSivicc) {
   <div class="ui-modal" (click)="cerrarModalSivicc()">
-    <div class="ui-modal__dialog tr-modal tr-modal--sm" (click)="$event.stopPropagation()">
+    <div class="ui-modal__dialog tr-modal tr-modal--md" (click)="$event.stopPropagation()">
 
       <div class="ui-modal__head">
         <div class="ui-modal__title">
@@ -681,35 +814,91 @@
       </div>
 
       <div class="ui-modal__body">
-        <p class="tr-modal-hint">
-          Importa los medios y personal desde la minuta oficial del sistema SIVICC.
-          Los medios existentes se actualizarán; los nuevos se crearán automáticamente.
-        </p>
-        <div class="ui-grid" style="gap:12px">
-          <div class="ui-field ui-col-6">
-            <label class="ui-label">ID Minuta SIVICC <span class="tr-req">*</span></label>
-            <input class="ui-control" type="number"
-                   [(ngModel)]="formSivicc.siviccMinutaId"
-                   placeholder="ID de la minuta…">
+
+        <!-- ── Paso 1: Consultando unidades en SIVICC ── -->
+        @if (cargandoUnidadesSivicc) {
+          <div class="tr-sivicc-loading">
+            <span class="tr-spinner"></span>
+            <span>Consultando unidades en SIVICC…</span>
           </div>
-          <div class="ui-field ui-col-6">
-            <label class="ui-label">Consecutivo (CONS_SIATH)</label>
-            <input class="ui-control" type="number"
-                   [(ngModel)]="formSivicc.siviccConsecutivo"
-                   placeholder="0 = todos">
-          </div>
-          <div class="ui-field ui-col-6">
-            <label class="ui-label">Canal radio por defecto</label>
-            <input class="ui-control" type="number"
-                   [(ngModel)]="formSivicc.canalCodigo"
-                   placeholder="Código de canal…">
-          </div>
-        </div>
-        @if (errorSivicc) {
+        }
+
+        <!-- ── Error al consultar ── -->
+        @if (!cargandoUnidadesSivicc && errorSivicc) {
           <div class="tr-modal-error">
             <i class="fa-solid fa-triangle-exclamation"></i> {{ errorSivicc }}
           </div>
         }
+
+        <!-- ── Paso 2: Lista de unidades disponibles ── -->
+        @if (!cargandoUnidadesSivicc && !errorSivicc && unidadesSivicc.length > 0) {
+
+          <p class="tr-modal-hint">
+            Se encontraron <strong>{{ unidadesSivicc.length }}</strong> unidad(es) en la minuta SIVICC
+            para este turno. Selecciona las que deseas importar.
+          </p>
+
+          <!-- Acciones masivas -->
+          <div class="tr-sivicc-actions">
+            <button class="ui-btn xs ghost" type="button"
+                    (click)="toggleTodaSivicc(true)">
+              <i class="fa-solid fa-check-double"></i> Seleccionar todas
+            </button>
+            <button class="ui-btn xs ghost" type="button"
+                    (click)="toggleTodaSivicc(false)">
+              <i class="fa-solid fa-xmark"></i> Deseleccionar todas
+            </button>
+          </div>
+
+          <!-- Lista de unidades -->
+          <div class="tr-sivicc-list">
+            @for (u of unidadesSivicc; track u.consecutivo) {
+              <label class="tr-sivicc-item" [class.tr-sivicc-item--exists]="u.existeEnCadMedios">
+                <input type="checkbox" [(ngModel)]="u.seleccionada">
+                <span class="tr-sivicc-item__info">
+                  <span class="tr-sivicc-item__cod">{{ u.unidadCodigo }}</span>
+                  <span class="tr-sivicc-item__desc">{{ u.descripcion }}</span>
+                </span>
+                @if (u.existeEnCadMedios) {
+                  <span class="tr-sivicc-badge tr-sivicc-badge--update">
+                    <i class="fa-solid fa-rotate"></i> Ya existe
+                  </span>
+                } @else {
+                  <span class="tr-sivicc-badge tr-sivicc-badge--new">
+                    <i class="fa-solid fa-plus"></i> Nueva
+                  </span>
+                }
+              </label>
+            }
+          </div>
+
+          <!-- Canal radio opcional -->
+          <div class="ui-field" style="margin-top:16px">
+            <label class="ui-label">
+              Canal radio por defecto
+              <span class="tr-optional">(opcional)</span>
+            </label>
+            <select class="ui-control" [(ngModel)]="siviccCanalCodigo"
+                    style="max-width:280px">
+              <option [ngValue]="undefined">— Sin canal —</option>
+              @for (c of canales; track c.codigo) {
+                <option [ngValue]="c.codigo">{{ c.descripcion }}</option>
+              }
+            </select>
+          </div>
+        }
+
+        <!-- ── Sin resultados ── -->
+        @if (!cargandoUnidadesSivicc && !errorSivicc && unidadesSivicc.length === 0) {
+          <div class="tr-empty-state">
+            <i class="fa-solid fa-circle-info"></i>
+            <span>
+              No se encontraron unidades en SIVICC para este turno.<br>
+              <small>Verifique que la sigla de la fuerza y la fecha del turno coincidan con la minuta vigente.</small>
+            </span>
+          </div>
+        }
+
       </div>
 
       <div class="ui-modal__foot">
@@ -717,10 +906,10 @@
           <i class="fa-solid fa-xmark"></i> Cancelar
         </button>
         <button class="ui-btn sm primary" type="button"
-                [disabled]="guardandoSivicc"
+                [disabled]="guardandoSivicc || cargandoUnidadesSivicc || !algunaSiviccSeleccionada"
                 (click)="guardarSivicc()">
           <i class="fa-solid fa-file-import"></i>
-          {{ guardandoSivicc ? 'Importando…' : 'Importar SIVICC' }}
+          {{ guardandoSivicc ? 'Importando…' : 'Importar seleccionadas' }}
         </button>
       </div>
 
