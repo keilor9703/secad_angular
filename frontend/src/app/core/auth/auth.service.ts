@@ -99,6 +99,35 @@ export class AuthService {
     return !!resp && (resp.success === true || resp.Success === true || !!resp.token);
   }
 
+  isCurrentUserSuperAdmin(): boolean {
+    const token = this.getToken();
+    if (!token) {
+      return false;
+    }
+
+    try {
+      const parsed = this.decodeJwtPayload(token);
+      if (!parsed) {
+        return false;
+      }
+
+      const roleClaimUri = ['http', '://schemas.microsoft.com/ws/2008/06/identity/claims/role'].join('');
+      const roleClaimShort = 'role';
+      const roleClaimLegacy = 'roles';
+
+      const rawRoles = [
+        parsed?.[roleClaimUri],
+        parsed?.[roleClaimShort],
+        parsed?.[roleClaimLegacy]
+      ];
+
+      const values = rawRoles.flatMap((r) => (Array.isArray(r) ? r : [r])).map((v) => String(v ?? '').trim());
+      return values.some((v) => v === '1');
+    } catch {
+      return false;
+    }
+  }
+
   private extractUserIdFromToken(token: string): number | null {
     try {
       const parsed = this.decodeJwtPayload(token);

@@ -157,6 +157,13 @@ export class AccessibilityService {
     }
   }
 
+  resetFontSize(): void {
+    const currentState = this.accessibilitySubject.value;
+    if (currentState.fontSize !== DEFAULT_FONT_LEVEL) {
+      this.updateSettings({ ...currentState, fontSize: DEFAULT_FONT_LEVEL });
+    }
+  }
+
   setFontSize(level: number): void {
     if (level >= MIN_FONT_LEVEL && level <= MAX_FONT_LEVEL) {
       const currentState = this.accessibilitySubject.value;

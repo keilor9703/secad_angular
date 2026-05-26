@@ -1,4 +1,8 @@
 <div class="accessibility-menu">
+  <!-- Mensaje de error voz a texto -->
+  <div *ngIf="speechError" class="speech-error-msg" role="alert" aria-live="assertive">
+    {{ speechError }}
+  </div>
   <!-- Botón Modo Oscuro -->
   <button 
     class="accessibility-btn dark-mode-btn"
@@ -46,6 +50,20 @@
     <span class="tooltip">Aumentar letra ({{ currentFontLevel }})</span>
   </button>
 
+  <!-- Botón Restablecer Letra -->
+  <button
+    class="accessibility-btn font-size-btn"
+    [class.disabled]="isFontSizeDefault"
+    (click)="resetFontSize()"
+    [disabled]="isFontSizeDefault"
+    title="Restablecer tamaño de letra"
+    aria-label="Restablecer tamaño de letra al valor predeterminado">
+    <span class="icon" [attr.aria-hidden]="true">
+      <span style="position: absolute; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: bold;">A↺</span>
+    </span>
+    <span class="tooltip">Restablecer letra</span>
+  </button>
+
   <!-- Botón Disminuir Letra -->
   <button 
     class="accessibility-btn font-size-btn"
@@ -84,12 +102,13 @@
   <!-- Botón Texto a Voz -->
   <button 
     class="accessibility-btn text-to-speech-btn "
-    [class.active]="isSpeaking"
+    [class.active]="isHoverMode"
+    [class.speaking]="isSpeaking"
     [class.disabled]="!textToSpeechAvailable"
     (click)="toggleTextToSpeech()"
     [disabled]="!textToSpeechAvailable"
-    title="Texto a voz"
-    aria-label="Convertir texto a voz">
+    title="Texto a voz (pase el cursor sobre cualquier elemento)"
+    aria-label="Activar o desactivar texto a voz al pasar el cursor">
     <span class="icon" [attr.aria-hidden]="true">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <!-- Icono Altavoz -->
@@ -98,10 +117,9 @@
         <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
       </svg>
     </span>
-    <span class="tooltip">{{ isSpeaking ? 'Leyendo...' : 'Texto a voz' }}</span>
+    <span class="tooltip">{{ isSpeaking ? 'Leyendo...' : isHoverMode ? 'Pase el cursor...' : 'Texto a voz' }}</span>
   </button>
 
-  <!-- Botón Redes Sociales -->
   <button
     class="accessibility-btn social-toggle-btn"
     [class.active]="socialExpanded"
@@ -120,7 +138,10 @@
     <span class="tooltip">Redes sociales</span>
   </button>
 
-  <div class="social-list" *ngIf="socialExpanded">
+  <div
+    class="social-list"
+    [class.social-list--expanded]="socialExpanded"
+    [attr.aria-hidden]="!socialExpanded">
     <button
       type="button"
       class="accessibility-btn social-network-btn"

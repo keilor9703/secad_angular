@@ -45,6 +45,8 @@ export class AccessibilityMenuComponent implements OnInit, OnDestroy {
 
   isListening = false;
   isSpeaking = false;
+  isHoverMode = false;
+  speechError: string | null = null;
   speechToTextAvailable = false;
   textToSpeechAvailable = false;
   socialExpanded = false;
@@ -83,6 +85,24 @@ export class AccessibilityMenuComponent implements OnInit, OnDestroy {
       .subscribe((speaking) => {
         this.isSpeaking = speaking;
       });
+
+    // Suscribirse al modo hover
+    this.textToSpeechService.hoverMode$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe((active) => {
+        this.isHoverMode = active;
+      });
+
+    // Suscribirse a errores de voz a texto
+    this.speechToTextService.error$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe((error) => {
+        this.speechError = error;
+        if (error) {
+          // Limpiar el mensaje después de 5 segundos
+          setTimeout(() => { this.speechError = null; }, 5000);
+        }
+      });
   }
 
   ngOnDestroy(): void {
@@ -90,7 +110,7 @@ export class AccessibilityMenuComponent implements OnInit, OnDestroy {
     this.destroy$.complete();
     // Detener cualquier proceso de voz pendiente
     this.speechToTextService.stopListening();
-    this.textToSpeechService.stop();
+    this.textToSpeechService.disableHoverMode();
   }
 
   toggleDarkMode(): void {
@@ -105,17 +125,23 @@ export class AccessibilityMenuComponent implements OnInit, OnDestroy {
     this.accessibilityService.decreaseFontSize();
   }
 
+  resetFontSize(): void {
+    this.accessibilityService.resetFontSize();
+  }
+
+  get isFontSizeDefault(): boolean {
+    return this.accessibility.fontSize === 2;
+  }
+
   toggleSpeechToText(): void {
     this.speechToTextService.toggleListening();
   }
 
   toggleTextToSpeech(): void {
-    if (this.isSpeaking) {
-      this.textToSpeechService.stop();
-      this.isSpeaking = false;
+    if (this.isHoverMode) {
+      this.textToSpeechService.disableHoverMode();
     } else {
-      this.isSpeaking = true;
-      this.textToSpeechService.toggleSpeaking();
+      this.textToSpeechService.enableHoverMode();
     }
   }
 
