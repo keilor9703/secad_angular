@@ -25,5 +25,25 @@ namespace Datos.Interfaz
         /// Returns the dispatch channels available for a given recording site.
         /// </summary>
         Task<List<DtoCanalItem>> GetCanalesPorSitioAsync(int sitioGraba, CancellationToken ct);
+
+        // ─── Conteos para badges de filtro ───────────────────────────────────
+        /// <summary>
+        /// Devuelve contadores por estado para la bandeja del canal.
+        /// Siempre excluye eventos cerrados del total activo;
+        /// para cerrados solo cuenta los del turno vigente.
+        /// </summary>
+        Task<DtoEventoConteos> GetConteosByCanalAsync(int canalCodigo, int fuerzaId, CancellationToken ct);
+
+        // ─── Auditoría de acceso ──────────────────────────────────────────────
+        /// <summary>
+        /// Logs a dispatcher's access to an event and marks fecha_primer_acceso
+        /// on cad_pedidos if this is the first view. Non-throwing.
+        /// </summary>
+        Task RegistrarAccesoAsync(long pedidoId, long usuarioId, string username,
+                                  string ip, string accion, CancellationToken ct);
+
+        // ─── SLA configuration ────────────────────────────────────────────────
+        /// <summary>Returns active SLA thresholds from cad_config_sla.</summary>
+        Task<List<DtoSlaConfig>> GetSlaConfigAsync(CancellationToken ct);
     }
 }

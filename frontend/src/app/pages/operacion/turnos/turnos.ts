@@ -347,9 +347,9 @@ export class TurnosComponent implements OnInit, OnDestroy, AfterViewChecked {
     const base = this.fechaBusqueda;
     const sigte = this.sumarDia(base);
     switch (clase) {
-      case 1: form._inicio = `${base}T06:00`;  form._fin = `${base}T14:00`;  break;
-      case 2: form._inicio = `${base}T14:00`;  form._fin = `${base}T22:00`;  break;
-      case 3: form._inicio = `${base}T22:00`;  form._fin = `${sigte}T06:00`; break;
+      case 2: form._inicio = `${base}T06:00`;  form._fin = `${base}T14:00`;  break;
+      case 3: form._inicio = `${base}T14:00`;  form._fin = `${base}T22:00`;  break;
+      case 1: form._inicio = `${base}T22:00`;  form._fin = `${sigte}T06:00`; break;
     }
   }
 

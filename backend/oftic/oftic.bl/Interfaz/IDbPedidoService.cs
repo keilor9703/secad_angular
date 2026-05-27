@@ -17,5 +17,13 @@ namespace Negocio.Interfaz
         // ─── Eventos (dispatcher queue) ──────────────────────────────────────
         Task<List<DtoEventoListItem>> GetEventosByCanalAsync(int canalCodigo, int fuerzaId, string? estado, CancellationToken ct);
         Task<List<DtoCanalItem>> GetCanalesPorSitioAsync(int sitioGraba, CancellationToken ct);
+
+        // ─── Conteos y turno ──────────────────────────────────────────────────
+        Task<DtoEventoConteos> GetConteosByCanalAsync(int canalCodigo, int fuerzaId, CancellationToken ct);
+
+        // ─── Auditoría y SLA ──────────────────────────────────────────────────
+        Task RegistrarAccesoAsync(long pedidoId, long usuarioId, string username,
+                                  string ip, string accion, CancellationToken ct);
+        Task<List<DtoSlaConfig>> GetSlaConfigAsync(CancellationToken ct);
     }
 }

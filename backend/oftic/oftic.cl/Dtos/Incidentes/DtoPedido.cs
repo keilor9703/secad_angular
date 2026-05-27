@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace Comun.Dtos.Incidentes
 {
     // ─── Request DTOs ──────────────────────────────────────────────────────────
@@ -60,6 +62,8 @@ namespace Comun.Dtos.Incidentes
 
     public class DtoPedidoListItem
     {
+        /// <summary>Snowflake ID — serializado como string para preservar precisión en JavaScript.</summary>
+        [JsonNumberHandling(JsonNumberHandling.WriteAsString | JsonNumberHandling.AllowReadingFromString)]
         public long Id { get; set; }
         public int SitioGraba { get; set; }
         public long? NumeLlamada { get; set; }
@@ -98,14 +102,19 @@ namespace Comun.Dtos.Incidentes
         public string CanalFuerza { get; set; } = string.Empty;
         public int? PedidoPadreSitio { get; set; }
         public long? PedidoPadreNum { get; set; }
+        /// <summary>Descripción del código de caso 1 (JOIN cad_casos.descripcion).</summary>
+        public string DescPedido  { get; set; } = string.Empty;
+        /// <summary>Descripción del código de caso 2 (JOIN cad_casos.descripcion).</summary>
+        public string DescPedido2 { get; set; } = string.Empty;
         public List<DtoAnotacion> Anotaciones { get; set; } = new();
     }
 
     public class DtoPedidoResult
     {
-        public bool Success { get; set; }
+        public bool   Success { get; set; }
         public string Message { get; set; } = string.Empty;
-        public long Id { get; set; }
+        [JsonNumberHandling(JsonNumberHandling.WriteAsString | JsonNumberHandling.AllowReadingFromString)]
+        public long   Id      { get; set; }
     }
 
     public class DtoAnotacion
@@ -144,9 +153,33 @@ namespace Comun.Dtos.Incidentes
     /// </summary>
     public class DtoEventoListItem : DtoPedidoListItem
     {
-        public string Prioridad  { get; set; } = string.Empty;
-        public string CaliPedido { get; set; } = string.Empty;
-        public string Ciudad     { get; set; } = string.Empty;
+        public string    Prioridad             { get; set; } = string.Empty;
+        public string    CaliPedido            { get; set; } = string.Empty;
+        public string    Ciudad                { get; set; } = string.Empty;
+
+        /// <summary>Descripción del código de caso principal (JOIN cad_casos).</summary>
+        public string    DescPedido            { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Número de actuaciones activas (estado P/D/A) vinculadas al evento.
+        /// Permite mostrar en la tarjeta si hay recursos asignados sin cargar el detalle.
+        /// </summary>
+        public int       TotalActuacionesActivas { get; set; }
+
+        /// <summary>
+        /// Timestamp del primer acceso por un despachador.
+        /// NULL = nadie ha abierto todavía el evento. Usado para la semaforización SLA.
+        /// </summary>
+        public DateTime? FechaPrimerAcceso     { get; set; }
+
+        /// <summary>
+        /// ID Snowflake del registro en cad_eventos (≠ Id que es cad_pedidos.Id).
+        /// Este es el número oficial del evento que el despachador debe ver.
+        /// NULL si el pedido no tiene evento asociado (caso prácticamente imposible
+        /// para pedidos con enviar='S' pero se maneja defensivamente).
+        /// </summary>
+        [JsonNumberHandling(JsonNumberHandling.WriteAsString | JsonNumberHandling.AllowReadingFromString)]
+        public long? NumeEvento { get; set; }
     }
 
     /// <summary>
@@ -158,5 +191,40 @@ namespace Comun.Dtos.Incidentes
         public int    FuerzaId    { get; set; }
         public string Descripcion { get; set; } = string.Empty;
         public string FuerzaDesc  { get; set; } = string.Empty;
+    }
+
+    /// <summary>
+    /// Contadores de eventos por estado para la bandeja del despachador.
+    /// Permite mostrar badges en los filtros sin cargar los registros completos.
+    /// </summary>
+    public class DtoEventoConteos
+    {
+        /// <summary>Total de eventos activos (cualquier estado distinto de C).</summary>
+        public int    Total          { get; set; }
+        public int    Activos        { get; set; }   // estado = 'A'
+        public int    Pendientes     { get; set; }   // estado = 'P'
+        public int    EnProceso      { get; set; }   // estado = 'E'
+        public int    Seguimiento    { get; set; }   // estado = 'T'
+        public int    Revision       { get; set; }   // estado = 'R'
+        /// <summary>Cerrados SOLO durante el turno vigente (no histórico total).</summary>
+        public int    CerradosTurno  { get; set; }
+        /// <summary>Etiqueta del turno actual: "1ro", "2do" o "3ro".</summary>
+        public string TurnoActual    { get; set; } = "";
+        /// <summary>Inicio del turno vigente en ISO-8601 (hora Colombia UTC-5).</summary>
+        public string TurnoDesde     { get; set; } = "";
+    }
+
+    /// <summary>
+    /// One SLA threshold entry from cad_config_sla.
+    /// Used by the dispatcher frontend to color-code events without hardcoding values.
+    /// </summary>
+    public class DtoSlaConfig
+    {
+        public int    Id             { get; set; }
+        public string Nombre         { get; set; } = string.Empty;
+        public int    UmbralMinutos  { get; set; }
+        public string ColorHex       { get; set; } = "#f59e0b";
+        public string Descripcion    { get; set; } = string.Empty;
+        public int    Orden          { get; set; }
     }
 }

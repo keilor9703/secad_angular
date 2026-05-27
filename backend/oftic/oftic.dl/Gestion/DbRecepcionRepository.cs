@@ -261,12 +261,14 @@ namespace Datos.Gestion
                     System.Globalization.DateTimeStyles.None, out var horaCaso);
 
                 // ── 1. INSERT cad_pedidos ─────────────────────────────────────
+                long newPedidoId = _snowflake.NextId();
                 await using (var ins = conn.CreateCommand())
                 {
                     ins.Transaction = tx;
                     ins.CommandText = @"
 INSERT INTO cad_pedidos
-    (sitio_graba, nume_llamada, hora_caso, fech_caso,
+    (id,
+     sitio_graba, nume_llamada, hora_caso, fech_caso,
      disp_telefonico, celda_marcacion,
      nume_telefono, prop_telefono,
      luge_codigo,
@@ -281,7 +283,8 @@ INSERT INTO cad_pedidos
      fecha_creacion, total_canales,
      barrio, ciudad)
 VALUES
-    (@sg, @nl, @hc, @hc,
+    (@newPedidoId,
+     @sg, @nl, @hc, @hc,
      @disp, @celda,
      @tel, @propTel,
      @luge,
@@ -295,6 +298,7 @@ VALUES
      @cadiSitio, @cadiNum,
      NOW(), 'N',
      @barrio, @ciudad)";
+                    ins.Parameters.AddWithValue("newPedidoId", newPedidoId);
 
                     ins.Parameters.AddWithValue("sg",       d.SITIO_GRABA);
                     ins.Parameters.AddWithValue("nl",       d.NUME_LLAMADA);
@@ -359,7 +363,7 @@ INSERT INTO cad_eventos (
                     insEvt.Parameters.AddWithValue("id",       numeEvento);
                     insEvt.Parameters.AddWithValue("sg",       d.SITIO_GRABA);
                     insEvt.Parameters.AddWithValue("origen",   origenEvento);
-                    insEvt.Parameters.AddWithValue("pedidoId", d.NUME_LLAMADA);
+                    insEvt.Parameters.AddWithValue("pedidoId", newPedidoId);   // cad_pedidos.id Snowflake
                     insEvt.Parameters.AddWithValue("pedidoSg", d.SITIO_GRABA);
                     insEvt.Parameters.AddWithValue("fuerzaId", canalFuerza == 0
                                                                ? (object)DBNull.Value : canalFuerza);
@@ -372,10 +376,14 @@ INSERT INTO cad_eventos (
                     await insEvt.ExecuteNonQueryAsync(ct);
                 }
 
-                // ── 4. INSERT cad_pedidos_canales + cad_actuaciones (uno por canal) ──
+                // ── 4. INSERT cad_pedidos_canales (uno por canal notificado) ────────
+                // IMPORTANTE: cad_pedidos_canales registra qué canales fueron notificados
+                // de la llamada. NO se crean actuaciones aquí porque cad_actuaciones
+                // representa el despacho explícito de un recurso por parte de un
+                // despachador — eso ocurre cuando el operador asigna un medio en el
+                // módulo de Eventos (POST /api/Actuaciones).
                 foreach (var canal in d.CANALES_SELECCIONADOS)
                 {
-                    // ── 4a. cad_pedidos_canales ───────────────────────────────
                     await using var insCan = conn.CreateCommand();
                     insCan.Transaction  = tx;
                     insCan.CommandText  = @"
@@ -402,41 +410,6 @@ VALUES
                     insCan.Parameters.AddWithValue("evento",  numeEvento);
                     insCan.Parameters.AddWithValue("usuario", NullOrString(usuario));
                     await insCan.ExecuteNonQueryAsync(ct);
-
-                    // ── 4b. cad_actuaciones (una por agencia/canal despachado) ─
-                    // Guardamos snapshot de descripción usando sub-select para que
-                    // renombrar el canal futuro no altere el historial.
-                    long actuacionId = _snowflake.NextId();
-                    await using var insAct = conn.CreateCommand();
-                    insAct.Transaction = tx;
-                    insAct.CommandText = @"
-INSERT INTO cad_actuaciones (
-    id, evento_id, pedido_id, sitio_graba,
-    fuerza_id, canal_codigo,
-    fuerza_descripcion, canal_descripcion,
-    despachador_usuario, tipo_despachador,
-    cali_pedido,
-    estado, fecha_creacion
-)
-SELECT
-    @id, @eventoId, @pedidoId, @sg,
-    c.cadfuerz_id,   @canal,
-    f.descripcion,   c.descripcion,
-    @usuario,        'O',
-    @cali,
-    'P', NOW()
-FROM   cad_canales c
-JOIN   cad_fuerzas f ON f.id = c.cadfuerz_id
-WHERE  c.codigo = @canal
-LIMIT  1";
-                    insAct.Parameters.AddWithValue("id",       actuacionId);
-                    insAct.Parameters.AddWithValue("eventoId", numeEvento);
-                    insAct.Parameters.AddWithValue("pedidoId", d.NUME_LLAMADA);
-                    insAct.Parameters.AddWithValue("sg",       d.SITIO_GRABA);
-                    insAct.Parameters.AddWithValue("canal",    canal);
-                    insAct.Parameters.AddWithValue("usuario",  usuario);
-                    insAct.Parameters.AddWithValue("cali",     NullOrString(d.CALI_PEDIDO));
-                    await insAct.ExecuteNonQueryAsync(ct);
                 }
 
                 await tx.CommitAsync(ct);
@@ -473,12 +446,14 @@ LIMIT  1";
                     System.Globalization.DateTimeStyles.None, out var horaCaso);
 
                 // ── 1. INSERT cad_pedidos ─────────────────────────────────────
+                long newPedidoId = _snowflake.NextId();
                 await using (var ins = conn.CreateCommand())
                 {
                     ins.Transaction = tx;
                     ins.CommandText = @"
 INSERT INTO cad_pedidos
-    (sitio_graba, nume_llamada, hora_caso, fech_caso,
+    (id,
+     sitio_graba, nume_llamada, hora_caso, fech_caso,
      nume_telefono, prop_telefono,
      luge_codigo, dire_caso, codi_barrio, luge_barrio,
      latitud_caso, longitud_caso,
@@ -486,13 +461,15 @@ INSERT INTO cad_pedidos
      estado, enviar, cadusua_usuario,
      fecha_creacion, total_canales)
 VALUES
-    (@sg, @nl, @hc, @hc,
+    (@newPedidoId,
+     @sg, @nl, @hc, @hc,
      @tel, @propTel,
      @sg, NULL, NULL, @sg,
      NULL, NULL,
      @coment, @codi, '01', '01',
      @estado, @enviar, @usuario,
      NOW(), 'N')";
+                    ins.Parameters.AddWithValue("newPedidoId", newPedidoId);
                     ins.Parameters.AddWithValue("sg",      d.SITIO_GRABA);
                     ins.Parameters.AddWithValue("nl",      d.NUME_LLAMADA);
                     ins.Parameters.AddWithValue("hc",      horaCaso == default ? (object)DBNull.Value : horaCaso);
@@ -527,7 +504,7 @@ INSERT INTO cad_eventos (
                     insEvt.Parameters.AddWithValue("sg",       d.SITIO_GRABA);
                     insEvt.Parameters.AddWithValue("origen",   string.IsNullOrWhiteSpace(d.Origen)
                                                                ? OrigenEvento.Recepcion : d.Origen);
-                    insEvt.Parameters.AddWithValue("pedidoId", d.NUME_LLAMADA);
+                    insEvt.Parameters.AddWithValue("pedidoId", newPedidoId);   // cad_pedidos.id Snowflake
                     insEvt.Parameters.AddWithValue("pedidoSg", d.SITIO_GRABA);
                     insEvt.Parameters.AddWithValue("usuario",  usuario);
                     await insEvt.ExecuteNonQueryAsync(ct);
@@ -882,7 +859,8 @@ VALUES
                     ins.Transaction = tx;
                     ins.CommandText = @"
 INSERT INTO cad_pedidos
-    (sitio_graba, nume_llamada, hora_caso, fech_caso,
+    (id,
+     sitio_graba, nume_llamada, hora_caso, fech_caso,
      dire_caso, barrio, ciudad,
      latitud_caso, longitud_caso,
      comentario, codi_pedido, cali_pedido,
@@ -891,7 +869,8 @@ INSERT INTO cad_pedidos
      estado, enviar, cadusua_usuario,
      fecha_creacion, total_canales)
 VALUES
-    (@sg, @id, NOW(), NOW(),
+    (@pedidoId,
+     @sg, @id, NOW(), NOW(),
      @dir, @barrio, @ciudad,
      @lat, @lon,
      @coment, @codi, @cali,
@@ -899,8 +878,9 @@ VALUES
      '01', '01',
      'A', 'N', @usuario,
      NOW(), 'N')";
+                    ins.Parameters.AddWithValue("pedidoId", pedidoId);  // cad_pedidos.id Snowflake
                     ins.Parameters.AddWithValue("sg",      req.SitioGraba);
-                    ins.Parameters.AddWithValue("id",      pedidoId);
+                    ins.Parameters.AddWithValue("id",      pedidoId);   // NUME_LLAMADA (ref. externa)
                     ins.Parameters.AddWithValue("dir",     req.DireccionCaso);
                     ins.Parameters.AddWithValue("barrio",  NullOrString(req.Barrio));
                     ins.Parameters.AddWithValue("ciudad",  NullOrString(req.Ciudad));

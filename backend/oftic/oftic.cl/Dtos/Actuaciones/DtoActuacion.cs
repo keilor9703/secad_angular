@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace Comun.Dtos.Actuaciones;
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -18,8 +20,11 @@ public static class EstadoActuacion
 // ─────────────────────────────────────────────────────────────────────────────
 public class DtoActuacion
 {
+    [JsonNumberHandling(JsonNumberHandling.WriteAsString | JsonNumberHandling.AllowReadingFromString)]
     public long    Id                    { get; set; }
+    [JsonNumberHandling(JsonNumberHandling.WriteAsString | JsonNumberHandling.AllowReadingFromString)]
     public long    EventoId              { get; set; }
+    [JsonNumberHandling(JsonNumberHandling.WriteAsString | JsonNumberHandling.AllowReadingFromString)]
     public long?   PedidoId             { get; set; }
     public int     SitioGraba           { get; set; }
 
@@ -71,7 +76,9 @@ public class DtoActuacion
 // ─────────────────────────────────────────────────────────────────────────────
 public class DtoActuacionListItem
 {
+    [JsonNumberHandling(JsonNumberHandling.WriteAsString | JsonNumberHandling.AllowReadingFromString)]
     public long    Id              { get; set; }
+    [JsonNumberHandling(JsonNumberHandling.WriteAsString | JsonNumberHandling.AllowReadingFromString)]
     public long    EventoId        { get; set; }
     public string  FuerzaDesc      { get; set; } = "";
     public string  CanalDesc       { get; set; } = "";
@@ -218,6 +225,8 @@ public class DtoAgregarNotaActuacionRequest
 // ─────────────────────────────────────────────────────────────────────────────
 public class DtoCrearActuacionRequest
 {
+    /// <summary>cad_pedidos.id enviado como string para preservar precisión Snowflake.</summary>
+    [JsonNumberHandling(JsonNumberHandling.WriteAsString | JsonNumberHandling.AllowReadingFromString)]
     public long    EventoId        { get; set; }
     public int     SitioGraba      { get; set; }
     public int?    FuerzaId        { get; set; }

@@ -1,0 +1,89 @@
+PARTE 1: Flujo de Debug (End-to-End)
+
+  Si obtienes un error (ej. 500 Internal Server Error o 403 Forbidden), el proceso de rastreo es el siguiente:
+
+  1. Frontend (Browser Inspector)
+   * Network Tab: Localiza la petición fallida. Revisa los Headers:
+       * Authorization: ¿Lleva el token Bearer ...?
+       * cod_dane: Decodifica el JWT en jwt.io (https://jwt.io) para ver si tiene el claim cod_dane. Si falta, el middleware del backend
+         fallará.
+   * Payload/Console: Mira el cuerpo del error. El backend suele devolver un JSON con un mensaje descriptivo si es un error controlado.
+
+  2. Backend - Gateway & Auth (oftic)
+   * Program.cs / Middleware: Si el error es 401/403, el problema está aquí.
+       * Debug: Pon un breakpoint en TenantMiddleware.cs. Verifica si context.User.Identity.IsAuthenticated es true.
+       * Verifica si el cod_dane se resuelve a una conexión válida en ConnectionPoolManager.
+   * Controller: Si el error es 500, pon un breakpoint en el Action del controlador correspondiente. Revisa si el objeto DTO llega con los
+     datos correctos (deserialización).
+
+  3. Backend - Business Logic & Data (bl/dl)
+   * Capa BL: Aquí es donde se aplican las reglas de negocio. Si el error es de lógica (ej. "No hay stock"), el breakpoint va en el Service.
+   * Capa DL: Si el error es de base de datos, revisa la consola de salida de Visual Studio. Al usar Npgsql, verás errores de sintaxis SQL o
+     de conexión.
+       * Tip: Revisa si la base de datos del "Tenant" específico está activa y tiene la tabla/procedimiento que intentas consultar.
+
+  ---
+
+  PARTE 2: Creación de un Módulo Nuevo (Paso a Paso)
+
+  Supongamos que vamos a crear un módulo de "Gestión de Equipos".
+
+  Paso 1: Base de Datos (PostgreSQL)
+  Debes ejecutar los scripts en la base de datos de los Tenants (inquilinos):
+   1. Crea la tabla ctr_equipos.
+   2. Registra el nuevo menú en la tabla ctr_menu para que aparezca en el Sidebar.
+   3. Asigna permisos en ctr_menu_roles.
+
+  Paso 2: Backend - Capa de Comunicación (oftic.cl)
+   1. DTOs: Crea DtoEquipo.cs y DtoEquipoSaveRequest.cs en la carpeta Dtos/. Estos objetos viajan entre el Front y el Back.
+
+  Paso 3: Backend - Capa de Datos (oftic.dl)
+   1. Interfaz: Crea IDbEquipoRepository.cs en Interfaz/.
+   2. Implementación: Crea DbEquipoRepository.cs en Gestion/.
+       * Usa TenantContext para obtener el DataSource correcto.
+       * Escribe el SQL nativo usando Npgsql.
+
+  Paso 4: Backend - Capa de Negocio (oftic.bl)
+   1. Interfaz: Crea IDbEquipoService.cs en Interfaz/.
+   2. Implementación: Crea DbEquipoService.cs en Gestion/. Aquí invocas al repositorio y aplicas validaciones.
+
+  Paso 5: Backend - API (oftic)
+   1. Controller: Crea EquipoController.cs.
+       * Usa [Authorize] para proteger los endpoints.
+       * Inyecta IDbEquipoService.
+   2. DI (Dependency Injection): IMPORTANTE. Registra los nuevos servicios en Program.cs:
+
+   1     builder.Services.AddScoped<IDbEquipoRepository, DbEquipoRepository>();
+   2     builder.Services.AddScoped<IDbEquipoService, DbEquipoService>();
+
+  Paso 6: Frontend - Servicio (Angular)
+   1. Genera el servicio: ng generate service core/services/operacion/equipo.
+   2. Define los métodos getEquipos(), saveEquipo(), etc., apuntando a /api/Equipo.
+
+  Paso 7: Frontend - Componentes y Rutas
+   1. Componente: ng generate component pages/operacion/equipo-admin.
+   2. Accesibilidad: Asegúrate de usar el snippet a11y-font-px para los tamaños de fuente en el SCSS.
+   3. Rutas: Registra la ruta en app.routes.ts:
+
+   1     {
+   2       path: 'equipos',
+   3       loadComponent: () => import('./pages/operacion/equipo-admin/equipo-admin').then(m => m.EquipoAdminComponent),
+   4       canActivate: [AuthGuard]
+   5     }
+
+  Paso 8: Verificación Final
+   1. Corre el script de accesibilidad: npm run check:a11y.
+   2. Prueba el flujo completo: Crear un equipo en el Front -> Verificar en la DB del Tenant.
+
+  ---
+
+  Resumen de Ubicaciones:
+   * SQL: docs/sql/
+   * Modelos/DTOs: backend/oftic.cl/Dtos/
+   * Lógica de Datos: backend/oftic.dl/ (Repository)
+   * Lógica de Negocio: backend/oftic.bl/ (Service)
+   * Endpoints: backend/oftic/Controllers/
+   * Angular Service: frontend/src/app/core/services/
+   * Angular Page: frontend/src/app/pages/
+   * Rutas: frontend/src/app/app.routes.ts
+

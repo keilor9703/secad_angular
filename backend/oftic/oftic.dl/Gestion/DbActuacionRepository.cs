@@ -53,9 +53,20 @@ SELECT a.id, a.evento_id,
 FROM   cad_actuaciones a
 LEFT   JOIN cad_fuerzas f ON f.id     = a.fuerza_id
 LEFT   JOIN cad_canales c ON c.codigo = a.canal_codigo
-WHERE  a.pedido_id = @eid          -- cad_pedidos.id enviado por el frontend
-   OR  a.evento_id = @eid          -- compatibilidad si se pasó cad_eventos.id
-ORDER  BY a.fecha_creacion ASC";
+WHERE  a.pedido_id = @eid
+-- Nota: el frontend SIEMPRE envía cad_pedidos.id como eventoId.
+-- NO usar a.evento_id aquí porque ese campo almacena cad_eventos.id
+-- (tabla distinta con su propio espacio de Snowflake IDs).
+ORDER  BY
+    -- Activos primero (P→D→A), luego cerrados (C), anuladas al final (V)
+    CASE a.estado
+        WHEN 'P' THEN 0
+        WHEN 'D' THEN 1
+        WHEN 'A' THEN 2
+        WHEN 'C' THEN 3
+        ELSE          4
+    END ASC,
+    a.fecha_creacion ASC";
             cmd.Parameters.AddWithValue("eid", eventoId);
 
             await using var rdr = await cmd.ExecuteReaderAsync(ct);

@@ -90,5 +90,21 @@ namespace Negocio.Gestion
 
         public Task<List<DtoCanalItem>> GetCanalesPorSitioAsync(int sitioGraba, CancellationToken ct)
             => _repository.GetCanalesPorSitioAsync(sitioGraba, ct);
+
+        public Task<DtoEventoConteos> GetConteosByCanalAsync(int canalCodigo, int fuerzaId, CancellationToken ct)
+        {
+            if (canalCodigo <= 0)
+                return Task.FromResult(new DtoEventoConteos());
+            return _repository.GetConteosByCanalAsync(canalCodigo, fuerzaId, ct);
+        }
+
+        // ─── Auditoría y SLA ──────────────────────────────────────────────────
+
+        public Task RegistrarAccesoAsync(long pedidoId, long usuarioId, string username,
+                                         string ip, string accion, CancellationToken ct)
+            => _repository.RegistrarAccesoAsync(pedidoId, usuarioId, username, ip, accion, ct);
+
+        public Task<List<DtoSlaConfig>> GetSlaConfigAsync(CancellationToken ct)
+            => _repository.GetSlaConfigAsync(ct);
     }
 }

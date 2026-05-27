@@ -118,14 +118,75 @@
             </div>
 
             <div class="ev-pills">
+
+              <!-- Todos (activos) -->
               <button class="ev-pill" [class.ev-pill--on]="filtroEstado === ''"
-                      (click)="filtrarPorEstado('')">Todos</button>
+                      (click)="filtrarPorEstado('')">
+                Todos
+                @if (conteos.total > 0) {
+                  <span class="ev-pill__count">{{ conteos.total }}</span>
+                }
+              </button>
+
+              <!-- Activos -->
               <button class="ev-pill" [class.ev-pill--on]="filtroEstado === 'A'"
-                      (click)="filtrarPorEstado('A')">Activos</button>
+                      (click)="filtrarPorEstado('A')">
+                Activos
+                @if (conteos.activos > 0) {
+                  <span class="ev-pill__count">{{ conteos.activos }}</span>
+                }
+              </button>
+
+              <!-- Pendientes -->
               <button class="ev-pill" [class.ev-pill--on]="filtroEstado === 'P'"
-                      (click)="filtrarPorEstado('P')">Pendientes</button>
+                      (click)="filtrarPorEstado('P')">
+                Pendientes
+                @if (conteos.pendientes > 0) {
+                  <span class="ev-pill__count">{{ conteos.pendientes }}</span>
+                }
+              </button>
+
+              <!-- En proceso -->
               <button class="ev-pill" [class.ev-pill--on]="filtroEstado === 'E'"
-                      (click)="filtrarPorEstado('E')">En proceso</button>
+                      (click)="filtrarPorEstado('E')">
+                En proceso
+                @if (conteos.enProceso > 0) {
+                  <span class="ev-pill__count">{{ conteos.enProceso }}</span>
+                }
+              </button>
+
+              <!-- Seguimiento -->
+              <button class="ev-pill" [class.ev-pill--on]="filtroEstado === 'T'"
+                      (click)="filtrarPorEstado('T')">
+                Seguimiento
+                @if (conteos.seguimiento > 0) {
+                  <span class="ev-pill__count">{{ conteos.seguimiento }}</span>
+                }
+              </button>
+
+              <!-- Revisión -->
+              <button class="ev-pill" [class.ev-pill--on]="filtroEstado === 'R'"
+                      (click)="filtrarPorEstado('R')">
+                Revisión
+                @if (conteos.revision > 0) {
+                  <span class="ev-pill__count">{{ conteos.revision }}</span>
+                }
+              </button>
+
+              <!-- Cerrados (turno actual) — filtro exclusivo para eventos del turno vigente -->
+              <button class="ev-pill ev-pill--cerrados"
+                      [class.ev-pill--on]="filtroEstado === 'C'"
+                      [title]="'Solo cerrados del turno ' + (conteos.turnoActual || 'actual')"
+                      (click)="filtrarPorEstado('C')">
+                Cerrados
+                @if (conteos.cerradosTurno > 0) {
+                  <span class="ev-pill__count ev-pill__count--cerrados">{{ conteos.cerradosTurno }}</span>
+                }
+                @if (conteos.turnoActual) {
+                  <span class="ev-pill__turno">{{ conteos.turnoActual }}</span>
+                }
+              </button>
+
             </div>
           </div>
 
@@ -138,6 +199,12 @@
               </span>
             } @else {
               <span>{{ totalMostrados }} evento(s)</span>
+              @if (filtroEstado === 'C' && conteos.turnoActual) {
+                <span class="ev-list-meta__turno">
+                  <i class="fa-solid fa-clock-rotate-left"></i>
+                  Turno {{ conteos.turnoActual }}
+                </span>
+              }
             }
           </div>
 
@@ -168,30 +235,62 @@
                   }"
                   (click)="abrirDetalle(ev)"
                 >
+                  <!-- Barra lateral de color (semaforización) -->
                   <div class="ev-item__strip"></div>
+
                   <div class="ev-item__body">
 
+                    <!-- Fila 1: Número del evento (cad_eventos.id) + Prioridad -->
                     <div class="ev-item__row1">
-                      <strong class="ev-item__codigo">
-                        {{ ev.codiPedido || ('#' + ev.id) }}
-                      </strong>
+                      <span class="ev-item__id-line">
+                        @if (ev.numeEvento) {
+                          Nro. Evento: {{ ev.numeEvento }}
+                        } @else {
+                          ID: {{ ev.id }}
+                        }
+                      </span>
                       <span class="ev-prio-badge" [ngClass]="getPrioridadClass(ev.prioridad)">
-                        {{ getPrioridadLabel(ev.prioridad) }}
+                        Prioridad {{ getPrioridadLabel(ev.prioridad) }}
                       </span>
                     </div>
 
-                    <div class="ev-item__dir">{{ ev.direCaso || 'Sin dirección' }}</div>
-
-                    @if (ev.ciudad) {
-                      <div class="ev-item__ciudad">
-                        <i class="fa-solid fa-location-dot"></i> {{ ev.ciudad }}
+                    <!-- Fila 2: Código de caso + descripción (debajo del ID) -->
+                    @if (ev.codiPedido || ev.descPedido) {
+                      <div class="ev-item__caso-row">
+                        @if (ev.codiPedido) {
+                          <strong class="ev-item__codigo">{{ ev.codiPedido }}</strong>
+                        }
+                        @if (ev.descPedido) {
+                          <span class="ev-item__desc-caso">{{ ev.descPedido }}</span>
+                        }
                       </div>
                     }
 
+                    <!-- Dirección -->
+                    <div class="ev-item__dir">
+                      <i class="fa-solid fa-location-dot ev-item__dir-icon"></i>
+                      {{ ev.direCaso || 'Sin dirección' }}
+                    </div>
+
+                    @if (ev.ciudad) {
+                      <div class="ev-item__ciudad">{{ ev.ciudad }}</div>
+                    }
+
+                    <!-- Fila 3: estado + tiempo SLA + indicador de recursos -->
                     <div class="ev-item__row3">
                       <span class="ev-estado-badge" [ngClass]="getEstadoClase(ev.estado)">
                         {{ getEstadoLabel(ev.estado) }}
                       </span>
+
+                      <!-- Indicador de recursos asignados (Épica 2) -->
+                      @if (ev.totalActuacionesActivas > 0) {
+                        <span class="ev-recurso-badge" title="Recursos asignados activos">
+                          <i class="fa-solid fa-shield-halved"></i>
+                          {{ ev.totalActuacionesActivas }}
+                        </span>
+                      }
+
+                      <!-- Tiempo SLA -->
                       <span class="ev-elapsed" [ngClass]="getSemaforoClass(ev)">
                         <i class="fa-regular fa-clock"></i>
                         {{ getElapsedLabel(ev) }}
@@ -230,17 +329,27 @@
               </button>
               <div class="ev-detail-head__info">
                 <h2 class="ev-detail-head__title">
-                  {{ detalle.codiPedido || ('Evento #' + detalle.id) }}
+                  @if (detalle.codiPedido) {
+                    <span class="ev-head-codigo">{{ detalle.codiPedido }}</span>
+                  }
+                  <span class="ev-head-id">#{{ eventoSeleccionado?.numeEvento || detalle.id }}</span>
                 </h2>
+                <!-- Línea de sub-info: dirección + fecha de creación (estática) -->
                 <span class="ev-detail-head__sub">
-                  {{ detalle.direCaso }} &nbsp;·&nbsp;
+                  {{ detalle.direCaso }}
+                  @if (detalle.ciudad) { &nbsp;·&nbsp; {{ detalle.ciudad }} }
+                </span>
+                <span class="ev-detail-head__meta">
+                  <i class="fa-regular fa-calendar-check"></i>
+                  Creado: {{ getFechaCreacionLabel(detalle) }}
+                  &nbsp;·&nbsp;
                   <i class="fa-regular fa-clock"></i>
-                  {{ getElapsedLabel(detalle) }} transcurridos
+                  {{ getElapsedLabel(detalle) }}
                 </span>
               </div>
               <div class="ev-detail-head__badges">
                 <span class="ev-prio-badge" [ngClass]="getPrioridadClass(detalle.prioridad)">
-                  {{ getPrioridadLabel(detalle.prioridad) }}
+                  Prioridad {{ getPrioridadLabel(detalle.prioridad) }}
                 </span>
                 <span class="ev-estado-badge" [ngClass]="getEstadoClase(detalle.estado)">
                   {{ getEstadoLabel(detalle.estado) }}
@@ -335,10 +444,26 @@
                     <input class="ui-control" type="text" readonly
                            [value]="detalle.barrio || '—'">
                   </div>
-                  <div class="ui-field ui-col-4">
-                    <label class="ui-label">Código caso</label>
-                    <input class="ui-control" type="text" readonly
-                           [value]="detalle.codiPedido || '—'">
+                  <!-- Código(s) de caso con descripción ─────────────────── -->
+                  <div class="ui-field ui-col-12">
+                    <label class="ui-label">Código(s) de caso</label>
+                    <div class="ev-codigos-caso">
+                      @if (detalle.codiPedido) {
+                        <div class="ev-codigo-item">
+                          <span class="ev-codigo-badge">{{ detalle.codiPedido }}</span>
+                          <span class="ev-codigo-desc">{{ detalle.descPedido || '(sin descripción)' }}</span>
+                        </div>
+                      }
+                      @if (detalle.codiPedido2) {
+                        <div class="ev-codigo-item ev-codigo-item--secondary">
+                          <span class="ev-codigo-badge ev-codigo-badge--secondary">{{ detalle.codiPedido2 }}</span>
+                          <span class="ev-codigo-desc">{{ detalle.descPedido2 || '(sin descripción)' }}</span>
+                        </div>
+                      }
+                      @if (!detalle.codiPedido) {
+                        <span class="ev-codigo-vacio">—</span>
+                      }
+                    </div>
                   </div>
 
                   <div class="ui-field ui-col-4">
@@ -366,6 +491,11 @@
                   }
 
                 </div>
+
+
+
+
+                
               </div><!-- /DATOS -->
 
               <!-- MAPA DE UBICACIÓN -->
@@ -565,7 +695,16 @@
                     <span class="ev-live-dot"></span>
                     c/8s
                   </span>
-                  <span class="ev-dispatch-count">{{ actuaciones.length }} actuación(es)</span>
+                  <!-- Solo cuenta P/D/A (recursos realmente desplegados o en camino) -->
+                  <span class="ev-dispatch-count">
+                    {{ actuacionesActivas.length }} activa(s)
+                    @if (actuaciones.length > actuacionesActivas.length) {
+                      <span class="ev-dispatch-count__hist"
+                            title="Incluye cerradas y/o anuladas">
+                        · {{ actuaciones.length }} total
+                      </span>
+                    }
+                  </span>
                 </div>
 
                 <div style="padding:10px 14px">
@@ -592,8 +731,16 @@
 
                     <div class="ev-dispatch-list">
                       @for (act of actuaciones; track act.id) {
+                        <!-- Separador visual antes del primer anulado (V) -->
+                        @if (act.estado === 'V' && ($index === 0 || actuaciones[$index - 1].estado !== 'V')) {
+                          <div class="ev-dispatch-separator">
+                            <i class="fa-solid fa-link-slash"></i>
+                            Recursos anulados / desasignados
+                          </div>
+                        }
                         <div class="ev-dispatch-row"
-                             [class.ev-dispatch-row--cerrada]="act.estado === 'C' || act.estado === 'V'">
+                             [class.ev-dispatch-row--cerrada]="act.estado === 'C' || act.estado === 'V'"
+                             [class.ev-dispatch-row--anulada]="act.estado === 'V'">
 
                           <!-- Encabezado fila: unidad + badge estado -->
                           <div class="ev-dispatch-row__head">

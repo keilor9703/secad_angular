@@ -60,6 +60,7 @@ namespace Api.Controllers.Operacion
 
         /// <summary>
         /// Returns the full detail of a specific event (incident), including annotations.
+        /// Logs the access for audit compliance (Ley 1581/2012) and marks primer acceso for SLA.
         /// </summary>
         [HttpGet("{id:long}")]
         public async Task<ActionResult> GetById(long id, CancellationToken ct)
@@ -67,6 +68,44 @@ namespace Api.Controllers.Operacion
             var result = await _service.GetByIdAsync(id, ct);
             if (result == null)
                 return NotFound(new { success = false, message = "Evento no encontrado." });
+
+            // ── Épica 1 & 5: Auditoría + primer acceso ────────────────────────
+            var (usuario, username, ip) = ObtenerAuditoria();
+            _ = _service.RegistrarAccesoAsync(id, usuario, username, ip, "VIEW", ct);
+
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// Returns per-state event counts for the dispatcher's filter badges.
+        /// Closed events only count those within the current shift.
+        /// This endpoint is lightweight (single COUNT aggregate query).
+        /// </summary>
+        [HttpGet("conteos")]
+        public async Task<ActionResult> GetConteos(
+            [FromQuery] int? canalId,
+            [FromQuery] int? fuerzaId,
+            CancellationToken ct)
+        {
+            var resolvedCanal  = canalId  ?? GetIntClaim("canal_id");
+            var resolvedFuerza = fuerzaId ?? GetIntClaim("fuerza_id");
+
+            if (resolvedCanal <= 0)
+                return Ok(new DtoEventoConteos());
+
+            var result = await _service.GetConteosByCanalAsync(resolvedCanal, resolvedFuerza, ct);
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// Returns active SLA thresholds from cad_config_sla.
+        /// The frontend uses these to color-code events in the dispatcher queue.
+        /// Thresholds are configurable from the admin panel — never hardcoded.
+        /// </summary>
+        [HttpGet("sla-config")]
+        public async Task<ActionResult> GetSlaConfig(CancellationToken ct)
+        {
+            var result = await _service.GetSlaConfigAsync(ct);
             return Ok(result);
         }
 

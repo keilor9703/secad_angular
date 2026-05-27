@@ -11,7 +11,7 @@ import { FormsModule } from '@angular/forms';
 import { Subscription, Subject, interval } from 'rxjs';
 import { switchMap, startWith, debounceTime, distinctUntilChanged } from 'rxjs/operators';
 
-import { EventoService, DtoEventoListItem, DtoCanalItem } from '../../../core/services/operacion/evento.service';
+import { EventoService, DtoEventoListItem, DtoCanalItem, DtoSlaConfig, DtoEventoConteos } from '../../../core/services/operacion/evento.service';
 import { DtoAnotacionRequest, DtoPedidoDetalle, DtoAnotacion } from '../../../core/services/operacion/pedido.service';
 import { AuthService } from '../../../core/auth/auth.service';
 import {
@@ -72,14 +72,24 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
   // ─── List state ──────────────────────────────────────────────────────────────
   eventos: DtoEventoListItem[] = [];
   filtroTexto   = '';
-  filtroEstado  = '';        // '' = todos | 'A'=Activos | 'P'=Pendientes | etc.
+  filtroEstado  = '';        // '' = todos | 'A'=Activos | 'P'=Pendientes | 'C'=Cerrados turno
   cargando      = false;
   errorCarga    = '';
+
+  /** Contadores por estado — alimentan los badges de los filtros. */
+  conteos: DtoEventoConteos = {
+    total: 0, activos: 0, pendientes: 0, enProceso: 0,
+    seguimiento: 0, revision: 0, cerradosTurno: 0,
+    turnoActual: '', turnoDesde: ''
+  };
 
   // ─── Detail panel ────────────────────────────────────────────────────────────
   panelMode: PanelMode = 'list';
   detalle: DtoPedidoDetalle | null = null;
   cargandoDetalle = false;
+  /** Item de lista del evento actualmente abierto en el panel de detalle.
+   *  Permite acceder a campos del listado (numeEvento, etc.) desde el detalle. */
+  eventoSeleccionado: DtoEventoListItem | null = null;
 
   // ─── Annotation form ─────────────────────────────────────────────────────────
   nuevaAnotacion: DtoAnotacionRequest = { titulo: '', anotacion: '', tipoAnotacion: 'GENERAL' };
@@ -103,6 +113,18 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
   // ─── Semáforo reactive tick ──────────────────────────────────────────────────
   tick = 0;
 
+  // ─── SLA configuration (cargado desde BD al inicio) ──────────────────────────
+  slaConfig: DtoSlaConfig[] = [];
+
+  /** Umbral en minutos para "sin acceso → advertencia" (default 1). */
+  get slaUmbralSinAcceso(): number {
+    return this.slaConfig.find(s => s.nombre === 'SIN_ACCESO')?.umbralMinutos ?? 1;
+  }
+  /** Umbral en minutos para "en gestión → crítico" (default 10). */
+  get slaUmbralCritico(): number {
+    return this.slaConfig.find(s => s.nombre === 'GESTION_CRITICA')?.umbralMinutos ?? 10;
+  }
+
   // ─── Leaflet map ─────────────────────────────────────────────────────────────
   private mapaDetalle: any = null;
   private mapaInicializado = false;
@@ -121,7 +143,7 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
   actuaciones:              DtoActuacionListItem[] = [];
   cargandoActuaciones       = false;
   errorActuaciones          = '';
-  operandoActuacionId:      number | null = null;   // ID de la actuación en proceso
+  operandoActuacionId:      string | null = null;   // ID de la actuación en proceso
   private actuacionesSub:   Subscription | null = null;
 
   // ─── Modal: Cierre de actuación (paso "Atendió") — expandido ────────────────
@@ -255,7 +277,13 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
         })
     );
 
-    // Semáforo tick every 60s
+    // ── SLA config (Épica 5) — cargar al inicio, no crítico si falla ─────────
+    this.eventoSvc.getSlaConfig().subscribe({
+      next: (cfg) => { this.slaConfig = cfg; },
+      error: () => { /* usa defaults hardcoded en los getters */ }
+    });
+
+    // Semáforo tick every 60s — mantiene la reactividad del semáforo
     this.subs.add(
       interval(60_000).subscribe(() => {
         this.tick++;
@@ -264,12 +292,21 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
     );
 
     // Auto-refresh the queue every 15s
+    // Los conteos (badges) se actualizan en el mismo ciclo de forma paralela.
     this.subs.add(
       interval(15_000)
         .pipe(
           startWith(0),
           switchMap(() => {
             this.cargando = true;
+            // Conteos: siempre globales (sin filtro de estado) para mostrar todos los badges
+            this.eventoSvc.getConteos(
+              this.canalSeleccionado || undefined,
+              this.fuerzaId || undefined
+            ).subscribe({
+              next:  (c) => { this.conteos = c; },
+              error: ()  => { /* no crítico: los badges simplemente no se actualizan */ }
+            });
             return this.eventoSvc.getEventos(
               this.canalSeleccionado || undefined,
               this.fuerzaId || undefined,
@@ -359,6 +396,16 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
 
   recargarAhora(): void {
     this.cargando = true;
+
+    // Actualizar conteos (badges) en paralelo — no crítico si falla
+    this.eventoSvc.getConteos(
+      this.canalSeleccionado || undefined,
+      this.fuerzaId || undefined
+    ).subscribe({
+      next:  (c) => { this.conteos = c; },
+      error: ()  => { /* no crítico */ }
+    });
+
     this.eventoSvc.getEventos(
       this.canalSeleccionado || undefined,
       this.fuerzaId || undefined,
@@ -388,17 +435,41 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
 
   get totalMostrados(): number { return this.eventosFiltrados.length; }
 
+  /**
+   * Actuaciones que cuentan como "despacho activo":
+   * P (asignada), D (en ruta), A (en sitio).
+   * Excluye C (cerradas — ya completaron su misión) y V (anuladas — canceladas).
+   * Se usa para el contador del encabezado "Despacho activo".
+   */
+  get actuacionesActivas(): DtoActuacionListItem[] {
+    return this.actuaciones.filter(
+      a => a.estado === 'P' || a.estado === 'D' || a.estado === 'A'
+    );
+  }
+
   // ─── Detail panel ─────────────────────────────────────────────────────────────
 
   abrirDetalle(evento: DtoEventoListItem): void {
-    this.panelMode       = 'detail';
-    this.detalle         = null;
-    this.cargandoDetalle = true;
+    // ── Limpiar estado del evento ANTERIOR antes de cargar el nuevo ──────────
+    // CRÍTICO: si no se limpia aquí, los datos del evento anterior quedan
+    // visibles en la UI durante el tiempo que tarda la nueva carga HTTP,
+    // y ambas suscripciones de polling compiten actualizando los mismos arrays.
+    this.panelMode          = 'detail';
+    this.eventoSeleccionado = evento;   // guarda el item de lista para acceder a numeEvento
+    this.detalle            = null;
+    this.actuaciones      = [];       // limpiar despachos del evento anterior
+    this.recursos         = [];       // limpiar recursos del evento anterior
+    this.errorAsignacion  = '';       // limpiar errores de asignación anteriores
+    this.errorActuaciones = '';
+    this.errorRecursos    = '';
+    this.cargandoDetalle  = true;
     this.mensajeAnotacion = '';
-    this.nuevaAnotacion  = { titulo: '', anotacion: '', tipoAnotacion: 'GENERAL' };
-    this.pendingMapInit  = true;
+    this.nuevaAnotacion   = { titulo: '', anotacion: '', tipoAnotacion: 'GENERAL' };
+    this.pendingMapInit   = true;
+
     this.destroyMapaDetalle();
     this.detenerPollingRecursos();
+    this.detenerPollingActuaciones();  // detener polling del evento anterior AHORA
 
     this.eventoSvc.getById(evento.id).subscribe({
       next: (d) => {
@@ -419,9 +490,10 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
     this.destroyMapaDetalle();
     this.detenerPollingRecursos();
     this.detenerPollingActuaciones();
-    this.panelMode    = 'list';
-    this.detalle      = null;
-    this.actuaciones  = [];
+    this.panelMode          = 'list';
+    this.detalle            = null;
+    this.eventoSeleccionado = null;
+    this.actuaciones        = [];
   }
 
   // ─── Estado change ────────────────────────────────────────────────────────────
@@ -641,35 +713,115 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
     }
   }
 
-  // ─── Semáforo (§6.11) ────────────────────────────────────────────────────────
+  // ─── Semáforo dinámico con SLAs (Épica 4 + Épica 5) ────────────────────────
 
+  /**
+   * Calcula el color del semáforo usando los umbrales SLA configurados en BD.
+   *
+   * Estado final (C = cerrado): siempre verde.
+   * FLASH: siempre rojo (prioridad máxima).
+   *
+   * Para eventos abiertos:
+   *   • Verde   — evento accedido (en gestión) y dentro del umbral crítico.
+   *   • Amarillo — sin primer acceso dentro del umbral 'SIN_ACCESO'.
+   *   • Rojo    — (a) INMEDIATA sin acceso, o (b) en gestión > umbral crítico,
+   *               o (c) RUTINA/otro sin acceso superando umbral de advertencia
+   *               multiplicado por 10 como límite razonable.
+   */
   getSemaforoClass(item: DtoEventoListItem | DtoPedidoDetalle): SemaforoColor {
     void this.tick;   // reactive dependency — re-evaluated each tick
+
     if (item.estado === 'C') return 'semaforo-verde';
-    // Both DtoEventoListItem and DtoPedidoDetalle have 'prioridad'
-    const prio = (item.prioridad ?? '').toUpperCase().trim();
-    const min  = this.getMinutos(item);
-    if (prio === 'FLASH')     return 'semaforo-rojo';
-    if (prio === 'INMEDIATA') return min >= 30 ? 'semaforo-rojo' : 'semaforo-amarillo';
-    if (min >= 60) return 'semaforo-rojo';
-    if (min >= 30) return 'semaforo-amarillo';
+
+    const prio         = (item.prioridad ?? '').toUpperCase().trim();
+    const minDesdeCreacion = this.getMinutosDesdeCreacion(item);
+
+    // FLASH → siempre rojo
+    if (prio === 'FLASH') return 'semaforo-rojo';
+
+    // ── Determinar si ya tuvo primer acceso ──────────────────────────────────
+    // DtoPedidoDetalle (vista de detalle) tiene 'anotaciones'; DtoEventoListItem no.
+    // Cuando se está en la vista de detalle, el acceso YA fue registrado al abrir.
+    const esVistaDetalle = 'anotaciones' in item;
+    const primerAcceso   = (item as DtoEventoListItem).fechaPrimerAcceso ?? null;
+    const tuvoAcceso     = esVistaDetalle || !!primerAcceso;
+
+    if (!tuvoAcceso) {
+      // Sin acceso: verde → amarillo → rojo según prioridad y tiempo
+      if (minDesdeCreacion >= this.slaUmbralSinAcceso) {
+        return prio === 'INMEDIATA' ? 'semaforo-rojo' : 'semaforo-amarillo';
+      }
+      return 'semaforo-verde';
+    }
+
+    // Con acceso: medir tiempo transcurrido desde el primer acceso.
+    // Si no tenemos fecha de primer acceso (ej. DtoPedidoDetalle sin ese campo),
+    // usar fechaCreacion como aproximación razonable.
+    const refAcceso = primerAcceso ?? item.fechaCreacion;
+    const minDesdeAcceso = this.getMinutosDesdeAcceso(refAcceso);
+    if (minDesdeAcceso >= this.slaUmbralCritico) return 'semaforo-rojo';
     return 'semaforo-verde';
   }
 
-  private getMinutos(item: DtoEventoListItem | DtoPedidoDetalle): number {
-    // horaCaso is from DtoPedidoListItem (base of both); fechaCreacion is also on the base
-    const raw = item.horaCaso ?? item.fechaCreacion;
+  /** Minutos transcurridos desde la creación del evento (usa fechaCreacion). */
+  private getMinutosDesdeCreacion(item: DtoEventoListItem | DtoPedidoDetalle): number {
+    const raw = item.fechaCreacion ?? item.horaCaso;
     if (!raw) return 0;
-    const diff = Date.now() - new Date(raw).getTime();
-    return Math.floor(diff / 60_000);
+    return Math.max(0, Math.floor((Date.now() - new Date(raw).getTime()) / 60_000));
   }
 
+  /** Minutos transcurridos desde el primer acceso por un despachador. */
+  private getMinutosDesdeAcceso(fechaPrimerAcceso: string | null): number {
+    if (!fechaPrimerAcceso) return 0;
+    return Math.max(0, Math.floor((Date.now() - new Date(fechaPrimerAcceso).getTime()) / 60_000));
+  }
+
+  /**
+   * Etiqueta de tiempo para la tarjeta del evento (Épica 4).
+   * • Eventos cerrados: muestra la fecha de creación como texto estático.
+   * • Eventos abiertos sin acceso: "Esperando Xm" (tiempo en cola).
+   * • Eventos con acceso: "En gestión Xm" (tiempo desde primer acceso, máx cap).
+   * La etiqueta ya no es un contador infinito.
+   */
   getElapsedLabel(item: DtoEventoListItem | DtoPedidoDetalle): string {
-    const min = this.getMinutos(item);
-    if (min < 60)  return `${min}m`;
-    const h = Math.floor(min / 60);
-    const m = min % 60;
-    return `${h}h ${m}m`;
+    if (item.estado === 'C') {
+      // Evento cerrado — mostrar fecha de creación estática
+      const fc = item.fechaCreacion;
+      if (!fc) return '–';
+      const d = new Date(fc);
+      const pad = (n: number) => String(n).padStart(2, '0');
+      return `${pad(d.getDate())}/${pad(d.getMonth() + 1)} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    }
+
+    // DtoPedidoDetalle tiene 'anotaciones'; DtoEventoListItem no.
+    const esVistaDetalle = 'anotaciones' in item;
+    const primerAcceso   = (item as DtoEventoListItem).fechaPrimerAcceso ?? null;
+
+    if (!esVistaDetalle && !primerAcceso) {
+      // Sin acceso — mostrar tiempo en cola (desde creación)
+      const min = this.getMinutosDesdeCreacion(item);
+      return min < 60
+        ? `En cola ${min}m`
+        : `En cola ${Math.floor(min / 60)}h${min % 60 > 0 ? ' ' + (min % 60) + 'm' : ''}`;
+    }
+
+    // Con acceso (o en vista de detalle) — mostrar tiempo de gestión
+    const refFecha = primerAcceso ?? item.fechaCreacion;
+    const min = refFecha
+      ? Math.max(0, Math.floor((Date.now() - new Date(refFecha).getTime()) / 60_000))
+      : this.getMinutosDesdeCreacion(item);
+    return min < 60
+      ? `Gestión ${min}m`
+      : `Gestión ${Math.floor(min / 60)}h${min % 60 > 0 ? ' ' + (min % 60) + 'm' : ''}`;
+  }
+
+  /** Fecha de creación formateada para el encabezado del detalle. */
+  getFechaCreacionLabel(item: DtoEventoListItem | DtoPedidoDetalle): string {
+    const raw = item.fechaCreacion ?? item.horaCaso;
+    if (!raw) return '–';
+    const d = new Date(raw);
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
   }
 
   getPrioridadLabel(p: string): string {
@@ -742,8 +894,7 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
     this.asignandoMedioId = medioId;
     const req: DtoCambiarEstadoMedioRequest = {
       nuevoEstado:  ESTADO_MEDIO.EN_RUTA,
-      // detalle.id es un long de pedido; lo convertimos a string para el campo Snowflake
-      eventoId:     this.detalle.id.toString(),
+      eventoId:     this.detalle.id,   // ya es string (Snowflake)
       observacion:  `Asignado desde evento ${this.detalle.codiPedido ?? this.detalle.id}`
     };
     this.turnosSvc.cambiarEstadoMedio(medioId, req).subscribe({
@@ -1130,7 +1281,7 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
 
   // ─── Polling de actuaciones ───────────────────────────────────────────────────
 
-  private iniciarPollingActuaciones(eventoId: number): void {
+  private iniciarPollingActuaciones(eventoId: string): void {
     this.detenerPollingActuaciones();
     this.actuacionesSub = interval(8_000)
       .pipe(startWith(0), switchMap(() => {
@@ -1352,6 +1503,6 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
     } catch { return raw; }
   }
 
-  trackById(_: number, item: DtoEventoListItem): number { return item.id; }
-  trackByIdAnot(_: number, a: DtoAnotacion): number { return a.id; }
+  trackById(_: number, item: DtoEventoListItem): string { return item.id; }
+  trackByIdAnot(_: number, a: DtoAnotacion): number  { return a.id; }
 }

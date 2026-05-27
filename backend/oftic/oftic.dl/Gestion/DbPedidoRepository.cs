@@ -1,4 +1,5 @@
 using Comun.Dtos.Incidentes;
+using Comun.Snowflake;
 using Datos.Interfaz;
 using Datos.Tenant;
 using Microsoft.Extensions.Logging;
@@ -8,13 +9,18 @@ namespace Datos.Gestion
 {
     public class DbPedidoRepository : IDbPedidoRepository
     {
-        private readonly TenantContext _tenant;
+        private readonly TenantContext              _tenant;
         private readonly ILogger<DbPedidoRepository> _logger;
+        private readonly ISnowflakeGenerator         _snowflake;
 
-        public DbPedidoRepository(TenantContext tenant, ILogger<DbPedidoRepository> logger)
+        public DbPedidoRepository(
+            TenantContext tenant,
+            ILogger<DbPedidoRepository> logger,
+            ISnowflakeGenerator snowflake)
         {
-            _tenant = tenant;
-            _logger = logger;
+            _tenant    = tenant;
+            _logger    = logger;
+            _snowflake = snowflake;
         }
 
         // ─── Queries ──────────────────────────────────────────────────────────
@@ -68,9 +74,13 @@ SELECT p.id, p.sitio_graba, p.nume_llamada, p.hora_caso,
        p.importancia, p.prioridad, p.disp_telefonico, p.celda_marcacion,
        p.canales, p.canal_fuerza, p.enviar, p.estado,
        p.pedido_padre_sitio, p.pedido_padre_num,
-       u.username AS username_creacion, p.fecha_creacion
+       u.username AS username_creacion, p.fecha_creacion,
+       c1.descripcion AS desc_pedido,
+       c2.descripcion AS desc_pedido2
 FROM cad_pedidos p
-LEFT JOIN ctr_usuarios u ON u.id_usuario = p.usuario_creacion
+LEFT JOIN ctr_usuarios u  ON u.id_usuario              = p.usuario_creacion
+LEFT JOIN cad_casos    c1 ON TRIM(UPPER(c1.codigo))  = TRIM(UPPER(p.codi_pedido))
+LEFT JOIN cad_casos    c2 ON TRIM(UPPER(c2.codigo))  = TRIM(UPPER(p.codi_pedido2))
 WHERE p.id = @id";
             cmd.Parameters.AddWithValue("id", id);
 
@@ -97,9 +107,11 @@ WHERE p.id = @id";
             {
                 await using var cmd = conn.CreateCommand();
                 cmd.Transaction = tx;
+                var newId = _snowflake.NextId();
                 cmd.CommandText = @"
 INSERT INTO cad_pedidos
-    (sitio_graba, nume_llamada, hora_caso, nume_telefono, prop_telefono,
+    (id,
+     sitio_graba, nume_llamada, hora_caso, nume_telefono, prop_telefono,
      nomb_llamante, barrio, ciudad, dire_llamante, dire_caso,
      latitud_caso, longitud_caso, cordx, cordy, tiposhape, radio,
      comentario, codi_pedido, codi_pedido2, tipo_pedido, cali_pedido,
@@ -108,7 +120,8 @@ INSERT INTO cad_pedidos
      pedido_padre_sitio, pedido_padre_num,
      usuario_creacion, fecha_creacion, maquina_creacion)
 VALUES
-    (@sitioGraba, @numeLlamada, @horaCaso, @numeTelefono, @propTelefono,
+    (@newId,
+     @sitioGraba, @numeLlamada, @horaCaso, @numeTelefono, @propTelefono,
      @nombLlamante, @barrio, @ciudad, @direLlamante, @direCaso,
      @latitudCaso, @longitudCaso, @cordx, @cordy, @tiposhape, @radio,
      @comentario, @codiPedido, @codiPedido2, @tipoPedido, @caliPedido,
@@ -118,6 +131,7 @@ VALUES
      @usuario, NOW(), @maquina)
 RETURNING id";
 
+                cmd.Parameters.AddWithValue("newId", newId);
                 BindPedidoParams(cmd, req, usuario, maquina);
 
                 result.Id = Convert.ToInt64(await cmd.ExecuteScalarAsync(ct));
@@ -373,9 +387,11 @@ LIMIT 50";
             await using var conn = await _tenant.DataSource.OpenConnectionAsync(ct);
             await using var cmd  = conn.CreateCommand();
 
-            // Filter: record must have been sent to dispatch (enviar='S')
-            // and the canal must appear in cad_pedidos_canales OR in the
-            // denormalized canales field (for resilience during migration).
+            // ── Regla de negocio: eventos cerrados solo se muestran cuando el filtro
+            // es explícitamente 'C'; en ese caso solo se cargan los del turno vigente.
+            // Para todos los demás filtros (incluyendo "Todos"), se excluyen los cerrados.
+            var (turnoDesde, _) = GetTurnoActual();
+
             var sql = @"
 SELECT p.id, p.sitio_graba, p.nume_llamada, p.hora_caso,
        p.nume_telefono, p.dire_caso, p.estado, p.enviar,
@@ -384,9 +400,17 @@ SELECT p.id, p.sitio_graba, p.nume_llamada, p.hora_caso,
        COALESCE(p.cali_pedido, '') AS cali_pedido,
        COALESCE(p.ciudad, '')      AS ciudad,
        u.username                  AS username_creacion,
-       p.fecha_creacion
+       p.fecha_creacion,
+       COALESCE(c1.descripcion, '') AS desc_pedido,
+       p.fecha_primer_acceso,
+       (SELECT COUNT(*) FROM cad_actuaciones a
+        WHERE a.pedido_id = p.id
+          AND a.estado NOT IN ('C','V'))::int AS total_actuaciones_activas,
+       e.id                         AS evento_id    -- col 19: Snowflake ID del evento (≠ p.id)
 FROM cad_pedidos p
-LEFT JOIN ctr_usuarios u ON u.id_usuario = p.usuario_creacion
+LEFT JOIN ctr_usuarios u  ON u.id_usuario         = p.usuario_creacion
+LEFT JOIN cad_casos    c1 ON TRIM(UPPER(c1.codigo)) = TRIM(UPPER(p.codi_pedido))
+LEFT JOIN cad_eventos  e  ON e.pedido_id          = p.id
 WHERE p.enviar = 'S'
   AND (
       EXISTS (
@@ -398,8 +422,24 @@ WHERE p.enviar = 'S'
       OR @canalCodigoStr = ANY(string_to_array(COALESCE(p.canales, ''), ','))
   )";
 
-            if (!string.IsNullOrWhiteSpace(estado))
-                sql += " AND p.estado = @estado";
+            if (estado == "C")
+            {
+                // Filtro Cerrados: solo los del turno vigente para no sobrecargar.
+                // Npgsql strict mode requiere UTC para timestamptz — convertir explícitamente.
+                sql += " AND p.estado = 'C' AND p.fecha_modifica >= @turnoDesde";
+                cmd.Parameters.AddWithValue("turnoDesde", turnoDesde.UtcDateTime);
+            }
+            else if (!string.IsNullOrWhiteSpace(estado))
+            {
+                // Filtro activo específico (A, P, E, T, R): excluir cerrados explícitamente
+                sql += " AND p.estado = @estado AND p.estado != 'C'";
+                cmd.Parameters.AddWithValue("estado", estado);
+            }
+            else
+            {
+                // Vista "Todos": excluir cerrados — no se mezclan activos con histórico
+                sql += " AND p.estado != 'C'";
+            }
 
             sql += @"
 ORDER BY
@@ -414,12 +454,173 @@ LIMIT 300";
             cmd.CommandText = sql;
             cmd.Parameters.AddWithValue("canalCodigo",    canalCodigo);
             cmd.Parameters.AddWithValue("canalCodigoStr", canalCodigo.ToString());
-            if (!string.IsNullOrWhiteSpace(estado))
-                cmd.Parameters.AddWithValue("estado", estado);
 
             await using var reader = await cmd.ExecuteReaderAsync(ct);
             while (await reader.ReadAsync(ct))
                 result.Add(MapEventoListItem(reader));
+
+            return result;
+        }
+
+        // ─── Conteos para badges de filtro ────────────────────────────────────────
+
+        public async Task<DtoEventoConteos> GetConteosByCanalAsync(
+            int canalCodigo, int fuerzaId, CancellationToken ct)
+        {
+            var (turnoDesde, turnoNombre) = GetTurnoActual();
+
+            await using var conn = await _tenant.DataSource.OpenConnectionAsync(ct);
+            await using var cmd  = conn.CreateCommand();
+
+            // Una sola consulta con COUNT … FILTER — muy eficiente
+            cmd.CommandText = @"
+SELECT
+    COUNT(*) FILTER (WHERE p.estado != 'C')                                  AS total,
+    COUNT(*) FILTER (WHERE p.estado = 'A')                                   AS activos,
+    COUNT(*) FILTER (WHERE p.estado = 'P')                                   AS pendientes,
+    COUNT(*) FILTER (WHERE p.estado = 'E')                                   AS en_proceso,
+    COUNT(*) FILTER (WHERE p.estado = 'T')                                   AS seguimiento,
+    COUNT(*) FILTER (WHERE p.estado = 'R')                                   AS revision,
+    COUNT(*) FILTER (WHERE p.estado = 'C'
+                       AND p.fecha_modifica >= @turnoDesde)                  AS cerrados_turno
+FROM cad_pedidos p
+WHERE p.enviar = 'S'
+  AND (
+      EXISTS (
+          SELECT 1 FROM cad_pedidos_canales pc
+          WHERE pc.cadpedi_sitiograba  = p.sitio_graba
+            AND pc.cadpedi_numellamada = p.nume_llamada
+            AND pc.cadcana_codigo      = @canalCodigo
+      )
+      OR @canalCodigoStr = ANY(string_to_array(COALESCE(p.canales, ''), ','))
+  )";
+
+            cmd.Parameters.AddWithValue("canalCodigo",    canalCodigo);
+            cmd.Parameters.AddWithValue("canalCodigoStr", canalCodigo.ToString());
+            // Npgsql strict mode rechaza DateTimeOffset con offset != 0 para timestamptz.
+            // Convertir a UTC (DateTimeKind.Utc) antes de pasar el parámetro.
+            cmd.Parameters.AddWithValue("turnoDesde",     turnoDesde.UtcDateTime);
+
+            await using var r = await cmd.ExecuteReaderAsync(ct);
+            if (!await r.ReadAsync(ct))
+                return new DtoEventoConteos { TurnoActual = turnoNombre, TurnoDesde = turnoDesde.ToString("o") };
+
+            return new DtoEventoConteos
+            {
+                Total         = r.IsDBNull(0) ? 0 : (int)(long)r.GetValue(0),
+                Activos       = r.IsDBNull(1) ? 0 : (int)(long)r.GetValue(1),
+                Pendientes    = r.IsDBNull(2) ? 0 : (int)(long)r.GetValue(2),
+                EnProceso     = r.IsDBNull(3) ? 0 : (int)(long)r.GetValue(3),
+                Seguimiento   = r.IsDBNull(4) ? 0 : (int)(long)r.GetValue(4),
+                Revision      = r.IsDBNull(5) ? 0 : (int)(long)r.GetValue(5),
+                CerradosTurno = r.IsDBNull(6) ? 0 : (int)(long)r.GetValue(6),
+                TurnoActual   = turnoNombre,
+                TurnoDesde    = turnoDesde.ToString("o")
+            };
+        }
+
+        // ─── Helper: turno de vigilancia (Colombia UTC-5, sin horario de verano) ──
+
+        /// <summary>
+        /// Determina el inicio del turno vigente según la hora actual en Colombia.
+        /// <list type="bullet">
+        ///   <item>1ro: 22:00 – 05:59  </item>
+        ///   <item>2do: 06:00 – 13:59  </item>
+        ///   <item>3ro: 14:00 – 21:59  </item>
+        /// </list>
+        /// Colombia no aplica horario de verano → siempre UTC-5.
+        /// </summary>
+        private static (DateTimeOffset desde, string nombre) GetTurnoActual()
+        {
+            var offset = TimeSpan.FromHours(-5);
+            var ahora  = DateTimeOffset.UtcNow.ToOffset(offset);
+            var hora   = ahora.TimeOfDay;
+            var hoy    = ahora.Date;
+
+            if (hora >= TimeSpan.FromHours(6) && hora < TimeSpan.FromHours(14))
+                return (new DateTimeOffset(hoy.Add(TimeSpan.FromHours(6)), offset), "2do");
+
+            if (hora >= TimeSpan.FromHours(14) && hora < TimeSpan.FromHours(22))
+                return (new DateTimeOffset(hoy.Add(TimeSpan.FromHours(14)), offset), "3ro");
+
+            // 1er turno: 22:00 – 05:59 (puede cruzar medianoche)
+            var turnoDesde = hora >= TimeSpan.FromHours(22)
+                ? new DateTimeOffset(hoy.Add(TimeSpan.FromHours(22)), offset)          // 22:xx hoy
+                : new DateTimeOffset(hoy.AddDays(-1).Add(TimeSpan.FromHours(22)), offset); // 0x:xx → turno empezó ayer
+
+            return (turnoDesde, "1ro");
+        }
+
+        // ─── Auditoría y primer acceso ────────────────────────────────────────────
+
+        /// <summary>
+        /// Registra el acceso de un despachador a un evento y, si es la primera vez,
+        /// actualiza fecha_primer_acceso en cad_pedidos (para la semaforización SLA).
+        /// Fire-and-forget aceptable: si falla, el evento igual se muestra.
+        /// </summary>
+        public async Task RegistrarAccesoAsync(
+            long pedidoId, long usuarioId, string username, string ip,
+            string accion, CancellationToken ct)
+        {
+            try
+            {
+                await using var conn = await _tenant.DataSource.OpenConnectionAsync(ct);
+
+                // 1. Insertar en auditoría
+                await using var cmdAudit = conn.CreateCommand();
+                cmdAudit.CommandText = @"
+INSERT INTO cad_auditoria_acceso_evento
+    (pedido_id, usuario_id, username, ip_origen, accion)
+VALUES (@pedidoId, @usuarioId, @username, @ip, @accion)";
+                cmdAudit.Parameters.AddWithValue("pedidoId",  pedidoId);
+                cmdAudit.Parameters.AddWithValue("usuarioId", usuarioId > 0 ? (object)usuarioId : DBNull.Value);
+                cmdAudit.Parameters.AddWithValue("username",  Truncate(username, 100));
+                cmdAudit.Parameters.AddWithValue("ip",        Truncate(ip, 50));
+                cmdAudit.Parameters.AddWithValue("accion",    Truncate(accion, 50));
+                await cmdAudit.ExecuteNonQueryAsync(ct);
+
+                // 2. Marcar primer acceso si aún no estaba registrado
+                await using var cmdPrimer = conn.CreateCommand();
+                cmdPrimer.CommandText = @"
+UPDATE cad_pedidos
+   SET fecha_primer_acceso = NOW()
+ WHERE id = @pedidoId
+   AND fecha_primer_acceso IS NULL";
+                cmdPrimer.Parameters.AddWithValue("pedidoId", pedidoId);
+                await cmdPrimer.ExecuteNonQueryAsync(ct);
+            }
+            catch (Exception ex)
+            {
+                // Audit failure must NOT break the main request
+                _logger.LogWarning(ex,
+                    "Error registrando auditoría para pedido={PedidoId}", pedidoId);
+            }
+        }
+
+        // ─── SLA configuration ────────────────────────────────────────────────────
+
+        public async Task<List<DtoSlaConfig>> GetSlaConfigAsync(CancellationToken ct)
+        {
+            var result = new List<DtoSlaConfig>();
+            await using var conn = await _tenant.DataSource.OpenConnectionAsync(ct);
+            await using var cmd  = conn.CreateCommand();
+            cmd.CommandText = @"
+SELECT id, nombre, umbral_minutos, color_hex, COALESCE(descripcion,''), orden
+FROM cad_config_sla
+WHERE activo = TRUE
+ORDER BY orden";
+
+            await using var r = await cmd.ExecuteReaderAsync(ct);
+            while (await r.ReadAsync(ct))
+                result.Add(new DtoSlaConfig
+                {
+                    Id            = r.GetInt32(0),
+                    Nombre        = r.GetString(1),
+                    UmbralMinutos = r.GetInt32(2),
+                    ColorHex      = r.GetString(3),
+                    Descripcion   = r.GetString(4),
+                    Orden         = r.GetInt32(5)
+                });
 
             return result;
         }
@@ -502,22 +703,27 @@ ORDER BY f.descripcion, c.codigo";
 
         private static DtoEventoListItem MapEventoListItem(NpgsqlDataReader r) => new()
         {
-            Id               = r.GetInt64(0),
-            SitioGraba       = r.IsDBNull(1)  ? 0   : r.GetInt32(1),
-            NumeLlamada      = r.IsDBNull(2)  ? null : r.GetInt64(2),
-            HoraCaso         = r.IsDBNull(3)  ? null : r.GetDateTime(3),
-            NumeTelefono     = r.IsDBNull(4)  ? null : r.GetInt64(4),
-            DireCaso         = r.IsDBNull(5)  ? ""   : r.GetString(5),
-            Estado           = r.IsDBNull(6)  ? ""   : r.GetString(6),
-            Enviar           = r.IsDBNull(7)  ? ""   : r.GetString(7),
-            CodiPedido       = r.IsDBNull(8)  ? ""   : r.GetString(8),
-            CodiPedido2      = r.IsDBNull(9)  ? ""   : r.GetString(9),
-            Comentario       = r.IsDBNull(10) ? ""   : r.GetString(10),
-            Prioridad        = r.IsDBNull(11) ? ""   : r.GetString(11),
-            CaliPedido       = r.IsDBNull(12) ? ""   : r.GetString(12),
-            Ciudad           = r.IsDBNull(13) ? ""   : r.GetString(13),
-            UsernameCreacion = r.IsDBNull(14) ? ""   : r.GetString(14),
-            FechaCreacion    = r.IsDBNull(15) ? null : r.GetDateTime(15)
+            Id                       = r.GetInt64(0),
+            SitioGraba               = r.IsDBNull(1)  ? 0    : r.GetInt32(1),
+            NumeLlamada              = r.IsDBNull(2)  ? null : r.GetInt64(2),
+            HoraCaso                 = r.IsDBNull(3)  ? null : r.GetDateTime(3),
+            NumeTelefono             = r.IsDBNull(4)  ? null : r.GetInt64(4),
+            DireCaso                 = r.IsDBNull(5)  ? ""   : r.GetString(5),
+            Estado                   = r.IsDBNull(6)  ? ""   : r.GetString(6),
+            Enviar                   = r.IsDBNull(7)  ? ""   : r.GetString(7),
+            CodiPedido               = r.IsDBNull(8)  ? ""   : r.GetString(8),
+            CodiPedido2              = r.IsDBNull(9)  ? ""   : r.GetString(9),
+            Comentario               = r.IsDBNull(10) ? ""   : r.GetString(10),
+            Prioridad                = r.IsDBNull(11) ? ""   : r.GetString(11),
+            CaliPedido               = r.IsDBNull(12) ? ""   : r.GetString(12),
+            Ciudad                   = r.IsDBNull(13) ? ""   : r.GetString(13),
+            UsernameCreacion         = r.IsDBNull(14) ? ""   : r.GetString(14),
+            FechaCreacion            = r.IsDBNull(15) ? null : r.GetDateTime(15),
+            DescPedido               = r.IsDBNull(16) ? ""   : r.GetString(16),
+            FechaPrimerAcceso        = r.IsDBNull(17) ? null : r.GetDateTime(17),
+            TotalActuacionesActivas  = r.IsDBNull(18) ? 0    : r.GetInt32(18),
+            // col 19: cad_eventos.id — el número oficial del evento para el despachador
+            NumeEvento               = r.IsDBNull(19) ? null : r.GetInt64(19)
         };
 
         private static DtoPedidoListItem MapListItem(NpgsqlDataReader r) => new()
@@ -572,7 +778,9 @@ ORDER BY f.descripcion, c.codigo";
             PedidoPadreSitio = r.IsDBNull(30) ? null : r.GetInt32(30),
             PedidoPadreNum   = r.IsDBNull(31) ? null : r.GetInt64(31),
             UsernameCreacion = r.IsDBNull(32) ? ""   : r.GetString(32),
-            FechaCreacion    = r.IsDBNull(33) ? null : r.GetDateTime(33)
+            FechaCreacion    = r.IsDBNull(33) ? null : r.GetDateTime(33),
+            DescPedido       = r.IsDBNull(34) ? ""   : r.GetString(34),
+            DescPedido2      = r.IsDBNull(35) ? ""   : r.GetString(35)
         };
 
         private static DtoAnotacion MapAnotacion(NpgsqlDataReader r) => new()

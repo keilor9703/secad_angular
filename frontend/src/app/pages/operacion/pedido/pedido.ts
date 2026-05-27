@@ -45,9 +45,9 @@ export class PedidoComponent implements OnInit, OnDestroy {
 
   // ─── Data ──────────────────────────────────────────────────────────────────
   listaPedidos: DtoPedidoListItem[] = [];
-  selectedId:   number | null = null;
+  selectedId:   string | null = null;
   detalle:      DtoPedidoDetalle | null = null;
-  editingId:    number | null = null;
+  editingId:    string | null = null;
 
   // ─── Form ──────────────────────────────────────────────────────────────────
   form: DtoPedidoRequest = this.emptyForm();
@@ -55,7 +55,7 @@ export class PedidoComponent implements OnInit, OnDestroy {
   // ─── Quick-close modal ─────────────────────────────────────────────────────
   showCerrarModal = false;
   cerrarForm: DtoCerrarRapidoRequest = { comentario: '', codiPedido: '', enviar: 'N' };
-  cerrarTargetId: number | null = null;
+  cerrarTargetId: string | null = null;
 
   // ─── Annotation form ───────────────────────────────────────────────────────
   anotacionForm: DtoAnotacionRequest = this.emptyAnotacion();
@@ -327,7 +327,7 @@ export class PedidoComponent implements OnInit, OnDestroy {
   //  Quick close
   // ──────────────────────────────────────────────────────────────────────────
 
-  abrirCerrarModal(id: number): void {
+  abrirCerrarModal(id: string): void {
     this.cerrarTargetId = id;
     this.cerrarForm     = { comentario: '', codiPedido: '', enviar: 'N' };
     this.showCerrarModal = true;
@@ -485,7 +485,7 @@ export class PedidoComponent implements OnInit, OnDestroy {
 
   private normalizarListItem(item: any): DtoPedidoListItem {
     return {
-      id:               Number(item?.id ?? 0),
+      id:               String(item?.id ?? ''),
       sitioGraba:       Number(item?.sitioGraba ?? item?.sitio_graba ?? 0),
       numeLlamada:      item?.numeLlamada ?? item?.nume_llamada ?? null,
       horaCaso:         item?.horaCaso ?? item?.hora_caso ?? null,
@@ -525,6 +525,8 @@ export class PedidoComponent implements OnInit, OnDestroy {
       canalFuerza:      String(item?.canalFuerza ?? item?.canal_fuerza ?? ''),
       pedidoPadreSitio: item?.pedidoPadreSitio ?? item?.pedido_padre_sitio ?? null,
       pedidoPadreNum:   item?.pedidoPadreNum   ?? item?.pedido_padre_num   ?? null,
+      descPedido:       String(item?.descPedido  ?? item?.desc_pedido  ?? ''),
+      descPedido2:      String(item?.descPedido2 ?? item?.desc_pedido2 ?? ''),
       anotaciones: (item?.anotaciones ?? []).map((a: any) => ({
         id:               Number(a?.id ?? 0),
         idPedido:         Number(a?.idPedido ?? a?.id_pedido ?? 0),

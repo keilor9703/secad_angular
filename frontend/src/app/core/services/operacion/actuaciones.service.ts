@@ -44,9 +44,9 @@ export interface DtoActuacionNota {
 
 /** DTO completo — usado en el panel de detalle del despachador */
 export interface DtoActuacion {
-  id:                    number;
-  eventoId:              number;
-  pedidoId?:             number;
+  id:                    string;   // Snowflake → string
+  eventoId:              string;   // Snowflake → string
+  pedidoId?:             string;   // Snowflake → string
   sitioGraba:            number;
   fuerzaId?:             number;
   canalCodigo?:          number;
@@ -74,8 +74,8 @@ export interface DtoActuacion {
 
 /** Item reducido para la grilla de actuaciones de un evento */
 export interface DtoActuacionListItem {
-  id:              number;
-  eventoId:        number;
+  id:              string;   // Snowflake → string
+  eventoId:        string;   // Snowflake → string
   fuerzaDesc:      string;
   canalDesc:       string;
   unidadAsignada?: string;
@@ -91,7 +91,8 @@ export interface DtoActuacionListItem {
 
 /** Request: crear nueva actuación (primer paso del flujo de despacho) */
 export interface DtoCrearActuacionRequest {
-  eventoId:        number;
+  /** cad_pedidos.id — Snowflake transmitido como string para preservar precisión. */
+  eventoId:        string;
   sitioGraba?:     number;
   fuerzaId?:       number;
   canalCodigo?:    number;
@@ -184,7 +185,7 @@ export class ActuacionesService {
    * Lista todas las actuaciones de un evento (una por agencia/canal).
    * Incluye conteo de notas y unidades por actuación.
    */
-  getActuacionesEvento(eventoId: number): Observable<{ success: boolean; data: DtoActuacionListItem[] }> {
+  getActuacionesEvento(eventoId: string): Observable<{ success: boolean; data: DtoActuacionListItem[] }> {
     return this.http.get<{ success: boolean; data: DtoActuacionListItem[] }>(
       `${this.base}/evento/${eventoId}`
     );
@@ -193,7 +194,7 @@ export class ActuacionesService {
   /**
    * Detalle completo de una actuación: datos base + códigos + unidades + notas.
    */
-  getActuacion(id: number): Observable<{ success: boolean; data: DtoActuacion }> {
+  getActuacion(id: string): Observable<{ success: boolean; data: DtoActuacion }> {
     return this.http.get<{ success: boolean; data: DtoActuacion }>(
       `${this.base}/${id}`
     );
@@ -220,7 +221,7 @@ export class ActuacionesService {
    * Registra automáticamente el timestamp correspondiente.
    */
   actualizarEstado(
-    id: number,
+    id: string,
     req: DtoActualizarEstadoActuacionRequest
   ): Observable<{ success: boolean; message: string }> {
     return this.http.put<{ success: boolean; message: string }>(
@@ -234,7 +235,7 @@ export class ActuacionesService {
    * El trigger de BD recalcula el estado global del evento.
    */
   cerrarActuacion(
-    id: number,
+    id: string,
     req: DtoCierreActuacionRequest
   ): Observable<DtoActuacionResult> {
     return this.http.post<DtoActuacionResult>(
@@ -250,7 +251,7 @@ export class ActuacionesService {
    * tipoNota: GENERAL | NOVEDAD | ALERTA | CIERRE
    */
   agregarNota(
-    id: number,
+    id: string,
     req: DtoAgregarNotaActuacionRequest
   ): Observable<DtoActuacionResult> {
     return this.http.post<DtoActuacionResult>(
@@ -264,7 +265,7 @@ export class ActuacionesService {
    * Usar cuando la agencia envía más de un recurso al mismo incidente.
    */
   agregarUnidad(
-    id: number,
+    id: string,
     req: DtoAgregarUnidadActuacionRequest
   ): Observable<DtoActuacionResult> {
     return this.http.post<DtoActuacionResult>(
@@ -279,10 +280,10 @@ export class ActuacionesService {
    * Falla si la actuación ya avanzó a estado D, A o C.
    */
   desasignarActuacion(
-    id: number,
+    id: string,
     motivo?: string
-  ): Observable<{ success: boolean; message: string; actuacionId: number }> {
-    return this.http.post<{ success: boolean; message: string; actuacionId: number }>(
+  ): Observable<{ success: boolean; message: string; actuacionId: string }> {
+    return this.http.post<{ success: boolean; message: string; actuacionId: string }>(
       `${this.base}/${id}/desasignar`,
       { motivo: motivo ?? 'Desasignado por operador' }
     );

@@ -6,7 +6,8 @@ import { environment } from '../../../../environments/environment';
 // ─── DTOs ──────────────────────────────────────────────────────────────────────
 
 export interface DtoPedidoListItem {
-  id: number;
+  /** Snowflake ID serializado como string para preservar precisión en JavaScript. */
+  id: string;
   sitioGraba: number;
   numeLlamada: number | null;
   horaCaso: string | null;
@@ -55,6 +56,10 @@ export interface DtoPedidoDetalle extends DtoPedidoListItem {
   canalFuerza: string;
   pedidoPadreSitio: number | null;
   pedidoPadreNum: number | null;
+  /** Descripción del código de caso 1 (JOIN cad_casos.descripcion). */
+  descPedido: string;
+  /** Descripción del código de caso 2 (JOIN cad_casos.descripcion). */
+  descPedido2: string;
   anotaciones: DtoAnotacion[];
 }
 
@@ -106,7 +111,8 @@ export interface DtoAnotacionRequest {
 
 export interface DtoPedidoResult {
   success: boolean;
-  id: number;
+  /** Snowflake ID como string. */
+  id: string;
   message: string;
 }
 
@@ -139,7 +145,7 @@ export class PedidoService {
     return this.http.get<DtoPedidoListItem[]>(this.baseUrl, { params });
   }
 
-  getById(id: number): Observable<DtoPedidoDetalle> {
+  getById(id: string): Observable<DtoPedidoDetalle> {
     return this.http.get<DtoPedidoDetalle>(`${this.baseUrl}/${id}`);
   }
 
@@ -147,23 +153,23 @@ export class PedidoService {
     return this.http.post<DtoPedidoResult>(this.baseUrl, request);
   }
 
-  update(id: number, request: DtoPedidoRequest): Observable<DtoPedidoResult> {
+  update(id: string, request: DtoPedidoRequest): Observable<DtoPedidoResult> {
     return this.http.put<DtoPedidoResult>(`${this.baseUrl}/${id}`, request);
   }
 
-  cerrarRapido(id: number, request: DtoCerrarRapidoRequest): Observable<DtoPedidoResult> {
+  cerrarRapido(id: string, request: DtoCerrarRapidoRequest): Observable<DtoPedidoResult> {
     return this.http.post<DtoPedidoResult>(`${this.baseUrl}/${id}/cerrar-rapido`, request);
   }
 
-  setEstado(id: number, estado: string): Observable<DtoPedidoResult> {
+  setEstado(id: string, estado: string): Observable<DtoPedidoResult> {
     return this.http.put<DtoPedidoResult>(`${this.baseUrl}/${id}/estado`, { estado });
   }
 
-  getAnotaciones(id: number): Observable<DtoAnotacion[]> {
+  getAnotaciones(id: string): Observable<DtoAnotacion[]> {
     return this.http.get<DtoAnotacion[]>(`${this.baseUrl}/${id}/anotaciones`);
   }
 
-  createAnotacion(id: number, request: DtoAnotacionRequest): Observable<DtoPedidoResult> {
+  createAnotacion(id: string, request: DtoAnotacionRequest): Observable<DtoPedidoResult> {
     return this.http.post<DtoPedidoResult>(`${this.baseUrl}/${id}/anotaciones`, request);
   }
 
