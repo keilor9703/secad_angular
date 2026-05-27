@@ -24,6 +24,15 @@ namespace Negocio.Gestion
             var key = _cfg["Jwt:Key"]!;
             var minutes = int.Parse(_cfg["Jwt:Minutes"] ?? "480");
 
+            // Determinar si el usuario es administrador:
+            // - tiene el rol 1 (Superadmin) asignado en ctr_roles_user, O
+            // - su ID aparece en la lista Menu:SuperUserIds del appsettings.
+            var superUserIds = (_cfg["Menu:SuperUserIds"] ?? "")
+                .Split(',', StringSplitOptions.RemoveEmptyEntries)
+                .Select(s => long.TryParse(s.Trim(), out var v) ? v : -1L)
+                .ToHashSet();
+            bool esAdmin = roles.Contains(1L) || superUserIds.Contains(idUsuario);
+
             var claims = new List<Claim>
             {
                 new("id_usuario",   idUsuario.ToString()),
@@ -34,7 +43,8 @@ namespace Negocio.Gestion
                 new("sitio_graba",  sitioGraba.ToString()),
                 new("acd",          acd.ToString()),
                 new("fuerza_id",    fuerzaId.ToString()),
-                new("canal_id",     canalId.ToString())
+                new("canal_id",     canalId.ToString()),
+                new("es_admin",     esAdmin ? "true" : "false")
             };
 
             foreach (var r in roles)

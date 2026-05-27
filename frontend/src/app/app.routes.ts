@@ -43,7 +43,30 @@ export const routes: Routes = [
           { path: 'video-unidad', redirectTo: 'configuracion-sistema', pathMatch: 'full' },
           { path: 'configuracion-imagen-sitio', redirectTo: 'configuracion-sistema', pathMatch: 'full' },
           { path: 'linea-mando', component: LineaMandoAdminComponent, canActivate: [authGuard] },
-          { path: 'dominio', component: DominioAdminComponent, canActivate: [authGuard] }
+          { path: 'dominio', component: DominioAdminComponent, canActivate: [authGuard] },
+          {
+            path: 'cuentas-email',
+            loadComponent: () => import('./pages/administracion/cuentas-email/cuentas-email').then(m => m.CuentasEmailComponent),
+            canActivate: [authGuard]
+          },
+          {
+            path: 'asistente',
+            loadComponent: () => import('./pages/administracion/asistente/asistente').then(m => m.AsistenteAdminComponent),
+            canActivate: [authGuard]
+          }
+        ]
+      },
+      // ─── Gestión Documental ───────────────────────────────────────────────
+      {
+        path: 'gestion-documental',
+        canActivate: [authGuard],
+        children: [
+          { path: '', redirectTo: 'gestion-correos-electronicos', pathMatch: 'full' },
+          {
+            path: 'gestion-correos-electronicos',
+            loadComponent: () => import('./pages/gestion-documental/gestion-correos-electronicos/gestion-correos-electronicos').then(m => m.GestionCorreosElectronicosComponent),
+            canActivate: [authGuard]
+          }
         ]
       },
       // ─── Operacion ───────────────────────────────────────────────────────
@@ -55,13 +78,19 @@ export const routes: Routes = [
           { path: 'recepcion', component: RecepcionComponent, canActivate: [authGuard] },
           { path: 'pedido',    component: PedidoComponent,   canActivate: [authGuard] },
           { path: 'eventos',   component: EventosComponent,  canActivate: [authGuard] },
-          { path: 'turnos',    component: TurnosComponent,   canActivate: [authGuard] }
+          { path: 'turnos',    component: TurnosComponent,   canActivate: [authGuard] },
+          {
+            path: 'anotaciones',
+            loadComponent: () => import('./pages/operacion/anotaciones-turno/anotaciones-turno').then(m => m.AnotacionesTurnoComponent),
+            canActivate: [authGuard]
+          }
         ]
       },
-      { path: 'pedido',    redirectTo: 'operacion/pedido',    pathMatch: 'full' },
-      { path: 'recepcion', redirectTo: 'operacion/recepcion', pathMatch: 'full' },
-      { path: 'eventos',   redirectTo: 'operacion/eventos',   pathMatch: 'full' },
-      { path: 'turnos',    redirectTo: 'operacion/turnos',    pathMatch: 'full' },
+      { path: 'pedido',      redirectTo: 'operacion/pedido',      pathMatch: 'full' },
+      { path: 'recepcion',   redirectTo: 'operacion/recepcion',   pathMatch: 'full' },
+      { path: 'eventos',     redirectTo: 'operacion/eventos',     pathMatch: 'full' },
+      { path: 'turnos',      redirectTo: 'operacion/turnos',      pathMatch: 'full' },
+      { path: 'anotaciones', redirectTo: 'operacion/anotaciones', pathMatch: 'full' },
       // ─── Administracion shortcuts ─────────────────────────────────────────
       { path: 'formularios', redirectTo: 'administracion/formularios', pathMatch: 'full' },
       { path: 'usuarios', redirectTo: 'administracion/usuarios', pathMatch: 'full' },
@@ -73,7 +102,11 @@ export const routes: Routes = [
       { path: 'configuracion-imagen-sitio', redirectTo: 'administracion/configuracion-sistema', pathMatch: 'full' },
       { path: 'linea-mando', redirectTo: 'administracion/linea-mando', pathMatch: 'full' },
       { path: 'radio', redirectTo: 'administracion/radio', pathMatch: 'full' },
-      { path: 'dominio', redirectTo: 'administracion/dominio', pathMatch: 'full' }
+      { path: 'dominio', redirectTo: 'administracion/dominio', pathMatch: 'full' },
+      // ─── Gestión Documental shortcuts ─────────────────────────────────────
+      { path: 'cuentas-email', redirectTo: 'administracion/cuentas-email', pathMatch: 'full' },
+      { path: 'asistente',    redirectTo: 'administracion/asistente',    pathMatch: 'full' },
+      { path: 'gestion-correos-electronicos', redirectTo: 'gestion-documental/gestion-correos-electronicos', pathMatch: 'full' }
     ]
   },
   { path: '**', redirectTo: 'login' }

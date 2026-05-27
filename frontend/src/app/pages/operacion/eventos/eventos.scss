@@ -2005,3 +2005,176 @@ html.dark-mode {
     color: rgba(255,255,255,.35);
   }
 }
+
+// ══════════════════════════════════════════════════════════════════════════════
+//  §6.17 Asistente Inteligente — panel colapsable en el detalle del evento
+// ══════════════════════════════════════════════════════════════════════════════
+
+.ev-asistente {
+  border-top: 1px solid #e0e7ef;
+
+  &.is-open {
+    background: #f8faff;
+  }
+}
+
+.ev-asistente__toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #2563eb;
+  text-align: left;
+  gap: 0.5rem;
+  transition: background 0.15s;
+
+  &:hover { background: #eff6ff; }
+
+  i:first-child { margin-right: 0.35rem; }
+}
+
+.ev-asistente__chevron {
+  font-size: 0.7rem;
+  color: #6b7280;
+  flex-shrink: 0;
+}
+
+.ev-asistente__body {
+  padding: 10px 14px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  animation: fadeInDown 0.15s ease;
+}
+
+@keyframes fadeInDown {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0);    }
+}
+
+.ev-asistente__cat-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.ev-asistente__cat-sel {
+  max-width: 340px;
+}
+
+.ev-asistente__spin {
+  font-size: 0.8rem;
+  color: #6b7280;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.ev-asistente__empty {
+  font-size: 0.8rem;
+  color: #6b7280;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-style: italic;
+}
+
+.ev-asistente__list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.ev-asistente__item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  padding: 0.6rem 0.8rem;
+  border: 1px solid #dbeafe;
+  border-left: 3px solid #3b82f6;
+  border-radius: 6px;
+  background: #fff;
+  counter-increment: asistente-counter;
+}
+
+.ev-asistente__q {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #1e3a8a;
+  line-height: 1.35;
+}
+
+.ev-asistente__oblig {
+  color: #ef4444;
+  font-size: 0.75rem;
+  margin-left: 2px;
+  vertical-align: super;
+}
+
+.ev-asistente__hint {
+  font-size: 0.72rem;
+  color: #6b7280;
+  font-style: italic;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.ev-asistente__resp {
+  display: flex;
+  gap: 1.2rem;
+  margin-top: 0.2rem;
+
+  label {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: #374151;
+    cursor: pointer;
+  }
+
+  input[type="radio"] { accent-color: #3b82f6; cursor: pointer; }
+}
+
+.ev-asistente__input-sm {
+  max-width: 240px;
+  font-size: 0.8rem !important;
+  padding: 4px 8px !important;
+  height: auto !important;
+  margin-top: 0.2rem;
+}
+
+// Dark mode
+@media (prefers-color-scheme: dark) {
+  .ev-asistente {
+    border-color: #334155;
+    &.is-open { background: #0f172a; }
+  }
+
+  .ev-asistente__toggle {
+    color: #93c5fd;
+    &:hover { background: #1e3a5f; }
+  }
+
+  .ev-asistente__item {
+    background: #1e293b;
+    border-color: #334155;
+    border-left-color: #3b82f6;
+  }
+
+  .ev-asistente__q   { color: #bfdbfe; }
+  .ev-asistente__hint { color: #94a3b8; }
+
+  .ev-asistente__resp label { color: #cbd5e1; }
+}

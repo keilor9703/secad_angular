@@ -71,12 +71,14 @@
           <span class="ev-live-dot"></span>
           En vivo · c/15s
         </span>
-        <button class="ui-btn sm ghost ev-head-btn" type="button"
-                title="Cambiar canal de despacho"
-                (click)="cambiarCanal()">
-          <i class="fa-solid fa-shuffle"></i>
-          Canal
-        </button>
+        @if (esAdmin) {
+          <button class="ui-btn sm ghost ev-head-btn" type="button"
+                  title="Cambiar canal de despacho"
+                  (click)="cambiarCanal()">
+            <i class="fa-solid fa-shuffle"></i>
+            Canal
+          </button>
+        }
         <button class="ui-btn sm ghost ev-head-btn" type="button"
                 [disabled]="cargando"
                 (click)="recargarAhora()">
@@ -881,6 +883,110 @@
                   }
                 </div>
               </div><!-- /DESPACHO ACTIVO -->
+
+              <!-- ── §6.17 ASISTENTE INTELIGENTE ──────────────────────────── -->
+              <div class="ev-section ev-asistente" [class.is-open]="asistenteAbierto">
+                <button class="ev-section__head ev-asistente__toggle"
+                        type="button"
+                        (click)="toggleAsistente()">
+                  <span>
+                    <i class="fa-solid fa-robot"></i>
+                    Asistente — Preguntas orientadoras
+                  </span>
+                  <i class="fa-solid ev-asistente__chevron"
+                     [class.fa-chevron-down]="!asistenteAbierto"
+                     [class.fa-chevron-up]="asistenteAbierto"></i>
+                </button>
+
+                @if (asistenteAbierto) {
+                  <div class="ev-asistente__body">
+
+                    <!-- Selector de categoría -->
+                    <div class="ev-asistente__cat-row">
+                      <label class="ui-label">Tipo de incidente</label>
+                      @if (asistenteLoadingCat) {
+                        <span class="ev-asistente__spin">
+                          <i class="fa-solid fa-spinner fa-spin"></i> Cargando…
+                        </span>
+                      } @else {
+                        <select class="ui-control ev-asistente__cat-sel"
+                                [(ngModel)]="asistenteCategoriaSel"
+                                (change)="onAsistenteCategoriaChange(asistenteCategoriaSel)">
+                          <option value="">— Seleccione una categoría —</option>
+                          @for (cat of asistenteCategorias; track cat.id) {
+                            <option [value]="cat.id">
+                              {{ cat.descripcion }}
+                              @if (cat.totalPreguntas) {
+                                ({{ cat.totalPreguntas }})
+                              }
+                            </option>
+                          }
+                        </select>
+                      }
+                    </div>
+
+                    <!-- Lista de preguntas -->
+                    @if (asistenteLoadingPreg) {
+                      <div class="ev-asistente__spin">
+                        <i class="fa-solid fa-spinner fa-spin"></i> Cargando preguntas…
+                      </div>
+                    }
+
+                    @if (!asistenteLoadingPreg && asistenteCategoriaSel && asistentePreguntas.length === 0) {
+                      <p class="ev-asistente__empty">
+                        <i class="fa-solid fa-circle-info"></i>
+                        Sin preguntas configuradas para esta categoría.
+                      </p>
+                    }
+
+                    @if (asistentePreguntas.length > 0) {
+                      <ol class="ev-asistente__list">
+                        @for (preg of asistentePreguntas; track preg.id; let i = $index) {
+                          <li class="ev-asistente__item">
+                            <span class="ev-asistente__q">
+                              {{ preg.pregunta }}
+                              @if (preg.obligatoria) {
+                                <span class="ev-asistente__oblig" title="Obligatoria">*</span>
+                              }
+                            </span>
+
+                            @if (preg.ayuda) {
+                              <span class="ev-asistente__hint">
+                                <i class="fa-solid fa-circle-info"></i> {{ preg.ayuda }}
+                              </span>
+                            }
+
+                            <!-- Área de respuesta visual (no persistida) -->
+                            @if (preg.tipoRespuesta === 'SINO') {
+                              <div class="ev-asistente__resp">
+                                <label><input type="radio" name="asr_{{ preg.id }}" value="si"> Sí</label>
+                                <label><input type="radio" name="asr_{{ preg.id }}" value="no"> No</label>
+                              </div>
+                            }
+                            @if (preg.tipoRespuesta === 'NUMERO') {
+                              <input type="number" class="ui-control ev-asistente__input-sm"
+                                     placeholder="0" min="0">
+                            }
+                            @if (preg.tipoRespuesta === 'TEXTO') {
+                              <input type="text" class="ui-control ev-asistente__input-sm"
+                                     placeholder="Respuesta…">
+                            }
+                            @if (preg.tipoRespuesta === 'SELECCION' && preg.opciones) {
+                              <select class="ui-control ev-asistente__input-sm">
+                                <option value="">Seleccione…</option>
+                                @for (op of asisParseOpc(preg.opciones); track op) {
+                                  <option [value]="op">{{ op }}</option>
+                                }
+                              </select>
+                            }
+                          </li>
+                        }
+                      </ol>
+                    }
+
+                  </div>
+                }
+              </div><!-- /ASISTENTE -->
 
               <!-- ANOTACIONES -->
               <div class="ev-section">

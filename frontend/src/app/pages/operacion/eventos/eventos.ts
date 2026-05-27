@@ -15,6 +15,12 @@ import { EventoService, DtoEventoListItem, DtoCanalItem, DtoSlaConfig, DtoEvento
 import { DtoAnotacionRequest, DtoPedidoDetalle, DtoAnotacion } from '../../../core/services/operacion/pedido.service';
 import { AuthService } from '../../../core/auth/auth.service';
 import {
+  AsistenteService,
+  AsistenteCategoria,
+  AsistentePregunta,
+  parsearOpciones
+} from '../../../core/services/operacion/asistente.service';
+import {
   TurnosService,
   DtoMedioDisponibleResumen,
   DtoCambiarEstadoMedioRequest,
@@ -53,12 +59,15 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
   private turnosSvc     = inject(TurnosService);
   private actuacionSvc  = inject(ActuacionesService);
   private authSvc       = inject(AuthService);
+  private asistenteSvc  = inject(AsistenteService);
   private cdr           = inject(ChangeDetectorRef);
 
   // ─── JWT claims ──────────────────────────────────────────────────────────────
   canalId    = 0;
   fuerzaId   = 0;
   sitioGraba = 0;
+  /** true si el usuario tiene rol Superadmin (id_rol=1) o está en SuperUserIds. */
+  esAdmin    = false;
 
   // ─── Canal selector ──────────────────────────────────────────────────────────
   canalesDisponibles: DtoCanalItem[] = [];
@@ -205,6 +214,18 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
 
   readonly ESTADO_ACT = ESTADO_ACTUACION;
 
+  // ─── §6.17 Asistente Inteligente ─────────────────────────────────────────────
+  /** Panel colapsable visible en el detalle del evento. */
+  asistenteAbierto      = false;
+  asistenteCategorias:  AsistenteCategoria[]   = [];
+  asistenteLoadingCat   = false;
+  /** ID de la categoría seleccionada por el despachador. */
+  asistenteCategoriaSel = '';
+  asistentePreguntas:   AsistentePregunta[]    = [];
+  asistenteLoadingPreg  = false;
+  /** Expone parsearOpciones al template. */
+  readonly asisParseOpc = parsearOpciones;
+
   // ─── Subscriptions ───────────────────────────────────────────────────────────
   private subs = new Subscription();
 
@@ -226,6 +247,7 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
     this.fuerzaId   = claims.fuerzaId;
     this.sitioGraba = claims.sitioGraba;
     this.canalId    = claims.canalId;
+    this.esAdmin    = claims.esAdmin;
 
     // Priority: JWT claim > sessionStorage > 0
     if (this.canalId > 0) {
@@ -379,6 +401,10 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
     // Persist so the selector doesn't reappear on the next navigation within this session
     sessionStorage.setItem(this.CANAL_KEY, String(codigo));
     this.actualizarNombreCanal();
+    // Cerrar cualquier evento abierto: el detalle pertenece al canal anterior.
+    // volverLista() detiene el polling de recursos y actuaciones, destruye el
+    // mapa y limpia todo el estado del panel de detalle.
+    this.volverLista();
     this.recargarAhora();
   }
 
@@ -470,6 +496,7 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
     this.destroyMapaDetalle();
     this.detenerPollingRecursos();
     this.detenerPollingActuaciones();  // detener polling del evento anterior AHORA
+    this.resetAsistente();
 
     this.eventoSvc.getById(evento.id).subscribe({
       next: (d) => {
@@ -494,6 +521,7 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
     this.detalle            = null;
     this.eventoSeleccionado = null;
     this.actuaciones        = [];
+    this.resetAsistente();
   }
 
   // ─── Estado change ────────────────────────────────────────────────────────────
@@ -1485,6 +1513,51 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
       this.mapaDetalle     = null;
       this.mapaInicializado = false;
     }
+  }
+
+  // ─── §6.17 Asistente Inteligente ─────────────────────────────────────────────
+
+  /** Abre/cierra el panel del asistente. Carga las categorías la primera vez. */
+  toggleAsistente(): void {
+    this.asistenteAbierto = !this.asistenteAbierto;
+    if (this.asistenteAbierto && this.asistenteCategorias.length === 0) {
+      this.cargarAsistenteCategorias();
+    }
+  }
+
+  private cargarAsistenteCategorias(): void {
+    this.asistenteLoadingCat = true;
+    this.asistenteSvc.getCategorias(true).subscribe({
+      next: (r) => {
+        this.asistenteCategorias = r.data ?? [];
+        this.asistenteLoadingCat = false;
+      },
+      error: () => { this.asistenteLoadingCat = false; }
+    });
+  }
+
+  /** Se llama cuando el despachador cambia de categoría. */
+  onAsistenteCategoriaChange(categoriaId: string): void {
+    this.asistenteCategoriaSel = categoriaId;
+    this.asistentePreguntas    = [];
+    if (!categoriaId) return;
+
+    this.asistenteLoadingPreg = true;
+    this.asistenteSvc.getPreguntas(categoriaId, true).subscribe({
+      next: (r) => {
+        this.asistentePreguntas    = r.data ?? [];
+        this.asistenteLoadingPreg  = false;
+      },
+      error: () => { this.asistenteLoadingPreg = false; }
+    });
+  }
+
+  /** Reinicia el estado del asistente (llamado en volverLista y abrirDetalle). */
+  private resetAsistente(): void {
+    this.asistenteAbierto      = false;
+    this.asistenteCategorias   = [];
+    this.asistenteCategoriaSel = '';
+    this.asistentePreguntas    = [];
   }
 
   // ─── Utility ──────────────────────────────────────────────────────────────────

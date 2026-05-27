@@ -2,13 +2,16 @@ using Api.Converters;
 using Api.Middleware;
 using Comun.Snowflake;
 using Datos.Gestion;
+using Datos.Gestion.GestionDocumental;
 using Datos.Interfaz;
+using Datos.Interfaz.GestionDocumental;
 using Datos.Tenant;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Negocio.Gestion;
+using Negocio.Gestion.GestionDocumental;
 using Negocio.Interfaz;
 using Npgsql;
 using Servicios.Api;
@@ -123,6 +126,17 @@ builder.Services.AddScoped<IDbTurnoService, DbTurnoService>();
 
 // Business services
 builder.Services.AddScoped<IJwtService, JwtService>();
+
+// Módulo de Correos / Gestión Documental
+builder.Services.AddScoped<IDbCuentaEmailRepository, DbCuentaEmailRepository>();
+builder.Services.AddScoped<IDbGestionCorreosRepository, DbGestionCorreosRepository>();
+builder.Services.AddScoped<IEmailService, EmailService>();
+
+// Módulo §6.15 — Bitácora de Turno (Anotaciones Generales)
+builder.Services.AddScoped<IDbAnotacionTurnoRepository, DbAnotacionTurnoRepository>();
+
+// Módulo §6.17 — Asistente Inteligente (preguntas orientadoras por tipo de incidente)
+builder.Services.AddScoped<IDbAsistenteRepository, DbAsistenteRepository>();
 
 // Swagger
 builder.Services.AddEndpointsApiExplorer();
