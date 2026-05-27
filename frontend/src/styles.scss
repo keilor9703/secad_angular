@@ -3,14 +3,6 @@
    ========================================== */
 @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800;900&display=swap');
 
-@font-face {
-  font-family: 'Poppins';
-  font-style: normal;
-  font-weight: 300 700;
-  src: local('Poppins');
-}
-
-
 :root {
   /* --- Paleta Institucional --- */
   --policia-oscuro: #151b3b;
@@ -105,7 +97,12 @@ html.dark-mode {
 
   .meta {
   color: var(--ui-text);
-  }  
+  } 
+  
+  .btn-ver-todas {
+    background: var(--policia-cielo);
+    color: #0a0f1b;
+  }
 
   
 
@@ -127,12 +124,13 @@ html.dark-mode {
     background: rgba(30, 40, 64, 0.8);
     border-color: var(--ui-border);
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    
   }
 
   /* Componentes UI Panel */
   .ui-panel {
     background: var(--ui-surface);
-    border-color: var(--ui-border);
+    border-color: var(--policia-acento);
   }
 
   .ui-panel__head {
@@ -232,7 +230,6 @@ html.dark-mode {
       background: #252f45;
       color: var(--ui-text);
       border-color: var(--ui-border);
-
       &:hover {
         background: #2a3450;
       }
@@ -245,7 +242,7 @@ html.dark-mode {
 
     &.ui-btn--primary {
       background: var(--policia-cielo);
-      color: #0a0f1b;
+  
 
       &:hover {
         background: #06849b;
@@ -269,13 +266,13 @@ html.dark-mode {
   }
 
   /* Tablas */
-  .ui-table-wrap {
-    color: var(--ui-text);
+  .ui-table-wrap {     
+    border: 1px solid var(--policia-acento);
   }
 
   .ui-table {
     background: var(--ui-surface);
-    border-color: var(--ui-border);
+    border-color: var(--policia-acento);
 
     th {
       background: #252f45;
@@ -547,11 +544,14 @@ html.dark-mode {
   }
 
   .news-card,
-  .news-date,
+  .news-date {
+    background: var(--policia-oscuro);
+    color: var(--ui-text);
+  }
+
   .news-title,
   .news-lead,
   .news-link {
-    background: var(--policia-oscuro);
     color: var(--ui-text);
   }
 
@@ -673,9 +673,42 @@ html.dark-mode {
     color: #0a0f1b;
   }
 
-  
+  /* Clases globales sin override de color en modo oscuro */
+  .cmd-title {
+    color: var(--ui-text);
+  }
 
+  .ui-acc[open] .ui-acc__summary {
+    color: var(--ui-text);
+  }
 
+  /* Form Controls */
+  .ui-control {
+    background: #1e2840 !important;
+    color: var(--ui-text) !important;
+    border-color: var(--ui-border) !important;
+
+    &::placeholder { color: var(--ui-muted); }
+    &:hover { border-color: rgba(200, 200, 200, 0.2) !important; }
+    &:focus { border-color: rgba(8, 166, 203, .75) !important; }
+  }
+
+  select.ui-control {
+    background-image:
+      linear-gradient(45deg, transparent 50%, rgba(200, 200, 200, 0.55) 50%),
+      linear-gradient(135deg, rgba(200, 200, 200, 0.55) 50%, transparent 50%);
+  }
+
+  .ui-input-group {
+    background: #1e2840;
+    border-color: var(--ui-border);
+  }
+
+  .table-pagination {
+    background: var(--ui-surface);
+    border-color: var(--ui-border);
+    color: var(--ui-text);
+    }
 
   
 }
@@ -1067,7 +1100,9 @@ textarea.ui-control {
 .ui-table-wrap {
   border: 1px solid rgba(21, 27, 59, .14);
   border-radius: var(--ui-radius);
-  overflow: hidden;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
   background: #fff;
 }
 
@@ -1109,7 +1144,7 @@ textarea.ui-control {
 
 .ui-badge.success { background: rgba(34, 197, 94, .14); color: #166534; }
 .ui-badge.warning { background: rgba(245, 158, 11, .16); color: #92400e; }
-.ui-badge.info { background: rgba(8, 166, 203, .16); color: var(--policia-medio); }
+.ui-badge.info { background: rgba(255, 255, 255, 0.16); color: #ffffff; }
 
 /* Mini buttons */
 .ui-mini-btn.danger {
@@ -1733,4 +1768,88 @@ body.ui-modal-open .content {
     transition: all var(--transition-speed) ease;
     margin: auto;
     padding: 0 30px 0 30px;
+}
+
+/* Utilitarios globales compartidos */
+.list-loading {
+  font-size: calc(13px * var(--font-size-scale));
+  color: rgba(83, 86, 90, .95);
+}
+
+.table-wrap {
+  width: 100%;
+  overflow-x: auto;
+}
+
+/* Patrones compartidos en módulos de administración */
+.video-admin-page,
+.menu-admin-page,
+.sliders-page,
+.user-admin-page {
+  padding: 10px;
+  min-height: calc(100vh - 210px);
+}
+
+.video-grid,
+.login-visual-grid,
+.menu-grid,
+.sliders-grid {
+  display: grid;
+  grid-template-columns: 40% 60%;
+  gap: 12px;
+}
+
+.tab-card h3 {
+  margin: 0 0 12px;
+  color: var(--policia-oscuro);
+  font-size: calc(16px * var(--font-size-scale));
+  font-weight: 900;
+}
+
+/* ==========================================
+   RESPONSIVE GLOBAL — TABLET & MOBILE
+   ========================================== */
+
+/* Tablet (portrait) — 768px */
+@media (max-width: 768px) {
+  .video-grid,
+  .login-visual-grid,
+  .menu-grid,
+  .sliders-grid {
+    grid-template-columns: 1fr;
+  }
+
+  section.home-view {
+    padding: 20px;
+  }
+
+  .content-area {
+    padding: 0 16px;
+  }
+}
+
+/* Mobile — 480px */
+@media (max-width: 480px) {
+  .content-area {
+    padding: 0 8px;
+  }
+
+  section.home-view {
+    padding: 12px;
+  }
+
+  /* Ensure all admin pages have proper padding */
+  .video-admin-page,
+  .menu-admin-page,
+  .sliders-page,
+  .user-admin-page {
+    padding: 6px;
+  }
+
+  /* 12-col grid collapses on small phones */
+  .ui-col-3,
+  .ui-col-4,
+  .ui-col-6 {
+    grid-column: span 12;
+  }
 }

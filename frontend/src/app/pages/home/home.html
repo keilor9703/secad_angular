@@ -1,12 +1,9 @@
 <main class="content-area">
   <section class="view-container">
-    <!-- Banner Slider -->
+    <!-- Banner  Slider -->
     <div class="slider-wrapper">
       <div class="main-slider">
-        <div
-          class="slide-item"
-          *ngFor="let banner of banners; let i = index"
-          [class.active]="i === currentBannerIndex">
+        <div class="slide-item" *ngFor="let banner of banners; let i = index" [class.active]="i === currentBannerIndex">
           <div class="slide-bg" [style.background-image]="'url(' + getBannerImageUrl(banner) + ')'"></div>
           <div class="slide-overlay"></div>
           <div class="slide-content">
@@ -20,12 +17,8 @@
         </div>
 
         <div class="slider-controls">
-          <button
-            type="button"
-            *ngFor="let _ of banners; let i = index"
-            [class.active]="i === currentBannerIndex"
-            (click)="goToBanner(i)"
-            [attr.aria-label]="'Cambiar a banner ' + (i + 1)"></button>
+          <button type="button" *ngFor="let _ of banners; let i = index" [class.active]="i === currentBannerIndex"
+            (click)="goToBanner(i)" [attr.aria-label]="'Cambiar a banner ' + (i + 1)"></button>
         </div>
       </div>
     </div>
@@ -88,14 +81,10 @@
             </h3>
             <hr />
             <div class="video-box">
-              <iframe
-                *ngIf="videoInstitucionalUrl; else noVideoInstTpl"
-                [src]="videoInstitucionalUrl | safeUrl"
-                class="video-frame"
-                frameborder="0"
+              <iframe *ngIf="videoInstitucionalUrl; else noVideoInstTpl" [src]="videoInstitucionalUrl | safeUrl"
+                class="video-frame" frameborder="0"
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowfullscreen
-                sandbox="allow-scripts allow-same-origin allow-popups allow-forms">
+                allowfullscreen sandbox="allow-scripts allow-same-origin allow-popups allow-forms">
               </iframe>
               <ng-template #noVideoInstTpl>
                 <div class="video-placeholder small">
@@ -113,13 +102,8 @@
             </h3>
             <hr />
             <div class="social-hub">
-              <a 
-                *ngFor="let social of socialLinks"
-                [href]="social.url"
-                target="_blank"
-                rel="noopener noreferrer"
-                class="social-btn"
-                [style.--social-color]="social.color">
+              <a *ngFor="let social of socialLinks" [href]="social.url" target="_blank" rel="noopener noreferrer"
+                class="social-btn" [style.--social-color]="social.color">
                 <i [class]="'fa-brands ' + social.icon"></i>
                 <span>{{ social.name }}</span>
               </a>
@@ -153,13 +137,8 @@
                 <h4 class="news-title">{{ item.title }}</h4>
                 <p class="news-lead">{{ item.lead }}</p>
                 <div class="news-footer">
-                  <button 
-                    class="news-like" 
-                    type="button" 
-                    (click)="likeNoticia(item, $event)"
-                    [disabled]="hasLiked(item.id)"
-                    title="Me gusta"
-                  >
+                  <button class="news-like" type="button" (click)="likeNoticia(item, $event)"
+                    [disabled]="hasLiked(item.id)" title="Me gusta">
                     <i class="fa-solid fa-heart" [class.liked]="hasLiked(item.id)"></i> {{ item.megusta }}
                   </button>
                   <span class="news-link">Leer más <i class="fa-solid fa-arrow-right"></i></span>
@@ -267,10 +246,7 @@
         <div class="card-body">
           <div class="cmd-row" *ngIf="lineaMando.length > 0; else emptyLineaMandoTpl">
             <article class="cmd-item" *ngFor="let item of lineaMando">
-              <button
-                class="cmd-photo-btn"
-                type="button"
-                (click)="openLineaMandoLightbox(item)"
+              <button class="cmd-photo-btn" type="button" (click)="openLineaMandoLightbox(item)"
                 [attr.aria-label]="'Ampliar foto de ' + getLineaMandoNombre(item)">
                 <img class="cmd-photo-lg" [src]="getLineaMandoFotoUrl(item)" [alt]="getLineaMandoNombre(item)" />
               </button>
@@ -290,7 +266,8 @@
 
 <!-- News Modal -->
 <div class="ui-modal" *ngIf="newsModalOpen" (click)="closeNews()">
-  <div class="ui-modal__dialog ui-modal__dialog--news" (click)="$event.stopPropagation()" role="dialog" aria-modal="true">
+  <div class="ui-modal__dialog ui-modal__dialog--news" (click)="$event.stopPropagation()" role="dialog"
+    aria-modal="true">
     <div class="ui-modal__head">
       <div class="ui-modal__title">
         <i class="fa-solid fa-newspaper"></i>
@@ -320,7 +297,8 @@
 
 <!-- Linea Mando Lightbox -->
 <div class="ui-modal" *ngIf="lineaMandoLightboxOpen" (click)="closeLineaMandoLightbox()">
-  <div class="ui-modal__dialog ui-modal__dialog--lightbox" (click)="$event.stopPropagation()" role="dialog" aria-modal="true">
+  <div class="ui-modal__dialog ui-modal__dialog--lightbox" (click)="$event.stopPropagation()" role="dialog"
+    aria-modal="true">
     <div class="ui-modal__head">
       <div class="ui-modal__title">
         <i class="fa-solid fa-image"></i>

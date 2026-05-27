@@ -9,6 +9,9 @@ using Negocio.Gestion;
 using Negocio.Interfaz;
 using Servicios.Api;
 using Servicios.ApiInterfaz;
+using Datos.Interfaz.GestionDocumental;
+using Datos.Gestion.GestionDocumental;
+using Negocio.Gestion.GestionDocumental;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -134,9 +137,30 @@ builder.Services.AddScoped<IDbDominioRepository, DbDominioRepository>();
 builder.Services.AddScoped<IDbVideoService, DbVideoService>();
 builder.Services.AddScoped<IDbVideoRepository, DbVideoRepository>();
 
+// Dependencias del Modulo de Correos
+builder.Services.AddScoped<IDbCuentaEmailRepository, DbCuentaEmailRepository>();
+builder.Services.AddScoped<IDbGestionCorreosRepository, DbGestionCorreosRepository>();
+builder.Services.AddScoped<IEmailService, EmailService>();
+
 var app = builder.Build();
 
+var configuredUploadsBase = app.Configuration["AppSettings:UploadsPath"];
+var uploadsBase = string.IsNullOrWhiteSpace(configuredUploadsBase)
+    ? Path.Combine(app.Environment.ContentRootPath, "uploads")
+    : (Path.IsPathRooted(configuredUploadsBase)
+        ? configuredUploadsBase
+        : Path.GetFullPath(Path.Combine(app.Environment.ContentRootPath, configuredUploadsBase)));
+
+var emailHeadersRoot = Path.Combine(uploadsBase, "email-headers");
+Directory.CreateDirectory(emailHeadersRoot);
+
 app.UseCors("DevCors");
+
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new PhysicalFileProvider(emailHeadersRoot),
+    RequestPath = "/uploads/email-headers"
+});
 
 if (app.Environment.IsDevelopment())
 {

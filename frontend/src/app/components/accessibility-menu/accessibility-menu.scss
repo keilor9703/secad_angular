@@ -2,6 +2,7 @@
   --accessibility-btn-size: 30px;
   --accessibility-icon-size: 20px;
   --accessibility-gap: 12px;
+  --accessibility-menu-top: calc(40% - 126px);
   --accessibility-color: #08a6cb;
   --accessibility-hover-color: #1c45b4;
   --accessibility-active-color: #cdff00;
@@ -22,8 +23,7 @@
 .accessibility-menu {
   position: fixed;
   right: 0px;
-  top: 65%;
-  transform: translateY(-50%);
+  top: var(--accessibility-menu-top);
   display: flex;
   flex-direction: column;
   gap: var(--accessibility-gap);
@@ -38,6 +38,166 @@
     right: 10px;
     padding: 6px;
   }
+}
+
+.social-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--accessibility-gap);
+  margin-top: 2px;
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  pointer-events: none;
+  transform: translateY(-10px);
+  transform-origin: top center;
+  transition: max-height 0.35s ease, opacity 0.25s ease, transform 0.35s ease;
+}
+
+.social-list--expanded {
+  max-height: 100%;
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
+}
+
+.social-network-btn {
+  background: var(--social-color, #08a6cb);
+  color: #fff;
+}
+
+.social-network-btn:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+.social-toggle-btn {
+  margin-top: 2px;
+}
+
+.social-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(8, 15, 26, 0.36);
+  backdrop-filter: blur(4px);
+  z-index: 1398;
+}
+
+.social-drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: min(92vw, 420px);
+  height: 100vh;
+  background: var(--ui-surface);
+  border-left: 1px solid var(--ui-border);
+  box-shadow: -12px 0 34px rgba(0, 0, 0, 0.28);
+  z-index: 1399;
+  display: flex;
+  flex-direction: column;
+  animation: drawerIn 220ms ease;
+}
+
+@keyframes drawerIn {
+  from { transform: translateX(100%); opacity: 0.8; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+.social-drawer__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--ui-border);
+  background: var(--ui-surface);
+}
+
+.social-drawer__title {
+  font-weight: 700;
+  color: var(--ui-text);
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.social-drawer__close {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 0;
+  background: var(--ui-border);
+  color: var(--ui-text);
+  cursor: pointer;
+}
+
+.social-drawer__body {
+  padding: 14px;
+  overflow: auto;
+  display: grid;
+  gap: 10px;
+}
+
+.social-account {
+  background: var(--ui-surface);
+  border: 1px solid var(--ui-border);
+  border-radius: 14px;
+  padding: 10px;
+  display: grid;
+  grid-template-columns: 44px 1fr;
+  gap: 10px;
+}
+
+.social-account__avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-info-bg);
+  color: var(--ui-text);
+  font-weight: 700;
+}
+
+.social-account__name-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.social-account__meta strong {
+  color: var(--ui-text);
+  font-size: calc(13px * var(--font-size-scale));
+}
+
+.social-account__handle {
+  color: var(--ui-muted);
+  font-size: calc(12px * var(--font-size-scale));
+  margin: 2px 0 6px;
+}
+
+.social-account__meta a {
+  color: var(--color-info-text);
+  font-size: calc(12px * var(--font-size-scale));
+  text-decoration: none;
+}
+
+.social-account__meta a:hover {
+  text-decoration: underline;
+}
+
+.social-account__badge {
+  min-width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  background: #dc2626;
+  color: #fff;
+  font-size: calc(11px * var(--font-size-scale));
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 5px;
 }
 
 .accessibility-btn {
@@ -162,6 +322,11 @@
 
 .text-to-speech-btn {
   &.active {
+    background: var(--policia-acento);
+    color: var(--policia-oscuro);
+  }
+
+  &.speaking {
     background: var(--policia-acento);
     color: var(--policia-oscuro);
     animation: soundPulse 1.5s infinite;
