@@ -2,29 +2,39 @@
 //  §6.17 Asistente Inteligente — Admin
 // ════════════════════════════════════════════════════════════════════════════
 
+// ── Variables locales ─────────────────────────────────────────────────────────
+$cat-active-color : #2563eb;
+$cat-active-bg    : #eff6ff;
+$border-color     : rgba(21, 27, 59, .12);
+$text-main        : rgba(21, 27, 59, .9);
+$text-secondary   : rgba(83, 86, 90, .85);
+$radius           : 10px;
+$radius-sm        : 7px;
+
+// ── Host ─────────────────────────────────────────────────────────────────────
+
 .asistente-admin-page {
   display: block;
 }
 
-// ── Spinner de carga inicial ─────────────────────────────────────────────────
+// ── Spinner de carga ─────────────────────────────────────────────────────────
 
 .asis-loading {
   display: flex;
   align-items: center;
   gap: 0.5rem;
   padding: 1.5rem;
-  color: var(--ui-text-secondary, #6b7280);
-  font-size: 0.9rem;
+  color: $text-secondary;
+  font-size: 0.875rem;
 }
 
 // ── Grid principal (dos columnas) ─────────────────────────────────────────────
 
 .asis-grid {
   display: grid;
-  grid-template-columns: 320px 1fr;
+  grid-template-columns: 340px 1fr;
   gap: 1rem;
   align-items: start;
-  min-height: 0;
 }
 
 // ── Columnas ──────────────────────────────────────────────────────────────────
@@ -32,28 +42,173 @@
 .asis-col {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 0.75rem;
 }
 
-// ── Formularios ───────────────────────────────────────────────────────────────
+// ── Tarjeta base (reemplaza tab-card/form-card) ───────────────────────────────
 
-.form-title {
-  font-size: 0.95rem;
-  font-weight: 600;
-  color: var(--ui-text, #1a202c);
-  margin-bottom: 0.75rem;
+.asis-card {
+  border: 1px solid $border-color;
+  border-radius: $radius;
+  background: #fff;
+  overflow: hidden;
+  box-shadow: 0 1px 4px rgba(21, 27, 59, .06);
+}
+
+.asis-card__head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.65rem 1rem;
+  background: rgba(21, 27, 59, .03);
+  border-bottom: 1px solid $border-color;
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: $text-main;
+
+  i { color: $cat-active-color; font-size: 0.8rem; }
+}
+
+.asis-card__body {
+  padding: 1rem;
+}
+
+// ── Etiqueta de sección ───────────────────────────────────────────────────────
+
+.asis-section-label {
   display: flex;
   align-items: center;
   gap: 0.4rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: $text-secondary;
+  padding: 0 0.25rem;
+
+  i { font-size: 0.72rem; }
 }
 
-.form-actions {
+.asis-count-badge {
+  margin-left: auto;
+  background: #e0e7ff;
+  color: #3730a3;
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 0.1rem 0.45rem;
+  border-radius: 20px;
+}
+
+// ── Ícono preview inline ──────────────────────────────────────────────────────
+
+.asis-icon-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+
+  .ui-control { flex: 1; }
+}
+
+.asis-icon-preview {
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: $radius-sm;
+  background: $cat-active-bg;
+  color: $cat-active-color;
+  border: 1px solid #bfdbfe;
+  font-size: 1rem;
+}
+
+// ── Checkboxes custom ─────────────────────────────────────────────────────────
+
+.asis-field-check {
+  justify-content: flex-end;
+}
+
+.asis-checks-row {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  padding: 0.25rem 0;
+}
+
+.asis-check-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: $text-main;
+  user-select: none;
+
+  input[type="checkbox"] {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  &:hover .asis-check-box {
+    border-color: $cat-active-color;
+  }
+}
+
+.asis-check-box {
+  width: 17px;
+  height: 17px;
+  border-radius: 5px;
+  border: 1.5px solid rgba(21, 27, 59, .28);
+  background: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background .15s, border-color .15s;
+
+  .asis-check-label input:checked + & {
+    background: $cat-active-color;
+    border-color: $cat-active-color;
+
+    &::after {
+      content: '';
+      width: 9px;
+      height: 5px;
+      border-left: 2px solid #fff;
+      border-bottom: 2px solid #fff;
+      transform: rotate(-45deg) translateY(-1px);
+      display: block;
+    }
+  }
+}
+
+// ── Hints y textos auxiliares ─────────────────────────────────────────────────
+
+.asis-hint-field {
+  font-size: 0.7rem;
+  color: $text-secondary;
+  margin-top: 0.1rem;
+  display: block;
+}
+
+.asis-required {
+  color: #ef4444;
+  font-size: 0.8rem;
+  margin-left: 1px;
+}
+
+// ── Acciones del formulario ───────────────────────────────────────────────────
+
+.asis-form-actions {
   display: flex;
   justify-content: flex-end;
   gap: 0.5rem;
-  margin-top: 0.75rem;
+  margin-top: 0.85rem;
   padding-top: 0.75rem;
-  border-top: 1px solid var(--ui-border, #e2e8f0);
+  border-top: 1px solid $border-color;
 }
 
 // ── Lista de categorías ───────────────────────────────────────────────────────
@@ -61,52 +216,54 @@
 .asis-cat-list {
   display: flex;
   flex-direction: column;
-  gap: 0.4rem;
+  gap: 0.35rem;
 }
 
 .asis-cat-item {
   display: flex;
   align-items: center;
-  gap: 0.7rem;
+  gap: 0.65rem;
   padding: 0.7rem 0.85rem;
-  border: 1px solid var(--ui-border, #e2e8f0);
-  border-radius: 10px;
+  border: 1px solid $border-color;
+  border-radius: $radius;
   background: #fff;
   cursor: pointer;
   text-align: left;
-  transition: background 0.15s, border-color 0.15s, transform 0.1s;
+  transition: background .15s, border-color .15s, transform .1s, box-shadow .15s;
+  width: 100%;
 
   &:hover {
     background: #f7faff;
     border-color: #93c5fd;
-    transform: translateX(2px);
+    transform: translateX(3px);
+    box-shadow: 0 2px 8px rgba(37, 99, 235, .1);
   }
 
   &.is-active {
     background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
-    border-color: #3b82f6;
-    border-left: 3px solid #3b82f6;
+    border-color: $cat-active-color;
+    border-left: 3px solid $cat-active-color;
+    box-shadow: 0 2px 8px rgba(37, 99, 235, .15);
   }
 
-  &.is-inactive {
-    opacity: 0.6;
-  }
+  &.is-inactive { opacity: 0.6; }
 }
 
 .asis-cat-icon {
-  width: 32px;
-  height: 32px;
+  width: 34px;
+  height: 34px;
   display: flex;
   align-items: center;
   justify-content: center;
   border-radius: 8px;
-  background: #eff6ff;
-  color: #2563eb;
-  font-size: 0.95rem;
+  background: $cat-active-bg;
+  color: $cat-active-color;
+  font-size: 0.9rem;
   flex-shrink: 0;
+  transition: background .15s, color .15s;
 
   .is-active & {
-    background: #2563eb;
+    background: $cat-active-color;
     color: #fff;
   }
 }
@@ -116,13 +273,13 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.2rem;
+  gap: 0.25rem;
 }
 
 .asis-cat-name {
   font-size: 0.875rem;
-  font-weight: 600;
-  color: var(--ui-text, #1a202c);
+  font-weight: 700;
+  color: $text-main;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -131,11 +288,11 @@
 .asis-cat-meta {
   display: flex;
   align-items: center;
-  gap: 0.4rem;
+  gap: 0.35rem;
   flex-wrap: wrap;
 
   code {
-    font-size: 0.7rem;
+    font-size: 0.68rem;
     padding: 0.1rem 0.35rem;
     border-radius: 4px;
     background: #f1f5f9;
@@ -150,17 +307,29 @@
   flex-shrink: 0;
 }
 
-// ── Badges genéricos ──────────────────────────────────────────────────────────
+// ── Botón danger para icon-btn ────────────────────────────────────────────────
+
+.asis-btn-danger {
+  color: #ef4444 !important;
+  border-color: rgba(239, 68, 68, .25) !important;
+
+  &:hover {
+    background: #fef2f2 !important;
+    border-color: #ef4444 !important;
+  }
+}
+
+// ── Badges ────────────────────────────────────────────────────────────────────
 
 .asis-badge {
   display: inline-flex;
   align-items: center;
   padding: 0.1rem 0.45rem;
-  font-size: 0.68rem;
-  font-weight: 600;
+  font-size: 0.65rem;
+  font-weight: 700;
   border-radius: 20px;
   text-transform: uppercase;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.03em;
   background: #dcfce7;
   color: #166534;
 
@@ -175,29 +344,52 @@
   }
 }
 
-// ── Preguntas — cabecera de sección ───────────────────────────────────────────
+// ── Cabecera de preguntas ─────────────────────────────────────────────────────
 
 .asis-preg-header {
   display: flex;
-  flex-direction: column;
-  gap: 0.2rem;
-  padding: 0.6rem 0 0.4rem;
-  border-bottom: 2px solid #dbeafe;
-  margin-bottom: 0.5rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.85rem 1rem;
+  background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+  border: 1px solid #bfdbfe;
+  border-radius: $radius;
+  margin-bottom: 0.25rem;
+}
+
+.asis-preg-header__left {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.asis-preg-header__icon {
+  width: 38px;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9px;
+  background: $cat-active-color;
+  color: #fff;
+  font-size: 1rem;
+  flex-shrink: 0;
 }
 
 .asis-preg-title {
-  font-size: 1rem;
-  font-weight: 700;
+  display: block;
+  font-size: 0.9rem;
+  font-weight: 800;
   color: #1d4ed8;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
+  line-height: 1.2;
 }
 
-.asis-hint {
-  font-size: 0.78rem;
-  color: var(--ui-text-secondary, #6b7280);
+.asis-preg-subtitle {
+  display: block;
+  font-size: 0.73rem;
+  color: $text-secondary;
+  line-height: 1.3;
 }
 
 // ── Lista de preguntas ────────────────────────────────────────────────────────
@@ -205,21 +397,24 @@
 .asis-preg-list {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0.45rem;
 }
 
 .asis-preg-item {
   display: flex;
   align-items: flex-start;
   gap: 0.75rem;
-  padding: 0.75rem 0.9rem;
-  border: 1px solid var(--ui-border, #e2e8f0);
-  border-left: 3px solid #3b82f6;
+  padding: 0.8rem 0.9rem;
+  border: 1px solid $border-color;
+  border-left: 3px solid $cat-active-color;
   border-radius: 8px;
   background: #fff;
-  transition: background 0.15s;
+  transition: background .15s, box-shadow .15s;
 
-  &:hover { background: #f8faff; }
+  &:hover {
+    background: #f8faff;
+    box-shadow: 0 2px 6px rgba(37, 99, 235, .08);
+  }
 
   &.is-inactive {
     opacity: 0.55;
@@ -234,12 +429,12 @@
   align-items: center;
   justify-content: center;
   border-radius: 50%;
-  background: #eff6ff;
-  color: #2563eb;
-  font-size: 0.72rem;
-  font-weight: 700;
+  background: $cat-active-bg;
+  color: $cat-active-color;
+  font-size: 0.7rem;
+  font-weight: 800;
   flex-shrink: 0;
-  margin-top: 2px;
+  margin-top: 1px;
 }
 
 .asis-preg-body {
@@ -252,13 +447,13 @@
 
 .asis-preg-text {
   font-size: 0.875rem;
-  font-weight: 500;
-  color: var(--ui-text, #1a202c);
+  font-weight: 600;
+  color: $text-main;
   line-height: 1.4;
 }
 
 .asis-oblig {
-  font-size: 0.5rem;
+  font-size: 0.45rem;
   color: #ef4444;
   vertical-align: super;
   margin-left: 3px;
@@ -268,7 +463,7 @@
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 0.4rem;
+  gap: 0.35rem;
 }
 
 .asis-tipo-badge {
@@ -276,8 +471,8 @@
   align-items: center;
   gap: 0.25rem;
   padding: 0.15rem 0.5rem;
-  font-size: 0.68rem;
-  font-weight: 600;
+  font-size: 0.67rem;
+  font-weight: 700;
   border-radius: 12px;
   background: #f0fdf4;
   color: #166534;
@@ -287,7 +482,7 @@
 .asis-option-chip {
   display: inline-flex;
   padding: 0.1rem 0.4rem;
-  font-size: 0.67rem;
+  font-size: 0.66rem;
   border-radius: 10px;
   background: #f1f5f9;
   color: #475569;
@@ -295,8 +490,8 @@
 }
 
 .asis-hint-text {
-  font-size: 0.72rem;
-  color: var(--ui-text-secondary, #6b7280);
+  font-size: 0.7rem;
+  color: $text-secondary;
   font-style: italic;
   display: flex;
   align-items: center;
@@ -309,20 +504,23 @@
   flex-shrink: 0;
 }
 
-// ── Placeholder "seleccione categoría" ────────────────────────────────────────
+// ── Placeholder ───────────────────────────────────────────────────────────────
 
 .asis-placeholder {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 0.75rem;
-  padding: 3rem 1rem;
-  color: var(--ui-text-secondary, #9ca3af);
+  gap: 1rem;
+  padding: 4rem 1rem;
+  color: rgba(21, 27, 59, .3);
   text-align: center;
+  border: 2px dashed rgba(21, 27, 59, .1);
+  border-radius: $radius;
+  min-height: 240px;
 
-  i { font-size: 2.5rem; opacity: 0.4; }
-  p  { font-size: 0.9rem; }
+  i    { font-size: 3rem; }
+  p    { font-size: 0.9rem; font-weight: 500; margin: 0; }
 }
 
 // ── Estado vacío ─────────────────────────────────────────────────────────────
@@ -332,70 +530,46 @@
   align-items: center;
   gap: 0.5rem;
   padding: 1.25rem;
-  color: var(--ui-text-secondary, #9ca3af);
+  color: $text-secondary;
   font-size: 0.85rem;
-  border: 1px dashed var(--ui-border, #e2e8f0);
+  border: 1px dashed rgba(21, 27, 59, .15);
   border-radius: 8px;
+  background: rgba(21, 27, 59, .01);
 
-  i { font-size: 1.2rem; opacity: 0.5; }
-}
-
-// ── Checkboxes con label ──────────────────────────────────────────────────────
-
-.ui-label--check {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  cursor: pointer;
-  font-weight: 500;
-  margin-top: 0.25rem;
-
-  input[type="checkbox"] {
-    width: 15px;
-    height: 15px;
-    cursor: pointer;
-    accent-color: #3b82f6;
-  }
-}
-
-.ui-field--center {
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-end;
-  gap: 0.4rem;
-}
-
-.ui-hint {
-  font-size: 0.72rem;
-  color: var(--ui-text-secondary, #6b7280);
-  display: block;
-  margin-top: 0.15rem;
+  i { font-size: 1.1rem; opacity: 0.5; }
 }
 
 // ── Responsive ───────────────────────────────────────────────────────────────
 
-@media (max-width: 900px) {
+@media (max-width: 960px) {
   .asis-grid {
     grid-template-columns: 1fr;
-  }
-
-  .asis-col--cats {
-    max-width: 100%;
   }
 }
 
 // ── Dark mode ────────────────────────────────────────────────────────────────
 
-@media (prefers-color-scheme: dark) {
+html.dark-mode {
+  .asis-card {
+    background: #1e293b;
+    border-color: #334155;
+  }
+
+  .asis-card__head {
+    background: rgba(255, 255, 255, .04);
+    border-color: #334155;
+    color: #e2e8f0;
+  }
+
   .asis-cat-item {
     background: #1e293b;
     border-color: #334155;
-    &:hover { background: #243449; }
-    &.is-active { background: linear-gradient(135deg, #1e3a5f 0%, #1e3a8a 100%); }
+    &:hover      { background: #243449; }
+    &.is-active  { background: linear-gradient(135deg, #1e3a5f 0%, #1e3a8a 100%); }
   }
 
-  .asis-cat-icon { background: #1e3a8a; }
-  .asis-cat-name { color: #e2e8f0; }
+  .asis-cat-icon   { background: #1e3a8a; }
+  .asis-cat-name   { color: #e2e8f0; }
 
   .asis-preg-item {
     background: #1e293b;
@@ -403,13 +577,36 @@
     &:hover { background: #243449; }
   }
 
-  .asis-preg-num { background: #1e3a8a; }
-  .asis-preg-text { color: #e2e8f0; }
-  .asis-preg-header { border-color: #1e3a8a; }
-  .asis-preg-title { color: #93c5fd; }
+  .asis-preg-header {
+    background: linear-gradient(135deg, #1e3a5f 0%, #1e3a8a 100%);
+    border-color: #2d4a8a;
+  }
+
+  .asis-preg-title  { color: #93c5fd; }
+
+  .asis-preg-num    { background: #1e3a8a; color: #93c5fd; }
+  .asis-preg-text   { color: #e2e8f0; }
+
+  .asis-icon-preview {
+    background: #1e3a8a;
+    border-color: #2d4a8a;
+    color: #93c5fd;
+  }
+
+  .asis-check-box {
+    background: #334155;
+    border-color: #475569;
+  }
+
+  .asis-check-label { color: #e2e8f0; }
 
   .asis-option-chip { background: #334155; color: #cbd5e1; border-color: #475569; }
-  .asis-empty { border-color: #334155; }
+  .asis-empty       { border-color: #334155; }
 
   .asis-cat-meta code { background: #334155; color: #94a3b8; }
+
+  .asis-placeholder {
+    border-color: #334155;
+    color: #475569;
+  }
 }

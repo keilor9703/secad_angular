@@ -87,6 +87,7 @@ export interface DtoActuacionListItem {
   caliPedido?:     string;
   totalUnidades?:  number;
   totalNotas?:     number;
+  placaUnidad?:    string;
 }
 
 /** Request: crear nueva actuación (primer paso del flujo de despacho) */

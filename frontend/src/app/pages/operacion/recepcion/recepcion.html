@@ -90,13 +90,13 @@
               Identificación de la llamada
             </div>
             <div class="ui-grid">
-              <div class="ui-field ui-col-6">
+              <div class="ui-field ui-col-3">
                 <label class="ui-label">Fecha de ingreso</label>
                 <input class="ui-control" type="text"
                        [(ngModel)]="txtFechaIngreso" readonly
                        placeholder="Automático al recibir llamada">
               </div>
-              <div class="ui-field ui-col-3">
+              <div class="ui-field ui-col-6">
                 <label class="ui-label">ID Llamada</label>
                 <input class="ui-control rec-id-field" type="text"
                        [(ngModel)]="txtNumeLlamada" readonly
@@ -168,6 +168,109 @@
             </div>
           </div>
 
+
+          <!-- ── §6.17 Asistente Inteligente ─────────────────────────────── -->
+          <div class="rec-section rec-section--asistente">
+            <!-- Cabecera colapsable -->
+            <button class="rec-section__head rec-asistente__toggle"
+                    type="button"
+                    [attr.aria-expanded]="asistenteAbierto"
+                    (click)="toggleAsistente()">
+              <i class="fa-solid fa-robot"></i>
+              Asistente — Preguntas orientadoras
+              <i class="fa-solid rec-asistente__chevron"
+                 [class.fa-chevron-down]="!asistenteAbierto"
+                 [class.fa-chevron-up]="asistenteAbierto"></i>
+            </button>
+
+            @if (asistenteAbierto) {
+              <div class="rec-asistente__body">
+
+                <!-- Selector de categoría -->
+                <div class="ui-field">
+                  <label class="ui-label">Tipo de incidente</label>
+                  @if (asistenteLoadingCat) {
+                    <span class="rec-asistente__spin">
+                      <i class="fa-solid fa-spinner fa-spin"></i> Cargando categorías…
+                    </span>
+                  } @else {
+                    <select class="ui-control"
+                            [(ngModel)]="asistenteCategoriaSel"
+                            (change)="onAsistenteCategoriaChange(asistenteCategoriaSel)">
+                      <option value="">— Seleccione el tipo de incidente —</option>
+                      @for (cat of asistenteCategorias; track cat.id) {
+                        <option [value]="cat.id">
+                          {{ cat.descripcion }}
+                          @if (cat.totalPreguntas) { ({{ cat.totalPreguntas }}) }
+                        </option>
+                      }
+                    </select>
+                  }
+                </div>
+
+                <!-- Spinner / vacío -->
+                @if (asistenteLoadingPreg) {
+                  <div class="rec-asistente__spin">
+                    <i class="fa-solid fa-spinner fa-spin"></i> Cargando preguntas…
+                  </div>
+                }
+                @if (!asistenteLoadingPreg && asistenteCategoriaSel && asistentePreguntas.length === 0) {
+                  <p class="rec-asistente__empty">
+                    <i class="fa-solid fa-circle-info"></i>
+                    Sin preguntas configuradas para esta categoría.
+                  </p>
+                }
+
+                <!-- Lista de preguntas orientadoras -->
+                @if (asistentePreguntas.length > 0) {
+                  <ol class="rec-asistente__list">
+                    @for (preg of asistentePreguntas; track preg.id) {
+                      <li class="rec-asistente__item">
+                        <span class="rec-asistente__q">
+                          {{ preg.pregunta }}
+                          @if (preg.obligatoria) {
+                            <span class="rec-asistente__oblig" title="Obligatoria">*</span>
+                          }
+                        </span>
+                        @if (preg.ayuda) {
+                          <span class="rec-asistente__hint">
+                            <i class="fa-solid fa-circle-info"></i> {{ preg.ayuda }}
+                          </span>
+                        }
+                        @if (preg.tipoRespuesta === 'SINO') {
+                          <div class="rec-asistente__resp">
+                            <label><input type="radio" name="rec_asr_{{ preg.id }}" value="si"> Sí</label>
+                            <label><input type="radio" name="rec_asr_{{ preg.id }}" value="no"> No</label>
+                          </div>
+                        }
+                        @if (preg.tipoRespuesta === 'NUMERO') {
+                          <input type="number" class="ui-control rec-asistente__input-sm"
+                                 placeholder="0" min="0">
+                        }
+                        @if (preg.tipoRespuesta === 'TEXTO') {
+                          <input type="text" class="ui-control rec-asistente__input-sm"
+                                 placeholder="Respuesta…">
+                        }
+                        @if (preg.tipoRespuesta === 'SELECCION' && preg.opciones) {
+                          <select class="ui-control rec-asistente__input-sm">
+                            <option value="">Seleccione…</option>
+                            @for (op of asisParseOpc(preg.opciones); track op) {
+                              <option [value]="op">{{ op }}</option>
+                            }
+                          </select>
+                        }
+                      </li>
+                    }
+                  </ol>
+                }
+
+              </div><!-- /rec-asistente__body -->
+            }
+          </div><!-- /rec-section--asistente -->
+
+
+
+
           <!-- ── Sección: Datos del caso ───────────────────────────────────── -->
           <div class="rec-section">
             <div class="rec-section__head">
@@ -175,6 +278,25 @@
               Datos del caso
             </div>
             <div class="ui-grid">
+
+              <!-- Canal de origen del incidente -->
+              <div class="ui-field ui-col-12">
+                <label class="ui-label">
+                  <i class="fa-solid fa-share-nodes" style="color:var(--policia-cielo,#08a6cb)"></i>
+                  Canal de origen <span class="rec-required">*</span>
+                </label>
+                <div class="rec-canal-origen-grid">
+                  @for (co of canalesOrigen; track co.value) {
+                    <label class="rec-origen-pill"
+                           [class.rec-origen-pill--sel]="canalOrigenUI === co.value">
+                      <input type="radio" name="canalOrigen"
+                             [value]="co.value" [(ngModel)]="canalOrigenUI">
+                      <i [class]="'fa-solid ' + co.icon"></i>
+                      <span>{{ co.label }}</span>
+                    </label>
+                  }
+                </div>
+              </div>
 
               <!-- Caso 1 -->
               <div class="ui-field ui-col-3">
@@ -314,6 +436,8 @@
 
             </div>
           </div>
+
+          
 
         </div><!-- /rec-col-form -->
 

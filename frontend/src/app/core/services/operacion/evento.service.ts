@@ -35,6 +35,11 @@ export interface DtoEventoListItem {
    */
   fechaPrimerAcceso: string | null;
   /**
+   * Canal de origen del evento (CTI, RECEPCION, APP_MOVIL, INTEGRACION, SIEDCO, INTERNO, MANUAL).
+   * Proviene de cad_eventos.origen. Valor por defecto "MANUAL" cuando es NULL en BD.
+   */
+  origen?: string;
+  /**
    * Snowflake ID del registro en cad_eventos (≠ id que es cad_pedidos.id).
    * Este es el número oficial del evento para el despachador.
    * Serializado como string para preservar precisión en JavaScript.
