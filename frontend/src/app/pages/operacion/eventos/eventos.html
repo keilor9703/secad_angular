@@ -885,14 +885,14 @@
               </div><!-- /DESPACHO ACTIVO -->
 
               <!-- ── §6.17 ASISTENTE INTELIGENTE ──────────────────────────── -->
-              <div class="ev-section ev-asistente" [class.is-open]="asistenteAbierto">
+              <div class="ev-section ev-asistente">
+                <!-- Cabecera colapsable — hereda ev-section__head + agrega toggle -->
                 <button class="ev-section__head ev-asistente__toggle"
                         type="button"
+                        [attr.aria-expanded]="asistenteAbierto"
                         (click)="toggleAsistente()">
-                  <span>
-                    <i class="fa-solid fa-robot"></i>
-                    Asistente — Preguntas orientadoras
-                  </span>
+                  <i class="fa-solid fa-robot"></i>
+                  Asistente — Preguntas orientadoras
                   <i class="fa-solid ev-asistente__chevron"
                      [class.fa-chevron-down]="!asistenteAbierto"
                      [class.fa-chevron-up]="asistenteAbierto"></i>
@@ -906,32 +906,29 @@
                       <label class="ui-label">Tipo de incidente</label>
                       @if (asistenteLoadingCat) {
                         <span class="ev-asistente__spin">
-                          <i class="fa-solid fa-spinner fa-spin"></i> Cargando…
+                          <i class="fa-solid fa-spinner fa-spin"></i> Cargando categorías…
                         </span>
                       } @else {
                         <select class="ui-control ev-asistente__cat-sel"
                                 [(ngModel)]="asistenteCategoriaSel"
                                 (change)="onAsistenteCategoriaChange(asistenteCategoriaSel)">
-                          <option value="">— Seleccione una categoría —</option>
+                          <option value="">— Seleccione el tipo de incidente —</option>
                           @for (cat of asistenteCategorias; track cat.id) {
                             <option [value]="cat.id">
                               {{ cat.descripcion }}
-                              @if (cat.totalPreguntas) {
-                                ({{ cat.totalPreguntas }})
-                              }
+                              @if (cat.totalPreguntas) { ({{ cat.totalPreguntas }}) }
                             </option>
                           }
                         </select>
                       }
                     </div>
 
-                    <!-- Lista de preguntas -->
+                    <!-- Spinner / vacío -->
                     @if (asistenteLoadingPreg) {
                       <div class="ev-asistente__spin">
                         <i class="fa-solid fa-spinner fa-spin"></i> Cargando preguntas…
                       </div>
                     }
-
                     @if (!asistenteLoadingPreg && asistenteCategoriaSel && asistentePreguntas.length === 0) {
                       <p class="ev-asistente__empty">
                         <i class="fa-solid fa-circle-info"></i>
@@ -939,9 +936,10 @@
                       </p>
                     }
 
+                    <!-- Lista de preguntas orientadoras -->
                     @if (asistentePreguntas.length > 0) {
                       <ol class="ev-asistente__list">
-                        @for (preg of asistentePreguntas; track preg.id; let i = $index) {
+                        @for (preg of asistentePreguntas; track preg.id) {
                           <li class="ev-asistente__item">
                             <span class="ev-asistente__q">
                               {{ preg.pregunta }}
@@ -949,18 +947,15 @@
                                 <span class="ev-asistente__oblig" title="Obligatoria">*</span>
                               }
                             </span>
-
                             @if (preg.ayuda) {
                               <span class="ev-asistente__hint">
                                 <i class="fa-solid fa-circle-info"></i> {{ preg.ayuda }}
                               </span>
                             }
-
-                            <!-- Área de respuesta visual (no persistida) -->
                             @if (preg.tipoRespuesta === 'SINO') {
                               <div class="ev-asistente__resp">
-                                <label><input type="radio" name="asr_{{ preg.id }}" value="si"> Sí</label>
-                                <label><input type="radio" name="asr_{{ preg.id }}" value="no"> No</label>
+                                <label><input type="radio" name="ev_asr_{{ preg.id }}" value="si"> Sí</label>
+                                <label><input type="radio" name="ev_asr_{{ preg.id }}" value="no"> No</label>
                               </div>
                             }
                             @if (preg.tipoRespuesta === 'NUMERO') {

@@ -57,11 +57,17 @@ export class MenuAdminComponent implements OnInit {
     this.loading = true;
     this.menuService.getAdminMenu().subscribe({
       next: (items) => {
-        this.menuItems = (items ?? []).slice().sort((a, b) => a.idPadre - b.idPadre || a.posicion - b.posicion);
+        // Normalizar: el backend devuelve PascalCase (IdMenu, IdPadre…); aquí se
+        // mapea de forma defensiva aceptando también camelCase para robustez futura.
+        this.menuItems = (items ?? [])
+          .map((i) => this.normalizeItem(i))
+          .sort((a, b) => a.idPadre - b.idPadre || a.posicion - b.posicion);
+
         this.parentOptions = this.menuItems
-          .filter((item) => item.idMenu === 1 || !this.isRaiz(item))
+          .filter((item) => !this.isRaiz(item))
           .slice()
           .sort((a, b) => a.descripcion.localeCompare(b.descripcion));
+
         this.expandedParents.clear();
         this.selectedMenuForRoles = null;
         this.rolesAsignados = [];
@@ -155,7 +161,12 @@ export class MenuAdminComponent implements OnInit {
   cargarCatalogoRoles(): void {
     this.menuService.getRolesCatalog().subscribe({
       next: (roles) => {
-        this.rolesCatalog = (roles ?? []).slice().sort((a, b) => a.descripcion.localeCompare(b.descripcion));
+        this.rolesCatalog = (roles ?? [])
+          .map((r: any) => ({
+            idRol:       Number(r?.idRol       ?? r?.IdRol       ?? 0),
+            descripcion: String(r?.descripcion ?? r?.Descripcion ?? ''),
+          }))
+          .sort((a, b) => a.descripcion.localeCompare(b.descripcion));
       },
       error: (err) => {
         this.rolesCatalog = [];
@@ -173,7 +184,13 @@ export class MenuAdminComponent implements OnInit {
 
     this.menuService.getRolesByMenu(idMenu).subscribe({
       next: (data) => {
-        this.rolesAsignados = (data ?? []).slice().sort((a, b) => a.descripcionRol.localeCompare(b.descripcionRol));
+        this.rolesAsignados = (data ?? [])
+          .map((r: any) => ({
+            idMenuRol:      Number(r?.idMenuRol      ?? r?.IdMenuRol      ?? 0),
+            idRol:          Number(r?.idRol          ?? r?.IdRol          ?? 0),
+            descripcionRol: String(r?.descripcionRol ?? r?.DescripcionRol ?? ''),
+          }))
+          .sort((a, b) => a.descripcionRol.localeCompare(b.descripcionRol));
         this.loadingRoles = false;
       },
       error: (err) => {
@@ -234,9 +251,23 @@ export class MenuAdminComponent implements OnInit {
     });
   }
 
+  /**
+   * ID del ítem raíz: el nodo que se auto-referencia (idPadre === idMenu).
+   * Si no existe auto-referencia se busca el primer ítem con descripción "RAIZ"
+   * o, como último recurso, el de id = 1.
+   */
+  get raizId(): number {
+    const selfRef = this.menuItems.find(i => i.idMenu !== 0 && i.idMenu === i.idPadre);
+    if (selfRef) return selfRef.idMenu;
+    const byName = this.menuItems.find(i => (i.descripcion ?? '').trim().toUpperCase() === 'RAIZ');
+    if (byName) return byName.idMenu;
+    return 1;
+  }
+
   get parentMenuItems(): DbMenuItem[] {
+    const root = this.raizId;
     return this.menuItems
-      .filter((item) => item.idPadre === 1 && !this.isRaiz(item))
+      .filter((item) => item.idPadre === root && !this.isRaiz(item))
       .sort((a, b) => a.posicion - b.posicion || a.idMenu - b.idMenu);
   }
 
@@ -276,7 +307,30 @@ export class MenuAdminComponent implements OnInit {
   }
 
   private isRaiz(item: DbMenuItem): boolean {
-    return item.idMenu === 1 || (item.descripcion ?? '').trim().toUpperCase() === 'RAIZ';
+    // Un nodo es raíz cuando se auto-referencia (idPadre === idMenu),
+    // tiene la descripción "RAIZ", o históricamente tiene id = 1.
+    return (item.idMenu !== 0 && item.idMenu === item.idPadre)
+        || (item.descripcion ?? '').trim().toUpperCase() === 'RAIZ'
+        || item.idMenu === 1;
+  }
+
+  /**
+   * Normaliza un ítem del menú recibido del backend.
+   * El backend usa System.Text.Json sin camelCase policy, por lo que
+   * las propiedades llegan en PascalCase (IdMenu, IdPadre…).
+   * Acepta ambas grafías para no depender de la configuración del servidor.
+   */
+  private normalizeItem(raw: any): DbMenuItem {
+    return {
+      idMenu:      Number(raw?.idMenu      ?? raw?.IdMenu      ?? 0),
+      descripcion: String(raw?.descripcion ?? raw?.Descripcion ?? ''),
+      idPadre:     Number(raw?.idPadre     ?? raw?.IdPadre     ?? 0),
+      posicion:    Number(raw?.posicion    ?? raw?.Posicion    ?? 0),
+      tipo:        String(raw?.tipo        ?? raw?.Tipo        ?? ''),
+      icono:       raw?.icono   ?? raw?.Icono   ?? null,
+      vigente:     Number(raw?.vigente     ?? raw?.Vigente     ?? 1),
+      detalle:     raw?.detalle ?? raw?.Detalle ?? null,
+    };
   }
 }
 

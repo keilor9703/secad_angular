@@ -472,15 +472,72 @@
   }
 }
 
+// ── Canal de origen (§multicanal) ─────────────────────────────────────────────
+.rec-canal-origen-grid {
+  display:   flex;
+  flex-wrap: wrap;
+  gap:       6px;
+  margin-top: 4px;
+}
+
+.rec-origen-pill {
+  display:       inline-flex;
+  align-items:   center;
+  gap:           6px;
+  padding:       6px 12px;
+  border-radius: 999px;
+  border:        1px solid rgba(21,27,59,.18);
+  background:    rgba(21,27,59,.04);
+  color:         rgba(21,27,59,.7);
+  font-size:     calc(11.5px * var(--font-size-scale));
+  font-weight:   600;
+  cursor:        pointer;
+  transition:    background .15s, border-color .15s, color .15s;
+
+  input[type="radio"] { display: none; }
+
+  i { font-size: 12px; color: rgba(21,27,59,.5); transition: color .15s; }
+
+  &:hover {
+    background:   rgba(8,166,203,.08);
+    border-color: rgba(8,166,203,.35);
+    color:        var(--policia-cielo, #08a6cb);
+    i { color: var(--policia-cielo, #08a6cb); }
+  }
+
+  &--sel {
+    background:   var(--policia-cielo, #08a6cb) !important;
+    border-color: var(--policia-cielo, #08a6cb) !important;
+    color:        #fff !important;
+    font-weight:  700;
+    i { color: rgba(255,255,255,.9) !important; }
+  }
+}
+
 // ── Dark-mode overrides ───────────────────────────────────────────────────────
 html.dark-mode {
+  // ── Secciones ──────────────────────────────────────────────────────────────
   .rec-section {
     background:   var(--ui-surface);
     border-color: var(--ui-border);
   }
 
+  // ── Canal groups ────────────────────────────────────────────────────────────
+  .rec-canal-grupo {
+    border-color: var(--ui-border);
+  }
+
+  .rec-canal-grupo__head {
+    background:          rgba(255,255,255,.03);
+    border-bottom-color: var(--ui-border);
+  }
+
+  .rec-canal-grupo__nombre {
+    color: rgba(228,231,235,.75);
+  }
+
   .rec-canal-card {
-    background:  var(--ui-surface);
+    background:   var(--ui-surface);
     border-color: var(--ui-border);
     color:        var(--ui-text);
 
@@ -490,6 +547,7 @@ html.dark-mode {
     }
   }
 
+  // ── Autocomplete ────────────────────────────────────────────────────────────
   .rec-suggest-list {
     background:   var(--ui-surface);
     border-color: var(--ui-border);
@@ -499,6 +557,68 @@ html.dark-mode {
     background: rgba(8,166,203,.12);
   }
 
+  .rec-suggest-code {
+    color: var(--policia-cielo);
+  }
+
+  .rec-suggest-desc {
+    color: rgba(228,231,235,.65);
+  }
+
+  // ── Prioridad / radio pills ──────────────────────────────────────────────────
+  .rec-prio-label {
+    color: rgba(228,231,235,.55);
+  }
+
+  .rec-radio-pill--rutina {
+    background:   rgba(245,158,11,.08);
+    border-color: rgba(245,158,11,.22);
+    color:        rgba(245,158,11,.80);
+
+    &.active, &:hover {
+      background:   #f59e0b;
+      border-color: #d97706;
+      color:        #0a0f1b;
+    }
+  }
+
+  .rec-radio-pill--inmd {
+    background:   rgba(34,197,94,.08);
+    border-color: rgba(34,197,94,.22);
+    color:        rgba(74,222,128,.80);
+
+    &.active, &:hover {
+      background:   #22c55e;
+      border-color: #16a34a;
+      color:        #0a0f1b;
+    }
+  }
+
+  .rec-radio-pill--flash {
+    background:   rgba(239,68,68,.08);
+    border-color: rgba(239,68,68,.22);
+    color:        rgba(248,113,113,.80);
+
+    &.active, &:hover {
+      background:   #ef4444;
+      border-color: #dc2626;
+      color:        #fff;
+    }
+  }
+
+  .rec-radio-pill--imp {
+    background:   rgba(8,166,203,.08);
+    border-color: rgba(8,166,203,.22);
+    color:        rgba(8,166,203,.80);
+
+    &.active, &:hover {
+      background:   var(--policia-gradiente-soft);
+      border-color: transparent;
+      color:        #fff;
+    }
+  }
+
+  // ── Validation ──────────────────────────────────────────────────────────────
   .rec-invalid {
     background-color: rgba(239,68,68,.08) !important;
     border-color:     #f87171 !important;
@@ -507,5 +627,199 @@ html.dark-mode {
   .rec-valid {
     background-color: rgba(34,197,94,.08) !important;
     border-color:     rgba(34,197,94,.45) !important;
+  }
+
+  // ── Map ─────────────────────────────────────────────────────────────────────
+  .rec-map {
+    background:   #1a2235;
+    border-color: var(--ui-border);
+  }
+
+  // ── Empty & spinner ─────────────────────────────────────────────────────────
+  .rec-empty-state {
+    color: rgba(255,255,255,.28);
+  }
+
+  // ── Asistente ───────────────────────────────────────────────────────────────
+  .rec-asistente__item {
+    background:   rgba(255,255,255,.04);
+    border-color: rgba(255,255,255,.10);
+    border-left-color: rgba(8,166,203,.55);
+  }
+
+  .rec-asistente__q    { color: var(--ui-text); }
+  .rec-asistente__hint { color: rgba(255,255,255,.40); }
+
+  .rec-asistente__spin,
+  .rec-asistente__empty {
+    color: rgba(255,255,255,.35);
+  }
+
+  .rec-asistente__resp label { color: var(--ui-text); }
+}
+
+// ── §6.17 Asistente Inteligente — estilos propios dentro de Recepción ────────
+
+// La sección usa rec-section (fondo blanco + borde), pero sin overflow hidden
+// para que los dropdowns salgan del bounding box si fueran necesarios.
+.rec-section--asistente {
+  // hereda todo de .rec-section
+}
+
+// El header del asistente ES un rec-section__head pero es un <button> clickable
+.rec-asistente__toggle {
+  // reset de <button> sin romper el gradiente del rec-section__head
+  width:      100%;
+  border:     none;
+  cursor:     pointer;
+  text-align: left;
+  // Extender flex para colocar el chevron al extremo derecho
+  justify-content: space-between;
+
+  &:hover   { filter: brightness(1.08); }
+
+  &:focus-visible {
+    outline:        2px solid var(--policia-acento);
+    outline-offset: -2px;
+  }
+}
+
+.rec-asistente__chevron {
+  font-size:   0.68rem;
+  color:       var(--policia-acento, #cdff00);
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+// Cuerpo expandido
+.rec-asistente__body {
+  padding:        12px 14px 16px;
+  display:        flex;
+  flex-direction: column;
+  gap:            0.7rem;
+  animation:      recAsistenteIn 0.15s ease;
+}
+
+@keyframes recAsistenteIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0);    }
+}
+
+// Spinner / sin preguntas
+.rec-asistente__spin,
+.rec-asistente__empty {
+  display:     flex;
+  align-items: center;
+  gap:         0.4rem;
+  font-size:   calc(12px * var(--font-size-scale));
+  color:       rgba(21,27,59,.5);
+  padding:     0.2rem 0;
+}
+
+.rec-asistente__empty { font-style: italic; }
+
+// Lista de preguntas
+.rec-asistente__list {
+  list-style: none;
+  padding:    0;
+  margin:     0;
+  display:    flex;
+  flex-direction: column;
+  gap:        0.4rem;
+}
+
+// Item individual — mismo patrón visual que los rows del módulo
+.rec-asistente__item {
+  display:        flex;
+  flex-direction: column;
+  gap:            0.3rem;
+  padding:        0.65rem 0.85rem;
+  border-radius:  7px;
+  border:         1px solid rgba(21,27,59,.1);
+  border-left:    3px solid var(--policia-cielo, #08a6cb);
+  background:     rgba(21,27,59,.025);
+  transition:     background .12s;
+
+  &:hover { background: rgba(21,27,59,.05); }
+}
+
+.rec-asistente__q {
+  font-size:   calc(13px * var(--font-size-scale));
+  font-weight: 700;
+  color:       rgba(21,27,59,.9);
+  line-height: 1.4;
+}
+
+.rec-asistente__oblig {
+  color:          #ef4444;
+  font-size:      0.58rem;
+  margin-left:    2px;
+  vertical-align: super;
+}
+
+.rec-asistente__hint {
+  display:     flex;
+  align-items: center;
+  gap:         0.25rem;
+  font-size:   calc(11px * var(--font-size-scale));
+  color:       rgba(21,27,59,.5);
+  font-style:  italic;
+
+  i { font-size: 0.65rem; }
+}
+
+.rec-asistente__resp {
+  display:    flex;
+  gap:        1.25rem;
+  margin-top: 0.15rem;
+
+  label {
+    display:     flex;
+    align-items: center;
+    gap:         0.3rem;
+    font-size:   calc(13px * var(--font-size-scale));
+    font-weight: 600;
+    color:       rgba(21,27,59,.8);
+    cursor:      pointer;
+  }
+
+  input[type="radio"] {
+    accent-color: var(--policia-cielo, #08a6cb);
+    cursor:       pointer;
+    width:        15px;
+    height:       15px;
+  }
+}
+
+.rec-asistente__input-sm {
+  max-width:  280px;
+  font-size:  calc(13px * var(--font-size-scale)) !important;
+  padding:    6px 10px !important;
+  height:     auto !important;
+  min-height: unset !important;
+  margin-top: 0.2rem;
+}
+
+// ── Dark-mode: canal origen ────────────────────────────────────────────────────
+html.dark-mode {
+  .rec-origen-pill {
+    background:   rgba(255,255,255,.05);
+    border-color: var(--ui-border);
+    color:        rgba(228,231,235,.7);
+    i { color: rgba(228,231,235,.45); }
+
+    &:hover {
+      background:   rgba(8,166,203,.12);
+      border-color: rgba(8,166,203,.45);
+      color:        #5eead4;
+      i { color: #5eead4; }
+    }
+
+    &--sel {
+      background:   var(--policia-cielo, #08a6cb) !important;
+      border-color: var(--policia-cielo, #08a6cb) !important;
+      color:        #fff !important;
+      i { color: rgba(255,255,255,.9) !important; }
+    }
   }
 }

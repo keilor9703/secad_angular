@@ -1,592 +1,766 @@
 <!-- ══════════════════════════════════════════════════════════════════════════
-     Gestión de Incidentes CAD – SECAD  §6.11
-     Sistema de diseño propio (ui-panel / ui-grid / ui-field / ui-btn).
-     Control flow Angular 17: @if / @for.  Sin Bootstrap.
+     Módulo de Seguimiento de Incidentes CAD — SECAD
+     Usuario principal: Jefe de Turno (supervisor)
+     Funciones: Dashboard situacional · Trazabilidad completa · KPIs
      ══════════════════════════════════════════════════════════════════════════ -->
 
 @if (visible) {
 
-<section class="pedido-page">
+<section class="seg-page">
   <div class="ui-panel">
 
-    <!-- ── CABECERA ──────────────────────────────────────────────────────── -->
+    <!-- ── CABECERA ──────────────────────────────────────────────────────────── -->
     <div class="ui-panel__head">
       <div class="ui-panel__title">
-        <i class="fa-solid fa-tower-broadcast"></i>
-        Gestión de Incidentes CAD
+        <i class="fa-solid fa-shield-halved"></i>
+        Seguimiento de Incidentes CAD
       </div>
 
-      <div class="ped-head-right">
-        <!-- Filtros de estado (pills) -->
-        <div class="ped-filter-pills">
-          <button type="button"
-                  class="ped-pill"
-                  [class.ped-pill--active]="filtroEstado === 'A'"
-                  (click)="filtroEstado = 'A'; cargarLista()">
-            <i class="fa-solid fa-circle-dot"></i> Activos
+      <div class="seg-head-right">
+
+        <!-- Tabs de navegación -->
+        <div class="seg-tabs">
+          <button type="button" class="seg-tab"
+                  [class.seg-tab--active]="vista === 'dashboard'"
+                  (click)="setVista('dashboard')">
+            <i class="fa-solid fa-chart-line"></i>
+            <span>Dashboard</span>
           </button>
-          <button type="button"
-                  class="ped-pill"
-                  [class.ped-pill--active]="filtroEstado === 'P'"
-                  (click)="filtroEstado = 'P'; cargarLista()">
-            <i class="fa-solid fa-clock"></i> Pendientes
+          <button type="button" class="seg-tab"
+                  [class.seg-tab--active]="vista === 'incidentes'"
+                  (click)="setVista('incidentes')">
+            <i class="fa-solid fa-list-check"></i>
+            <span>Incidentes</span>
           </button>
-          <button type="button"
-                  class="ped-pill"
-                  [class.ped-pill--active]="filtroEstado === 'C'"
-                  (click)="filtroEstado = 'C'; cargarLista()">
-            <i class="fa-solid fa-check-circle"></i> Cerrados
-          </button>
-          <button type="button"
-                  class="ped-pill"
-                  [class.ped-pill--active]="filtroEstado === ''"
-                  (click)="filtroEstado = ''; cargarLista()">
-            <i class="fa-solid fa-list"></i> Todos
+          <button type="button" class="seg-tab"
+                  [class.seg-tab--active]="vista === 'kpis'"
+                  (click)="setVista('kpis')">
+            <i class="fa-solid fa-chart-bar"></i>
+            <span>KPIs</span>
           </button>
         </div>
 
-        <!-- Controles de ventana -->
-        <div class="ui-window-controls" style="margin-left:10px;">
-          <button type="button" class="ui-btn secondary" (click)="nuevoCaso()" title="Nuevo incidente">
-            <i class="fa-solid fa-plus"></i> Nuevo
+        <!-- Acciones de cabecera -->
+        <div class="seg-head-actions">
+          <span class="seg-refresh-label">
+            <i class="fa-solid fa-arrows-rotate" [class.fa-spin]="loading"></i>
+            {{ lastRefresh | date:'HH:mm:ss' }}
+          </span>
+          <button type="button" class="ui-btn sm secondary"
+                  title="Actualizar ahora" (click)="cargarLista()">
+            <i class="fa-solid fa-rotate"></i>
           </button>
-          <button class="ui-icon-btn ui-win-btn is-min" type="button"
-                  title="Minimizar" (click)="toggleMinimize()">
-            <i class="fa-solid fa-minus"></i>
-          </button>
-          <button class="ui-icon-btn ui-win-btn is-close" type="button"
-                  title="Cerrar" (click)="closePanel()">
-            <i class="fa-solid fa-xmark"></i>
-          </button>
+          <div class="ui-window-controls" style="margin-left:4px;">
+            <button class="ui-icon-btn ui-win-btn is-min" type="button"
+                    title="Minimizar" (click)="toggleMinimize()">
+              <i class="fa-solid fa-minus"></i>
+            </button>
+            <button class="ui-icon-btn ui-win-btn is-close" type="button"
+                    title="Cerrar" (click)="closePanel()">
+              <i class="fa-solid fa-xmark"></i>
+            </button>
+          </div>
         </div>
-      </div>
-    </div>
 
-    <!-- ── CUERPO ─────────────────────────────────────────────────────────── -->
+      </div>
+    </div><!-- /ui-panel__head -->
+
+
+    <!-- ── CUERPO ─────────────────────────────────────────────────────────────── -->
     @if (!minimized) {
     <div class="ui-panel__body">
 
-      <!-- ── LAYOUT PRINCIPAL (lista | detalle/formulario) ──────────────── -->
-      <div class="ped-layout">
 
-        <!-- ════════════════════════════════
-             COLUMNA IZQUIERDA — LISTA
-             ════════════════════════════════ -->
-        <div class="ped-col-list">
+      <!-- ════════════════════════════════════════════════════════════════════════
+           TAB: DASHBOARD — Panorama situacional en tiempo real
+           ════════════════════════════════════════════════════════════════════════ -->
+      @if (vista === 'dashboard') {
+        <div class="seg-dashboard">
 
-          <!-- Buscador -->
-          <div class="ped-search-bar">
-            <i class="fa-solid fa-magnifying-glass ped-search-bar__icon"></i>
-            <input class="ped-search-bar__input"
-                   type="text"
-                   [(ngModel)]="filtroTexto"
-                   placeholder="Buscar por ID, dirección, código…">
-            @if (filtroTexto) {
-              <button class="ped-search-bar__clear" type="button"
-                      (click)="filtroTexto = ''" title="Limpiar">
-                <i class="fa-solid fa-xmark"></i>
+          <!-- Estado de carga inicial -->
+          @if (loading && stats.total === 0) {
+            <div class="seg-loading">
+              <i class="fa-solid fa-spinner fa-spin"></i>
+              Cargando panorama del turno…
+            </div>
+          }
+
+          <!-- ── Banda informativa del turno vigente ────────────────────── -->
+          @if (conteos) {
+            <div class="seg-turno-strip">
+              <i class="fa-solid fa-shield-halved"></i>
+              <span class="seg-turno-strip__nombre">{{ getTurnoLabel() }}</span>
+              <span class="seg-turno-strip__sep">·</span>
+              <span class="seg-turno-strip__cerrados">
+                <i class="fa-solid fa-flag-checkered"></i>
+                {{ conteos.cerradosTurno }} cerrados en este turno
+              </span>
+              <span class="seg-turno-strip__sep">·</span>
+              <span class="seg-turno-strip__hint">
+                Los contadores de abajo muestran todos los incidentes activos en la cola CAD,
+                no solo del turno vigente.
+              </span>
+            </div>
+          }
+
+          <!-- ── Tarjetas de resumen ──────────────────────────────────────── -->
+          <div class="seg-stat-cards">
+
+            <div class="seg-stat-card seg-stat-card--total">
+              <i class="fa-solid fa-inbox seg-stat-card__ico"></i>
+              <div class="seg-stat-card__val">{{ stats.total }}</div>
+              <div class="seg-stat-card__lbl">En cola CAD</div>
+              <div class="seg-stat-card__sub">activos + pendientes + cerrados</div>
+            </div>
+
+            <div class="seg-stat-card seg-stat-card--activo"
+                 (click)="filtroEstado='A'; setVista('incidentes')" style="cursor:pointer">
+              <i class="fa-solid fa-circle-dot seg-stat-card__ico"></i>
+              <div class="seg-stat-card__val">{{ stats.activos }}</div>
+              <div class="seg-stat-card__lbl">Activos</div>
+            </div>
+
+            <div class="seg-stat-card seg-stat-card--pendiente"
+                 (click)="filtroEstado='P'; setVista('incidentes')" style="cursor:pointer">
+              <i class="fa-solid fa-clock seg-stat-card__ico"></i>
+              <div class="seg-stat-card__val">{{ stats.pendientes }}</div>
+              <div class="seg-stat-card__lbl">Pendientes</div>
+            </div>
+
+            <div class="seg-stat-card seg-stat-card--cerrado"
+                 (click)="filtroEstado='C'; setVista('incidentes')" style="cursor:pointer">
+              <i class="fa-solid fa-check-circle seg-stat-card__ico"></i>
+              <div class="seg-stat-card__val">{{ stats.cerrados }}</div>
+              <div class="seg-stat-card__lbl">Cerrados</div>
+            </div>
+
+            <div class="seg-stat-card seg-stat-card--critico">
+              <i class="fa-solid fa-triangle-exclamation seg-stat-card__ico"></i>
+              <div class="seg-stat-card__val">{{ stats.criticos }}</div>
+              <div class="seg-stat-card__lbl">Críticos 🔴</div>
+            </div>
+
+          </div><!-- /seg-stat-cards -->
+
+
+          <!-- ── Fila: distribuciones ───────────────────────────────────── -->
+          <div class="seg-dash-row">
+
+            <!-- Por prioridad (barras) -->
+            <div class="seg-dist-card">
+              <div class="seg-dist-title">
+                <i class="fa-solid fa-bolt"></i> Distribución por prioridad
+              </div>
+
+              <div class="seg-prio-bar-group">
+                <div class="seg-prio-bar">
+                  <span class="seg-prio-bar__label prio-flash-label">FLASH</span>
+                  <div class="seg-prio-bar__track">
+                    <div class="seg-prio-bar__fill seg-prio-bar__fill--flash"
+                         [style.width.%]="stats.total ? (stats.flash / stats.total * 100) : 0">
+                    </div>
+                  </div>
+                  <span class="seg-prio-bar__count">{{ stats.flash }}</span>
+                </div>
+                <div class="seg-prio-bar">
+                  <span class="seg-prio-bar__label prio-inmd-label">INMEDIATA</span>
+                  <div class="seg-prio-bar__track">
+                    <div class="seg-prio-bar__fill seg-prio-bar__fill--inmediata"
+                         [style.width.%]="stats.total ? (stats.inmediata / stats.total * 100) : 0">
+                    </div>
+                  </div>
+                  <span class="seg-prio-bar__count">{{ stats.inmediata }}</span>
+                </div>
+                <div class="seg-prio-bar">
+                  <span class="seg-prio-bar__label prio-rutina-label">RUTINA</span>
+                  <div class="seg-prio-bar__track">
+                    <div class="seg-prio-bar__fill seg-prio-bar__fill--rutina"
+                         [style.width.%]="stats.total ? (stats.rutina / stats.total * 100) : 0">
+                    </div>
+                  </div>
+                  <span class="seg-prio-bar__count">{{ stats.rutina }}</span>
+                </div>
+              </div>
+
+              <!-- Leyenda semáforo -->
+              <div class="seg-semaforo-legend">
+                <span class="seg-legend-dot seg-legend-dot--verde"></span> <span>Normal</span>
+                <span class="seg-legend-dot seg-legend-dot--amarillo"></span> <span>Atención</span>
+                <span class="seg-legend-dot seg-legend-dot--rojo"></span> <span>Crítico</span>
+              </div>
+            </div>
+
+            <!-- Por canal de origen -->
+            <div class="seg-dist-card">
+              <div class="seg-dist-title">
+                <i class="fa-solid fa-share-nodes"></i> Por canal de origen
+              </div>
+              @if (getOrigenKeys().length === 0) {
+                <p class="seg-empty-hint">Sin datos de canal registrados.</p>
+              }
+              @for (key of getOrigenKeys(); track key) {
+                <div class="seg-origen-row">
+                  <span class="seg-origen-label">{{ getOrigenLabel(key) }}</span>
+                  <div class="seg-origen-bar__track">
+                    <div class="seg-origen-bar__fill"
+                         [style.width.%]="stats.total ? (stats.porOrigen[key] / stats.total * 100) : 0">
+                    </div>
+                  </div>
+                  <span class="seg-origen-count">{{ stats.porOrigen[key] }}</span>
+                </div>
+              }
+            </div>
+
+          </div><!-- /seg-dash-row -->
+
+
+          <!-- ── Incidentes críticos ────────────────────────────────────── -->
+          @if (stats.criticos > 0) {
+            <div class="seg-criticos-block">
+              <div class="seg-criticos-block__head">
+                <i class="fa-solid fa-siren-on" style="color:#ef4444"></i>
+                Incidentes que superan el umbral de tiempo
+                <span class="seg-criticos-block__badge">{{ stats.criticos }}</span>
+                <span class="seg-criticos-block__sub">— haga clic para ver la trazabilidad</span>
+              </div>
+              <div class="seg-criticos-list">
+                @for (item of incidentesCriticos; track item.id) {
+                  <div class="seg-critico-item" (click)="seleccionarIncidente(item)">
+                    <div class="seg-critico-item__strip"></div>
+                    <div class="seg-critico-item__body">
+                      <span class="seg-critico-item__id">#{{ item.id }}</span>
+                      <span class="seg-critico-item__prio"
+                            [ngClass]="getPrioridadClass($any(item).prioridad ?? '')">
+                        {{ getPrioridadLabel($any(item).prioridad ?? '') }}
+                      </span>
+                      <span class="seg-critico-item__dir">
+                        {{ item.codiPedido || '—' }} · {{ item.direCaso || 'Sin dirección' }}
+                      </span>
+                      <span class="seg-critico-item__tiempo">
+                        <i class="fa-regular fa-clock"></i> {{ getElapsedLabel(item) }}
+                      </span>
+                      <span class="seg-critico-item__op">
+                        <i class="fa-solid fa-user"></i> {{ item.usernameCreacion || '—' }}
+                      </span>
+                    </div>
+                  </div>
+                }
+              </div>
+            </div>
+          }
+
+          @if (!loading && stats.total === 0) {
+            <div class="seg-empty-state">
+              <i class="fa-solid fa-shield-halved"></i>
+              <p>No hay incidentes registrados en el turno actual.<br>
+                 Los datos se actualizan automáticamente cada 30 segundos.</p>
+            </div>
+          }
+
+        </div><!-- /seg-dashboard -->
+      }
+
+
+      <!-- ════════════════════════════════════════════════════════════════════════
+           TAB: INCIDENTES — Lista + Trazabilidad
+           ════════════════════════════════════════════════════════════════════════ -->
+      @if (vista === 'incidentes') {
+        <div class="seg-inc-layout">
+
+          <!-- ═══ COLUMNA IZQUIERDA — lista ════════════════════════════════════ -->
+          <div class="seg-col-list">
+
+            <!-- Filtros -->
+            <div class="seg-filters">
+              <div class="seg-search-bar">
+                <i class="fa-solid fa-magnifying-glass seg-search-bar__icon"></i>
+                <input class="seg-search-bar__input" type="text"
+                       [(ngModel)]="filtroTexto"
+                       placeholder="Buscar por ID, dir., código, operador…">
+                @if (filtroTexto) {
+                  <button class="seg-search-bar__clear" type="button"
+                          (click)="filtroTexto = ''">
+                    <i class="fa-solid fa-xmark"></i>
+                  </button>
+                }
+              </div>
+              <div class="seg-filter-row">
+                <select class="ui-control seg-filter-sel" [(ngModel)]="filtroEstado">
+                  <option value="">Todos los estados</option>
+                  <option value="A">Activos</option>
+                  <option value="P">Pendientes</option>
+                  <option value="C">Cerrados</option>
+                </select>
+                <select class="ui-control seg-filter-sel" [(ngModel)]="filtroPrioridad">
+                  <option value="">Toda prioridad</option>
+                  <option value="FLASH">Flash</option>
+                  <option value="INMEDIATA">Inmediata</option>
+                  <option value="RUTINA">Rutina</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Contador -->
+            <div class="seg-list-header">
+              <span class="seg-list-count">
+                {{ listadoFiltrado.length }} incidente{{ listadoFiltrado.length !== 1 ? 's' : '' }}
+              </span>
+              <button type="button" class="seg-refresh-btn"
+                      (click)="cargarLista()" title="Actualizar">
+                <i class="fa-solid fa-arrows-rotate" [class.fa-spin]="loading"></i>
               </button>
+            </div>
+
+            <!-- Estado de carga / vacío -->
+            @if (loading && listadoFiltrado.length === 0) {
+              <div class="seg-list-loading">
+                <i class="fa-solid fa-spinner fa-spin"></i> Cargando incidentes…
+              </div>
             }
-          </div>
+            @if (!loading && listadoFiltrado.length === 0) {
+              <div class="seg-empty-list">
+                <i class="fa-solid fa-inbox"></i>
+                <p>Sin resultados para los filtros aplicados.</p>
+              </div>
+            }
 
-          <!-- Leyenda semáforo -->
-          <div class="ped-semaforo-legend">
-            <span class="ped-legend-dot ped-legend-dot--verde"></span><span>Normal</span>
-            <span class="ped-legend-dot ped-legend-dot--amarillo"></span><span>Atención</span>
-            <span class="ped-legend-dot ped-legend-dot--rojo"></span><span>Crítico</span>
-          </div>
+            <!-- Lista de incidentes -->
+            <div class="seg-list">
+              @for (item of listadoFiltrado; track item.id) {
+                <div class="seg-item"
+                     [ngClass]="getSemaforoClass(item)"
+                     [class.seg-item--sel]="item.id === selectedId"
+                     (click)="seleccionarIncidente(item)">
 
-          <!-- Contador -->
-          <div class="ped-list-header">
-            <span class="ped-list-count">
-              {{ listadoFiltrado.length }} caso{{ listadoFiltrado.length !== 1 ? 's' : '' }}
-            </span>
-            <button type="button" class="ped-refresh-btn" (click)="cargarLista()" title="Actualizar lista">
-              <i class="fa-solid fa-arrows-rotate" [class.fa-spin]="loading"></i>
-            </button>
-          </div>
+                  <div class="seg-item__strip"></div>
 
-          <!-- Lista de casos -->
-          @if (loading && listadoFiltrado.length === 0) {
-            <div class="ped-list-loading">
-              <i class="fa-solid fa-spinner fa-spin"></i> Cargando casos…
-            </div>
-          }
-
-          @if (!loading && listadoFiltrado.length === 0) {
-            <div class="ped-empty-list">
-              <i class="fa-solid fa-inbox"></i>
-              <p>No hay casos para mostrar.</p>
-            </div>
-          }
-
-          <div class="ped-list">
-            @for (item of listadoFiltrado; track item.id) {
-              <div class="ped-item"
-                   [ngClass]="getSemaforoClass(item)"
-                   [class.ped-item--sel]="item.id === selectedId"
-                   (click)="seleccionarCaso(item)">
-
-                <!-- Franja de color semáforo -->
-                <div class="ped-item__strip"></div>
-
-                <div class="ped-item__body">
-                  <div class="ped-item__top">
-                    <span class="ped-item__id">#{{ item.id }}</span>
-                    <span class="ped-badge" [ngClass]="getEstadoClass(item.estado)">
-                      {{ getEstadoLabel(item.estado) }}
-                    </span>
-                    <span class="ped-item__elapsed">
-                      <i class="fa-regular fa-clock"></i> {{ getElapsedLabel(item) }}
-                    </span>
-                  </div>
-
-                  <div class="ped-item__codi">
-                    @if (item.codiPedido) { {{ item.codiPedido }} }
-                    @if (item.codiPedido2) { <span class="ped-item__codi2">/ {{ item.codiPedido2 }}</span> }
-                    @if (!item.codiPedido && !item.codiPedido2) { <span class="ped-item__no-codi">Sin código</span> }
-                  </div>
-
-                  <div class="ped-item__dir">{{ item.direCaso || 'Sin dirección' }}</div>
-
-                  <div class="ped-item__meta">
-                    <span><i class="fa-solid fa-calendar-day"></i>
-                      {{ (item.horaCaso | date:'dd/MM HH:mm') || '—' }}
-                    </span>
-                    <span><i class="fa-solid fa-user"></i> {{ item.usernameCreacion || '—' }}</span>
-                  </div>
-
-                  <div class="ped-item__actions" (click)="$event.stopPropagation()">
-                    <button type="button" class="ui-btn sm secondary"
-                            (click)="editarCaso(item)" title="Editar caso">
-                      <i class="fa-solid fa-pen-to-square"></i>
-                    </button>
-                    @if (item.estado !== 'C') {
-                      <button type="button" class="ui-btn sm danger"
-                              (click)="abrirCerrarModal(item.id)" title="Cierre rápido">
-                        <i class="fa-solid fa-flag-checkered"></i>
-                      </button>
+                  <div class="seg-item__body">
+                    <div class="seg-item__top">
+                      <span class="seg-item__id">#{{ item.id }}</span>
+                      <span class="seg-badge" [ngClass]="getEstadoClass(item.estado)">
+                        {{ getEstadoLabel(item.estado) }}
+                      </span>
+                      <span class="seg-item__elapsed">
+                        <i class="fa-regular fa-clock"></i> {{ getElapsedLabel(item) }}
+                      </span>
+                    </div>
+                    <div class="seg-item__codi">
+                      <span class="seg-item__codi-code">{{ item.codiPedido || 'Sin código' }}</span>
+                      @if (item.descPedido) {
+                        <span class="seg-item__codi-desc">{{ item.descPedido }}</span>
+                      }
+                      @if (item.codiPedido2) {
+                        <span class="seg-item__codi2">
+                          / {{ item.codiPedido2 }}
+                          @if (item.descPedido2) { — {{ item.descPedido2 }} }
+                        </span>
+                      }
+                    </div>
+                    @if (item.prioridad) {
+                      <div class="seg-item__prio">
+                        <span [ngClass]="'seg-prio-chip seg-prio-chip--' + getPrioridadClass(item.prioridad)">
+                          {{ getPrioridadLabel(item.prioridad) }}
+                        </span>
+                      </div>
                     }
+                    <div class="seg-item__dir">{{ item.direCaso || '—' }}</div>
+                    <div class="seg-item__meta">
+                      <span>
+                        <i class="fa-solid fa-user"></i>
+                        {{ item.usernameCreacion || '(sin usuario)' }}
+                      </span>
+                      <span><i class="fa-solid fa-calendar-day"></i>
+                        {{ (item.horaCaso | date:'dd/MM HH:mm') || '—' }}
+                      </span>
+                      @if (item.numeEvento) {
+                        <span class="seg-item__ev-id">
+                          <i class="fa-solid fa-bolt"></i> Ev.{{ item.numeEvento }}
+                        </span>
+                      }
+                    </div>
                   </div>
                 </div>
-              </div>
-            }
-          </div>
-        </div><!-- /ped-col-list -->
-
-
-        <!-- ════════════════════════════════
-             COLUMNA DERECHA — PANEL ACTIVO
-             ════════════════════════════════ -->
-        <div class="ped-col-detail">
-
-          <!-- ── ESTADO VACÍO ──────────────────────────────────────────── -->
-          @if (panelMode === 'list') {
-            <div class="ped-empty-state">
-              <i class="fa-solid fa-tower-broadcast"></i>
-              <p>Seleccione un caso de la lista para ver el detalle,<br>
-                 o haga clic en <strong>Nuevo</strong> para registrar un incidente.</p>
+              }
             </div>
-          }
 
-          <!-- ════════════════════════════════
-               FORMULARIO CREAR / EDITAR
-               ════════════════════════════════ -->
-          @if (panelMode === 'form') {
-            <div class="ped-form-scroll">
-
-              <div class="ped-form-title">
-                <i class="fa-solid fa-{{ editingId ? 'pen-to-square' : 'plus-circle' }}"></i>
-                {{ editingId ? 'Editar caso #' + editingId : 'Nuevo incidente' }}
-              </div>
-
-              <!-- ── Sección: Llamante ──────────────────────────────── -->
-              <div class="ped-section">
-                <div class="ped-section__head">
-                  <i class="fa-solid fa-phone"></i> Información del llamante
-                </div>
-                <div class="ui-grid" style="padding:12px 14px;">
-                  <div class="ui-field ui-col-6">
-                    <label class="ui-label">Teléfono</label>
-                    <input class="ui-control" type="number" [(ngModel)]="form.numeTelefono"
-                           placeholder="3001234567">
-                  </div>
-                  <div class="ui-field ui-col-6">
-                    <label class="ui-label">Propietario teléfono</label>
-                    <input class="ui-control" type="text" [(ngModel)]="form.propTelefono" maxlength="200">
-                  </div>
-                  <div class="ui-field ui-col-6">
-                    <label class="ui-label">Nombre llamante</label>
-                    <input class="ui-control" type="text" [(ngModel)]="form.nombLlamante" maxlength="200">
-                  </div>
-                  <div class="ui-field ui-col-6">
-                    <label class="ui-label">Dirección llamante</label>
-                    <input class="ui-control" type="text" [(ngModel)]="form.direLlamante" maxlength="300">
-                  </div>
-                </div>
-              </div>
-
-              <!-- ── Sección: Ubicación del caso ──────────────────── -->
-              <div class="ped-section">
-                <div class="ped-section__head">
-                  <i class="fa-solid fa-location-dot"></i> Ubicación del incidente
-                </div>
-                <div class="ui-grid" style="padding:12px 14px;">
-                  <div class="ui-field ui-col-12">
-                    <label class="ui-label">Dirección del caso <span class="ped-req">*</span></label>
-                    <input class="ui-control" type="text" [(ngModel)]="form.direCaso"
-                           maxlength="300" placeholder="Calle 1 # 2-3">
-                  </div>
-                  <div class="ui-field ui-col-6">
-                    <label class="ui-label">Barrio</label>
-                    <input class="ui-control" type="text" [(ngModel)]="form.barrio" maxlength="200">
-                  </div>
-                  <div class="ui-field ui-col-6">
-                    <label class="ui-label">Ciudad</label>
-                    <input class="ui-control" type="text" [(ngModel)]="form.ciudad" maxlength="200">
-                  </div>
-                  <div class="ui-field ui-col-6">
-                    <label class="ui-label">Latitud</label>
-                    <input class="ui-control" type="text" [(ngModel)]="form.latitudCaso"
-                           maxlength="50" placeholder="4.7110">
-                  </div>
-                  <div class="ui-field ui-col-6">
-                    <label class="ui-label">Longitud</label>
-                    <input class="ui-control" type="text" [(ngModel)]="form.longitudCaso"
-                           maxlength="50" placeholder="-74.0721">
-                  </div>
-                </div>
-              </div>
-
-              <!-- ── Sección: Clasificación ────────────────────────── -->
-              <div class="ped-section">
-                <div class="ped-section__head">
-                  <i class="fa-solid fa-tags"></i> Clasificación del incidente
-                </div>
-                <div class="ui-grid" style="padding:12px 14px;">
-                  <div class="ui-field ui-col-6">
-                    <label class="ui-label">Código pedido <span class="ped-req">*</span></label>
-                    <input class="ui-control" type="text" [(ngModel)]="form.codiPedido"
-                           maxlength="50" placeholder="Ej: 11-A">
-                  </div>
-                  <div class="ui-field ui-col-6">
-                    <label class="ui-label">Código secundario</label>
-                    <input class="ui-control" type="text" [(ngModel)]="form.codiPedido2" maxlength="50">
-                  </div>
-                  <div class="ui-field ui-col-6">
-                    <label class="ui-label">Tipo pedido</label>
-                    <input class="ui-control" type="text" [(ngModel)]="form.tipoPedido" maxlength="50">
-                  </div>
-                  <div class="ui-field ui-col-6">
-                    <label class="ui-label">Calidad pedido</label>
-                    <input class="ui-control" type="text" [(ngModel)]="form.caliPedido" maxlength="50">
-                  </div>
-                  <div class="ui-field ui-col-4">
-                    <label class="ui-label">Importancia</label>
-                    <select class="ui-control" [(ngModel)]="form.importancia">
-                      <option value="">Seleccione</option>
-                      <option value="ALTA">Alta</option>
-                      <option value="MEDIA">Media</option>
-                      <option value="BAJA">Baja</option>
-                    </select>
-                  </div>
-                  <div class="ui-field ui-col-4">
-                    <label class="ui-label">Prioridad</label>
-                    <select class="ui-control" [(ngModel)]="form.prioridad">
-                      <option value="">Seleccione</option>
-                      <option value="FLASH">FLASH</option>
-                      <option value="INMEDIATA">INMEDIATA</option>
-                      <option value="RUTINA">RUTINA</option>
-                    </select>
-                  </div>
-                  <div class="ui-field ui-col-4">
-                    <label class="ui-label">Estado</label>
-                    <select class="ui-control" [(ngModel)]="form.estado">
-                      <option value="A">Activo</option>
-                      <option value="P">Pendiente</option>
-                      <option value="C">Cerrado</option>
-                    </select>
-                  </div>
-                  <div class="ui-field ui-col-6">
-                    <label class="ui-label">Enviar a despacho</label>
-                    <select class="ui-control" [(ngModel)]="form.enviar">
-                      <option value="N">No</option>
-                      <option value="S">Sí</option>
-                    </select>
-                  </div>
-                  <div class="ui-field ui-col-6">
-                    <label class="ui-label">Sitio CAD</label>
-                    <input class="ui-control" type="number" [(ngModel)]="form.sitioGraba" min="0">
-                  </div>
-                  <div class="ui-field ui-col-12">
-                    <label class="ui-label">Comentario del incidente</label>
-                    <textarea class="ui-control ped-textarea" rows="3"
-                              [(ngModel)]="form.comentario" maxlength="2000"
-                              placeholder="Descripción del incidente…"></textarea>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Acciones del formulario -->
-              <div class="ped-form-actions">
-                <button type="button" class="ui-btn secondary" (click)="cancelar()">
-                  <i class="fa-solid fa-xmark"></i> Cancelar
-                </button>
-                <button type="button" class="ui-btn primary" (click)="guardar()" [disabled]="saving">
-                  <i class="fa-solid fa-{{ saving ? 'spinner fa-spin' : 'floppy-disk' }}"></i>
-                  {{ saving ? 'Guardando…' : 'Guardar caso' }}
-                </button>
-              </div>
-
-            </div><!-- /ped-form-scroll -->
-          }
+          </div><!-- /seg-col-list -->
 
 
-          <!-- ════════════════════════════════
-               DETALLE DEL CASO
-               ════════════════════════════════ -->
-          @if (panelMode === 'detail') {
+          <!-- ═══ COLUMNA DERECHA — trazabilidad / detalle ══════════════════════ -->
+          <div class="seg-col-detail">
 
-            @if (loading) {
-              <div class="ped-detail-loading">
-                <i class="fa-solid fa-spinner fa-spin"></i> Cargando detalle…
+            <!-- Estado vacío: ningún incidente seleccionado -->
+            @if (!selectedId) {
+              <div class="seg-empty-state">
+                <i class="fa-solid fa-timeline"></i>
+                <p>Seleccione un incidente de la lista<br>para visualizar su trazabilidad completa.</p>
               </div>
             }
 
-            @if (!loading && detalle) {
-              <div class="ped-detail-scroll">
+            <!-- Cargando detalle -->
+            @if (selectedId && loadingDetalle) {
+              <div class="seg-loading">
+                <i class="fa-solid fa-spinner fa-spin"></i> Cargando trazabilidad…
+              </div>
+            }
 
-                <!-- Cabecera del detalle con semáforo -->
-                <div class="ped-detail-header" [ngClass]="getSemaforoClass(detalle)">
-                  <div class="ped-detail-header__left">
-                    <span class="ped-detail-id">Caso #{{ detalle.id }}</span>
-                    <span class="ped-badge ped-badge--lg" [ngClass]="getEstadoClass(detalle.estado)">
+            <!-- Detalle completo -->
+            @if (selectedId && !loadingDetalle && detalle) {
+              <div class="seg-detail-scroll">
+
+                <!-- Cabecera del detalle (color semáforo) -->
+                <div class="seg-detail-header" [ngClass]="getSemaforoClass(detalle)">
+                  <div class="seg-detail-header__left">
+                    <span class="seg-detail-id">Incidente #{{ detalle.id }}</span>
+                    <span class="seg-badge seg-badge--lg" [ngClass]="getEstadoClass(detalle.estado)">
                       {{ getEstadoLabel(detalle.estado) }}
                     </span>
                     @if (detalle.prioridad) {
-                      <span class="ped-prio-badge" [ngClass]="getPrioridadClass(detalle.prioridad)">
-                        <i class="fa-solid fa-bolt"></i> {{ getPrioridadLabel(detalle.prioridad) }}
+                      <span class="seg-prio-badge" [ngClass]="getPrioridadClass(detalle.prioridad)">
+                        <i class="fa-solid fa-bolt"></i>
+                        {{ getPrioridadLabel(detalle.prioridad) }}
                       </span>
                     }
                   </div>
-                  <div class="ped-detail-header__elapsed">
-                    <i class="fa-regular fa-clock"></i> {{ getElapsedLabel(detalle) }}
-                  </div>
-                </div>
-
-                <!-- Acciones del detalle -->
-                <div class="ped-detail-actions">
-                  <button type="button" class="ui-btn secondary" (click)="editarCaso(detalle)">
-                    <i class="fa-solid fa-pen-to-square"></i> Editar
-                  </button>
-                  @if (detalle.estado !== 'C') {
-                    <button type="button" class="ui-btn danger"
-                            (click)="abrirCerrarModal(detalle.id)">
-                      <i class="fa-solid fa-flag-checkered"></i> Cierre rápido
+                  <div class="seg-detail-header__right">
+                    <span class="seg-detail-elapsed">
+                      <i class="fa-regular fa-clock"></i> {{ getElapsedLabel(detalle) }}
+                    </span>
+                    <button type="button" class="ui-btn sm secondary"
+                            (click)="volverALista()" title="Volver a la lista">
+                      <i class="fa-solid fa-arrow-left"></i>
                     </button>
+                  </div>
+                </div>
+
+                <!-- Bloque de identificadores (ID pedido, ID evento, N° llamada, teléfono) -->
+                <div class="seg-id-block">
+                  <span class="seg-id-chip">
+                    <i class="fa-solid fa-hashtag"></i>
+                    <span class="seg-id-chip__lbl">ID Pedido</span>
+                    <span class="seg-id-chip__val">{{ detalle.id }}</span>
+                  </span>
+                  @if (detalle.numeEvento) {
+                    <span class="seg-id-chip seg-id-chip--evento">
+                      <i class="fa-solid fa-bolt"></i>
+                      <span class="seg-id-chip__lbl">ID Evento</span>
+                      <span class="seg-id-chip__val">{{ detalle.numeEvento }}</span>
+                    </span>
                   }
-                  <button type="button" class="ui-btn secondary" (click)="cancelar()">
-                    <i class="fa-solid fa-list"></i> Volver
-                  </button>
+                  @if (detalle.numeLlamada) {
+                    <span class="seg-id-chip seg-id-chip--llamada">
+                      <i class="fa-solid fa-phone-volume"></i>
+                      <span class="seg-id-chip__lbl">N° Llamada</span>
+                      <span class="seg-id-chip__val">{{ detalle.numeLlamada }}</span>
+                    </span>
+                  }
+                  @if (detalle.numeTelefono) {
+                    <span class="seg-id-chip seg-id-chip--tel">
+                      <i class="fa-solid fa-mobile-screen"></i>
+                      <span class="seg-id-chip__lbl">Teléfono</span>
+                      <span class="seg-id-chip__val">{{ detalle.numeTelefono }}</span>
+                    </span>
+                  }
                 </div>
 
-                <!-- ── Sección: Ubicación ─────────────────────────── -->
-                <div class="ped-section">
-                  <div class="ped-section__head">
-                    <i class="fa-solid fa-location-dot"></i> Ubicación del incidente
-                  </div>
-                  <div class="ped-detail-grid">
-                    <div class="ped-df span-2">
-                      <span class="ped-dl">Dirección</span>
-                      <span class="ped-dv ped-dv--highlight">{{ detalle.direCaso || '—' }}</span>
+                <!-- Datos clave del incidente -->
+                <div class="seg-inc-info">
+                  <div class="seg-info-grid">
+                    <div class="seg-info-df seg-info-df--full">
+                      <span class="seg-info-dl">Dirección del incidente</span>
+                      <span class="seg-info-dv seg-info-dv--hl">{{ detalle.direCaso || '—' }}</span>
                     </div>
-                    <div class="ped-df">
-                      <span class="ped-dl">Barrio</span>
-                      <span class="ped-dv">{{ detalle.barrio || '—' }}</span>
-                    </div>
-                    <div class="ped-df">
-                      <span class="ped-dl">Ciudad</span>
-                      <span class="ped-dv">{{ detalle.ciudad || '—' }}</span>
-                    </div>
-                    <div class="ped-df">
-                      <span class="ped-dl">Latitud</span>
-                      <span class="ped-dv">{{ detalle.latitudCaso || '—' }}</span>
-                    </div>
-                    <div class="ped-df">
-                      <span class="ped-dl">Longitud</span>
-                      <span class="ped-dv">{{ detalle.longitudCaso || '—' }}</span>
-                    </div>
-                  </div>
-
-                  <!-- Mapa Leaflet -->
-                  <div class="ped-map-body">
-                    <div id="mapaDetalle" class="ped-map"></div>
-                    @if (!detalle.latitudCaso || !detalle.longitudCaso) {
-                      <p class="ped-map-hint">
-                        <i class="fa-solid fa-circle-info"></i>
-                        Sin coordenadas registradas — mapa centrado en Bogotá.
-                      </p>
-                    }
-                  </div>
-                </div>
-
-                <!-- ── Sección: Llamante ──────────────────────────── -->
-                <div class="ped-section">
-                  <div class="ped-section__head">
-                    <i class="fa-solid fa-phone"></i> Información del llamante
-                  </div>
-                  <div class="ped-detail-grid">
-                    <div class="ped-df">
-                      <span class="ped-dl">Teléfono</span>
-                      <span class="ped-dv">{{ detalle.numeTelefono || '—' }}</span>
-                    </div>
-                    <div class="ped-df">
-                      <span class="ped-dl">Propietario</span>
-                      <span class="ped-dv">{{ detalle.propTelefono || '—' }}</span>
-                    </div>
-                    <div class="ped-df">
-                      <span class="ped-dl">Nombre llamante</span>
-                      <span class="ped-dv">{{ detalle.nombLlamante || '—' }}</span>
-                    </div>
-                    <div class="ped-df">
-                      <span class="ped-dl">Dir. llamante</span>
-                      <span class="ped-dv">{{ detalle.direLlamante || '—' }}</span>
-                    </div>
-                  </div>
-                </div>
-
-                <!-- ── Sección: Clasificación ────────────────────── -->
-                <div class="ped-section">
-                  <div class="ped-section__head">
-                    <i class="fa-solid fa-tags"></i> Clasificación
-                  </div>
-                  <div class="ped-detail-grid">
-                    <div class="ped-df">
-                      <span class="ped-dl">Código pedido</span>
-                      <span class="ped-dv">
-                        {{ detalle.codiPedido || '—' }}
-                        @if (detalle.codiPedido2) { / {{ detalle.codiPedido2 }} }
+                    <div class="seg-info-df">
+                      <span class="seg-info-dl">Tipo de caso</span>
+                      <span class="seg-info-dv">
+                        <strong>{{ detalle.codiPedido || '—' }}</strong>
+                        @if (detalle.descPedido) {
+                          <span class="seg-info-dv-sub"> — {{ detalle.descPedido }}</span>
+                        }
+                        @if (detalle.codiPedido2) {
+                          <br>
+                          <strong>{{ detalle.codiPedido2 }}</strong>
+                          @if (detalle.descPedido2) {
+                            <span class="seg-info-dv-sub"> — {{ detalle.descPedido2 }}</span>
+                          }
+                        }
                       </span>
                     </div>
-                    <div class="ped-df">
-                      <span class="ped-dl">Hora caso</span>
-                      <span class="ped-dv">{{ (detalle.horaCaso | date:'dd/MM/yyyy HH:mm:ss') || '—' }}</span>
+                    <div class="seg-info-df">
+                      <span class="seg-info-dl">Hora del caso</span>
+                      <span class="seg-info-dv">
+                        {{ (detalle.horaCaso | date:'dd/MM/yyyy HH:mm:ss') || '—' }}
+                      </span>
                     </div>
-                    <div class="ped-df">
-                      <span class="ped-dl">Tipo pedido</span>
-                      <span class="ped-dv">{{ detalle.tipoPedido || '—' }}</span>
+                    <div class="seg-info-df">
+                      <span class="seg-info-dl">Creado por</span>
+                      <span class="seg-info-dv">{{ detalle.usernameCreacion || '(sin usuario)' }}</span>
                     </div>
-                    <div class="ped-df">
-                      <span class="ped-dl">Calidad</span>
-                      <span class="ped-dv">{{ detalle.caliPedido || '—' }}</span>
+                    <div class="seg-info-df">
+                      <span class="seg-info-dl">Canal origen</span>
+                      <span class="seg-info-dv">
+                        @if (detalle.origen) {
+                          <i class="fa-solid fa-share-nodes" style="font-size:10px;opacity:.6"></i>
+                          {{ getOrigenLabel(detalle.origen) }}
+                          <span class="seg-info-dv-sub">({{ detalle.origen }})</span>
+                        } @else {
+                          <span style="color:var(--text-muted,#aaa)">No registrado</span>
+                        }
+                      </span>
                     </div>
-                    <div class="ped-df">
-                      <span class="ped-dl">Importancia</span>
-                      <span class="ped-dv">{{ detalle.importancia || '—' }}</span>
-                    </div>
-                    <div class="ped-df">
-                      <span class="ped-dl">Prioridad</span>
-                      <span class="ped-dv">{{ getPrioridadLabel(detalle.prioridad) }}</span>
-                    </div>
-                    <div class="ped-df">
-                      <span class="ped-dl">Enviar despacho</span>
-                      <span class="ped-dv">{{ detalle.enviar === 'S' ? 'Sí' : 'No' }}</span>
-                    </div>
-                    <div class="ped-df">
-                      <span class="ped-dl">Operador</span>
-                      <span class="ped-dv">{{ detalle.usernameCreacion || '—' }}</span>
-                    </div>
+                    @if (detalle.nombLlamante) {
+                      <div class="seg-info-df">
+                        <span class="seg-info-dl">Informante</span>
+                        <span class="seg-info-dv">{{ detalle.nombLlamante }}</span>
+                      </div>
+                    }
+                    @if (detalle.barrio || detalle.ciudad) {
+                      <div class="seg-info-df">
+                        <span class="seg-info-dl">Barrio / Ciudad</span>
+                        <span class="seg-info-dv">
+                          {{ detalle.barrio || '—' }}
+                          @if (detalle.ciudad) { · {{ detalle.ciudad }} }
+                        </span>
+                      </div>
+                    }
                     @if (detalle.comentario) {
-                      <div class="ped-df span-2">
-                        <span class="ped-dl">Comentario</span>
-                        <span class="ped-dv">{{ detalle.comentario }}</span>
+                      <div class="seg-info-df seg-info-df--full">
+                        <span class="seg-info-dl">Descripción de hechos</span>
+                        <span class="seg-info-dv">{{ detalle.comentario }}</span>
                       </div>
                     }
                   </div>
                 </div>
 
-                <!-- ════════════════════════════════
-                     ANOTACIONES
-                     ════════════════════════════════ -->
-                <div class="ped-section">
-                  <div class="ped-section__head">
-                    <i class="fa-solid fa-comments"></i>
-                    Anotaciones
-                    <span class="ped-section__badge">{{ detalle.anotaciones.length }}</span>
+                <!-- ── Trazabilidad: Timeline ────────────────────────────── -->
+                <div class="seg-tl-section">
+
+                  <div class="seg-tl-header">
+                    <div class="seg-tl-header__left">
+                      <i class="fa-solid fa-timeline"></i>
+                      Historia clínica del incidente
+                      <span class="seg-tl-count">
+                        {{ timeline.length }} evento{{ timeline.length !== 1 ? 's' : '' }}
+                      </span>
+                    </div>
+
+                    @if (detalle.estado !== 'C') {
+                      <button type="button" class="ui-btn sm primary"
+                              (click)="showAnotForm = !showAnotForm">
+                        <i class="fa-solid fa-{{ showAnotForm ? 'xmark' : 'eye' }}"></i>
+                        {{ showAnotForm ? 'Cancelar' : 'Anotar supervisión' }}
+                      </button>
+                    }
                   </div>
 
-                  <!-- Formulario nueva anotación -->
-                  @if (detalle.estado !== 'C') {
-                    <div class="ped-anot-form">
-                      <div class="ui-grid" style="padding:0; gap:10px;">
-                        <div class="ui-field ui-col-6">
-                          <label class="ui-label">Título</label>
-                          <input class="ui-control" type="text"
-                                 [(ngModel)]="anotacionForm.titulo"
-                                 maxlength="200" placeholder="Título de la anotación">
-                        </div>
-                        <div class="ui-field ui-col-6">
-                          <label class="ui-label">Tipo</label>
-                          <select class="ui-control" [(ngModel)]="anotacionForm.tipoAnotacion">
-                            <option value="GENERAL">General</option>
-                            <option value="OPERATIVA">Operativa</option>
-                            <option value="PREVENTIVA">Preventiva</option>
-                            <option value="DESPACHO">Despacho</option>
-                            <option value="NOVEDAD_PERSONAL">Nov. Personal</option>
-                            <option value="CIERRE">Cierre</option>
-                          </select>
-                        </div>
-                        <div class="ui-field ui-col-12">
-                          <label class="ui-label">Texto <span class="ped-req">*</span></label>
-                          <textarea class="ui-control ped-textarea" rows="2"
-                                    [(ngModel)]="anotacionForm.anotacion"
-                                    maxlength="2000"
-                                    placeholder="Escriba la anotación…"></textarea>
-                        </div>
+                  <!-- Formulario anotación supervisora -->
+                  @if (showAnotForm) {
+                    <div class="seg-anot-form">
+                      <div class="seg-anot-form__tag">
+                        <i class="fa-solid fa-eye"></i> Jefe de Turno — Supervisión
                       </div>
-                      <div class="ped-anot-form__footer">
-                        <button type="button" class="ui-btn primary"
-                                (click)="guardarAnotacion()" [disabled]="savingAnotacion">
-                          <i class="fa-solid fa-{{ savingAnotacion ? 'spinner fa-spin' : 'plus' }}"></i>
-                          {{ savingAnotacion ? 'Guardando…' : 'Agregar anotación' }}
+                      <div class="ui-field">
+                        <label class="ui-label">Título de la observación</label>
+                        <input class="ui-control" type="text"
+                               [(ngModel)]="anotacionForm.titulo"
+                               maxlength="200"
+                               placeholder="Ej: Supervisión de unidades, Escalamiento de prioridad…">
+                      </div>
+                      <div class="ui-field">
+                        <label class="ui-label">
+                          Texto de la observación <span style="color:#ef4444">*</span>
+                        </label>
+                        <textarea class="ui-control seg-anot-textarea" rows="3"
+                                  [(ngModel)]="anotacionForm.anotacion"
+                                  maxlength="2000"
+                                  placeholder="Escriba la observación del Jefe de Turno que quedará en la trazabilidad del incidente…">
+                        </textarea>
+                      </div>
+                      <div class="seg-anot-form__foot">
+                        <button type="button" class="ui-btn sm secondary"
+                                (click)="showAnotForm = false">
+                          <i class="fa-solid fa-xmark"></i> Cancelar
+                        </button>
+                        <button type="button" class="ui-btn sm primary"
+                                (click)="guardarAnotacion()"
+                                [disabled]="savingAnotacion">
+                          <i class="fa-solid fa-{{
+                            savingAnotacion ? 'spinner fa-spin' : 'eye'
+                          }}"></i>
+                          {{ savingAnotacion ? 'Registrando…' : 'Registrar en trazabilidad' }}
                         </button>
                       </div>
                     </div>
                   }
 
-                  <!-- Lista de anotaciones -->
-                  <div class="ped-anot-list">
-                    @if (detalle.anotaciones.length === 0) {
-                      <div class="ped-anot-empty">
-                        <i class="fa-regular fa-comment"></i> Sin anotaciones registradas.
+                  <!-- Timeline de eventos -->
+                  <div class="seg-timeline">
+                    @if (timeline.length === 0) {
+                      <div class="seg-tl-empty">
+                        <i class="fa-solid fa-timeline"></i>
+                        Sin eventos registrados en la trazabilidad.
                       </div>
                     }
 
-                    @for (an of detalle.anotaciones; track an.id) {
-                      <div class="ped-anot-item" [attr.data-tipo]="an.tipoAnotacion">
-                        <div class="ped-anot-item__head">
-                          <i [class]="getTipoAnotacionIcon(an.tipoAnotacion)"></i>
-                          <span class="ped-anot-item__titulo">{{ an.titulo || 'Sin título' }}</span>
-                          <span class="ped-anot-tipo-badge">{{ getTipoAnotacionLabel(an.tipoAnotacion) }}</span>
-                          <span class="ped-anot-item__meta">
-                            {{ an.usernameCreacion }}
-                            · {{ (an.fechaCreacion | date:'dd/MM/yy HH:mm') || '—' }}
-                          </span>
+                    @for (ev of timeline; track $index) {
+                      <div class="seg-tl-item" [class]="'seg-tl-item--' + ev.colorClass">
+
+                        <div class="seg-tl-item__marker">
+                          <div class="seg-tl-item__dot">
+                            <i [class]="ev.icono"></i>
+                          </div>
+                          @if (!$last) {
+                            <div class="seg-tl-item__line"></div>
+                          }
                         </div>
-                        <div class="ped-anot-item__texto">{{ an.anotacion }}</div>
+
+                        <div class="seg-tl-item__card">
+                          <div class="seg-tl-item__head">
+                            <span class="seg-tl-item__titulo">{{ ev.titulo }}</span>
+                            @if (ev.tipoAnotacion) {
+                              <span class="seg-tl-item__tipo">{{ ev.tipoAnotacion }}</span>
+                            }
+                            <span class="seg-tl-item__time">
+                              {{ (ev.timestamp | date:'dd/MM/yy HH:mm') || '—' }}
+                            </span>
+                          </div>
+                          <div class="seg-tl-item__desc">{{ ev.descripcion }}</div>
+                          <div class="seg-tl-item__actor">
+                            <i class="fa-solid fa-user"></i> {{ ev.actor }}
+                          </div>
+                        </div>
+
                       </div>
                     }
-                  </div>
+                  </div><!-- /seg-timeline -->
 
-                </div><!-- /anotaciones section -->
+                </div><!-- /seg-tl-section -->
 
-              </div><!-- /ped-detail-scroll -->
+              </div><!-- /seg-detail-scroll -->
             }
-          }
 
-        </div><!-- /ped-col-detail -->
+          </div><!-- /seg-col-detail -->
 
-      </div><!-- /ped-layout -->
+        </div><!-- /seg-inc-layout -->
+      }
+
+
+      <!-- ════════════════════════════════════════════════════════════════════════
+           TAB: KPIs — Indicadores de eficiencia operativa
+           ════════════════════════════════════════════════════════════════════════ -->
+      @if (vista === 'kpis') {
+        <div class="seg-kpis-view">
+
+          <!-- Título y meta-info -->
+          <div class="seg-kpis-header">
+            <div class="seg-kpis-header__title">
+              <i class="fa-solid fa-chart-bar"></i>
+              Indicadores de eficiencia — Turno actual
+            </div>
+            <div class="seg-kpis-header__meta">
+              {{ stats.total }} incidentes · Actualizado: {{ lastRefresh | date:'HH:mm:ss' }}
+              <button type="button" class="seg-refresh-btn" (click)="cargarLista()"
+                      title="Recalcular">
+                <i class="fa-solid fa-arrows-rotate" [class.fa-spin]="loading"></i>
+              </button>
+            </div>
+          </div>
+
+          <!-- Tarjetas KPI -->
+          <div class="seg-kpi-grid">
+            @for (kpi of kpis; track kpi.label) {
+              <div class="seg-kpi-card"
+                   [class.seg-kpi-card--ok]="kpi.cumple"
+                   [class.seg-kpi-card--alert]="!kpi.cumple">
+
+                <div class="seg-kpi-card__head">
+                  <i [class]="'fa-solid ' + kpi.icon"></i>
+                  @if (kpi.prioridad) {
+                    <span class="seg-kpi-card__prio"
+                          [class]="'seg-kpi-prio--' + kpi.prioridad">
+                      {{ kpi.prioridad.toUpperCase() }}
+                    </span>
+                  }
+                </div>
+
+                <div class="seg-kpi-card__val">
+                  {{ kpi.valor }}<span class="seg-kpi-card__unit">{{ kpi.unidad }}</span>
+                </div>
+
+                <div class="seg-kpi-card__label">{{ kpi.label }}</div>
+
+                @if (kpi.meta < 9999) {
+                  <div class="seg-kpi-card__meta">
+                    Meta: {{ kpi.unidad === '%' ? '' : '< ' }}{{ kpi.meta }}{{ kpi.unidad }}
+                    <i class="fa-solid fa-{{
+                      kpi.cumple ? 'circle-check' : 'circle-xmark'
+                    }}" [style.color]="kpi.cumple ? '#22c55e' : '#ef4444'"></i>
+                  </div>
+                }
+
+              </div>
+            }
+          </div><!-- /seg-kpi-grid -->
+
+          <!-- Tabla por operador -->
+          <div class="seg-op-section">
+            <div class="seg-op-section__title">
+              <i class="fa-solid fa-users"></i>
+              Distribución por operador / receptor
+            </div>
+
+            @if (operadores.length === 0) {
+              <p class="seg-empty-hint">Sin datos de operadores disponibles.</p>
+            } @else {
+              <div class="seg-op-table-wrap">
+                <table class="seg-op-table">
+                  <thead>
+                    <tr>
+                      <th>Operador</th>
+                      <th>Total</th>
+                      <th>Activos</th>
+                      <th>Cerrados</th>
+                      <th>T. prom. activos</th>
+                      <th>Críticos</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (op of operadores; track op.username) {
+                      <tr [class.seg-op-row--alert]="op.criticos > 0">
+                        <td><strong>{{ op.username }}</strong></td>
+                        <td>{{ op.total }}</td>
+                        <td>{{ op.activos }}</td>
+                        <td>{{ op.cerrados }}</td>
+                        <td>
+                          @if (op.activos > 0) {
+                            {{ op.tiempoPromedio }}m
+                          } @else {
+                            <span style="color:#aaa">—</span>
+                          }
+                        </td>
+                        <td>
+                          @if (op.criticos > 0) {
+                            <span class="seg-critico-badge">
+                              <i class="fa-solid fa-triangle-exclamation"></i>
+                              {{ op.criticos }}
+                            </span>
+                          } @else {
+                            <span class="seg-ok-badge">
+                              <i class="fa-solid fa-check"></i>
+                            </span>
+                          }
+                        </td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+            }
+          </div><!-- /seg-op-section -->
+
+        </div><!-- /seg-kpis-view -->
+      }
+
 
     </div><!-- /ui-panel__body -->
     }
@@ -595,55 +769,3 @@
 </section>
 
 }<!-- /@if visible -->
-
-
-<!-- ══════════════════════════════════════════════════════════════════════════
-     MODAL — CIERRE RÁPIDO
-     ══════════════════════════════════════════════════════════════════════════ -->
-@if (showCerrarModal) {
-  <div class="ped-modal-overlay" (click)="cancelarCerrar()">
-    <div class="ped-modal" (click)="$event.stopPropagation()">
-
-      <div class="ped-modal__head">
-        <i class="fa-solid fa-flag-checkered"></i>
-        Cierre rápido de caso
-      </div>
-
-      <div class="ped-modal__body">
-        <div class="ui-grid" style="padding:0; gap:12px;">
-          <div class="ui-field ui-col-12">
-            <label class="ui-label">Código de cierre</label>
-            <input class="ui-control" type="text"
-                   [(ngModel)]="cerrarForm.codiPedido"
-                   maxlength="50" placeholder="Ej: 99-X">
-          </div>
-          <div class="ui-field ui-col-12">
-            <label class="ui-label">Comentario de cierre</label>
-            <textarea class="ui-control ped-textarea" rows="3"
-                      [(ngModel)]="cerrarForm.comentario"
-                      maxlength="2000"
-                      placeholder="Motivo del cierre…"></textarea>
-          </div>
-          <div class="ui-field ui-col-6">
-            <label class="ui-label">Enviar a despacho</label>
-            <select class="ui-control" [(ngModel)]="cerrarForm.enviar">
-              <option value="N">No</option>
-              <option value="S">Sí</option>
-            </select>
-          </div>
-        </div>
-      </div>
-
-      <div class="ped-modal__foot">
-        <button type="button" class="ui-btn secondary" (click)="cancelarCerrar()">
-          <i class="fa-solid fa-xmark"></i> Cancelar
-        </button>
-        <button type="button" class="ui-btn danger" (click)="confirmarCerrar()" [disabled]="saving">
-          <i class="fa-solid fa-{{ saving ? 'spinner fa-spin' : 'check' }}"></i>
-          {{ saving ? 'Cerrando…' : 'Confirmar cierre' }}
-        </button>
-      </div>
-
-    </div>
-  </div>
-}

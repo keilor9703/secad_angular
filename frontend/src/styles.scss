@@ -62,40 +62,43 @@
      SISTEMA DE ACCESIBILIDAD - ESCALA DE FUENTES
      ===========================================
      Esta variable CSS controla el tamaño de fuente en TODA la aplicación.
-     
+
      CÓMO FUNCIONA:
      - AccessibilityService modifica esta variable desde TypeScript
      - Tiene 7 niveles (0-6): [0.75, 0.85, 1, 1.15, 1.3, 1.5, 1.75]
      - Nivel 2 (escala 1.0) es el tamaño normal por defecto
-     
+
      PARA NUEVOS COMPONENTES:
      ✅ CORRECTO: font-size: calc(14px * var(--font-size-scale));
      ✅ CORRECTO: font-size: calc(1rem * var(--font-size-scale));
      ❌ EVITAR:   font-size: 14px; (no responderá a accesibilidad)
      ❌ EVITAR:   font-size: 14px !important; (bloqueará accesibilidad)
-     
+
      HERENCIA AUTOMÁTICA:
      - El body tiene font-size: calc(16px * var(--font-size-scale))
      - Elementos sin font-size explícito heredan automáticamente
      - Solo necesitas calc() para tamaños específicos diferentes del body
      =========================================== */
   --font-size-scale: 1;
+
+  /* --- Alias de color semánticos adicionales (modo claro) --- */
+  --ui-bg:          #f4f7fa;
+  --ui-text-muted:  var(--policia-neutral-medio);
 }
 
 /* --- Tema Oscuro --- */
 html.dark-mode {
   color-scheme: dark;
 
-  /* Paleta Institucional - Modo Oscuro Adaptada */
-  
-
-  /* Aliases Semánticos */
-  
-  --bg-header: #141e35;
-  --ui-surface: #1e2840;
-  --ui-text: #e4e7eb;
-  --ui-border: rgba(200, 200, 200, 0.1);
-  --ui-muted: #9ca3af;
+  /* --- Aliases semánticos en modo oscuro --- */
+  --bg-header:      #141e35;
+  --ui-surface:     #1e2840;
+  --ui-text:        #e4e7eb;
+  --ui-border:      rgba(200, 200, 200, 0.1);
+  --ui-muted:       #9ca3af;
+  /* Aliases adicionales para compatibilidad con módulos */
+  --ui-bg:          #0a0f1b;
+  --ui-text-muted:  #9ca3af;
 
   /* Body */
   body {
@@ -662,6 +665,41 @@ html.dark-mode {
     color: var(--ui-muted);
   }
 
+  /* ui-label */
+  .ui-label {
+    color: rgba(228, 231, 235, .80);
+  }
+
+  /* Select arrow (modo oscuro — flecha clara) */
+  select.ui-control {
+    background-image:
+      linear-gradient(45deg,  transparent                50%, rgba(200,200,200,.65) 50%),
+      linear-gradient(135deg, rgba(200,200,200,.65)       50%, transparent          50%);
+  }
+
+  /* Input group */
+  .ui-input-group {
+    background:   #252f45;
+    border-color: var(--ui-border);
+  }
+
+  .ui-addon-btn {
+    background:        rgba(255,255,255,.04);
+    border-left-color: var(--ui-border);
+    color:             var(--ui-text);
+
+    &:hover {
+      background: rgba(8,166,203,.12);
+      color:      var(--policia-cielo);
+    }
+  }
+
+  /* Checkbox pill container */
+  .ui-check {
+    background:   rgba(255,255,255,.04);
+    border-color: var(--ui-border);
+  }
+
   /* Text selection */
   ::selection {
     background: var(--policia-cielo);
@@ -673,11 +711,106 @@ html.dark-mode {
     color: #0a0f1b;
   }
 
-  
+  /* =========================================================================
+     MODULOS: Overrides especificos de componente
+     Centralizados aqui (styles.scss) para evitar ViewEncapsulation de Angular
+     ========================================================================= */
 
+  /* Recepcion */
+  .rec-section { background: var(--ui-surface) !important; border-color: var(--ui-border); }
+  .rec-canal-grupo { border-color: var(--ui-border); }
+  .rec-canal-grupo__head { background: rgba(255,255,255,.035) !important; border-bottom-color: var(--ui-border); }
+  .rec-canal-grupo__nombre { color: rgba(228,231,235,.75); }
+  .rec-canal-card { background: var(--ui-surface) !important; border-color: var(--ui-border); color: var(--ui-text); }
+  .rec-canal-card:hover { background: rgba(8,166,203,.12) !important; border-color: rgba(8,166,203,.45); }
+  .rec-canal-card.rec-canal-card--sel { background: linear-gradient(135deg,#002a66 0%,#1c45b4 100%) !important; color: #fff !important; border-color: transparent !important; }
+  .rec-suggest-list { background: var(--ui-surface); border-color: var(--ui-border); }
+  .rec-suggest-item:hover { background: rgba(8,166,203,.12); }
+  .rec-suggest-code { color: var(--policia-cielo); }
+  .rec-suggest-desc { color: rgba(228,231,235,.65); }
+  .rec-prio-label { color: rgba(228,231,235,.55); }
+  .rec-radio-pill--rutina { background: rgba(245,158,11,.08); border-color: rgba(245,158,11,.22); color: rgba(245,158,11,.80); }
+  .rec-radio-pill--rutina.active, .rec-radio-pill--rutina:hover { background: #f59e0b; border-color: #d97706; color: #0a0f1b; }
+  .rec-radio-pill--inmd { background: rgba(34,197,94,.08); border-color: rgba(34,197,94,.22); color: rgba(74,222,128,.80); }
+  .rec-radio-pill--inmd.active, .rec-radio-pill--inmd:hover { background: #22c55e; border-color: #16a34a; color: #0a0f1b; }
+  .rec-radio-pill--flash { background: rgba(239,68,68,.08); border-color: rgba(239,68,68,.22); color: rgba(248,113,113,.80); }
+  .rec-radio-pill--flash.active, .rec-radio-pill--flash:hover { background: #ef4444; border-color: #dc2626; color: #fff; }
+  .rec-radio-pill--imp { background: rgba(8,166,203,.08); border-color: rgba(8,166,203,.22); color: rgba(8,166,203,.80); }
+  .rec-radio-pill--imp.active, .rec-radio-pill--imp:hover { background: var(--policia-gradiente-soft); border-color: transparent; color: #fff; }
+  .rec-invalid { background-color: rgba(239,68,68,.08) !important; border-color: #f87171 !important; }
+  .rec-valid { background-color: rgba(34,197,94,.08) !important; border-color: rgba(34,197,94,.45) !important; }
+  .rec-map { background: #1a2235; border-color: var(--ui-border); }
+  .rec-empty-state { color: rgba(255,255,255,.28); }
+  .rec-asistente__item { background: rgba(255,255,255,.04) !important; border-color: rgba(255,255,255,.10); border-left-color: rgba(8,166,203,.55); }
+  .rec-asistente__item:hover { background: rgba(255,255,255,.07) !important; }
+  .rec-asistente__q { color: var(--ui-text); }
+  .rec-asistente__hint { color: rgba(255,255,255,.40); }
+  .rec-asistente__spin, .rec-asistente__empty { color: rgba(255,255,255,.35); }
+  .rec-asistente__resp label { color: var(--ui-text); }
 
+  /* Eventos */
+  .ev-section { background: var(--ui-surface) !important; border-color: var(--ui-border); }
+  .ev-asistente__item { background: rgba(255,255,255,.04) !important; border-color: rgba(255,255,255,.10); border-left-color: rgba(8,166,203,.55); }
+  .ev-asistente__q { color: var(--ui-text); }
+  .ev-asistente__hint { color: rgba(255,255,255,.40); }
+  .ev-asistente__spin, .ev-asistente__empty { color: rgba(255,255,255,.35); }
 
-  
+  /* Pedido */
+  .ped-item { background: #1e2233 !important; border-color: rgba(255,255,255,.08); }
+  .ped-section { background: #1e2233 !important; border-color: rgba(255,255,255,.08); }
+  .ped-anot-form { background: rgba(255,255,255,.04); }
+  .ped-anot-item { background: rgba(255,255,255,.04); }
+  .ped-modal { background: #1e2233; }
+  .ped-search-bar__input { background: #1e2233; color: #e5e7eb; }
+
+  /* Admin: Usuarios */
+  .profile-card { background: var(--ui-surface) !important; border-color: var(--ui-border); }
+  .profile-avatar { border-color: var(--ui-surface); }
+  .profile-name { color: var(--ui-text); }
+  .profile-role { color: var(--ui-muted); }
+  .state-box { background: rgba(255,255,255,.03); border-color: var(--ui-border); }
+  .state-box__label { color: var(--ui-muted); }
+  .tabs-shell { background: rgba(255,255,255,.04); border-color: var(--ui-border); }
+  .tab-btn { color: var(--ui-muted); }
+  .tab-card { background: var(--ui-surface) !important; border-color: var(--ui-border); }
+
+  /* Admin: Dominio / Roles / Menu */
+  .dominio-item { background: var(--ui-surface) !important; border-color: var(--ui-border); }
+  .dominio-item.is-parent { background: rgba(74,144,217,.08) !important; }
+  .dominio-item.is-grandchild { background: rgba(255,255,255,.02) !important; }
+  .dominio-icon { color: var(--ui-muted); }
+  .role-item { background: var(--ui-surface) !important; border-color: var(--ui-border); }
+  .role-menu-item { border-color: var(--ui-border); }
+  .menu-item { border-color: var(--ui-border); background: rgba(255,255,255,.03); }
+  .menu-item__content strong { color: var(--ui-text); }
+  .menu-role-item { background: rgba(255,255,255,.03); border-color: var(--ui-border); }
+
+  /* Admin: Linea mando / Configuracion */
+  .funcionario-panel { background: rgba(255,255,255,.03); border-color: var(--ui-border); }
+  .no-funcionario { color: var(--ui-muted); background: rgba(255,255,255,.02); border-color: var(--ui-border); }
+  .login-item { background: rgba(255,255,255,.03); border-color: var(--ui-border); }
+
+  /* Admin: Asistente inteligente */
+  .asis-card { background: #1e293b; border-color: #334155; }
+  .asis-card__head { background: rgba(255,255,255,.04); border-color: #334155; color: #e2e8f0; }
+  .asis-cat-item { background: #1e293b; border-color: #334155; }
+  .asis-cat-item:hover { background: #243449; }
+  .asis-cat-item.is-active { background: linear-gradient(135deg,#1e3a5f 0%,#1e3a8a 100%); }
+  .asis-cat-icon { background: #1e3a8a; }
+  .asis-cat-name { color: #e2e8f0; }
+  .asis-preg-item { background: #1e293b; border-color: #334155; }
+  .asis-preg-item:hover { background: #243449; }
+  .asis-preg-header { background: linear-gradient(135deg,#1e3a5f 0%,#1e3a8a 100%); border-color: #2d4a8a; }
+  .asis-preg-title { color: #93c5fd; }
+  .asis-preg-num { background: #1e3a8a; color: #93c5fd; }
+  .asis-preg-text { color: #e2e8f0; }
+  .asis-icon-preview { background: #1e3a8a; border-color: #2d4a8a; color: #93c5fd; }
+  .asis-check-box { background: #334155; border-color: #475569; }
+  .asis-check-label { color: #e2e8f0; }
+  .asis-option-chip { background: #334155; color: #cbd5e1; border-color: #475569; }
+  .asis-empty { border-color: #334155; }
+  .asis-placeholder { border-color: #334155; color: #475569; }
+
 }
 /* --- FIN MODO OSCURO --- */
 

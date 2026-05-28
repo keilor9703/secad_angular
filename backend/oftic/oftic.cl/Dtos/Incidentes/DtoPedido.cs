@@ -157,6 +157,12 @@ namespace Comun.Dtos.Incidentes
         public string    CaliPedido            { get; set; } = string.Empty;
         public string    Ciudad                { get; set; } = string.Empty;
 
+        /// <summary>
+        /// Canal de origen del evento (CTI, RECEPCION, APP_MOVIL, INTEGRACION, SIEDCO, INTERNO, MANUAL).
+        /// Proviene de cad_eventos.origen vía JOIN. Valor por defecto "MANUAL" cuando es NULL.
+        /// </summary>
+        public string    Origen                { get; set; } = "MANUAL";
+
         /// <summary>Descripción del código de caso principal (JOIN cad_casos).</summary>
         public string    DescPedido            { get; set; } = string.Empty;
 

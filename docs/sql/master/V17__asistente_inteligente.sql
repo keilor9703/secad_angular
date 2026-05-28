@@ -174,40 +174,59 @@ DECLARE
   v_id_asistente  BIGINT;
 BEGIN
 
-  -- ── Localizar el grupo "Administración" ────────────────────────────────
+  -- ── Localizar el grupo "Administración" (búsqueda flexible) ─────────────
+  --   · No filtra por detalle IS NULL: el nodo padre puede tener o no detalle.
+  --   · Excluye el nodo raíz (auto-referenciado) y nodos hoja que tengan ruta.
+  --   · Ordena por id_menu para obtener siempre el mismo registro.
   SELECT id_menu INTO v_id_admin
   FROM ctr_menu
-  WHERE detalle IS NULL
-    AND LOWER(descripcion) LIKE '%administraci%'
+  WHERE LOWER(descripcion) LIKE '%administraci%'
     AND vigente = 1
+    AND id_menu <> COALESCE(idpadre, 0)      -- excluir nodo raíz auto-referenciado
+  ORDER BY id_menu
   LIMIT 1;
 
+  -- Si aún no se encontró, intenta sin filtro de vigente
   IF v_id_admin IS NULL THEN
-    RAISE EXCEPTION
-      'No se encontró el grupo "Administración" en ctr_menu. '
-      'Asegúrese de haber ejecutado las migraciones anteriores.';
+    SELECT id_menu INTO v_id_admin
+    FROM ctr_menu
+    WHERE LOWER(descripcion) LIKE '%administraci%'
+    ORDER BY id_menu
+    LIMIT 1;
   END IF;
 
-  -- ── Crear ítem "Asistente Inteligente" si no existe ────────────────────
-  SELECT id_menu INTO v_id_asistente
-  FROM ctr_menu
-  WHERE idpadre = v_id_admin
-    AND detalle = '/administracion/asistente'
-  LIMIT 1;
-
-  IF v_id_asistente IS NULL THEN
-    INSERT INTO ctr_menu
-      (descripcion, idpadre, posicion, tipo, icono, vigente, detalle,
-       usuario_creacion, fecha_creacion, maquina_creacion)
-    VALUES
-      ('Asistente Inteligente', v_id_admin, 55, 'ENLACE',
-       'fa-solid fa-robot', 1, '/administracion/asistente',
-       1, NOW(), 'migration-V17')
-    RETURNING id_menu INTO v_id_asistente;
-
-    RAISE NOTICE 'Ítem "Asistente Inteligente" creado con id = %', v_id_asistente;
+  IF v_id_admin IS NULL THEN
+    -- No fatal: avisa y omite la creación del ítem de menú.
+    -- Las tablas y datos de ejemplo ya fueron creados correctamente.
+    RAISE NOTICE 'AVISO: No se encontró el grupo "Administración" en ctr_menu. '
+                 'El ítem de menú del Asistente Inteligente deberá crearse manualmente '
+                 'desde el módulo Administración → Menú.';
   ELSE
-    RAISE NOTICE 'Ítem "Asistente Inteligente" ya existe con id = %', v_id_asistente;
+
+    RAISE NOTICE 'Grupo Administración encontrado con id_menu = %', v_id_admin;
+
+    -- ── Crear ítem "Asistente Inteligente" si no existe ──────────────────
+    SELECT id_menu INTO v_id_asistente
+    FROM ctr_menu
+    WHERE idpadre = v_id_admin
+      AND detalle = '/administracion/asistente'
+    LIMIT 1;
+
+    IF v_id_asistente IS NULL THEN
+      INSERT INTO ctr_menu
+        (descripcion, idpadre, posicion, tipo, icono, vigente, detalle,
+         usuario_creacion, fecha_creacion, maquina_creacion)
+      VALUES
+        ('Asistente Inteligente', v_id_admin, 55, 'ENLACE',
+         'fa-solid fa-robot', 1, '/administracion/asistente',
+         1, NOW(), 'migration-V17')
+      RETURNING id_menu INTO v_id_asistente;
+
+      RAISE NOTICE 'Ítem "Asistente Inteligente" creado con id = %', v_id_asistente;
+    ELSE
+      RAISE NOTICE 'Ítem "Asistente Inteligente" ya existe con id = %', v_id_asistente;
+    END IF;
+
   END IF;
 
 END $$;

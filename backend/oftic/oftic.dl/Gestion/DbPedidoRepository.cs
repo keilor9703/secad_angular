@@ -406,7 +406,8 @@ SELECT p.id, p.sitio_graba, p.nume_llamada, p.hora_caso,
        (SELECT COUNT(*) FROM cad_actuaciones a
         WHERE a.pedido_id = p.id
           AND a.estado NOT IN ('C','V'))::int AS total_actuaciones_activas,
-       e.id                         AS evento_id    -- col 19: Snowflake ID del evento (≠ p.id)
+       e.id                         AS evento_id,   -- col 19: Snowflake ID del evento (≠ p.id)
+       COALESCE(e.origen, 'MANUAL') AS origen        -- col 20: canal de origen del evento
 FROM cad_pedidos p
 LEFT JOIN ctr_usuarios u  ON u.id_usuario         = p.usuario_creacion
 LEFT JOIN cad_casos    c1 ON TRIM(UPPER(c1.codigo)) = TRIM(UPPER(p.codi_pedido))
@@ -723,7 +724,9 @@ ORDER BY f.descripcion, c.codigo";
             FechaPrimerAcceso        = r.IsDBNull(17) ? null : r.GetDateTime(17),
             TotalActuacionesActivas  = r.IsDBNull(18) ? 0    : r.GetInt32(18),
             // col 19: cad_eventos.id — el número oficial del evento para el despachador
-            NumeEvento               = r.IsDBNull(19) ? null : r.GetInt64(19)
+            NumeEvento               = r.IsDBNull(19) ? null : r.GetInt64(19),
+            // col 20: cad_eventos.origen — canal de origen (CTI, RECEPCION, MANUAL, etc.)
+            Origen                   = r.IsDBNull(20) ? "MANUAL" : r.GetString(20)
         };
 
         private static DtoPedidoListItem MapListItem(NpgsqlDataReader r) => new()

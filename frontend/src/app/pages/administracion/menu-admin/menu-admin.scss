@@ -135,3 +135,23 @@
     align-items: stretch;
   }
 }
+
+// ── Dark mode ─────────────────────────────────────────────────────────────────
+html.dark-mode {
+  .tab-card h3              { color: var(--ui-text); }
+
+  .menu-item {
+    border-color: var(--ui-border);
+    background:   rgba(255,255,255,.03);
+  }
+
+  .menu-item__content strong { color: var(--ui-text); }
+  .list-loading              { color: var(--ui-muted); }
+
+  .menu-roles-panel { border-top-color: var(--ui-border); }
+
+  .menu-role-item {
+    background:   rgba(255,255,255,.03);
+    border-color: var(--ui-border);
+  }
+}

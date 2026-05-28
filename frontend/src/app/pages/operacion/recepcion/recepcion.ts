@@ -18,8 +18,15 @@ import {
   DtoCasoItem,
   DtoReferenciaSecad,
   DtoLlamadaAsociar,
-  DtoRecepcion
+  DtoRecepcion,
+  OrigenEvento
 } from '../../../core/services/operacion/recepcion.service';
+import {
+  AsistenteService,
+  AsistenteCategoria,
+  AsistentePregunta,
+  parsearOpciones
+} from '../../../core/services/operacion/asistente.service';
 
 // Leaflet loaded via CDN in index.html
 declare const L: any;
@@ -112,12 +119,36 @@ export class RecepcionComponent implements OnInit, AfterViewInit, OnDestroy {
   private destroy$ = new Subject<void>();
   private pollTimer: any = null;
 
+  // ── Canal de origen (§multicanal) ────────────────────────────────────────
+  /** Valor UI seleccionado por el operador. Se mapea a OrigenEvento al guardar. */
+  canalOrigenUI = 'TEL_123';
+
+  readonly canalesOrigen = [
+    { value: 'TEL_123',     label: 'Llamada 112/123',          icon: 'fa-phone-volume'      },
+    { value: 'TEL_DIRECTO', label: 'Teléfono directo',         icon: 'fa-phone'             },
+    { value: 'RADIO',       label: 'Radio policial',            icon: 'fa-tower-broadcast'   },
+    { value: 'CAMPO',       label: 'Reporte de campo',          icon: 'fa-person-running'    },
+    { value: 'SUPERVISION', label: 'Supervisión / Iniciativa',  icon: 'fa-shield-halved'     },
+    { value: 'TRASLADO',    label: 'Traslado otra entidad',     icon: 'fa-right-left'        },
+    { value: 'MANUAL',      label: 'Ingreso manual',            icon: 'fa-keyboard'          },
+  ] as const;
+
+  // ── §6.17 Asistente Inteligente ──────────────────────────────────────────────
+  asistenteAbierto     = false;
+  asistenteCategorias: AsistenteCategoria[]  = [];
+  asistenteLoadingCat  = false;
+  asistenteCategoriaSel = '';
+  asistentePreguntas:  AsistentePregunta[]   = [];
+  asistenteLoadingPreg = false;
+  readonly asisParseOpc = parsearOpciones;
+
   constructor(
-    private auth:   AuthService,
-    private svc:    RecepcionService,
-    private toast:  ToastService,
-    private zone:   NgZone,
-    private cdr:    ChangeDetectorRef
+    private auth:        AuthService,
+    private svc:         RecepcionService,
+    private toast:       ToastService,
+    private zone:        NgZone,
+    private cdr:         ChangeDetectorRef,
+    private asistenteSvc: AsistenteService
   ) {}
 
   ngOnInit(): void {
@@ -399,6 +430,7 @@ export class RecepcionComponent implements OnInit, AfterViewInit, OnDestroy {
             this.reverseGeocode(lat, lng);
           }
           this.llamadaEncontrada = true;
+          this.canalOrigenUI     = 'TEL_123'; // llamada CTI → origen automático
           this.cdr.detectChanges();
         } else {
           // Schedule next poll only if no call yet
@@ -698,6 +730,22 @@ export class RecepcionComponent implements OnInit, AfterViewInit, OnDestroy {
     }
   }
 
+  // ── Canal → OrigenEvento mapping ─────────────────────────────────────────
+  // Nota: los valores de Origen deben coincidir con el CHECK de cad_eventos.origen.
+  // RADIO/CAMPO/SUPERVISION se registran como INTERNO hasta que el backend amplíe el constraint.
+
+  private mapCanalOrigen(canal: string): OrigenEvento {
+    switch (canal) {
+      case 'TEL_123':     return 'CTI';
+      case 'TEL_DIRECTO': return 'RECEPCION';
+      case 'RADIO':       return 'INTERNO';
+      case 'CAMPO':       return 'INTERNO';
+      case 'SUPERVISION': return 'INTERNO';
+      case 'TRASLADO':    return 'INTEGRACION';
+      default:            return 'MANUAL';
+    }
+  }
+
   // ── Internal helpers ────────────────────────────────────────────────────────
 
   private obtenerFechaActual(): string {
@@ -736,9 +784,7 @@ export class RecepcionComponent implements OnInit, AfterViewInit, OnDestroy {
       OPERADOR:              this.hdnCeldaMarcacion,
       ESTADO:                estado,
       ENVIAR:                enviar,
-      // Origen: 'CTI' si la llamada vino de la centralita (txtAbonado poblado por CTI poll),
-      // 'RECEPCION' si fue digitado manualmente por el operador.
-      Origen:                Number(this.txtAbonado) > 0 ? 'CTI' : 'RECEPCION',
+      Origen:                this.mapCanalOrigen(this.canalOrigenUI),
       CANALES_SELECCIONADOS: canalesSel,
       CANAL_FUERZA:          this.fuerzaId || null,
       CADPEDI_SITIO_GRABA:   this.txtAsociarLlamada ? this.hdnSitioGrabaAsociada : null,
@@ -804,11 +850,64 @@ export class RecepcionComponent implements OnInit, AfterViewInit, OnDestroy {
     this.hdnSitioGrabaAsociada  = '';
     this.tipoPedido   = '';
     this.caliPedido   = '';
-    this.prioridad    = '03';
-    this.importancia  = '01';
+    this.prioridad      = '03';
+    this.importancia    = '01';
+    this.canalOrigenUI  = 'MANUAL';   // sin llamada activa → ingreso manual por defecto
     this.canales.forEach(c => c.seleccionado = false);
     this.llamadaEncontrada = false;
     // Solo retira el marcador de la llamada; las capas de municipio/cuadrantes se mantienen
     if (this.mapMarker && this.map) { this.map.removeLayer(this.mapMarker); this.mapMarker = null; }
+    // Resetea el asistente para la próxima llamada
+    this.resetAsistente();
+  }
+
+  // ════════════════════════════════════════════════════════════════════════════
+  //  §6.17 Asistente Inteligente — métodos
+  // ════════════════════════════════════════════════════════════════════════════
+
+  toggleAsistente(): void {
+    this.asistenteAbierto = !this.asistenteAbierto;
+    if (this.asistenteAbierto && this.asistenteCategorias.length === 0) {
+      this.cargarAsistenteCategorias();
+    }
+  }
+
+  private cargarAsistenteCategorias(): void {
+    this.asistenteLoadingCat = true;
+    this.asistenteSvc.getCategorias(true).subscribe({
+      next: (r) => {
+        this.asistenteCategorias = r.data ?? [];
+        this.asistenteLoadingCat = false;
+      },
+      error: () => {
+        this.asistenteLoadingCat = false;
+        this.toast.error('Asistente', 'No fue posible cargar las categorías.');
+      }
+    });
+  }
+
+  onAsistenteCategoriaChange(idCategoria: string): void {
+    this.asistentePreguntas  = [];
+    this.asistenteCategoriaSel = idCategoria;
+    if (!idCategoria) return;
+
+    this.asistenteLoadingPreg = true;
+    this.asistenteSvc.getPreguntas(idCategoria, true).subscribe({
+      next: (r) => {
+        this.asistentePreguntas  = r.data ?? [];
+        this.asistenteLoadingPreg = false;
+      },
+      error: () => {
+        this.asistenteLoadingPreg = false;
+        this.toast.error('Asistente', 'No fue posible cargar las preguntas.');
+      }
+    });
+  }
+
+  resetAsistente(): void {
+    this.asistenteAbierto      = false;
+    this.asistenteCategoriaSel = '';
+    this.asistentePreguntas    = [];
+    this.asistenteLoadingPreg  = false;
   }
 }
