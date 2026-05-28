@@ -85,3 +85,15 @@
     align-items: flex-start;
   }
 }
+
+// ── Dark mode ─────────────────────────────────────────────────────────────────
+html.dark-mode {
+  .role-item {
+    background:   var(--ui-surface);
+    border-color: var(--ui-border);
+  }
+
+  .role-menu-item {
+    border-color: var(--ui-border);
+  }
+}

@@ -114,3 +114,21 @@
     justify-content: flex-start;
   }
 }
+
+// ── Dark mode ─────────────────────────────────────────────────────────────────
+html.dark-mode {
+  .dominio-item {
+    background:   var(--ui-surface);
+    border-color: var(--ui-border);
+
+    &.is-parent {
+      background: rgba(74,144,217,.08);
+    }
+
+    &.is-grandchild {
+      background: rgba(255,255,255,.02);
+    }
+  }
+
+  .dominio-icon { color: var(--ui-muted); }
+}

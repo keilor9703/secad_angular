@@ -12,7 +12,7 @@
   --accessibility-tooltip-text: #ffffff;
 }
 
-:host(.dark-mode) {
+:host-context(html.dark-mode) {
   --accessibility-bg: #2a2a3e;
   --accessibility-color: #08a6cb;
   --accessibility-tooltip-bg: #ffffff;
@@ -189,7 +189,7 @@
 }
 
 // Modo oscuro global del componente
-:host(.dark-mode) .accessibility-btn {
+:host-context(html.dark-mode) .accessibility-btn {
   &:hover:not(:disabled) {
     background: var(--accessibility-hover-color);
     color: #ffffff;

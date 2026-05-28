@@ -374,6 +374,84 @@
   font-size: 23px !important;
 }
 
+// ── Dark mode ─────────────────────────────────────────────────────────────────
+html.dark-mode {
+  .profile-card {
+    background:   var(--ui-surface);
+    border-color: var(--ui-border);
+  }
+
+  .profile-avatar { border-color: var(--ui-surface); }
+
+  .profile-name { color: var(--ui-text); }
+  .profile-role { color: var(--ui-muted); }
+
+  .state-box {
+    background:   rgba(255,255,255,.03);
+    border-color: var(--ui-border);
+  }
+
+  .state-box__label { color: var(--ui-muted); }
+
+  .tabs-shell {
+    background:   rgba(255,255,255,.04);
+    border-color: var(--ui-border);
+  }
+
+  .tab-btn { color: var(--ui-muted); }
+
+  .tab-card {
+    background:   var(--ui-surface);
+    border-color: var(--ui-border);
+  }
+
+  .ui-control[readonly] {
+    background:   rgba(255,255,255,.04);
+    border-color: var(--ui-border);
+    color:        var(--ui-muted);
+  }
+
+  .roles-head h3 { color: var(--ui-text); }
+
+  .role-add-form {
+    background:   rgba(255,255,255,.03);
+    border-color: var(--ui-border);
+  }
+
+  .role-item {
+    background:   rgba(255,255,255,.03);
+    border-color: var(--ui-border);
+  }
+
+  .role-label__title { color: var(--ui-muted); }
+  .role-label strong  { color: var(--ui-text); }
+
+  .empty-state {
+    background:   rgba(255,255,255,.02);
+    border-color: var(--ui-border);
+
+    h3 { color: var(--ui-text); }
+    p  { color: var(--ui-muted); }
+  }
+
+  .pagination-summary { color: var(--ui-muted); }
+  .search-hint        { color: var(--ui-muted); }
+
+  .users-table {
+    th, td { border-bottom-color: var(--ui-border); color: var(--ui-text); }
+    th { background: rgba(255,255,255,.04); color: var(--ui-muted); }
+    tbody tr:hover { background: rgba(255,255,255,.03); }
+  }
+
+  .modal-card {
+    background:   var(--ui-surface);
+    border-color: var(--ui-border);
+
+    h3 { color: var(--ui-text); }
+    p  { color: var(--ui-muted); }
+  }
+}
+
 .users-table-card {
   margin-top: 14px;
 }

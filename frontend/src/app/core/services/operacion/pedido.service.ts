@@ -20,6 +20,18 @@ export interface DtoPedidoListItem {
   comentario: string;
   usernameCreacion: string;
   fechaCreacion: string | null;
+
+  // ── Campos opcionales enriquecidos por el módulo de seguimiento ───────────
+  /** Prioridad normalizada: FLASH | INMEDIATA | RUTINA (o código 01/02/03). */
+  prioridad?: string;
+  /** Canal de origen del incidente (OrigenEvento). */
+  origen?: string;
+  /** Snowflake ID del registro cad_eventos (≠ id que es cad_pedidos.id). */
+  numeEvento?: string | null;
+  /** Descripción legible del código de caso 1 (JOIN cad_casos). */
+  descPedido?: string;
+  /** Descripción legible del código de caso 2. */
+  descPedido2?: string;
 }
 
 export interface DtoAnotacion {
