@@ -46,5 +46,21 @@ namespace Datos.Interfaz
             string usuarioAuditoria,
             string maquinaAuditoria,
             CancellationToken ct);
+
+        /// <summary>
+        /// Crea o actualiza un usuario civil en ctr_usuarios del tenant.
+        /// tipo_usuario = 'CIVIL'; sin grado, funcionario ni unde_laborando.
+        /// </summary>
+        Task<DtoGuardarUsuarioResult> CreateCivilUsuarioAsync(
+            DtoCivilUsuarioRequest request,
+            string usuarioAuditoria,
+            string maquinaAuditoria,
+            CancellationToken ct);
+
+        /// <summary>
+        /// Lee los datos de un usuario directamente desde ctr_usuarios (sin pasar por PIP).
+        /// Usado para administrar usuarios civiles / otras entidades.
+        /// </summary>
+        Task<DtoUsuarioLocalDetalle?> GetLocalUsuarioAsync(string username, CancellationToken ct);
     }
 }

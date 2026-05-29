@@ -25,6 +25,8 @@ namespace Comun.Dtos
         public string? undeLaborandoCodigo { get; set; }
         public string? codigoCargo { get; set; }
         public bool activo { get; set; } = true;
+        /// <summary>ID local en ctr_usuarios (Snowflake). Se rellena tras EnsureUsuarioExistsAsync.</summary>
+        public long idUsuario { get; set; }
     }
 
     public class DtoRol
@@ -51,6 +53,31 @@ namespace Comun.Dtos
         public string nombreCompleto { get; set; } = string.Empty;
         public string rol { get; set; } = string.Empty;
         public string? fechaFinRol { get; set; }
+        /// <summary>POLICIA o CIVIL — determina si la consulta de detalle va a PIP o a la BD local.</summary>
+        public string tipoUsuario { get; set; } = "POLICIA";
+    }
+
+    /// <summary>
+    /// Datos de un usuario leídos directamente de ctr_usuarios (sin pasar por PIP).
+    /// Usado para administrar usuarios civiles / otras entidades.
+    /// </summary>
+    public class DtoUsuarioLocalDetalle
+    {
+        public long idUsuario { get; set; }
+        public string username { get; set; } = string.Empty;
+        public string? identificacion { get; set; }
+        public string? nombres { get; set; }
+        public string? apellidos { get; set; }
+        public string? email { get; set; }
+        public string? entidad { get; set; }
+        public string? cargo { get; set; }
+        public string tipoUsuario { get; set; } = "POLICIA";
+        public bool activo { get; set; }
+        // ── Datos operacionales (módulos Recepción / Turnos / Eventos) ──────
+        public int cadcanaFuerzaId { get; set; }
+        public int cadcanaCodigo   { get; set; }
+        public int acd             { get; set; }
+        public int sitioGrabacion  { get; set; }
     }
 
     public class DtoTokenRequest
@@ -79,6 +106,25 @@ namespace Comun.Dtos
         public string? undeLaborando { get; set; }
         public string? codigoCargo { get; set; }
         public bool activo { get; set; }
+    }
+
+    /// <summary>
+    /// Request para crear/actualizar un usuario civil o de otra entidad.
+    /// Estos usuarios autentican localmente (nunca via OUD/PIP/LDAP).
+    /// El codigo_dane y sitio_graba son heredados del JWT del administrador creador.
+    /// </summary>
+    public class DtoCivilUsuarioRequest
+    {
+        public string? username { get; set; }
+        /// <summary>Contraseña en texto plano; se almacena como hash BCrypt en secad_users_fallback.</summary>
+        public string? password { get; set; }
+        public string? identificacion { get; set; }
+        public string? nombres { get; set; }
+        public string? apellidos { get; set; }
+        public string? email { get; set; }
+        public string? entidad { get; set; }
+        public string? cargo { get; set; }
+        public bool activo { get; set; } = true;
     }
 
     public class DtoGuardarUsuarioResult

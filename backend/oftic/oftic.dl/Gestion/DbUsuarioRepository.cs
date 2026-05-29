@@ -1,4 +1,5 @@
 using Comun.Dtos;
+using Comun.Snowflake;
 using Datos.Interfaz;
 using Datos.Tenant;
 using Microsoft.Extensions.Logging;
@@ -11,11 +12,13 @@ namespace Datos.Gestion
     {
         private readonly TenantContext _tenant;
         private readonly ILogger<DbUsuarioRepository> _logger;
+        private readonly ISnowflakeGenerator _snowflake;
 
-        public DbUsuarioRepository(TenantContext tenant, ILogger<DbUsuarioRepository> logger)
+        public DbUsuarioRepository(TenantContext tenant, ILogger<DbUsuarioRepository> logger, ISnowflakeGenerator snowflake)
         {
-            _tenant = tenant;
-            _logger = logger;
+            _tenant    = tenant;
+            _logger    = logger;
+            _snowflake = snowflake;
         }
 
         public async Task<long?> GetUsuarioIdByUsernameAsync(string username, CancellationToken ct)
@@ -85,12 +88,14 @@ namespace Datos.Gestion
             await using var conn = await _tenant.DataSource.OpenConnectionAsync(ct);
             await using var cmd = conn.CreateCommand();
 
-            // Upsert: insert if not exists, return id
+            // Upsert: insert with Snowflake id if not exists, return id
+            var snowflakeId = _snowflake.NextId();
             cmd.CommandText = @"
-INSERT INTO ctr_usuarios (username, identificacion, bloqueado)
-VALUES (@username, @identificacion, 0)
+INSERT INTO ctr_usuarios (id_usuario, username, identificacion, bloqueado)
+VALUES (@idUsuario, @username, @identificacion, 0)
 ON CONFLICT (username) DO NOTHING
 RETURNING id_usuario";
+            cmd.Parameters.AddWithValue("idUsuario", snowflakeId);
             cmd.Parameters.AddWithValue("username", username);
             cmd.Parameters.AddWithValue("identificacion", identificacion);
 
@@ -134,12 +139,21 @@ SELECT
     u.id_usuario,
     u.identificacion,
     u.username,
-    TRIM(REGEXP_REPLACE(
-        COALESCE(u.grad_alfabetico,'') || ' ' || COALESCE(u.nombres,'') || ' ' || COALESCE(u.apellidos,''),
-        '\s+', ' ', 'g'
-    )) AS nombre_completo,
+    CASE COALESCE(u.tipo_usuario, 'POLICIA')
+        WHEN 'CIVIL' THEN
+            TRIM(REGEXP_REPLACE(
+                COALESCE(u.nombres,'') || ' ' || COALESCE(u.apellidos,''),
+                '\s+', ' ', 'g'
+            ))
+        ELSE
+            TRIM(REGEXP_REPLACE(
+                COALESCE(u.grad_alfabetico,'') || ' ' || COALESCE(u.nombres,'') || ' ' || COALESCE(u.apellidos,''),
+                '\s+', ' ', 'g'
+            ))
+    END AS nombre_completo,
     COALESCE(ra.roles, 'Sin rol') AS rol,
-    ra.fecha_fin_rol
+    ra.fecha_fin_rol,
+    COALESCE(u.tipo_usuario, 'POLICIA') AS tipo_usuario
 FROM ctr_usuarios u
 LEFT JOIN roles_agg ra ON ra.id_usuario = u.id_usuario
 WHERE (@filtro = ''
@@ -152,12 +166,13 @@ ORDER BY UPPER(u.username)";
             while (await reader.ReadAsync(ct))
                 result.Add(new DtoUsuarioListadoItem
                 {
-                    idUsuario = reader.IsDBNull(0) ? 0 : Convert.ToInt64(reader.GetValue(0)),
+                    idUsuario     = reader.IsDBNull(0) ? 0 : Convert.ToInt64(reader.GetValue(0)),
                     identificacion = reader.IsDBNull(1) ? string.Empty : reader.GetString(1),
-                    username = reader.IsDBNull(2) ? string.Empty : reader.GetString(2),
+                    username      = reader.IsDBNull(2) ? string.Empty : reader.GetString(2),
                     nombreCompleto = reader.IsDBNull(3) ? string.Empty : reader.GetString(3),
-                    rol = reader.IsDBNull(4) ? "Sin rol" : reader.GetString(4),
-                    fechaFinRol = reader.IsDBNull(5) ? null : reader.GetString(5)
+                    rol           = reader.IsDBNull(4) ? "Sin rol" : reader.GetString(4),
+                    fechaFinRol   = reader.IsDBNull(5) ? null : reader.GetString(5),
+                    tipoUsuario   = reader.IsDBNull(6) ? "POLICIA" : reader.GetString(6)
                 });
 
             return result;
@@ -170,47 +185,68 @@ ORDER BY UPPER(u.username)";
 
             var result = new List<DtoRolAsignado>();
             await using var conn = await _tenant.DataSource.OpenConnectionAsync(ct);
-            await using var cmd = conn.CreateCommand();
-            cmd.CommandText = @"
+
+            // ── Query principal (ctr_roles_user_admin) ────────────────────────
+            // El bloque { } garantiza que reader y cmd se disponen ANTES de intentar
+            // la query de fallback en la misma conexión.
+            // Sin el bloque, await using var reader vive hasta el final del método,
+            // lo que provoca NpgsqlOperationInProgressException en el fallback.
+            {
+                await using var cmd = conn.CreateCommand();
+                cmd.CommandText = @"
 SELECT DISTINCT rua.id_rol, r.descripcion, rua.justificacion, rua.fecha_fin, COALESCE(rua.vigente, 0)
 FROM ctr_roles_user_admin rua
 LEFT JOIN ctr_roles r ON r.id_rol = rua.id_rol
 WHERE rua.id_usuario = @id
 ORDER BY r.descripcion, rua.id_rol";
-            cmd.Parameters.AddWithValue("id", idUsuario.Value);
+                cmd.Parameters.AddWithValue("id", idUsuario.Value);
 
-            await using var reader = await cmd.ExecuteReaderAsync(ct);
-            while (await reader.ReadAsync(ct))
-            {
-                var idRol = Convert.ToInt32(reader.GetValue(0));
-                var desc = reader.IsDBNull(1) ? null : reader.GetString(1);
-                var just = reader.IsDBNull(2) ? null : reader.GetString(2);
-                var fechaFin = reader.IsDBNull(3) ? (DateTime?)null : reader.GetDateTime(3);
-                var vigente = Convert.ToInt32(reader.GetValue(4));
-                var estado = vigente == 1 && (!fechaFin.HasValue || fechaFin.Value.Date >= DateTime.Today) ? "Vigente" : "Vencido";
-
-                result.Add(new DtoRolAsignado
+                await using var reader = await cmd.ExecuteReaderAsync(ct);
+                while (await reader.ReadAsync(ct))
                 {
-                    id = idRol,
-                    rol = !string.IsNullOrWhiteSpace(desc) ? desc : $"Rol {idRol}",
-                    estado = estado,
-                    fechaFin = fechaFin?.ToString("yyyy-MM-dd"),
-                    justificacion = just
-                });
-            }
+                    var idRol = Convert.ToInt32(reader.GetValue(0));
+                    var desc = reader.IsDBNull(1) ? null : reader.GetString(1);
+                    var just = reader.IsDBNull(2) ? null : reader.GetString(2);
+                    var fechaFin = reader.IsDBNull(3) ? (DateTime?)null : reader.GetDateTime(3);
+                    var vigente = Convert.ToInt32(reader.GetValue(4));
+                    // Distinguir tres estados:
+                    //   "Retirado" → vigente = 0 (removido explícitamente por un admin)
+                    //   "Vencido"  → vigente = 1 pero la fecha ya pasó (expiración natural)
+                    //   "Vigente"  → vigente = 1 y sin fecha o fecha futura
+                    string estado;
+                    if (vigente == 0)
+                        estado = "Retirado";
+                    else if (fechaFin.HasValue && fechaFin.Value.Date < DateTime.Today)
+                        estado = "Vencido";
+                    else
+                        estado = "Vigente";
+
+                    result.Add(new DtoRolAsignado
+                    {
+                        id = idRol,
+                        rol = !string.IsNullOrWhiteSpace(desc) ? desc : $"Rol {idRol}",
+                        estado = estado,
+                        fechaFin = fechaFin?.ToString("yyyy-MM-dd"),
+                        justificacion = just
+                    });
+                }
+            } // reader y cmd dispuestos aquí — conn queda libre para el fallback
 
             if (result.Count > 0) return result;
 
-            // Fallback: simple roles table
-            await using var cmdFb = conn.CreateCommand();
-            cmdFb.CommandText = "SELECT DISTINCT id_rol FROM ctr_roles_user WHERE id_usuario = @id ORDER BY id_rol";
-            cmdFb.Parameters.AddWithValue("id", idUsuario.Value);
-            await using var readerFb = await cmdFb.ExecuteReaderAsync(ct);
-            while (await readerFb.ReadAsync(ct))
+            // ── Fallback: tabla simple ctr_roles_user ─────────────────────────
             {
-                var idRol = Convert.ToInt32(readerFb.GetValue(0));
-                result.Add(new DtoRolAsignado { id = idRol, rol = $"Rol {idRol}", estado = "Vigente" });
-            }
+                await using var cmdFb = conn.CreateCommand();
+                cmdFb.CommandText = "SELECT DISTINCT id_rol FROM ctr_roles_user WHERE id_usuario = @id ORDER BY id_rol";
+                cmdFb.Parameters.AddWithValue("id", idUsuario.Value);
+
+                await using var readerFb = await cmdFb.ExecuteReaderAsync(ct);
+                while (await readerFb.ReadAsync(ct))
+                {
+                    var idRol = Convert.ToInt32(readerFb.GetValue(0));
+                    result.Add(new DtoRolAsignado { id = idRol, rol = $"Rol {idRol}", estado = "Vigente" });
+                }
+            } // readerFb y cmdFb dispuestos aquí
 
             return result;
         }
@@ -219,18 +255,25 @@ ORDER BY r.descripcion, rua.id_rol";
         {
             await using var conn = await _tenant.DataSource.OpenConnectionAsync(ct);
             await using var cmd = conn.CreateCommand();
+            // COALESCE(vigente, 1) <> 0: cubre vigente=1 y registros legacy con vigente=NULL
             cmd.CommandText = @"
 UPDATE ctr_roles_user_admin
-   SET vigente = 0,
-       fecha_fin = COALESCE(fecha_fin, CURRENT_DATE)
- WHERE id_usuario = @idUsuario AND id_rol = @idRol AND COALESCE(vigente, 0) = 1";
-            cmd.Parameters.AddWithValue("idUsuario", idUsuario);
-            cmd.Parameters.AddWithValue("idRol", rolId);
+   SET vigente          = 0,
+       fecha_fin        = COALESCE(fecha_fin, CURRENT_DATE),
+       usuario_modifica = @usuarioModif,
+       fecha_modifica   = NOW(),
+       maquina_modifica = @maquinaModif
+ WHERE id_usuario = @idUsuario AND id_rol = @idRol
+   AND COALESCE(vigente, 1) <> 0";
+            cmd.Parameters.AddWithValue("idUsuario",    idUsuario);
+            cmd.Parameters.AddWithValue("idRol",        rolId);
+            cmd.Parameters.AddWithValue("usuarioModif", AsLong(usuarioAuditoria));
+            cmd.Parameters.AddWithValue("maquinaModif", Truncate(maquinaAuditoria, 100));
 
             var affected = await cmd.ExecuteNonQueryAsync(ct);
             return affected > 0
                 ? new DtoGuardarUsuarioResult { idUsuario = idUsuario, message = "Rol retirado correctamente." }
-                : new DtoGuardarUsuarioResult { idUsuario = 0, message = "No se encontró un rol vigente para retirar." };
+                : new DtoGuardarUsuarioResult { idUsuario = 0,         message = "No se encontró un rol vigente para retirar." };
         }
 
         public async Task<List<DtoRol>> GetRolesAsync(CancellationToken ct)
@@ -255,13 +298,15 @@ UPDATE ctr_roles_user_admin
 
             await using var conn = await _tenant.DataSource.OpenConnectionAsync(ct);
             await using var cmd = conn.CreateCommand();
+
+            var snowflakeId = _snowflake.NextId();
             cmd.CommandText = @"
 INSERT INTO ctr_usuarios
-    (username, identificacion, grad_alfabetico, apellidos, nombres,
+    (id_usuario, username, identificacion, grad_alfabetico, apellidos, nombres,
      funcionario, unde_laborando, codigo_cargo, bloqueado,
      usuario_creacion, fecha_creacion, maquina_creacion)
 VALUES
-    (@username, @identificacion, @grado, @apellidos, @nombres,
+    (@idUsuario, @username, @identificacion, @grado, @apellidos, @nombres,
      @funcionario, @undeLaborando, @codigoCargo, @bloqueado,
      @usuario, NOW(), @maquina)
 ON CONFLICT (username) DO UPDATE SET
@@ -278,6 +323,7 @@ ON CONFLICT (username) DO UPDATE SET
     maquina_modifica = @maquinaModif
 RETURNING id_usuario";
 
+            cmd.Parameters.AddWithValue("idUsuario", snowflakeId);
             cmd.Parameters.AddWithValue("username", username);
             cmd.Parameters.AddWithValue("identificacion", AsDbVal(request.identificacion));
             cmd.Parameters.AddWithValue("grado", AsDbVal(request.gradAlfabetico, "N/A"));
@@ -287,9 +333,10 @@ RETURNING id_usuario";
             cmd.Parameters.AddWithValue("undeLaborando", AsInt(request.undeLaborando));
             cmd.Parameters.AddWithValue("codigoCargo", AsInt(request.codigoCargo));
             cmd.Parameters.AddWithValue("bloqueado", request.activo ? 0 : 1);
-            cmd.Parameters.AddWithValue("usuario", Truncate(usuarioAuditoria, 30));
+            // usuario_creacion/usuario_modifica son BIGINT: usar AsLong() para evitar error de cast
+            cmd.Parameters.AddWithValue("usuario", AsLong(usuarioAuditoria));
             cmd.Parameters.AddWithValue("maquina", Truncate(maquinaAuditoria, 100));
-            cmd.Parameters.AddWithValue("usuarioModif", Truncate(usuarioAuditoria, 30));
+            cmd.Parameters.AddWithValue("usuarioModif", AsLong(usuarioAuditoria));
             cmd.Parameters.AddWithValue("maquinaModif", Truncate(maquinaAuditoria, 100));
 
             var idUsuario = Convert.ToInt64(await cmd.ExecuteScalarAsync(ct));
@@ -339,32 +386,66 @@ UPDATE ctr_roles_user_admin
 
         public async Task<DtoGuardarUsuarioResult> AsignarRolAsync(long idUsuario, DtoAsignarRolRequest request, string usuarioAuditoria, string maquinaAuditoria, CancellationToken ct)
         {
-            await using var conn = await _tenant.DataSource.OpenConnectionAsync(ct);
-            await using var cmd = conn.CreateCommand();
-
             DateTime? fechaFin = null;
             if (!string.IsNullOrWhiteSpace(request.fechaFin))
                 fechaFin = DateTime.Parse(request.fechaFin);
 
-            cmd.CommandText = @"
+            await using var conn = await _tenant.DataSource.OpenConnectionAsync(ct);
+            await using var tx  = await conn.BeginTransactionAsync(ct);
+            try
+            {
+                long newAdminId = 0;
+
+                // ── 1. ctr_roles_user_admin (registro histórico con vigencia / justificación) ──
+                await using (var cmd = conn.CreateCommand())
+                {
+                    cmd.Transaction = tx;
+                    cmd.CommandText = @"
 INSERT INTO ctr_roles_user_admin
     (id_usuario, id_rol, justificacion, fecha_fin, vigente, usuario_creacion, fecha_creacion, maquina_creacion)
 VALUES
     (@idUsuario, @idRol, @just, @fechaFin, @vigente, @usuario, NOW(), @maquina)
 ON CONFLICT DO NOTHING
 RETURNING id";
+                    cmd.Parameters.AddWithValue("idUsuario", idUsuario);
+                    cmd.Parameters.AddWithValue("idRol",     request.rolId);
+                    cmd.Parameters.AddWithValue("just",      AsDbVal(request.justificacion, "SIN JUSTIFICACION"));
+                    cmd.Parameters.AddWithValue("fechaFin",  (object?)fechaFin ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue("vigente",   request.vigente is 0 ? 0 : 1);
+                    cmd.Parameters.AddWithValue("usuario",   AsLong(usuarioAuditoria));
+                    cmd.Parameters.AddWithValue("maquina",   Truncate(maquinaAuditoria, 100));
 
-            cmd.Parameters.AddWithValue("idUsuario", idUsuario);
-            cmd.Parameters.AddWithValue("idRol", request.rolId);
-            cmd.Parameters.AddWithValue("just", AsDbVal(request.justificacion, "SIN JUSTIFICACION"));
-            cmd.Parameters.AddWithValue("fechaFin", (object?)fechaFin ?? DBNull.Value);
-            cmd.Parameters.AddWithValue("vigente", request.vigente is 0 ? 0 : 1);
-            cmd.Parameters.AddWithValue("usuario", AsLong(usuarioAuditoria));
-            cmd.Parameters.AddWithValue("maquina", Truncate(maquinaAuditoria, 100));
+                    var obj = await cmd.ExecuteScalarAsync(ct);
+                    newAdminId = obj is null || obj == DBNull.Value ? 0L : Convert.ToInt64(obj);
+                }
 
-            var obj = await cmd.ExecuteScalarAsync(ct);
-            var newId = obj is null || obj == DBNull.Value ? 0L : Convert.ToInt64(obj);
-            return new DtoGuardarUsuarioResult { idUsuario = newId, message = newId > 0 ? "Rol asignado correctamente." : "Rol ya asignado." };
+                // ── 2. ctr_roles_user (tabla de acceso rápido para autenticación / menú) ──────
+                await using (var cmd2 = conn.CreateCommand())
+                {
+                    cmd2.Transaction = tx;
+                    cmd2.CommandText = @"
+INSERT INTO ctr_roles_user (id_usuario, id_rol, usuario_creacion, fecha_creacion, maquina_creacion)
+VALUES (@idUsuario, @idRol, @usuario, NOW(), @maquina)
+ON CONFLICT (id_usuario, id_rol) DO NOTHING";
+                    cmd2.Parameters.AddWithValue("idUsuario", idUsuario);
+                    cmd2.Parameters.AddWithValue("idRol",     request.rolId);
+                    cmd2.Parameters.AddWithValue("usuario",   AsLong(usuarioAuditoria));
+                    cmd2.Parameters.AddWithValue("maquina",   Truncate(maquinaAuditoria, 100));
+                    await cmd2.ExecuteNonQueryAsync(ct);
+                }
+
+                await tx.CommitAsync(ct);
+                return new DtoGuardarUsuarioResult
+                {
+                    idUsuario = newAdminId > 0 ? newAdminId : idUsuario,
+                    message   = newAdminId > 0 ? "Rol asignado correctamente." : "Rol ya asignado."
+                };
+            }
+            catch
+            {
+                await tx.RollbackAsync(ct);
+                throw;
+            }
         }
 
         public async Task<List<DtoRolAdmin>> GetRolesAdminAsync(CancellationToken ct)
@@ -458,6 +539,111 @@ WHERE id_rol=@id";
                 : new DtoSaveRolResult { idRol = 0, message = "Rol no encontrado." };
         }
 
+        public async Task<DtoUsuarioLocalDetalle?> GetLocalUsuarioAsync(string username, CancellationToken ct)
+        {
+            if (string.IsNullOrWhiteSpace(username)) return null;
+
+            await using var conn = await _tenant.DataSource.OpenConnectionAsync(ct);
+            await using var cmd = conn.CreateCommand();
+            cmd.CommandText = @"
+SELECT id_usuario,
+       username,
+       COALESCE(identificacion, '')                       AS identificacion,
+       COALESCE(nombres, '')                              AS nombres,
+       COALESCE(apellidos, '')                            AS apellidos,
+       COALESCE(email, '')                                AS email,
+       COALESCE(entidad, '')                              AS entidad,
+       COALESCE(grad_alfabetico, '')                      AS cargo,
+       COALESCE(tipo_usuario, 'POLICIA')                  AS tipo_usuario,
+       CASE WHEN bloqueado = 0 THEN TRUE ELSE FALSE END   AS activo,
+       COALESCE(cadcana_fuerza_id, 0)                     AS cadcana_fuerza_id,
+       COALESCE(cadcana_codigo, 0)                        AS cadcana_codigo,
+       COALESCE(acd, 0)                                   AS acd,
+       COALESCE(sitio_grabacion, 0)                       AS sitio_grabacion
+FROM ctr_usuarios
+WHERE UPPER(username) = UPPER(@username)
+LIMIT 1";
+            cmd.Parameters.AddWithValue("username", Trim(username));
+
+            await using var reader = await cmd.ExecuteReaderAsync(ct);
+            if (!await reader.ReadAsync(ct)) return null;
+
+            return new DtoUsuarioLocalDetalle
+            {
+                idUsuario       = reader.IsDBNull(0) ? 0 : Convert.ToInt64(reader.GetValue(0)),
+                username        = reader.IsDBNull(1) ? string.Empty : reader.GetString(1),
+                identificacion  = reader.IsDBNull(2) ? null : NullIfEmpty(reader.GetString(2)),
+                nombres         = reader.IsDBNull(3) ? null : NullIfEmpty(reader.GetString(3)),
+                apellidos       = reader.IsDBNull(4) ? null : NullIfEmpty(reader.GetString(4)),
+                email           = reader.IsDBNull(5) ? null : NullIfEmpty(reader.GetString(5)),
+                entidad         = reader.IsDBNull(6) ? null : NullIfEmpty(reader.GetString(6)),
+                cargo           = reader.IsDBNull(7) ? null : NullIfEmpty(reader.GetString(7)),
+                tipoUsuario     = reader.IsDBNull(8) ? "POLICIA" : reader.GetString(8),
+                activo          = !reader.IsDBNull(9) && reader.GetBoolean(9),
+                cadcanaFuerzaId = reader.IsDBNull(10) ? 0 : reader.GetInt32(10),
+                cadcanaCodigo   = reader.IsDBNull(11) ? 0 : reader.GetInt32(11),
+                acd             = reader.IsDBNull(12) ? 0 : reader.GetInt32(12),
+                sitioGrabacion  = reader.IsDBNull(13) ? 0 : reader.GetInt32(13)
+            };
+        }
+
+        public async Task<DtoGuardarUsuarioResult> CreateCivilUsuarioAsync(
+            DtoCivilUsuarioRequest request,
+            string usuarioAuditoria,
+            string maquinaAuditoria,
+            CancellationToken ct)
+        {
+            var username = Trim(request.username ?? request.identificacion);
+            if (string.IsNullOrWhiteSpace(username))
+                return new DtoGuardarUsuarioResult { idUsuario = 0, message = "Username requerido para el usuario civil." };
+
+            await using var conn = await _tenant.DataSource.OpenConnectionAsync(ct);
+            await using var cmd = conn.CreateCommand();
+
+            // Para usuarios civiles: no hay grado policial, funcionario ni unde_laborando.
+            // grad_alfabetico se usa para almacenar el cargo/título civil.
+            var snowflakeId = _snowflake.NextId();
+            cmd.CommandText = @"
+INSERT INTO ctr_usuarios
+    (id_usuario, username, identificacion, nombres, apellidos, email, entidad,
+     grad_alfabetico, tipo_usuario, bloqueado,
+     usuario_creacion, fecha_creacion, maquina_creacion)
+VALUES
+    (@idUsuario, @username, @identificacion, @nombres, @apellidos, @email, @entidad,
+     @cargo, 'CIVIL', @bloqueado,
+     @usuario, NOW(), @maquina)
+ON CONFLICT (username) DO UPDATE SET
+    identificacion  = EXCLUDED.identificacion,
+    nombres         = EXCLUDED.nombres,
+    apellidos       = EXCLUDED.apellidos,
+    email           = EXCLUDED.email,
+    entidad         = EXCLUDED.entidad,
+    grad_alfabetico = EXCLUDED.grad_alfabetico,
+    tipo_usuario    = 'CIVIL',
+    bloqueado       = EXCLUDED.bloqueado,
+    fecha_modifica  = NOW(),
+    usuario_modifica = @usuarioModif,
+    maquina_modifica = @maquinaModif
+RETURNING id_usuario";
+
+            cmd.Parameters.AddWithValue("idUsuario",      snowflakeId);
+            cmd.Parameters.AddWithValue("username",       username);
+            cmd.Parameters.AddWithValue("identificacion", AsDbVal(request.identificacion));
+            cmd.Parameters.AddWithValue("nombres",        AsDbVal(request.nombres));
+            cmd.Parameters.AddWithValue("apellidos",      AsDbVal(request.apellidos));
+            cmd.Parameters.AddWithValue("email",          AsDbVal(request.email));
+            cmd.Parameters.AddWithValue("entidad",        AsDbVal(request.entidad));
+            cmd.Parameters.AddWithValue("cargo",          AsDbVal(request.cargo, string.Empty));
+            cmd.Parameters.AddWithValue("bloqueado",      request.activo ? 0 : 1);
+            cmd.Parameters.AddWithValue("usuario",        AsLong(usuarioAuditoria));
+            cmd.Parameters.AddWithValue("maquina",        Truncate(maquinaAuditoria, 100));
+            cmd.Parameters.AddWithValue("usuarioModif",   AsLong(usuarioAuditoria));
+            cmd.Parameters.AddWithValue("maquinaModif",   Truncate(maquinaAuditoria, 100));
+
+            var idUsuario = Convert.ToInt64(await cmd.ExecuteScalarAsync(ct));
+            return new DtoGuardarUsuarioResult { idUsuario = idUsuario, message = "Usuario civil guardado correctamente." };
+        }
+
         private static async Task<int?> GetBloqueadoAsync(NpgsqlConnection conn, string where, string value, CancellationToken ct)
         {
             await using var cmd = conn.CreateCommand();
@@ -467,6 +653,7 @@ WHERE id_rol=@id";
             return obj is null || obj == DBNull.Value ? null : Convert.ToInt32(obj);
         }
 
+        private static string? NullIfEmpty(string? v) { var s = (v ?? string.Empty).Trim(); return string.IsNullOrEmpty(s) ? null : s; }
         private static string Trim(string? v) => (v ?? string.Empty).Trim();
         private static string Truncate(string? v, int max) { var s = Trim(v); return s.Length > max ? s[..max] : s; }
         private static object AsDbVal(string? v, string? fallback = null) { var s = Trim(v); return string.IsNullOrWhiteSpace(s) ? (fallback is null ? DBNull.Value : (object)fallback) : s; }

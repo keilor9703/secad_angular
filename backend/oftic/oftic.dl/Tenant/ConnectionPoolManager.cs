@@ -22,6 +22,18 @@ namespace Datos.Tenant
             return _pools.TryGetValue(codDane, out dataSource);
         }
 
+        /// <summary>
+        /// Removes a cached DataSource for the given tenant, forcing reconnection on next request.
+        /// Call this after updating tenant credentials.
+        /// </summary>
+        public void Invalidate(string codDane)
+        {
+            if (_pools.TryRemove(codDane, out var ds))
+            {
+                try { ds.Dispose(); } catch { /* best-effort */ }
+            }
+        }
+
         private static NpgsqlDataSource BuildDataSource(DtoTenant tenant)
         {
             var builder = new NpgsqlConnectionStringBuilder

@@ -5,6 +5,7 @@ using Datos.Interfaz;
 using Datos.Tenant;
 using Servicios.ApiInterfaz;
 using Microsoft.Extensions.Configuration;
+using BCrypt.Net;
 
 namespace Api.Controllers
 {
@@ -62,65 +63,139 @@ namespace Api.Controllers
                 string? codDane = null;
                 string? nombreCad = null;
 
+                bool isCivilUser = false;
+
                 if (shouldValidateOud)
                 {
-                    // OUD: validate credentials and extract unit code
+                    // Intento 1: Autenticación OUD (funcionarios Policía Nacional)
                     var oudResult = await _apiWebOud.ValidarYObtenerDatosAsync(
                         request.Usuario, request.Contrasena, CancellationToken.None);
 
-                    if (!oudResult.Success)
+                    if (oudResult.Success)
                     {
-                        return Unauthorized(new DtoTokenResponse
+                        // Resolve tenant from OUD attributes
+                        var tenant = await ResolveTenantAsync(oudResult.UndeLaborandoCodigo, oudResult.SiglaLaborando);
+
+                        if (tenant is null)
                         {
-                            success = false,
-                            message = "Credenciales incorrectas"
-                        });
+                            _logger.LogWarning("Tenant no resuelto. UndeLaborandoCodigo={Cod}, SiglaLaborando={Sigla}",
+                                oudResult.UndeLaborandoCodigo, oudResult.SiglaLaborando);
+                            return Unauthorized(new DtoTokenResponse
+                            {
+                                success = false,
+                                message = "No se pudo determinar el CAD asignado al funcionario."
+                            });
+                        }
+
+                        codDane = tenant.CodDane;
+                        nombreCad = tenant.Nombre;
+                        _tenantContext.Set(_poolManager.GetOrCreate(tenant), codDane, nombreCad);
+
+                        await _masterRepository.AuditFallbackLoginAsync(
+                            request.Usuario, codDane,
+                            HttpContext.Connection.RemoteIpAddress?.ToString(),
+                            modoFallback: false,
+                            CancellationToken.None);
                     }
-
-                    // Resolve tenant from OUD attributes
-                    var tenant = await ResolveTenantAsync(oudResult.UndeLaborandoCodigo, oudResult.SiglaLaborando);
-
-                    if (tenant is null)
+                    else
                     {
-                        _logger.LogWarning("Tenant no resuelto. UndeLaborandoCodigo={Cod}, SiglaLaborando={Sigla}",
-                            oudResult.UndeLaborandoCodigo, oudResult.SiglaLaborando);
-                        return Unauthorized(new DtoTokenResponse
+                        // Intento 2: Autenticación local (usuarios civiles / otras entidades)
+                        _logger.LogInformation("OUD falló para {Usuario}; intentando autenticación local civil.", request.Usuario);
+
+                        var (fallbackCodDane, fallbackHash) = await _masterRepository.GetFallbackUserAsync(
+                            request.Usuario, CancellationToken.None);
+
+                        if (string.IsNullOrWhiteSpace(fallbackCodDane) || string.IsNullOrWhiteSpace(fallbackHash))
                         {
-                            success = false,
-                            message = "No se pudo determinar el CAD asignado al funcionario."
-                        });
+                            return Unauthorized(new DtoTokenResponse
+                            {
+                                success = false,
+                                message = "Credenciales incorrectas"
+                            });
+                        }
+
+                        if (!BCrypt.Net.BCrypt.Verify(request.Contrasena, fallbackHash))
+                        {
+                            return Unauthorized(new DtoTokenResponse
+                            {
+                                success = false,
+                                message = "Credenciales incorrectas"
+                            });
+                        }
+
+                        // Credenciales locales válidas — resolver tenant
+                        var civilTenant = await _masterRepository.GetTenantByCodDaneAsync(fallbackCodDane, CancellationToken.None);
+
+                        if (civilTenant is null)
+                        {
+                            _logger.LogWarning("Tenant no resuelto para usuario civil. codDane={CodDane}, usuario={Usuario}",
+                                fallbackCodDane, request.Usuario);
+                            return Unauthorized(new DtoTokenResponse
+                            {
+                                success = false,
+                                message = "No se pudo determinar el CAD asignado al usuario."
+                            });
+                        }
+
+                        codDane = civilTenant.CodDane;
+                        nombreCad = civilTenant.Nombre;
+                        isCivilUser = true;
+                        _tenantContext.Set(_poolManager.GetOrCreate(civilTenant), codDane, nombreCad);
+
+                        await _masterRepository.AuditFallbackLoginAsync(
+                            request.Usuario, codDane,
+                            HttpContext.Connection.RemoteIpAddress?.ToString(),
+                            modoFallback: true,
+                            CancellationToken.None);
+
+                        _logger.LogInformation("Usuario civil autenticado localmente. usuario={Usuario}, codDane={CodDane}",
+                            request.Usuario, codDane);
                     }
-
-                    codDane = tenant.CodDane;
-                    nombreCad = tenant.Nombre;
-                    _tenantContext.Set(_poolManager.GetOrCreate(tenant), codDane, nombreCad);
-
-                    await _masterRepository.AuditFallbackLoginAsync(
-                        request.Usuario, codDane,
-                        HttpContext.Connection.RemoteIpAddress?.ToString(),
-                        modoFallback: false,
-                        CancellationToken.None);
                 }
                 else
                 {
-                    // Development: use configured default tenant
+                    // Modo desarrollo: intentar primero autenticación local civil, luego tenant por defecto
                     _logger.LogWarning("MODO DESARROLLO: Validación OUD deshabilitada.");
-                    var devCodDane = _configuration["Auth:DevTenantCodDane"] ?? "11001";// aqui debe utilizar el codgo de la unidad devuelto por la PIP
-                    var devTenant = await _masterRepository.GetTenantByCodDaneAsync(devCodDane, CancellationToken.None); 
 
-                    if (devTenant is null)
+                    var (fallbackCodDane, fallbackHash) = await _masterRepository.GetFallbackUserAsync(
+                        request.Usuario, CancellationToken.None);
+
+                    if (!string.IsNullOrWhiteSpace(fallbackCodDane) && !string.IsNullOrWhiteSpace(fallbackHash)
+                        && BCrypt.Net.BCrypt.Verify(request.Contrasena, fallbackHash))
                     {
-                        return StatusCode(503, new DtoTokenResponse
+                        // Usuario civil en modo desarrollo
+                        var civilTenant = await _masterRepository.GetTenantByCodDaneAsync(fallbackCodDane, CancellationToken.None);
+                        if (civilTenant is not null)
                         {
-                            success = false,
-                            message = $"Tenant de desarrollo '{devCodDane}' no encontrado en la base de datos maestra."
-                        });
+                            codDane = civilTenant.CodDane;
+                            nombreCad = civilTenant.Nombre;
+                            isCivilUser = true;
+                            _tenantContext.Set(_poolManager.GetOrCreate(civilTenant), codDane, nombreCad);
+                        }
                     }
 
-                    codDane = devTenant.CodDane;
-                    nombreCad = devTenant.Nombre;
-                    _tenantContext.Set(_poolManager.GetOrCreate(devTenant), codDane, nombreCad);
+                    if (codDane is null)
+                    {
+                        // Fallback: tenant de desarrollo configurado
+                        var devCodDane = _configuration["Auth:DevTenantCodDane"] ?? "11001";
+                        var devTenant = await _masterRepository.GetTenantByCodDaneAsync(devCodDane, CancellationToken.None);
+
+                        if (devTenant is null)
+                        {
+                            return StatusCode(503, new DtoTokenResponse
+                            {
+                                success = false,
+                                message = $"Tenant de desarrollo '{devCodDane}' no encontrado en la base de datos maestra."
+                            });
+                        }
+
+                        codDane = devTenant.CodDane;
+                        nombreCad = devTenant.Nombre;
+                        _tenantContext.Set(_poolManager.GetOrCreate(devTenant), codDane, nombreCad);
+                    }
                 }
+
+                _ = isCivilUser; // usado para logging; JWT ya lleva tipo_usuario via roles
 
                 // Query user and roles from tenant DB
                 var (idUsuario, roles, sitioGraba, acd, fuerzaId, canalCodigo) = await _dbAuthRepository.GetUsuarioYRolesAsync(
@@ -138,9 +213,11 @@ namespace Api.Controllers
                     });
                 }
 
+                // homeCodDane = codDane on first login (context switching updates cod_dane but keeps home_cod_dane)
                 var jwtToken = _jwtService.CreateToken(
                     idUsuario.Value, request.Usuario, roles, codDane!, nombreCad,
-                    sitioGraba, acd, fuerzaId, canalCodigo);
+                    sitioGraba, acd, fuerzaId, canalCodigo,
+                    homeCodDane: codDane);
 
                 return Ok(new DtoTokenResponse
                 {

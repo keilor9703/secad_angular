@@ -1,3 +1,4 @@
+using Api.BackgroundServices;
 using Api.Converters;
 using Api.Middleware;
 using Comun.Snowflake;
@@ -74,7 +75,18 @@ builder.Services.AddAuthentication("Bearer")
         };
     });
 
-builder.Services.AddAuthorization();
+builder.Services.AddAuthorization(options =>
+{
+    // Any user with es_admin=true (role 1 or role 2 or SuperUserIds list)
+    options.AddPolicy("Administrador", policy =>
+        policy.RequireAssertion(ctx =>
+            ctx.User.FindFirst("es_admin")?.Value == "true"));
+
+    // Only users with es_super_admin=true (role 2 or SuperUserIds list)
+    options.AddPolicy("SuperAdministrador", policy =>
+        policy.RequireAssertion(ctx =>
+            ctx.User.FindFirst("es_super_admin")?.Value == "true"));
+});
 builder.Services.AddMemoryCache();
 
 // Master DB (PostgreSQL): NpgsqlDataSource singleton
@@ -137,6 +149,17 @@ builder.Services.AddScoped<IDbAnotacionTurnoRepository, DbAnotacionTurnoReposito
 
 // Módulo §6.17 — Asistente Inteligente (preguntas orientadoras por tipo de incidente)
 builder.Services.AddScoped<IDbAsistenteRepository, DbAsistenteRepository>();
+
+// Módulo Entidades/Fuerzas — gestión de fuerzas, canales y datos operacionales de usuarios
+builder.Services.AddScoped<IDbFuerzaRepository, DbFuerzaRepository>();
+
+// ── Monitor de salud de CADs ──────────────────────────────────────────────────
+// BackgroundService que sondea periódicamente la BD de cada CAD y persiste
+// métricas en secad_tenants + secad_salud_historial.
+// Configuración: sección "HealthMonitor" en appsettings.json.
+builder.Services.Configure<CadHealthMonitorOptions>(
+    builder.Configuration.GetSection(CadHealthMonitorOptions.Section));
+builder.Services.AddHostedService<CadHealthMonitorService>();
 
 // Swagger
 builder.Services.AddEndpointsApiExplorer();

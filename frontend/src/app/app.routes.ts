@@ -12,6 +12,9 @@ import { LineaMandoAdminComponent } from './pages/administracion/linea-mando/lin
 import { AdministracionInicioComponent } from './pages/administracion/administracion-inicio/administracion-inicio';
 import { DominioAdminComponent } from './pages/administracion/dominio/dominio';
 import { authGuard } from './core/auth/auth.guard';
+import { adminGuard } from './core/auth/admin.guard';
+import { superAdminGuard } from './core/auth/super-admin.guard';
+import { EntidadesComponent } from './pages/administracion/entidades/entidades';
 import { PedidoComponent } from './pages/operacion/pedido/pedido';
 import { RecepcionComponent } from './pages/operacion/recepcion/recepcion';
 import { EventosComponent } from './pages/operacion/eventos/eventos';
@@ -35,27 +38,49 @@ export const routes: Routes = [
           { path: '', component: AdministracionInicioComponent, canActivate: [authGuard] },
           { path: 'inicio', component: AdministracionInicioComponent, canActivate: [authGuard] },
           { path: 'formularios', component: Formularios, canActivate: [authGuard] },
-          { path: 'usuarios', component: UsuariosComponent, canActivate: [authGuard] },
-          { path: 'roles', component: RolesAdminComponent, canActivate: [authGuard] },
-          { path: 'menu', component: MenuAdminComponent, canActivate: [authGuard] },
-          { path: 'configuracion-sistema', component: ConfiguracionSistemaComponent, canActivate: [authGuard] },
+          { path: 'usuarios', component: UsuariosComponent, canActivate: [adminGuard] },
+          { path: 'roles', component: RolesAdminComponent, canActivate: [adminGuard] },
+          { path: 'menu', component: MenuAdminComponent, canActivate: [adminGuard] },
+          { path: 'configuracion-sistema', component: ConfiguracionSistemaComponent, canActivate: [adminGuard] },
           { path: 'admin-multimedia', redirectTo: 'configuracion-sistema', pathMatch: 'full' },
           { path: 'video-unidad', redirectTo: 'configuracion-sistema', pathMatch: 'full' },
           { path: 'configuracion-imagen-sitio', redirectTo: 'configuracion-sistema', pathMatch: 'full' },
-          { path: 'linea-mando', component: LineaMandoAdminComponent, canActivate: [authGuard] },
-          { path: 'dominio', component: DominioAdminComponent, canActivate: [authGuard] },
+          { path: 'linea-mando', component: LineaMandoAdminComponent, canActivate: [adminGuard] },
+          { path: 'dominio', component: DominioAdminComponent, canActivate: [adminGuard] },
+          { path: 'entidades', component: EntidadesComponent, canActivate: [adminGuard] },
           {
             path: 'cuentas-email',
             loadComponent: () => import('./pages/administracion/cuentas-email/cuentas-email').then(m => m.CuentasEmailComponent),
-            canActivate: [authGuard]
+            canActivate: [adminGuard]
           },
           {
             path: 'asistente',
             loadComponent: () => import('./pages/administracion/asistente/asistente').then(m => m.AsistenteAdminComponent),
-            canActivate: [authGuard]
+            canActivate: [adminGuard]
+          },
+          // ─── SuperAdmin exclusivo ─────────────────────────────────────────
+          {
+            path: 'tenants',
+            loadComponent: () => import('./pages/administracion/tenants/tenants').then(m => m.TenantsComponent),
+            canActivate: [superAdminGuard]
           }
         ]
       },
+      // ─── Módulo SuperAdmin ────────────────────────────────────────────────
+      {
+        path: 'super',
+        canActivate: [superAdminGuard],
+        children: [
+          { path: '', redirectTo: 'salud-cads', pathMatch: 'full' },
+          {
+            path: 'salud-cads',
+            loadComponent: () => import('./pages/super/salud-cads/salud-cads').then(m => m.SaludCadsComponent),
+            canActivate: [superAdminGuard]
+          }
+        ]
+      },
+      { path: 'salud-cads', redirectTo: 'super/salud-cads', pathMatch: 'full' },
+      { path: 'tenants',    redirectTo: 'administracion/tenants', pathMatch: 'full' },
       // ─── Gestión Documental ───────────────────────────────────────────────
       {
         path: 'gestion-documental',
@@ -103,6 +128,7 @@ export const routes: Routes = [
       { path: 'linea-mando', redirectTo: 'administracion/linea-mando', pathMatch: 'full' },
       { path: 'radio', redirectTo: 'administracion/radio', pathMatch: 'full' },
       { path: 'dominio', redirectTo: 'administracion/dominio', pathMatch: 'full' },
+      { path: 'entidades', redirectTo: 'administracion/entidades', pathMatch: 'full' },
       // ─── Gestión Documental shortcuts ─────────────────────────────────────
       { path: 'cuentas-email', redirectTo: 'administracion/cuentas-email', pathMatch: 'full' },
       { path: 'asistente',    redirectTo: 'administracion/asistente',    pathMatch: 'full' },

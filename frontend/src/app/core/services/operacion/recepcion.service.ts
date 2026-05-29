@@ -39,8 +39,14 @@ export interface DtoLlamadaEntrante {
 }
 
 export interface DtoCasoItem {
-  CODIGO_CASO:      string;
-  DESCRIPCION_CASO: string;
+  CODIGO_CASO:             string;
+  DESCRIPCION_CASO:        string;
+  /** ID (string) de la categoría del Asistente vinculada. Null = sin asistente. */
+  ID_CATEGORIA_ASISTENTE?: string | null;
+  /** Código corto de la categoría (ej: HURTO, RINA). Usado para seleccionar plantilla narrativa. */
+  CATEGORIA_CODIGO?:       string | null;
+  /** Descripción legible de la categoría (JOIN informativo). */
+  CATEGORIA_DESCRIPCION?:  string | null;
 }
 
 export interface DtoCanalRecepcion {

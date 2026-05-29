@@ -705,18 +705,17 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
 
   confirmarCierre(): void {
     if (!this.detalle || this.cerrandoEvento) return;
-    // Use first selected code as codiPedido; append all to comentario
-    const codiPedido = this.eventoCodsSelec[0]?.codigo ?? '';
-    const codigosStr = this.eventoCodsSelec.map(c => `[${c.codigo}]${c.descripcion ? ' ' + c.descripcion : ''}`).join(', ');
-    const comentario = this.cerrarComentario.trim()
-      ? (codigosStr ? `${this.cerrarComentario} | Códigos: ${codigosStr}` : this.cerrarComentario)
-      : codigosStr;
 
     this.cerrandoEvento = true;
     this.eventoSvc.cerrar(this.detalle.id, {
-      comentario:  comentario,
-      codiPedido:  codiPedido,
-      enviar:      'S'
+      estado:            'C',
+      observacionCierre: this.cerrarComentario.trim() || undefined,
+      codigosCierre:     this.eventoCodsSelec.map((c, i) => ({
+        orden:             i + 1,
+        codigoCierre:      c.codigo,
+        tipoCodigo:        'CIERRE',
+        descripcionLibre:  c.descripcion || undefined
+      }))
     }).subscribe({
       next: (r) => {
         this.cerrandoEvento     = false;
@@ -1277,16 +1276,17 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
         this.toggleBodyModalClass(false);
 
         if (this.cerrarEventoAlAtender && this.detalle) {
-          // Cerrar también el evento
-          const codiPrimario = req.codigosCierre[0]?.codigoCierre ?? '';
-          const codigosStr   = req.codigosCierre.map(c => c.codigoCierre).join(', ');
-          const comentario   = req.observacionCierre
-            ? `${req.observacionCierre} | Códigos: ${codigosStr}`
-            : `Cerrado automáticamente. Códigos: ${codigosStr}`;
+          // Cerrar también el evento — solo datos de cierre van a cad_eventos;
+          // cad_pedidos.comentario es inmutable y NO se toca aquí.
           this.eventoSvc.cerrar(this.detalle.id, {
-            comentario,
-            codiPedido: codiPrimario,
-            enviar:     'S'
+            estado:            'C',
+            observacionCierre: req.observacionCierre?.trim() || 'Cerrado al atender.',
+            codigosCierre:     req.codigosCierre.map((c, i) => ({
+              orden:            i + 1,
+              codigoCierre:     c.codigoCierre,
+              tipoCodigo:       c.tipoCodigo ?? 'CIERRE',
+              descripcionLibre: c.descripcionLibre || undefined
+            }))
           }).subscribe({
             next: (r) => {
               if (r.success) { this.volverLista(); }

@@ -17,7 +17,8 @@ namespace Negocio.Gestion
         }
 
         public string CreateToken(long idUsuario, string usuario, List<long> roles, string codDane, string? nombreCad,
-                                  int sitioGraba = 0, int acd = 0, int fuerzaId = 0, int canalId = 0)
+                                  int sitioGraba = 0, int acd = 0, int fuerzaId = 0, int canalId = 0,
+                                  string? homeCodDane = null)
         {
             var issuer = _cfg["Jwt:Issuer"] ?? "oftic.api";
             var audience = _cfg["Jwt:Audience"] ?? issuer;
@@ -25,26 +26,33 @@ namespace Negocio.Gestion
             var minutes = int.Parse(_cfg["Jwt:Minutes"] ?? "480");
 
             // Determinar si el usuario es administrador:
-            // - tiene el rol 1 (Superadmin) asignado en ctr_roles_user, O
+            // - tiene el rol 1 (Administrador) asignado en ctr_roles_user, O
+            // - tiene el rol 2 (SuperAdministrador), O
             // - su ID aparece en la lista Menu:SuperUserIds del appsettings.
             var superUserIds = (_cfg["Menu:SuperUserIds"] ?? "")
                 .Split(',', StringSplitOptions.RemoveEmptyEntries)
                 .Select(s => long.TryParse(s.Trim(), out var v) ? v : -1L)
                 .ToHashSet();
-            bool esAdmin = roles.Contains(1L) || superUserIds.Contains(idUsuario);
+
+            bool esSuperAdmin = roles.Contains(2L) || superUserIds.Contains(idUsuario);
+            bool esAdmin = esSuperAdmin || roles.Contains(1L);
 
             var claims = new List<Claim>
             {
-                new("id_usuario",   idUsuario.ToString()),
+                new("id_usuario",      idUsuario.ToString()),
                 new(ClaimTypes.NameIdentifier, idUsuario.ToString()),
-                new(ClaimTypes.Name, usuario ?? ""),
-                new("cod_dane",     codDane),
-                new("nombre_cad",   nombreCad ?? ""),
-                new("sitio_graba",  sitioGraba.ToString()),
-                new("acd",          acd.ToString()),
-                new("fuerza_id",    fuerzaId.ToString()),
-                new("canal_id",     canalId.ToString()),
-                new("es_admin",     esAdmin ? "true" : "false")
+                new(ClaimTypes.Name,   usuario ?? ""),
+                new("cod_dane",        codDane),
+                new("nombre_cad",      nombreCad ?? ""),
+                new("sitio_graba",     sitioGraba.ToString()),
+                new("acd",             acd.ToString()),
+                new("fuerza_id",       fuerzaId.ToString()),
+                new("canal_id",        canalId.ToString()),
+                new("es_admin",        esAdmin       ? "true" : "false"),
+                new("es_super_admin",  esSuperAdmin  ? "true" : "false"),
+                // home_cod_dane tracks the original tenant — used for context switching.
+                // Falls back to cod_dane when not explicitly switching.
+                new("home_cod_dane",   homeCodDane ?? codDane)
             };
 
             foreach (var r in roles)

@@ -605,6 +605,7 @@
                     @for (ev of timeline; track $index) {
                       <div class="seg-tl-item" [class]="'seg-tl-item--' + ev.colorClass">
 
+                        <!-- Marcador izquierdo: ícono + línea vertical -->
                         <div class="seg-tl-item__marker">
                           <div class="seg-tl-item__dot">
                             <i [class]="ev.icono"></i>
@@ -614,21 +615,150 @@
                           }
                         </div>
 
-                        <div class="seg-tl-item__card">
-                          <div class="seg-tl-item__head">
-                            <span class="seg-tl-item__titulo">{{ ev.titulo }}</span>
-                            @if (ev.tipoAnotacion) {
-                              <span class="seg-tl-item__tipo">{{ ev.tipoAnotacion }}</span>
+                        <!-- ── Tarjeta de actuación (bloque compacto de fases) ── -->
+                        @if (ev.tipo === 'ACTUACION' && ev.actuacion) {
+                          <div class="seg-tl-act-block">
+
+                            <!-- Cabecera: canal · unidad · placa · estado · duración total -->
+                            <div class="seg-tl-act-block__head">
+                              <div class="seg-tl-act-block__title">
+                                <i class="fa-solid fa-shield-halved"></i>
+                                <strong>{{ ev.actuacion.canal || 'Recurso despachado' }}</strong>
+                                @if (ev.actuacion.unidad) {
+                                  <span class="seg-tl-act-unidad">{{ ev.actuacion.unidad }}</span>
+                                }
+                                @if (ev.actuacion.placa) {
+                                  <span class="seg-tl-act-placa">
+                                    <i class="fa-solid fa-car-side"></i>{{ ev.actuacion.placa }}
+                                  </span>
+                                }
+                              </div>
+                              <div class="seg-tl-act-block__badges">
+                                <span class="seg-tl-act-estado seg-tl-act-estado--{{ ev.actuacion.estado }}">
+                                  {{ getEstadoActuacionLabel(ev.actuacion.estado) }}
+                                </span>
+                                @if (ev.actuacion.totalMin !== null) {
+                                  <span class="seg-tl-act-duracion">
+                                    <i class="fa-regular fa-clock"></i>
+                                    {{ fmtDur(ev.actuacion.totalMin) }}
+                                  </span>
+                                }
+                              </div>
+                            </div>
+
+                            <!-- Flujo de fases: Asignado → En camino → En sitio → Cerrado -->
+                            <div class="seg-tl-act-fases">
+                              @for (fase of ev.actuacion.fases; track fase.label; let last = $last) {
+                                <div class="seg-tl-act-fase"
+                                     [class.seg-tl-act-fase--cumplida]="fase.cumplida"
+                                     [class.seg-tl-act-fase--pendiente]="!fase.cumplida">
+                                  <div class="seg-tl-act-fase__icon">
+                                    <i [class]="fase.icono"></i>
+                                  </div>
+                                  <div class="seg-tl-act-fase__label">{{ fase.label }}</div>
+                                  @if (fase.timestamp) {
+                                    <div class="seg-tl-act-fase__ts">
+                                      {{ fase.timestamp | date:'dd/MM HH:mm' }}
+                                    </div>
+                                  } @else {
+                                    <div class="seg-tl-act-fase__ts seg-tl-act-fase__ts--vacio">—</div>
+                                  }
+                                  @if (fase.deltaMin !== null && fase.cumplida) {
+                                    <div class="seg-tl-act-fase__delta">
+                                      +{{ fmtDur(fase.deltaMin) }}
+                                    </div>
+                                  }
+                                </div>
+                                @if (!last) {
+                                  <div class="seg-tl-act-fase__sep">
+                                    <i class="fa-solid fa-chevron-right"></i>
+                                  </div>
+                                }
+                              }
+                            </div>
+
+                            <!-- Pie: despachador + botón "Ver equipo" -->
+                            <div class="seg-tl-act-block__foot">
+                              <span class="seg-tl-act-dispatch">
+                                <i class="fa-solid fa-user-tie"></i>
+                                {{ ev.actuacion.despachador || '(sin despachador)' }}
+                              </span>
+                              @if (ev.actuacion.caliPedido) {
+                                <span class="seg-tl-act-cali">
+                                  <i class="fa-solid fa-star"></i>
+                                  {{ ev.actuacion.caliPedido }}
+                                </span>
+                              }
+                              <button type="button"
+                                      class="seg-tl-act-equipo-btn"
+                                      (click)="toggleEquipo(ev.actuacion.actId)">
+                                <i class="fa-solid fa-{{
+                                  equipoCargando[ev.actuacion.actId] ? 'spinner fa-spin' :
+                                  (equipoExpandido[ev.actuacion.actId] ? 'chevron-up' : 'users')
+                                }}"></i>
+                                @if (equipoCargando[ev.actuacion.actId]) {
+                                  Cargando…
+                                } @else if (equipoExpandido[ev.actuacion.actId]) {
+                                  Ocultar equipo
+                                } @else {
+                                  Ver equipo ({{ ev.actuacion.totalUnidades }})
+                                }
+                              </button>
+                            </div>
+
+                            <!-- Panel de equipo expandible (lazy) -->
+                            @if (equipoExpandido[ev.actuacion.actId]) {
+                              <div class="seg-tl-act-equipo">
+                                @if (!equipoDetalle[ev.actuacion.actId] || equipoDetalle[ev.actuacion.actId].length === 0) {
+                                  <p class="seg-tl-act-equipo__vacio">
+                                    <i class="fa-solid fa-info-circle"></i>
+                                    Solo la unidad principal está registrada.
+                                  </p>
+                                }
+                                @for (u of (equipoDetalle[ev.actuacion.actId] ?? []); track u.id) {
+                                  <div class="seg-tl-act-equipo__item">
+                                    <i class="fa-solid fa-user-shield"></i>
+                                    <span class="seg-tl-act-equipo__cod">{{ u.unidadCodigo }}</span>
+                                    @if (u.placa) {
+                                      <span class="seg-tl-act-equipo__placa">{{ u.placa }}</span>
+                                    }
+                                    @if (u.tipoUnidad) {
+                                      <span class="seg-tl-act-equipo__tipo">{{ u.tipoUnidad }}</span>
+                                    }
+                                    <span class="seg-tl-act-equipo__estado seg-tl-act-equipo__estado--{{ u.estado }}">
+                                      {{ u.estado === 'D' ? 'En camino' : u.estado === 'A' ? 'En sitio' : u.estado === 'L' ? 'Libre' : 'Anulado' }}
+                                    </span>
+                                    @if (u.fechaDespacho) {
+                                      <span class="seg-tl-act-equipo__hora">
+                                        <i class="fa-regular fa-clock"></i>
+                                        {{ u.fechaDespacho | date:'HH:mm' }}
+                                      </span>
+                                    }
+                                  </div>
+                                }
+                              </div>
                             }
-                            <span class="seg-tl-item__time">
-                              {{ (ev.timestamp | date:'dd/MM/yy HH:mm') || '—' }}
-                            </span>
+
+                          </div><!-- /seg-tl-act-block -->
+
+                        <!-- ── Tarjeta genérica (creación, anotación, cierre) ── -->
+                        } @else {
+                          <div class="seg-tl-item__card">
+                            <div class="seg-tl-item__head">
+                              <span class="seg-tl-item__titulo">{{ ev.titulo }}</span>
+                              @if (ev.tipoAnotacion) {
+                                <span class="seg-tl-item__tipo">{{ ev.tipoAnotacion }}</span>
+                              }
+                              <span class="seg-tl-item__time">
+                                {{ (ev.timestamp | date:'dd/MM/yy HH:mm') || '—' }}
+                              </span>
+                            </div>
+                            <div class="seg-tl-item__desc">{{ ev.descripcion }}</div>
+                            <div class="seg-tl-item__actor">
+                              <i class="fa-solid fa-user"></i> {{ ev.actor }}
+                            </div>
                           </div>
-                          <div class="seg-tl-item__desc">{{ ev.descripcion }}</div>
-                          <div class="seg-tl-item__actor">
-                            <i class="fa-solid fa-user"></i> {{ ev.actor }}
-                          </div>
-                        </div>
+                        }
 
                       </div>
                     }

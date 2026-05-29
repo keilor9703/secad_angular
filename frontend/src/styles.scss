@@ -1252,9 +1252,10 @@ textarea.ui-control {
   border: 1px solid rgba(21, 27, 59, .10);
 }
 
-.ui-badge.success { background: rgba(34, 197, 94, .14); color: #166534; }
+.ui-badge.success { background: rgba(34, 197, 94, .14);  color: #166534; }
 .ui-badge.warning { background: rgba(245, 158, 11, .16); color: #92400e; }
-.ui-badge.info { background: rgba(8, 166, 203, .16); color: var(--policia-medio); }
+.ui-badge.info    { background: rgba(8, 166, 203, .16);  color: var(--policia-medio); }
+.ui-badge.danger  { background: rgba(239, 68, 68, .13);  color: #991b1b; }
 
 /* Mini buttons */
 .ui-mini-btn.danger {

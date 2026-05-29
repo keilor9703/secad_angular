@@ -81,10 +81,26 @@ export interface DtoEstadoRequest {
   estado: string;
 }
 
+/** Código de cierre individual para el módulo Despachador. */
+export interface DtoCodigoCierreDespacho {
+  orden:             number;
+  codigoCierre:      string;
+  tipoCodigo?:       string;   // default 'CIERRE'
+  descripcionLibre?: string;
+}
+
+/**
+ * Request para cerrar un evento desde el módulo Despachador.
+ * IMPORTANTE: NO incluye comentario ni codiPedido del pedido —
+ * esos datos son inmutables en cad_pedidos una vez registrados en Recepción.
+ * Solo actualiza cad_eventos (observacion, códigos, estado) y cad_pedidos.estado='C'.
+ */
 export interface DtoCerrarRequest {
-  comentario: string;
-  codiPedido: string;
-  enviar: string;
+  /** Estado final: 'C' = Cerrado (default), 'V' = Anulado. */
+  estado?:             string;
+  clasifCierre?:       string;
+  observacionCierre?:  string;
+  codigosCierre:       DtoCodigoCierreDespacho[];
 }
 
 // ─── Service ──────────────────────────────────────────────────────────────────

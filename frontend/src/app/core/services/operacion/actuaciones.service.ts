@@ -84,10 +84,12 @@ export interface DtoActuacionListItem {
   fechaDespacho?:  string;
   fechaLlegada?:   string;
   fechaCierre?:    string;
-  caliPedido?:     string;
-  totalUnidades?:  number;
-  totalNotas?:     number;
-  placaUnidad?:    string;
+  caliPedido?:          string;
+  totalUnidades?:       number;
+  totalNotas?:          number;
+  placaUnidad?:         string;
+  /** Username de quien despachó el recurso — auditoría para el Jefe de Turno. */
+  despachadorUsuario?:  string;
 }
 
 /** Request: crear nueva actuación (primer paso del flujo de despacho) */

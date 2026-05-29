@@ -134,13 +134,27 @@ export class RecepcionComponent implements OnInit, AfterViewInit, OnDestroy {
   ] as const;
 
   // ── §6.17 Asistente Inteligente ──────────────────────────────────────────────
-  asistenteAbierto     = false;
+  asistenteAbierto          = false;
   asistenteCategorias: AsistenteCategoria[]  = [];
-  asistenteLoadingCat  = false;
-  asistenteCategoriaSel = '';
+  asistenteLoadingCat       = false;
+  asistenteCategoriaSel     = '';
   asistentePreguntas:  AsistentePregunta[]   = [];
-  asistenteLoadingPreg = false;
-  readonly asisParseOpc = parsearOpciones;
+  asistenteLoadingPreg      = false;
+  readonly asisParseOpc     = parsearOpciones;
+
+  /** true cuando el asistente se abrió automáticamente por el código de caso */
+  asistenteAutoActivado         = false;
+  /** Código corto de la categoría (HURTO, RINA…) — elige plantilla narrativa */
+  asistenteCategoriaCode        = '';
+  /** Descripción de la categoría activa (para mostrar el badge de auto-modo) */
+  asistenteCategoriaDescripcion = '';
+
+  /** Respuestas indexadas por ID de pregunta (string para uniformidad) */
+  respuestas: Record<string, string> = {};
+  /** Relato construido automáticamente a partir de las respuestas */
+  relatoAutomatico  = '';
+  /** Notas libres del operador que complementan el relato */
+  notasAdicionales  = '';
 
   constructor(
     private auth:        AuthService,
@@ -510,12 +524,13 @@ export class RecepcionComponent implements OnInit, AfterViewInit, OnDestroy {
 
   seleccionarSugerencia(c: DtoCasoItem, slot: 1 | 2): void {
     if (slot === 1) {
-      this.txtCodigCaso = c.CODIGO_CASO;
-      this.txtDescaso   = c.DESCRIPCION_CASO;
+      this.txtCodigCaso    = c.CODIGO_CASO;
+      this.txtDescaso      = c.DESCRIPCION_CASO;
       this.casosSugeridos1 = [];
+      this.onCasoSeleccionadoChange(c);
     } else {
-      this.txtCodigCaso2 = c.CODIGO_CASO;
-      this.txtDescaso2   = c.DESCRIPCION_CASO;
+      this.txtCodigCaso2   = c.CODIGO_CASO;
+      this.txtDescaso2     = c.DESCRIPCION_CASO;
       this.casosSugeridos2 = [];
     }
   }
@@ -532,8 +547,12 @@ export class RecepcionComponent implements OnInit, AfterViewInit, OnDestroy {
     this.svc.getCasoPorCodigo(codigo).subscribe({
       next: resp => {
         if (resp.success && resp.data) {
-          if (slot === 1) this.txtDescaso  = resp.data.DESCRIPCION_CASO;
-          else            this.txtDescaso2 = resp.data.DESCRIPCION_CASO;
+          if (slot === 1) {
+            this.txtDescaso = resp.data.DESCRIPCION_CASO;
+            this.onCasoSeleccionadoChange(resp.data);
+          } else {
+            this.txtDescaso2 = resp.data.DESCRIPCION_CASO;
+          }
         } else {
           this.toast.warning('Caso', 'Código no encontrado');
         }
@@ -610,8 +629,8 @@ export class RecepcionComponent implements OnInit, AfterViewInit, OnDestroy {
       this.toast.warning('Validar', 'Debe ingresar la dirección del caso');
       return;
     }
-    if (!this.txtComentario) {
-      this.toast.warning('Validar', 'Debe ingresar la descripción del caso');
+    if (!this.relatoAutomatico.trim() && !this.notasAdicionales.trim()) {
+      this.toast.warning('Validar', 'Debe ingresar la descripción del caso o responder las preguntas orientadoras');
       return;
     }
     const canalesSel = this.canalesSeleccionados();
@@ -775,7 +794,7 @@ export class RecepcionComponent implements OnInit, AfterViewInit, OnDestroy {
       DIRE_CASO:             this.txtDireCaso,
       LATITUD_CASO:          this.latitudCaso,
       LONGITUD_CASO:         this.longitudCaso,
-      COMENTARIO:            this.txtComentario,
+      COMENTARIO:            this.buildComentario(),
       CODI_PEDIDO:           this.txtCodigCaso,
       CODI_PEDIDO2:          this.txtCodigCaso2,
       IMPORTANCIA:           this.importancia,
@@ -845,6 +864,7 @@ export class RecepcionComponent implements OnInit, AfterViewInit, OnDestroy {
     this.latitudCaso       = '';
     this.longitudCaso      = '';
     this.txtComentario     = '';
+    this.notasAdicionales  = '';
     this.txtAsociarLlamada = '';
     this.hdnNumeLlamadaAsociada = '';
     this.hdnSitioGrabaAsociada  = '';
@@ -887,14 +907,16 @@ export class RecepcionComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   onAsistenteCategoriaChange(idCategoria: string): void {
-    this.asistentePreguntas  = [];
+    this.asistentePreguntas    = [];
     this.asistenteCategoriaSel = idCategoria;
+    this.respuestas            = {};
+    this.relatoAutomatico      = '';
     if (!idCategoria) return;
 
     this.asistenteLoadingPreg = true;
     this.asistenteSvc.getPreguntas(idCategoria, true).subscribe({
       next: (r) => {
-        this.asistentePreguntas  = r.data ?? [];
+        this.asistentePreguntas   = r.data ?? [];
         this.asistenteLoadingPreg = false;
       },
       error: () => {
@@ -905,9 +927,249 @@ export class RecepcionComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   resetAsistente(): void {
-    this.asistenteAbierto      = false;
-    this.asistenteCategoriaSel = '';
-    this.asistentePreguntas    = [];
-    this.asistenteLoadingPreg  = false;
+    this.asistenteAbierto             = false;
+    this.asistenteCategoriaSel        = '';
+    this.asistentePreguntas           = [];
+    this.asistenteLoadingPreg         = false;
+    this.asistenteAutoActivado        = false;
+    this.asistenteCategoriaCode       = '';
+    this.asistenteCategoriaDescripcion = '';
+    this.respuestas                   = {};
+    this.relatoAutomatico             = '';
+  }
+
+  // ════════════════════════════════════════════════════════════════════════════
+  //  §6.17 Asistente — auto-activación y relato automático
+  // ════════════════════════════════════════════════════════════════════════════
+
+  /**
+   * Se llama cada vez que el operador selecciona o confirma un código de caso
+   * en el slot primario (slot 1). Si el caso tiene categoría de asistente
+   * vinculada, abre el panel y carga las preguntas automáticamente.
+   */
+  onCasoSeleccionadoChange(caso: DtoCasoItem): void {
+    const catId = caso.ID_CATEGORIA_ASISTENTE;
+
+    if (!catId) {
+      // Sin categoría configurada → resetear modo auto si estaba activo
+      if (this.asistenteAutoActivado) this.resetAsistente();
+      return;
+    }
+
+    // Si ya estábamos en la misma categoría, no recargar (evita perder respuestas)
+    if (this.asistenteAutoActivado && this.asistenteCategoriaSel === catId) return;
+
+    this.asistenteAutoActivado         = true;
+    this.asistenteCategoriaCode        = caso.CATEGORIA_CODIGO ?? '';
+    this.asistenteCategoriaDescripcion = caso.CATEGORIA_DESCRIPCION ?? '';
+    this.asistenteCategoriaSel         = catId;
+    this.asistenteAbierto              = true;
+    this.respuestas                    = {};
+
+    // Construir intro del relato inmediatamente con los datos del caso ya disponibles
+    this.construirRelato();
+
+    this.asistenteLoadingPreg = true;
+    this.asistenteSvc.getPreguntas(catId, true)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (r) => {
+          this.asistentePreguntas   = r.data ?? [];
+          this.asistenteLoadingPreg = false;
+          // Actualizar relato con la lista de preguntas cargada
+          this.construirRelato();
+        },
+        error: () => {
+          this.asistenteLoadingPreg = false;
+          this.toast.error('Asistente', 'No fue posible cargar las preguntas.');
+        }
+      });
+  }
+
+  /**
+   * Actualiza la respuesta de una pregunta y reconstruye el relato en tiempo real.
+   * Llamado desde los inputs del template vía (ngModelChange).
+   * `valor` puede ser string o number (inputs numéricos emiten number).
+   */
+  onRespuestaChange(pregId: string, valor: string | number): void {
+    this.respuestas = { ...this.respuestas, [pregId]: String(valor ?? '') };
+    this.construirRelato();
+  }
+
+  /**
+   * Construye el relato en lenguaje natural a partir de los datos de la llamada
+   * y las respuestas a las preguntas orientadoras.
+   *
+   * El relato se compone de tres secciones:
+   *  1. INTRODUCCIÓN — metadatos de la llamada (siempre presente al seleccionar caso)
+   *  2. CUERPO       — fragmentos narrativos de cada respuesta informativa
+   *  3. ALERTA       — fragmentos de respuestas con palabras clave de urgencia
+   */
+  construirRelato(): void {
+    // ── Metadatos de la llamada ──────────────────────────────────────────────
+    const fechaHora  = this.txtFechaIngreso || this.obtenerFechaActual();
+    const partesFH   = fechaHora.includes(' ') ? fechaHora.split(' ') : [fechaHora, ''];
+    const fecha      = partesFH[0];
+    const hora       = partesFH[1] ?? '';
+    const abonado    = this.txtAbonado?.trim() || null;
+    const canalLabel = (this.canalesOrigen as readonly { value: string; label: string }[])
+                         .find(c => c.value === this.canalOrigenUI)?.label ?? this.canalOrigenUI;
+    const direccion  = this.txtDireCaso?.trim() || 'dirección no especificada';
+    const barrio     = this.txtBarrioCaso?.trim();
+    const ciudad     = this.txtCiudadCaso?.trim();
+    const codigoCaso = this.txtCodigCaso?.trim().toUpperCase();
+    const descCaso   = this.txtDescaso?.trim();
+
+    // Ubicación compuesta
+    let ubicacion = direccion;
+    if (barrio) ubicacion += `, ${barrio}`;
+    if (ciudad) ubicacion += `, ${ciudad}`;
+
+    // ── INTRODUCCIÓN ─────────────────────────────────────────────────────────
+    let intro = `El ${fecha}`;
+    if (hora) intro += ` a las ${hora}`;
+    intro += `, a través de ${canalLabel}`;
+    if (abonado) intro += ` (Abonado: ${abonado})`;
+    intro += ', se reporta un incidente';
+    if (codigoCaso) {
+      intro += ` tipificado preliminarmente como ${codigoCaso}`;
+      if (descCaso) intro += ` — ${descCaso}`;
+    }
+    intro += ` en ${ubicacion}.`;
+
+    // Sin preguntas contestadas → solo el intro (visible desde el momento de selección)
+    const contestadas = this.asistentePreguntas.filter(p => {
+      const v = String(this.respuestas[p.id] ?? '').trim();
+      return v.length > 0;
+    });
+
+    if (contestadas.length === 0) {
+      this.relatoAutomatico = intro;
+      return;
+    }
+
+    // ── CUERPO + ALERTAS ─────────────────────────────────────────────────────
+    const PALABRAS_ALERTA = [
+      'víctima', 'victima', 'herido', 'lesionado', 'atrapado', 'atrapada',
+      'arma', 'incendio', 'fuga', 'muerto', 'fallecido', 'disparo', 'explosivo',
+      'sangre', 'agresión', 'agresion'
+    ];
+
+    const fragmentosInfo:   string[] = [];
+    const fragmentosAlerta: string[] = [];
+
+    for (const p of contestadas) {
+      const resp = String(this.respuestas[p.id]).trim();
+      const qLow = p.pregunta.toLowerCase();
+      const esAlerta = p.tipoRespuesta === 'SINO' && resp === 'si' &&
+                       PALABRAS_ALERTA.some(k => qLow.includes(k));
+      const frag = this.buildFragmentoNarrativo(p, resp);
+      if (esAlerta) fragmentosAlerta.push(frag);
+      else          fragmentosInfo.push(frag);
+    }
+
+    const partes: string[] = [intro];
+
+    if (fragmentosInfo.length > 0) {
+      partes.push('De acuerdo con la información suministrada, ' +
+                  fragmentosInfo.join('; ') + '.');
+    }
+
+    if (fragmentosAlerta.length > 0) {
+      partes.push('ATENCIÓN: ' + fragmentosAlerta.join('. ') + '.');
+    }
+
+    this.relatoAutomatico = partes.join('\n\n');
+  }
+
+  // ── Motor de fragmentos narrativos ─────────────────────────────────────────
+
+  private buildFragmentoNarrativo(preg: AsistentePregunta, respuesta: string): string {
+    const qLimpia = preg.pregunta.replace(/[¿?]/g, '').trim();
+    const qLow    = qLimpia.toLowerCase();
+
+    switch (preg.tipoRespuesta) {
+      case 'SINO':      return this.buildFragSino(qLow, respuesta === 'si');
+      case 'NUMERO':    return this.buildFragNumero(qLow, respuesta);
+      case 'SELECCION': return this.buildFragSeleccion(qLow, respuesta);
+      default:          return this.buildFragTexto(qLow, respuesta);
+    }
+  }
+
+  private buildFragSino(qLow: string, esPositivo: boolean): string {
+    // Reglas por patrones de inicio de pregunta
+    if (esPositivo) {
+      if (/^hay\s/.test(qLow))            return `se reporta que ${qLow}`;
+      if (/^se\s(llevaron|robaron)/.test(qLow)) return `se confirma que ${qLow}`;
+      if (/^continúa|^continua/.test(qLow))     return `se confirma que ${qLow}`;
+      if (qLow.includes('atrapada') || qLow.includes('atrapado'))
+                                           return `se reportan personas atrapadas en el lugar`;
+      return `se confirma que ${qLow}`;
+    } else {
+      if (/^hay\s/.test(qLow)) {
+        const sinHay = qLow.replace(/^hay\s+/, '');
+        return `no se reportan ${sinHay}`;
+      }
+      if (/^se\s(llevaron|robaron)/.test(qLow)) return `se confirma que no ${qLow}`;
+      return `se descarta que ${qLow}`;
+    }
+  }
+
+  private buildFragNumero(qLow: string, n: string): string {
+    // Elimina interrogativos al inicio: "cuántas personas..." → "personas..."
+    const sinCuantos = qLow
+      .replace(/^cuántas?\s+/i, '')
+      .replace(/^cuántos?\s+/i, '');
+    const num = parseInt(n, 10);
+    const cantidad = isNaN(num) ? n : num;
+    return `se reportan ${cantidad} ${sinCuantos}`;
+  }
+
+  private buildFragSeleccion(qLow: string, respuesta: string): string {
+    // "tipo de vía donde ocurrió" → "el tipo de vía fue: Vía urbana"
+    if (/tipo|clase/.test(qLow)) return `el ${qLow}: ${respuesta}`;
+    return `${qLow}: ${respuesta}`;
+  }
+
+  private buildFragTexto(qLow: string, respuesta: string): string {
+    // "cuál fue el objeto hurtado" → "el objeto hurtado fue CELULAR"
+    let m = qLow.match(/^cual fue (?:el|la|los|las)?\s*(.+)$/i);
+    if (m) return `el ${m[1].trim()} fue ${respuesta.toUpperCase()}`;
+
+    // "cuál es el/la X" → "el/la X es RESPUESTA"
+    m = qLow.match(/^cual es (?:el|la|los|las)?\s*(.+)$/i);
+    if (m) return `el ${m[1].trim()} es ${respuesta.toUpperCase()}`;
+
+    // "qué tipo de X" → "el tipo de X es RESPUESTA"
+    m = qLow.match(/^qu[eé] tipo de (.+)$/i);
+    if (m) return `el tipo de ${m[1].trim()} es ${respuesta}`;
+
+    // Default
+    return `${qLow}: ${respuesta.toUpperCase()}`;
+  }
+
+  /**
+   * Compone el COMENTARIO final que se enviará al backend:
+   *   1. Relato automático de las preguntas (si existe)
+   *   2. Separador + Observaciones adicionales del operador (si existen)
+   */
+  private buildComentario(): string {
+    const partes: string[] = [];
+
+    if (this.relatoAutomatico.trim()) {
+      partes.push(this.relatoAutomatico.trim());
+    }
+
+    if (this.notasAdicionales.trim()) {
+      const header = partes.length > 0 ? '── Observaciones adicionales ──\n' : '';
+      partes.push(header + this.notasAdicionales.trim());
+    }
+
+    // Fallback: si el asistente no estaba activo, usar el campo legacy txtComentario
+    if (partes.length === 0 && this.txtComentario.trim()) {
+      return this.txtComentario.trim();
+    }
+
+    return partes.join('\n\n');
   }
 }

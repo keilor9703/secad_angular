@@ -101,20 +101,29 @@ namespace Datos.Gestion
             await using var conn = await _tenant.DataSource.OpenConnectionAsync(ct);
             await using var cmd  = conn.CreateCommand();
             cmd.CommandText = @"
-                SELECT codigo AS CODIGO_CASO, descripcion AS DESCRIPCION_CASO
-                FROM   cad_casos
-                WHERE (UPPER(codigo)      LIKE '%' || UPPER(@b) || '%'
-                    OR UPPER(descripcion) LIKE '%' || UPPER(@b) || '%')
-                  AND vigente = 'S'
-                ORDER  BY descripcion
+                SELECT c.codigo          AS CODIGO_CASO,
+                       c.descripcion     AS DESCRIPCION_CASO,
+                       c.id_categoria_asistente,
+                       cat.codigo        AS CATEGORIA_CODIGO,
+                       cat.descripcion   AS CATEGORIA_DESCRIPCION
+                FROM   cad_casos c
+                LEFT   JOIN cad_asistente_categorias cat
+                         ON cat.id = c.id_categoria_asistente
+                WHERE (UPPER(c.codigo)       LIKE '%' || UPPER(@b) || '%'
+                    OR UPPER(c.descripcion)  LIKE '%' || UPPER(@b) || '%')
+                  AND c.vigente = 'S'
+                ORDER  BY c.descripcion
                 LIMIT  50";
             cmd.Parameters.AddWithValue("b", busqueda ?? "");
             await using var rdr = await cmd.ExecuteReaderAsync(ct);
             while (await rdr.ReadAsync(ct))
                 result.Add(new DtoCasoItem
                 {
-                    CODIGO_CASO      = rdr.IsDBNull(0) ? "" : rdr.GetString(0),
-                    DESCRIPCION_CASO = rdr.IsDBNull(1) ? "" : rdr.GetString(1)
+                    CODIGO_CASO            = rdr.IsDBNull(0) ? "" : rdr.GetString(0),
+                    DESCRIPCION_CASO       = rdr.IsDBNull(1) ? "" : rdr.GetString(1),
+                    ID_CATEGORIA_ASISTENTE = rdr.IsDBNull(2) ? null : rdr.GetInt64(2).ToString(),
+                    CATEGORIA_CODIGO       = rdr.IsDBNull(3) ? null : rdr.GetString(3),
+                    CATEGORIA_DESCRIPCION  = rdr.IsDBNull(4) ? null : rdr.GetString(4)
                 });
             return result;
         }
@@ -125,17 +134,26 @@ namespace Datos.Gestion
             await using var conn = await _tenant.DataSource.OpenConnectionAsync(ct);
             await using var cmd  = conn.CreateCommand();
             cmd.CommandText = @"
-                SELECT codigo AS CODIGO_CASO, descripcion AS DESCRIPCION_CASO
-                FROM   cad_casos
-                WHERE  TRIM(UPPER(codigo)) = TRIM(UPPER(@c))
+                SELECT c.codigo          AS CODIGO_CASO,
+                       c.descripcion     AS DESCRIPCION_CASO,
+                       c.id_categoria_asistente,
+                       cat.codigo        AS CATEGORIA_CODIGO,
+                       cat.descripcion   AS CATEGORIA_DESCRIPCION
+                FROM   cad_casos c
+                LEFT   JOIN cad_asistente_categorias cat
+                         ON cat.id = c.id_categoria_asistente
+                WHERE  TRIM(UPPER(c.codigo)) = TRIM(UPPER(@c))
                 LIMIT  1";
             cmd.Parameters.Add("c", NpgsqlTypes.NpgsqlDbType.Varchar).Value = codigo ?? "";
             await using var rdr = await cmd.ExecuteReaderAsync(ct);
             if (!await rdr.ReadAsync(ct)) return null;
             return new DtoCasoItem
             {
-                CODIGO_CASO      = rdr.IsDBNull(0) ? "" : rdr.GetString(0),
-                DESCRIPCION_CASO = rdr.IsDBNull(1) ? "" : rdr.GetString(1)
+                CODIGO_CASO            = rdr.IsDBNull(0) ? "" : rdr.GetString(0),
+                DESCRIPCION_CASO       = rdr.IsDBNull(1) ? "" : rdr.GetString(1),
+                ID_CATEGORIA_ASISTENTE = rdr.IsDBNull(2) ? null : rdr.GetInt64(2).ToString(),
+                CATEGORIA_CODIGO       = rdr.IsDBNull(3) ? null : rdr.GetString(3),
+                CATEGORIA_DESCRIPCION  = rdr.IsDBNull(4) ? null : rdr.GetString(4)
             };
         }
 

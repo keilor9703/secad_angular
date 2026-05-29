@@ -13,7 +13,10 @@ namespace Datos.Gestion
         private readonly ILogger<DbActuacionRepository> _logger;
         private readonly ISnowflakeGenerator             _snowflake;
 
-        private const string TsFormat = "DD/MM/YYYY HH24:MI:SS";
+        // ISO-8601 sin zona horaria (hora Colombia ya aplicada en el AT TIME ZONE).
+        // JavaScript new Date("YYYY-MM-DDTHH24:MI:SS") parsea correctamente.
+        // No usar "DD/MM/YYYY HH24:MI:SS" — ese formato devuelve Invalid Date en JS.
+        private const string TsFormat = "YYYY-MM-DD\"T\"HH24:MI:SS";
 
         public DbActuacionRepository(
             TenantContext tenant,
@@ -49,7 +52,9 @@ SELECT a.id, a.evento_id,
        TO_CHAR(a.fecha_cierre    AT TIME ZONE 'America/Bogota','{TsFormat}'),
        a.cali_pedido,
        (SELECT COUNT(*) FROM cad_actuaciones_unidades u WHERE u.actuacion_id = a.id) AS total_unidades,
-       (SELECT COUNT(*) FROM cad_actuaciones_notas    n WHERE n.actuacion_id = a.id) AS total_notas
+       (SELECT COUNT(*) FROM cad_actuaciones_notas    n WHERE n.actuacion_id = a.id) AS total_notas,
+       a.placa_unidad,         -- col 13
+       a.despachador_usuario   -- col 14: quien despachó el recurso
 FROM   cad_actuaciones a
 LEFT   JOIN cad_fuerzas f ON f.id     = a.fuerza_id
 LEFT   JOIN cad_canales c ON c.codigo = a.canal_codigo
@@ -83,9 +88,11 @@ ORDER  BY
                     FechaDespacho = rdr.IsDBNull(7)  ? null : rdr.GetString(7),
                     FechaLlegada  = rdr.IsDBNull(8)  ? null : rdr.GetString(8),
                     FechaCierre   = rdr.IsDBNull(9)  ? null : rdr.GetString(9),
-                    CaliPedido    = rdr.IsDBNull(10) ? null : rdr.GetString(10),
-                    TotalUnidades = rdr.IsDBNull(11) ? 0   : (int)rdr.GetInt64(11),
-                    TotalNotas    = rdr.IsDBNull(12) ? 0   : (int)rdr.GetInt64(12)
+                    CaliPedido          = rdr.IsDBNull(10) ? null : rdr.GetString(10),
+                    TotalUnidades       = rdr.IsDBNull(11) ? 0   : (int)rdr.GetInt64(11),
+                    TotalNotas          = rdr.IsDBNull(12) ? 0   : (int)rdr.GetInt64(12),
+                    PlacaUnidad         = rdr.IsDBNull(13) ? null : rdr.GetString(13),
+                    DespachadorUsuario  = rdr.IsDBNull(14) ? null : rdr.GetString(14)
                 });
             return result;
         }

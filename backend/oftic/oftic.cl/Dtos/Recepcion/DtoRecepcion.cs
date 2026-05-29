@@ -18,12 +18,27 @@ namespace Comun.Dtos.Recepcion
     // ── Case code autocomplete item ─────────────────────────────────────────────
     public class DtoCasoItem
     {
-        // 2. Obliga al serializador a usar el nombre exacto
         [JsonPropertyName("CODIGO_CASO")]
         public string CODIGO_CASO { get; set; } = "";
 
         [JsonPropertyName("DESCRIPCION_CASO")]
         public string DESCRIPCION_CASO { get; set; } = "";
+
+        /// <summary>
+        /// ID de la categoría del Asistente Inteligente vinculada a este caso.
+        /// Se serializa como string para preservar la precisión de Snowflake IDs (19 dígitos).
+        /// Null cuando el caso no tiene categoría configurada.
+        /// </summary>
+        [JsonPropertyName("ID_CATEGORIA_ASISTENTE")]
+        public string? ID_CATEGORIA_ASISTENTE { get; set; }
+
+        /// <summary>Código interno de la categoría (ej: HURTO, RINA). Usado para seleccionar plantilla narrativa.</summary>
+        [JsonPropertyName("CATEGORIA_CODIGO")]
+        public string? CATEGORIA_CODIGO { get; set; }
+
+        /// <summary>Descripción de la categoría del asistente (JOIN informativo).</summary>
+        [JsonPropertyName("CATEGORIA_DESCRIPCION")]
+        public string? CATEGORIA_DESCRIPCION { get; set; }
     }
 
     // ── Dispatch channel ────────────────────────────────────────────────────────

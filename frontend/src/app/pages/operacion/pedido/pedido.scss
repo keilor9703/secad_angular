@@ -1202,6 +1202,327 @@
 
 
 // ════════════════════════════════════════════════════════════════════════════════
+//  BLOQUE COMPACTO DE ACTUACIÓN — Historia clínica de despacho de recursos
+//  Un bloque por actuación, muestra el ciclo completo: Asignado→Camino→Sitio→Cierre
+// ════════════════════════════════════════════════════════════════════════════════
+
+.seg-tl-act-block {
+  flex:          1;
+  background:    var(--surface, #fff);
+  border:        1px solid rgba(139, 92, 246, .20);   // tono violeta despacho
+  border-left:   3px solid #8b5cf6;
+  border-radius: 8px;
+  margin-bottom: 10px;
+  min-width:     0;
+  overflow:      hidden;
+
+  // ── Cabecera ─────────────────────────────────────────────────────────────
+  &__head {
+    display:     flex;
+    align-items: center;
+    flex-wrap:   wrap;
+    gap:         8px;
+    padding:     8px 12px 6px;
+    border-bottom: 1px solid rgba(21,27,59,.07);
+    background:  rgba(139,92,246,.04);
+  }
+
+  &__title {
+    display:     flex;
+    align-items: center;
+    gap:         6px;
+    flex:        1;
+    min-width:   0;
+    font-size:   calc(12.5px * var(--font-size-scale, 1));
+    color:       var(--policia-oscuro, #151b3b);
+
+    i { color: #8b5cf6; font-size: 11px; }
+    strong { font-weight: 800; }
+  }
+
+  &__badges {
+    display:     flex;
+    align-items: center;
+    gap:         6px;
+    flex-shrink: 0;
+  }
+
+  // ── Pie ───────────────────────────────────────────────────────────────────
+  &__foot {
+    display:     flex;
+    align-items: center;
+    flex-wrap:   wrap;
+    gap:         8px;
+    padding:     6px 12px;
+    font-size:   calc(10.5px * var(--font-size-scale, 1));
+    color:       var(--text-muted, #888);
+    border-top:  1px solid rgba(21,27,59,.06);
+    background:  rgba(21,27,59,.01);
+  }
+}
+
+// ── Chips dentro del bloque ───────────────────────────────────────────────────
+.seg-tl-act-unidad {
+  font-size:     calc(10.5px * var(--font-size-scale, 1));
+  font-weight:   700;
+  background:    rgba(139,92,246,.10);
+  color:         #7c3aed;
+  padding:       1px 8px;
+  border-radius: 4px;
+}
+
+.seg-tl-act-placa {
+  font-size:   calc(10px * var(--font-size-scale, 1));
+  color:       var(--text-muted, #888);
+  display:     flex;
+  align-items: center;
+  gap:         3px;
+  i { font-size: 9px; }
+}
+
+// ── Badge de estado de la actuación ──────────────────────────────────────────
+.seg-tl-act-estado {
+  display:       inline-flex;
+  align-items:   center;
+  font-size:     calc(9.5px * var(--font-size-scale, 1));
+  font-weight:   700;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  padding:       2px 8px;
+  border-radius: 999px;
+
+  &--P { background: #fef9c3; color: #92400e; }   // Pendiente
+  &--D { background: #dbeafe; color: #1e40af; }   // En camino
+  &--A { background: #dcfce7; color: #166534; }   // En sitio
+  &--C { background: #e5e7eb; color: #374151; }   // Cerrada
+  &--V { background: #fee2e2; color: #991b1b; }   // Anulada
+}
+
+// ── Duración total ────────────────────────────────────────────────────────────
+.seg-tl-act-duracion {
+  display:     inline-flex;
+  align-items: center;
+  gap:         4px;
+  font-size:   calc(10.5px * var(--font-size-scale, 1));
+  font-weight: 700;
+  color:       #0e7490;
+  background:  rgba(14,116,144,.08);
+  padding:     2px 8px;
+  border-radius: 999px;
+  i { font-size: 9px; }
+}
+
+// ── Flujo de fases ────────────────────────────────────────────────────────────
+.seg-tl-act-fases {
+  display:     flex;
+  align-items: stretch;
+  flex-wrap:   wrap;
+  gap:         0;
+  padding:     8px 12px;
+}
+
+.seg-tl-act-fase {
+  display:        flex;
+  flex-direction: column;
+  align-items:    center;
+  gap:            2px;
+  padding:        6px 10px;
+  border-radius:  6px;
+  min-width:      78px;
+  text-align:     center;
+  transition:     background .15s;
+
+  &--cumplida {
+    background: rgba(21,27,59,.04);
+    .seg-tl-act-fase__icon i { color: #7c3aed; }
+    .seg-tl-act-fase__label  { color: var(--policia-oscuro, #151b3b); }
+  }
+
+  &--pendiente {
+    opacity: .45;
+    .seg-tl-act-fase__icon i { color: var(--text-muted, #bbb); }
+  }
+
+  &__icon {
+    width:           26px;
+    height:          26px;
+    border-radius:   50%;
+    background:      rgba(139,92,246,.10);
+    display:         flex;
+    align-items:     center;
+    justify-content: center;
+    flex-shrink:     0;
+    i { font-size: 11px; }
+  }
+
+  &__label {
+    font-size:  calc(9.5px * var(--font-size-scale, 1));
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .03em;
+    color:      var(--text-muted, #666);
+    line-height: 1.1;
+  }
+
+  &__ts {
+    font-size:   calc(10.5px * var(--font-size-scale, 1));
+    font-weight: 600;
+    color:       var(--policia-oscuro, #222);
+    white-space: nowrap;
+
+    &--vacio { color: var(--text-muted, #ccc); font-weight: 400; }
+  }
+
+  &__delta {
+    font-size:   calc(9px * var(--font-size-scale, 1));
+    color:       #0e7490;
+    font-weight: 700;
+    background:  rgba(14,116,144,.08);
+    padding:     1px 5px;
+    border-radius: 999px;
+    white-space: nowrap;
+  }
+
+  // Separador → entre fases
+  &__sep {
+    display:     flex;
+    align-items: center;
+    align-self:  flex-start;
+    padding-top: 16px;  // alinea con el ícono de la fase
+    color:       rgba(139,92,246,.35);
+    font-size:   10px;
+    flex-shrink: 0;
+  }
+}
+
+// ── Despachador y calificación ────────────────────────────────────────────────
+.seg-tl-act-dispatch {
+  display:     flex;
+  align-items: center;
+  gap:         4px;
+  font-size:   calc(10.5px * var(--font-size-scale, 1));
+  color:       var(--text-muted, #777);
+  flex:        1;
+  min-width:   0;
+  white-space: nowrap;
+  overflow:    hidden;
+  text-overflow: ellipsis;
+  i { font-size: 9px; }
+}
+
+.seg-tl-act-cali {
+  display:     flex;
+  align-items: center;
+  gap:         3px;
+  font-size:   calc(10px * var(--font-size-scale, 1));
+  font-weight: 600;
+  color:       #d97706;
+  i { font-size: 9px; }
+}
+
+// ── Botón "Ver equipo" ────────────────────────────────────────────────────────
+.seg-tl-act-equipo-btn {
+  display:       inline-flex;
+  align-items:   center;
+  gap:           5px;
+  padding:       3px 10px;
+  font-size:     calc(10.5px * var(--font-size-scale, 1));
+  font-weight:   700;
+  border-radius: 999px;
+  border:        1px solid rgba(139,92,246,.30);
+  background:    rgba(139,92,246,.06);
+  color:         #7c3aed;
+  cursor:        pointer;
+  transition:    background .15s, border-color .15s;
+  white-space:   nowrap;
+  margin-left:   auto;
+
+  &:hover {
+    background:   rgba(139,92,246,.14);
+    border-color: rgba(139,92,246,.50);
+  }
+
+  i { font-size: 10px; }
+}
+
+// ── Panel de equipo expandible ────────────────────────────────────────────────
+.seg-tl-act-equipo {
+  border-top:  1px solid rgba(139,92,246,.12);
+  padding:     8px 12px;
+  background:  rgba(139,92,246,.03);
+  display:     flex;
+  flex-direction: column;
+  gap:         4px;
+
+  &__vacio {
+    font-size:   calc(11px * var(--font-size-scale, 1));
+    color:       var(--text-muted, #aaa);
+    display:     flex;
+    align-items: center;
+    gap:         6px;
+    margin:      0;
+    i { color: var(--policia-cielo, #08a6cb); }
+  }
+
+  &__item {
+    display:       flex;
+    align-items:   center;
+    flex-wrap:     wrap;
+    gap:           6px;
+    padding:       5px 8px;
+    border-radius: 6px;
+    background:    var(--surface, #fff);
+    border:        1px solid rgba(21,27,59,.08);
+    font-size:     calc(11px * var(--font-size-scale, 1));
+
+    i { color: #8b5cf6; font-size: 11px; }
+  }
+
+  &__cod {
+    font-weight: 700;
+    color:       var(--policia-oscuro, #151b3b);
+    font-family: 'Courier New', monospace;
+  }
+
+  &__placa {
+    font-size:   calc(10px * var(--font-size-scale, 1));
+    background:  rgba(21,27,59,.06);
+    padding:     1px 6px;
+    border-radius: 3px;
+    color:       var(--text-muted, #666);
+  }
+
+  &__tipo {
+    font-size:  calc(10px * var(--font-size-scale, 1));
+    color:      var(--text-muted, #888);
+    font-style: italic;
+  }
+
+  &__estado {
+    font-size:     calc(9.5px * var(--font-size-scale, 1));
+    font-weight:   700;
+    padding:       1px 6px;
+    border-radius: 999px;
+
+    &--D { background: #dbeafe; color: #1e40af; }
+    &--A { background: #dcfce7; color: #166534; }
+    &--L { background: #e5e7eb; color: #374151; }
+    &--V { background: #fee2e2; color: #991b1b; }
+  }
+
+  &__hora {
+    font-size:   calc(10px * var(--font-size-scale, 1));
+    color:       var(--text-muted, #999);
+    display:     flex;
+    align-items: center;
+    gap:         3px;
+    margin-left: auto;
+    i { font-size: 9px; }
+  }
+}
+
+
+// ════════════════════════════════════════════════════════════════════════════════
 //  Dark mode
 // ════════════════════════════════════════════════════════════════════════════════
 html.dark-mode {
@@ -1323,6 +1644,55 @@ html.dark-mode {
   }
 
   .seg-anot-form { background: rgba(255,255,255,.04); border-color: var(--ui-border); }
+
+  // Bloque de actuación en el timeline
+  .seg-tl-act-block {
+    background:   var(--ui-surface);
+    border-color: rgba(139,92,246,.25);
+    border-left-color: #a78bfa;
+
+    &__head    { background: rgba(139,92,246,.07); border-color: rgba(255,255,255,.07); }
+    &__foot    { background: rgba(255,255,255,.02); border-color: rgba(255,255,255,.06); }
+    &__title   { color: var(--ui-text); }
+  }
+
+  .seg-tl-act-fase {
+    &--cumplida {
+      background: rgba(255,255,255,.05);
+      .seg-tl-act-fase__label { color: var(--ui-text); }
+    }
+    &__ts    { color: var(--ui-text); }
+    &__label { color: var(--ui-muted); }
+  }
+
+  .seg-tl-act-equipo {
+    background:   rgba(139,92,246,.05);
+    border-color: rgba(139,92,246,.10);
+
+    &__item {
+      background:   rgba(255,255,255,.05);
+      border-color: rgba(255,255,255,.08);
+    }
+    &__cod   { color: var(--ui-text); }
+    &__placa { background: rgba(255,255,255,.08); color: var(--ui-muted); }
+  }
+
+  .seg-tl-act-dispatch { color: var(--ui-muted); }
+
+  .seg-tl-act-estado {
+    &--P { background: rgba(245,158,11,.15); color: #fde68a; }
+    &--D { background: rgba(59,130,246,.15); color: #93c5fd; }
+    &--A { background: rgba(34,197,94,.15);  color: #86efac; }
+    &--C { background: rgba(156,163,175,.12); color: var(--ui-muted); }
+    &--V { background: rgba(239,68,68,.15);  color: #fca5a5; }
+  }
+
+  .seg-tl-act-equipo__estado {
+    &--D { background: rgba(59,130,246,.15);  color: #93c5fd; }
+    &--A { background: rgba(34,197,94,.15);   color: #86efac; }
+    &--L { background: rgba(156,163,175,.12); color: var(--ui-muted); }
+    &--V { background: rgba(239,68,68,.15);   color: #fca5a5; }
+  }
 
   // KPIs
   .seg-kpis-header__title { color: var(--ui-text); }
