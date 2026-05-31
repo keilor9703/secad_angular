@@ -27,5 +27,14 @@ namespace Negocio.Interfaz
             DtoCierreEventoRequest request, string usuario, CancellationToken ct);
         Task<DtoEventoResult> P_CrearEventoIntegracionAsync(
             DtoEventoIntegracionRequest request, string usuario, CancellationToken ct);
+
+        // ── Remisión a canal SECAD ──────────────────────────────────────────────
+        Task<(bool success, string message, int canalesAgregados)> RemitirCanalAsync(
+            DtoRemitirCanalRequest req, string usuario, CancellationToken ct);
+
+        // ── Duplicate detection ─────────────────────────────────────────────────
+        Task<List<DtoPedidoCercano>> G_GetPedidosCercanosAsync(
+            double lat, double lng, int radioMetros, int minutosAtras,
+            string? codCaso, CancellationToken ct);
     }
 }

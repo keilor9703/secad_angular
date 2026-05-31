@@ -47,6 +47,12 @@ namespace Comun.Dtos.Recepcion
         public int    Codigo      { get; set; }
         public string Descripcion { get; set; } = "";
         public string Fuerza      { get; set; } = "";
+        /// <summary>
+        /// ID numérico de la fuerza a la que pertenece el canal (cad_fuerzas.id).
+        /// El frontend lo usa para distinguir canales propios de la agencia del operador
+        /// de canales de otras agencias que también usan SECAD.
+        /// </summary>
+        public int    FuerzaId    { get; set; }
     }
 
     // ── Reference catalog row (TIPO_PEDIDO, CALI_PEDIDO, …) ────────────────────
@@ -79,6 +85,17 @@ namespace Comun.Dtos.Recepcion
         public string CODI_PEDIDO   { get; set; } = "";
         public string ESTADO        { get; set; } = "";
         public int    SITIO_GRABA   { get; set; }
+    }
+
+    // ── Canal seleccionado — llave compuesta (codigo + fuerza_id) ───────────────
+    /// <summary>
+    /// Un canal se identifica por (Codigo, FuerzaId) — el Codigo solo no es único
+    /// ya que distintas fuerzas pueden tener el mismo número de canal.
+    /// </summary>
+    public class DtoCanalSeleccionado
+    {
+        public int Codigo   { get; set; }
+        public int FuerzaId { get; set; }
     }
 
     // ── Main reception-form payload (used for both save and quick-close) ────────
@@ -116,7 +133,11 @@ namespace Comun.Dtos.Recepcion
         /// "RECEPCION" cuando el operador la digita manualmente.
         /// </summary>
         public string Origen         { get; set; } = "RECEPCION";
-        public List<int> CANALES_SELECCIONADOS { get; set; } = new();
+        /// <summary>
+        /// Canales seleccionados para despacho. Cada elemento lleva Codigo + FuerzaId
+        /// porque el código de canal NO es único: distintas fuerzas pueden compartirlo.
+        /// </summary>
+        public List<DtoCanalSeleccionado> CANALES_SELECCIONADOS { get; set; } = new();
         public int?   CANAL_FUERZA   { get; set; }
         public string? CADPEDI_SITIO_GRABA  { get; set; }
         public string? CADPEDI_NUME_LLAMADA { get; set; }
@@ -125,7 +146,62 @@ namespace Comun.Dtos.Recepcion
     // ── Result wrapper for save/close operations ─────────────────────────────────
     public class DtoRecepcionResult
     {
-        public bool   Success { get; set; }
-        public string Message { get; set; } = "";
+        public bool   Success  { get; set; }
+        public string Message  { get; set; } = "";
+        /// <summary>ID Snowflake del evento creado. Disponible tras P_GuardarLlamadaAsync.</summary>
+        public long?  EventoId { get; set; }
+        /// <summary>ID Snowflake del pedido (igual a NUME_LLAMADA). Cómodo para APIs externas.</summary>
+        public long?  PedidoId { get; set; }
+    }
+
+    // ── Remisión a canal SECAD (§6.11 / §6.1) ────────────────────────────────────
+    /// <summary>
+    /// Solicitud para remitir un pedido/evento a uno o más canales SECAD adicionales.
+    /// Se inserta una fila en cad_pedidos_canales por cada canal, haciendo que el
+    /// evento sea visible en la cola del módulo Eventos de esos canales.
+    /// </summary>
+    public class DtoRemitirCanalRequest
+    {
+        /// <summary>ID Snowflake de cad_pedidos (= cadpedi_numellamada).</summary>
+        public long       PedidoId    { get; set; }
+        public int        SitioGraba  { get; set; }
+        /// <summary>ID de cad_eventos (= cadeven_nume_evento).</summary>
+        public long       EventoId    { get; set; }
+        /// <summary>
+        /// Canales destino con llave compuesta (Codigo + FuerzaId).
+        /// El código solo no es único entre fuerzas.
+        /// </summary>
+        public List<DtoCanalSeleccionado> Canales { get; set; } = new();
+        public string?    Observacion { get; set; }
+    }
+
+    // ── Duplicate / nearby-call detection (§6.8) ─────────────────────────────────
+    /// <summary>
+    /// Pedido (llamada) activo encontrado en un radio geográfico y ventana temporal
+    /// configurables. Devuelto por G_GetPedidosCercanosAsync para que el operador
+    /// decida si vincular la llamada actual a un pedido preexistente o continuar
+    /// como caso nuevo.
+    /// La fuente es <c>cad_pedidos</c>, que es donde se almacena la georreferenciación
+    /// y los códigos de caso del formulario de recepción.
+    /// </summary>
+    public class DtoPedidoCercano
+    {
+        /// <summary>ID Snowflake del pedido (string para preservar precisión JS).</summary>
+        public string  Id              { get; set; } = "";
+        /// <summary>Sitio de grabación — necesario para el vínculo CADPEDI_SITIO_GRABA.</summary>
+        public int     SitioGraba      { get; set; }
+        public string? CodiPedido      { get; set; }
+        public string? CodiPedido2     { get; set; }
+        public string? DireCaso        { get; set; }
+        public string? Ciudad          { get; set; }
+        public string? Barrio          { get; set; }
+        public string? Estado          { get; set; }
+        public string? Prioridad       { get; set; }
+        public string? NombLlamante    { get; set; }
+        public string? HoraCaso        { get; set; }  // ISO-8601
+        /// <summary>Distancia calculada en metros (Haversine).</summary>
+        public int     DistanciaMetros { get; set; }
+        /// <summary>Minutos transcurridos desde la hora del caso.</summary>
+        public int     MinutosAtras    { get; set; }
     }
 }

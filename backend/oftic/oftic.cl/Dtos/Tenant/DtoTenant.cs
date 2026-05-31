@@ -15,6 +15,11 @@ namespace Comun.Dtos.Tenant
         public string? Categoria { get; set; }
         public bool Activo { get; set; } = true;
         public bool Suspendido { get; set; } = false;
+        /// <summary>
+        /// Consecutivo del sitio de grabación principal de este CAD
+        /// (hace match con cad_sitios_grabacion.consecutivo en el schema del tenant).
+        /// </summary>
+        public int? SitioGraba { get; set; }
         public string DbHost { get; set; } = string.Empty;
         public int DbPort { get; set; } = 5432;
         public string DbName { get; set; } = string.Empty;
@@ -36,6 +41,8 @@ namespace Comun.Dtos.Tenant
         public string? Categoria { get; set; }
         public bool Activo { get; set; }
         public bool Suspendido { get; set; }
+        /// <summary>Sitio de grabación principal del CAD (consecutivo en cad_sitios_grabacion).</summary>
+        public int? SitioGraba { get; set; }
         public DateTime? FechaCreacion { get; set; }
         public DateTime? FechaModificacion { get; set; }
 
@@ -58,6 +65,11 @@ namespace Comun.Dtos.Tenant
         public string? Departamento { get; set; }
         public string? Municipio { get; set; }
         public string Categoria { get; set; } = "A";
+        /// <summary>
+        /// Sitio de grabación principal del CAD.
+        /// Debe corresponder a un consecutivo válido en cad_sitios_grabacion del tenant.
+        /// </summary>
+        public int? SitioGraba { get; set; }
         public string DbHost { get; set; } = string.Empty;
         public int DbPort { get; set; } = 5432;
         public string DbName { get; set; } = string.Empty;

@@ -1,9 +1,11 @@
 using Comun.Dtos.Actuaciones;
+using Comun.Dtos.Agencias;
 using Comun.Snowflake;
 using Datos.Interfaz;
 using Datos.Tenant;
 using Microsoft.Extensions.Logging;
 using Npgsql;
+using System.Text.Json;
 
 namespace Datos.Gestion
 {
@@ -990,5 +992,236 @@ LIMIT  @lim";
 
         private static object NullOrString(string? value) =>
             string.IsNullOrWhiteSpace(value) ? DBNull.Value : value;
+
+        // ════════════════════════════════════════════════════════════════════════
+        // RETROALIMENTACIÓN EXTERNA (via PIP)
+        // ════════════════════════════════════════════════════════════════════════
+
+        public async Task SaveAuditoriaActualizacionAsync(
+            DtoAuditoriaActualizacionExterna dto, CancellationToken ct)
+        {
+            await using var conn = await _tenant.DataSource.OpenConnectionAsync(ct);
+            await using var cmd  = conn.CreateCommand();
+            cmd.CommandText = @"
+                INSERT INTO cad_auditoria_actualizacion_externa
+                    (id, caso_id, agencia_nombre, estado_reportado,
+                     payload_crudo, procesado, ip_origen)
+                VALUES
+                    (@id, @caso, @agencia, @estado,
+                     @payload::jsonb, FALSE, @ip)";
+            cmd.Parameters.AddWithValue("id",      dto.Id);
+            cmd.Parameters.AddWithValue("caso",    dto.CasoId);
+            cmd.Parameters.AddWithValue("agencia", (object?)dto.AgenciaNombre  ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("estado",  (object?)dto.EstadoReportado ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("payload", (object?)dto.PayloadCrudo   ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("ip",      (object?)dto.IpOrigen        ?? DBNull.Value);
+            await cmd.ExecuteNonQueryAsync(ct);
+        }
+
+        public async Task UpdateAuditoriaActualizacionOkAsync(
+            long auditoriaId, long actuacionId, string estado, CancellationToken ct)
+        {
+            await using var conn = await _tenant.DataSource.OpenConnectionAsync(ct);
+            await using var cmd  = conn.CreateCommand();
+            cmd.CommandText = @"
+                UPDATE cad_auditoria_actualizacion_externa
+                   SET procesado = TRUE, actuacion_id = @act,
+                       estado_reportado = @estado
+                 WHERE id = @id";
+            cmd.Parameters.AddWithValue("id",     auditoriaId);
+            cmd.Parameters.AddWithValue("act",    actuacionId);
+            cmd.Parameters.AddWithValue("estado", estado);
+            await cmd.ExecuteNonQueryAsync(ct);
+        }
+
+        public async Task UpdateAuditoriaActualizacionErrorAsync(
+            long auditoriaId, string error, CancellationToken ct)
+        {
+            await using var conn = await _tenant.DataSource.OpenConnectionAsync(ct);
+            await using var cmd  = conn.CreateCommand();
+            cmd.CommandText = @"
+                UPDATE cad_auditoria_actualizacion_externa
+                   SET procesado = FALSE, error = @error
+                 WHERE id = @id";
+            cmd.Parameters.AddWithValue("id",    auditoriaId);
+            cmd.Parameters.AddWithValue("error", error);
+            await cmd.ExecuteNonQueryAsync(ct);
+        }
+
+        /// <summary>
+        /// Aplica la actualización de estado enviada por la agencia externa (via PIP):
+        ///   1. Localiza la actuación por ActuacionId o por (casoId + FuerzaId).
+        ///   2. Actualiza estado, timestamps, unidad, placa y cierre.
+        ///   3. Agrega una nota al historial de la actuación.
+        ///   4. Llama a fn_recalcular_estado_evento para actualizar el estado global.
+        /// </summary>
+        public async Task<DtoActualizacionExternaResult> P_ActualizarDesdeExternoAsync(
+            long casoId,
+            DtoActualizacionExternaRequest req,
+            long auditoriaId,
+            string ipOrigen,
+            CancellationToken ct)
+        {
+            await using var conn = await _tenant.DataSource.OpenConnectionAsync(ct);
+
+            // ── 1. Resolver actuacionId ────────────────────────────────────────
+            long actuacionId = 0;
+
+            if (!string.IsNullOrWhiteSpace(req.ActuacionId) &&
+                long.TryParse(req.ActuacionId, out var aidParsed))
+            {
+                actuacionId = aidParsed;
+            }
+            else if (req.FuerzaId.HasValue)
+            {
+                // Buscar la actuación más reciente para ese caso + fuerza
+                await using var cmdFind = conn.CreateCommand();
+                cmdFind.CommandText = @"
+                    SELECT a.id
+                    FROM   cad_actuaciones a
+                    JOIN   cad_eventos e ON e.id = a.evento_id
+                    WHERE  e.pedido_id  = @caso
+                      AND  a.fuerza_id = @fuerza
+                      AND  a.estado NOT IN ('C','V')
+                    ORDER  BY a.fecha_creacion DESC
+                    LIMIT  1";
+                cmdFind.Parameters.AddWithValue("caso",   casoId);
+                cmdFind.Parameters.AddWithValue("fuerza", req.FuerzaId.Value);
+                var found = await cmdFind.ExecuteScalarAsync(ct);
+                if (found is long fid) actuacionId = fid;
+            }
+
+            if (actuacionId == 0)
+                return new DtoActualizacionExternaResult
+                {
+                    Success = false,
+                    Message = "No se encontró la actuación para este caso. Proporcione ActuacionId o FuerzaId.",
+                    CasoId  = casoId.ToString()
+                };
+
+            // Validar que la actuación pertenece al caso indicado
+            await using (var cmdVal = conn.CreateCommand())
+            {
+                cmdVal.CommandText = @"
+                    SELECT COUNT(1) FROM cad_actuaciones a
+                    JOIN cad_eventos e ON e.id = a.evento_id
+                    WHERE a.id = @act AND e.pedido_id = @caso";
+                cmdVal.Parameters.AddWithValue("act",  actuacionId);
+                cmdVal.Parameters.AddWithValue("caso", casoId);
+                var cnt = (long)(await cmdVal.ExecuteScalarAsync(ct) ?? 0L);
+                if (cnt == 0)
+                    return new DtoActualizacionExternaResult
+                    {
+                        Success = false,
+                        Message = "La actuación no pertenece al caso indicado.",
+                        CasoId  = casoId.ToString()
+                    };
+            }
+
+            // ── 2. Construir SET dinámico ──────────────────────────────────────
+            var sets   = new List<string> { "fecha_modificacion = NOW()" };
+            var estado = (req.Estado ?? "").ToUpperInvariant();
+
+            if (!string.IsNullOrWhiteSpace(estado) && "DACV".Contains(estado))
+                sets.Add("estado = @estado");
+            if (req.FechaDespacho.HasValue) sets.Add("fecha_despacho = @fdespacho");
+            if (req.FechaLlegada.HasValue)  sets.Add("fecha_llegada  = @fllegada");
+            if (req.FechaCierre.HasValue)   sets.Add("fecha_cierre   = @fcierre");
+            if (!string.IsNullOrWhiteSpace(req.Unidad)) sets.Add("unidad_asignada = @unidad");
+            if (!string.IsNullOrWhiteSpace(req.Placa))  sets.Add("placa_unidad    = @placa");
+            if (!string.IsNullOrWhiteSpace(req.CodigoCierre))
+                sets.Add("codigo_cierre_primario = @codCierre");
+            if (!string.IsNullOrWhiteSpace(req.ClasifCierre))
+                sets.Add("clasif_cierre = @clasifCierre");
+            if (!string.IsNullOrWhiteSpace(req.ObservacionCierre))
+                sets.Add("observacion_cierre = @obsCierre");
+
+            // ── 3. UPDATE actuación ────────────────────────────────────────────
+            long eventoId = 0;
+            await using (var cmdUpd = conn.CreateCommand())
+            {
+                cmdUpd.CommandText = $@"
+                    UPDATE cad_actuaciones
+                       SET {string.Join(", ", sets)}
+                     WHERE id = @act
+                    RETURNING evento_id";
+                cmdUpd.Parameters.AddWithValue("act", actuacionId);
+                if (!string.IsNullOrWhiteSpace(estado) && "DACV".Contains(estado))
+                    cmdUpd.Parameters.AddWithValue("estado",      estado);
+                if (req.FechaDespacho.HasValue)
+                    cmdUpd.Parameters.AddWithValue("fdespacho",   req.FechaDespacho.Value.UtcDateTime);
+                if (req.FechaLlegada.HasValue)
+                    cmdUpd.Parameters.AddWithValue("fllegada",    req.FechaLlegada.Value.UtcDateTime);
+                if (req.FechaCierre.HasValue)
+                    cmdUpd.Parameters.AddWithValue("fcierre",     req.FechaCierre.Value.UtcDateTime);
+                if (!string.IsNullOrWhiteSpace(req.Unidad))
+                    cmdUpd.Parameters.AddWithValue("unidad",      req.Unidad);
+                if (!string.IsNullOrWhiteSpace(req.Placa))
+                    cmdUpd.Parameters.AddWithValue("placa",       req.Placa);
+                if (!string.IsNullOrWhiteSpace(req.CodigoCierre))
+                    cmdUpd.Parameters.AddWithValue("codCierre",   req.CodigoCierre);
+                if (!string.IsNullOrWhiteSpace(req.ClasifCierre))
+                    cmdUpd.Parameters.AddWithValue("clasifCierre",req.ClasifCierre);
+                if (!string.IsNullOrWhiteSpace(req.ObservacionCierre))
+                    cmdUpd.Parameters.AddWithValue("obsCierre",   req.ObservacionCierre);
+
+                var evResult = await cmdUpd.ExecuteScalarAsync(ct);
+                if (evResult is long eid) eventoId = eid;
+            }
+
+            // ── 4. Agregar nota al historial de la actuación ───────────────────
+            var textoNota = BuildNota(req);
+            if (!string.IsNullOrWhiteSpace(textoNota))
+            {
+                await using var cmdNota = conn.CreateCommand();
+                cmdNota.CommandText = @"
+                    INSERT INTO cad_actuaciones_notas
+                        (actuacion_id, nota, tipo_nota, usuario_registra)
+                    VALUES
+                        (@act, @nota, 'NOVEDAD', @usr)";
+                cmdNota.Parameters.AddWithValue("act",  actuacionId);
+                cmdNota.Parameters.AddWithValue("nota", textoNota);
+                cmdNota.Parameters.AddWithValue("usr",  req.AgenciaNombre ?? "AGENCIA_EXTERNA");
+                await cmdNota.ExecuteNonQueryAsync(ct);
+            }
+
+            // ── 5. Recalcular estado global del evento ─────────────────────────
+            if (eventoId > 0)
+            {
+                await using var cmdRecalc = conn.CreateCommand();
+                cmdRecalc.CommandText = "SELECT fn_recalcular_estado_evento(@evId)";
+                cmdRecalc.Parameters.AddWithValue("evId", eventoId);
+                await cmdRecalc.ExecuteScalarAsync(ct);
+            }
+
+            _logger.LogInformation(
+                "[ActualizacionExterna] Caso {Caso} | Actuacion {Act} | Estado {Est} | Agencia {Agencia}",
+                casoId, actuacionId, estado, req.AgenciaNombre);
+
+            return new DtoActualizacionExternaResult
+            {
+                Success     = true,
+                Message     = $"Actuación actualizada correctamente a estado '{estado}'.",
+                CasoId      = casoId.ToString(),
+                ActuacionId = actuacionId.ToString(),
+                Estado      = estado
+            };
+        }
+
+        private static string BuildNota(DtoActualizacionExternaRequest req)
+        {
+            var partes = new List<string>();
+            if (!string.IsNullOrWhiteSpace(req.AgenciaNombre))
+                partes.Add($"Agencia: {req.AgenciaNombre}");
+            if (!string.IsNullOrWhiteSpace(req.ReferenciaCasoExterno))
+                partes.Add($"Ref. externo: {req.ReferenciaCasoExterno}");
+            if (!string.IsNullOrWhiteSpace(req.Estado))
+                partes.Add($"Estado reportado: {req.Estado}");
+            if (!string.IsNullOrWhiteSpace(req.Nota))
+                partes.Add(req.Nota);
+            if (!string.IsNullOrWhiteSpace(req.ObservacionCierre))
+                partes.Add($"Obs. cierre: {req.ObservacionCierre}");
+            return string.Join(" | ", partes);
+        }
     }
 }

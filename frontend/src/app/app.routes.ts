@@ -18,7 +18,7 @@ import { EntidadesComponent } from './pages/administracion/entidades/entidades';
 import { PedidoComponent } from './pages/operacion/pedido/pedido';
 import { RecepcionComponent } from './pages/operacion/recepcion/recepcion';
 import { EventosComponent } from './pages/operacion/eventos/eventos';
-import { TurnosComponent }  from './pages/operacion/turnos/turnos';
+import { TurnosComponent } from './pages/operacion/turnos/turnos';
 
 export const routes: Routes = [
   { path: '', redirectTo: 'login', pathMatch: 'full' },
@@ -58,11 +58,17 @@ export const routes: Routes = [
             loadComponent: () => import('./pages/administracion/asistente/asistente').then(m => m.AsistenteAdminComponent),
             canActivate: [adminGuard]
           },
-          // ─── SuperAdmin exclusivo ─────────────────────────────────────────
+          // ─── Hub de Integraciones (salientes + entrantes + auditoría) ──────
           {
-            path: 'tenants',
-            loadComponent: () => import('./pages/administracion/tenants/tenants').then(m => m.TenantsComponent),
-            canActivate: [superAdminGuard]
+            path: 'integraciones',
+            loadComponent: () => import('./pages/administracion/integraciones/integraciones').then(m => m.IntegracionesComponent),
+            canActivate: [adminGuard]
+          },
+          // ─── Redirect backward-compat: agencias-externas → integraciones ─
+          {
+            path: 'agencias-externas',
+            redirectTo: 'integraciones',
+            pathMatch: 'full'
           }
         ]
       },
@@ -76,11 +82,17 @@ export const routes: Routes = [
             path: 'salud-cads',
             loadComponent: () => import('./pages/super/salud-cads/salud-cads').then(m => m.SaludCadsComponent),
             canActivate: [superAdminGuard]
+          },
+          // ─── Gestión de Tenants movido aquí ───────────────────────────────
+          {
+            path: 'tenants',
+            loadComponent: () => import('./pages/administracion/tenants/tenants').then(m => m.TenantsComponent),
+            canActivate: [superAdminGuard]
           }
         ]
       },
       { path: 'salud-cads', redirectTo: 'super/salud-cads', pathMatch: 'full' },
-      { path: 'tenants',    redirectTo: 'administracion/tenants', pathMatch: 'full' },
+      { path: 'tenants',    redirectTo: 'super/tenants', pathMatch: 'full' },
       // ─── Gestión Documental ───────────────────────────────────────────────
       {
         path: 'gestion-documental',
@@ -101,16 +113,22 @@ export const routes: Routes = [
         children: [
           { path: '', redirectTo: 'recepcion', pathMatch: 'full' },
           { path: 'recepcion', component: RecepcionComponent, canActivate: [authGuard] },
-          { path: 'pedido',    component: PedidoComponent,   canActivate: [authGuard] },
+          { path: 'pedido',    component: PedidoComponent,    canActivate: [authGuard] },
           { path: 'eventos',   component: EventosComponent,  canActivate: [authGuard] },
           { path: 'turnos',    component: TurnosComponent,   canActivate: [authGuard] },
           {
             path: 'anotaciones',
             loadComponent: () => import('./pages/operacion/anotaciones-turno/anotaciones-turno').then(m => m.AnotacionesTurnoComponent),
             canActivate: [authGuard]
+          },
+          {
+            path: 'reportes',
+            loadComponent: () => import('./pages/operacion/reportes/reportes').then(m => m.ReportesComponent),
+            canActivate: [authGuard]
           }
         ]
       },
+      { path: 'reportes',    redirectTo: 'operacion/reportes',    pathMatch: 'full' },
       { path: 'pedido',      redirectTo: 'operacion/pedido',      pathMatch: 'full' },
       { path: 'recepcion',   redirectTo: 'operacion/recepcion',   pathMatch: 'full' },
       { path: 'eventos',     redirectTo: 'operacion/eventos',     pathMatch: 'full' },
@@ -131,10 +149,10 @@ export const routes: Routes = [
       { path: 'entidades', redirectTo: 'administracion/entidades', pathMatch: 'full' },
       // ─── Gestión Documental shortcuts ─────────────────────────────────────
       { path: 'cuentas-email', redirectTo: 'administracion/cuentas-email', pathMatch: 'full' },
-      { path: 'asistente',    redirectTo: 'administracion/asistente',    pathMatch: 'full' },
+      { path: 'asistente',          redirectTo: 'administracion/asistente',          pathMatch: 'full' },
+      { path: 'agencias-externas', redirectTo: 'administracion/agencias-externas', pathMatch: 'full' },
       { path: 'gestion-correos-electronicos', redirectTo: 'gestion-documental/gestion-correos-electronicos', pathMatch: 'full' }
     ]
   },
   { path: '**', redirectTo: 'login' }
 ];
-

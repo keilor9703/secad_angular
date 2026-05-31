@@ -34,10 +34,13 @@
     <!-- ─────────────── FILTROS ──────────────────────────────── -->
     <div class="tr-filter-bar">
       <div class="tr-filter-group">
-        <label class="tr-filter-label">Fuerza ID</label>
-        <input class="ui-control tr-filter-input" type="number"
-               min="1" [(ngModel)]="fuerzaFiltro"
-               placeholder="ID de fuerza…">
+        <label class="tr-filter-label">Fuerza</label>
+        <select class="ui-control tr-filter-input" [(ngModel)]="fuerzaFiltro">
+          <option [ngValue]="0">— Todas las fuerzas —</option>
+          @for (f of fuerzas; track f.id) {
+            <option [ngValue]="f.id">{{ f.descripcion }}</option>
+          }
+        </select>
       </div>
       <div class="tr-filter-group">
         <label class="tr-filter-label">Fecha</label>
@@ -378,9 +381,12 @@
           </div>
 
           <div class="ui-field ui-col-6">
-            <label class="ui-label">Fuerza ID</label>
-            <input class="ui-control" type="number"
-                   [(ngModel)]="formCrear.fuerzaId" min="1">
+            <label class="ui-label">Fuerza</label>
+            <select class="ui-control" [(ngModel)]="formCrear.fuerzaId">
+              @for (f of fuerzas; track f.id) {
+                <option [ngValue]="f.id">{{ f.descripcion }}</option>
+              }
+            </select>
           </div>
 
           <div class="ui-field ui-col-6">

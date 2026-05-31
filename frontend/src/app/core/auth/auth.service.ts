@@ -160,6 +160,19 @@ export class AuthService {
     if (userId !== null) localStorage.setItem(this.userIdKey, String(userId));
   }
 
+  /**
+   * Persiste el JWT y los metadatos de sesión tras completar 2FA.
+   * Llamado por LoginComponent cuando el backend devuelve el token definitivo.
+   */
+  storeLoginData(token: string, usuario: string): void {
+    localStorage.setItem(this.tokenKey, token);
+    const userId = this.extractUserIdFromToken(token);
+    if (userId !== null) localStorage.setItem(this.userIdKey, String(userId));
+    localStorage.setItem(this.authKey, '1');
+    localStorage.setItem(this.userKey, usuario);
+    sessionStorage.removeItem('modales_vistos');
+  }
+
   isLoginSuccessful(resp: LoginResponse | null | undefined): boolean {
     return !!resp && (resp.success === true || resp.Success === true || !!resp.token);
   }

@@ -1086,3 +1086,359 @@ html.dark-mode {
     }
   }
 }
+
+// ─── §6.1 Agencias externas / distinción visual de canales ───────────────────
+
+// ─── §multicanal — Adjuntos / Fotos ──────────────────────────────────────────
+
+// Zona de drop
+.rec-adjuntos-drop {
+  display:         flex;
+  align-items:     center;
+  justify-content: center;
+  flex-wrap:       wrap;
+  gap:             0.6rem;
+  padding:         18px 16px;
+  margin:          0 0 12px;
+  border:          2px dashed var(--ui-border, #dde3ec);
+  border-radius:   8px;
+  background:      rgba(21,27,59,.02);
+  transition:      border-color 0.15s, background 0.15s;
+  cursor:          default;
+
+  &--over {
+    border-color: var(--policia-cielo, #08a6cb);
+    background:   rgba(8,166,203,.06);
+  }
+
+  &--loading {
+    opacity: 0.7;
+    cursor:  wait;
+  }
+
+  &__text {
+    display:     flex;
+    align-items: center;
+    gap:         0.4rem;
+    font-size:   calc(13px * var(--font-size-scale));
+    color:       var(--ui-text-muted, #6b7280);
+
+    i { font-size: 1.1rem; color: var(--policia-cielo, #08a6cb); }
+  }
+
+  &__hint {
+    display:     flex;
+    align-items: center;
+    gap:         0.3rem;
+    width:       100%;
+    justify-content: center;
+    font-size:   calc(11px * var(--font-size-scale));
+    color:       rgba(21,27,59,.4);
+    font-style:  italic;
+    margin-top:  -4px;
+
+    i { font-size: 0.65rem; }
+  }
+}
+
+// Botón "Seleccionar foto" (label wrapping <input type=file>)
+.rec-adjuntos-btn {
+  cursor: pointer !important;
+  &.disabled { opacity: 0.5; pointer-events: none; }
+}
+
+// Galería de fotos
+.rec-adjuntos-galeria {
+  display:        flex;
+  flex-direction: column;
+  gap:            8px;
+}
+
+// Tarjeta individual de adjunto
+.rec-adjunto-card {
+  display:       flex;
+  align-items:   center;
+  gap:           10px;
+  padding:       8px 10px;
+  border-radius: 7px;
+  border:        1px solid var(--ui-border, #dde3ec);
+  background:    var(--ui-surface, #fff);
+  transition:    background 0.12s;
+
+  &:hover { background: rgba(8,166,203,.04); }
+
+  &__img {
+    position:      relative;
+    width:         48px;
+    height:        48px;
+    border-radius: 5px;
+    overflow:      hidden;
+    flex-shrink:   0;
+    background:    rgba(21,27,59,.06);
+    display:       flex;
+    align-items:   center;
+    justify-content: center;
+
+    img {
+      width:      100%;
+      height:     100%;
+      object-fit: cover;
+    }
+  }
+
+  &__fallback {
+    position:  absolute;
+    font-size: 1.3rem;
+    color:     rgba(21,27,59,.3);
+    // se muestra solo cuando img falla
+  }
+
+  &__info {
+    flex:           1;
+    display:        flex;
+    flex-direction: column;
+    gap:            2px;
+    min-width:      0;
+  }
+
+  &__nombre {
+    font-size:     calc(13px * var(--font-size-scale));
+    font-weight:   600;
+    color:         var(--ui-text);
+    white-space:   nowrap;
+    overflow:      hidden;
+    text-overflow: ellipsis;
+  }
+
+  &__meta {
+    font-size:  calc(11px * var(--font-size-scale));
+    color:      var(--ui-text-muted, #6b7280);
+  }
+
+  &__desc {
+    font-size:  calc(11px * var(--font-size-scale));
+    color:      var(--ui-text-muted, #6b7280);
+    font-style: italic;
+  }
+
+  &__actions {
+    display:     flex;
+    align-items: center;
+    gap:         4px;
+    flex-shrink: 0;
+
+    a, button { text-decoration: none; }
+  }
+}
+
+// Dark-mode adjuntos
+html.dark-mode {
+  .rec-adjuntos-drop {
+    background:   rgba(255,255,255,.02);
+    border-color: var(--ui-border);
+
+    &--over {
+      border-color: var(--policia-cielo, #08a6cb);
+      background:   rgba(8,166,203,.08);
+    }
+
+    &__text { color: rgba(228,231,235,.55); }
+  }
+
+  .rec-adjunto-card {
+    background: rgba(255,255,255,.03);
+    border-color: rgba(255,255,255,.1);
+
+    &:hover { background: rgba(8,166,203,.07); }
+
+    &__img { background: rgba(255,255,255,.06); }
+    &__nombre { color: rgba(228,231,235,.9); }
+    &__meta, &__desc { color: rgba(228,231,235,.45); }
+  }
+}
+
+.rec-canal-grupo--externo {
+  border-left: 3px solid rgba(8, 166, 203, .45);
+  padding-left: 0.5rem;
+  margin-left: 0.25rem;
+}
+
+.rec-canal-grupo__ext-badge {
+  font-size:   calc(10px * var(--font-size-scale, 1));
+  font-weight: 600;
+  color:       var(--policia-cielo, #08a6cb);
+  background:  rgba(8, 166, 203, .1);
+  border-radius: 99px;
+  padding:     1px 6px;
+  margin-left: auto;
+}
+
+.rec-canal-card--externo {
+  border-color: rgba(8, 166, 203, .35) !important;
+  color:        var(--policia-cielo, #08a6cb) !important;
+
+  &.rec-canal-card--sel {
+    background:   var(--policia-cielo, #08a6cb) !important;
+    border-color: var(--policia-cielo, #08a6cb) !important;
+    color:        #fff !important;
+  }
+}
+
+.rec-section__hint {
+  font-size:   calc(11px * var(--font-size-scale, 1));
+  font-weight: 400;
+  color:       #94a3b8;
+  margin-left: 0.35rem;
+}
+
+.rec-agencias-nota {
+  margin-top:  0.5rem;
+  font-size:   calc(11.5px * var(--font-size-scale, 1));
+  color:       var(--policia-cielo, #08a6cb);
+  display:     flex;
+  align-items: center;
+  gap:         0.4rem;
+  padding:     0.3rem 0.5rem;
+  background:  rgba(8, 166, 203, .08);
+  border-radius: 6px;
+}
+
+// ─── §6.8 Detección de duplicados ────────────────────────────────────────────
+
+.rec-dupl-checking {
+  display:     flex;
+  align-items: center;
+  gap:         0.5rem;
+  padding:     0.4rem 0.75rem;
+  font-size:   calc(12px * var(--font-size-scale, 1));
+  color:       #64748b;
+  margin-bottom: 0.5rem;
+}
+
+.rec-dupl-alert {
+  border:        1px solid rgba(245, 158, 11, .55);
+  border-left:   4px solid #f59e0b;
+  border-radius: 8px;
+  background:    rgba(254, 243, 199, .65);
+  margin-bottom: 1rem;
+  overflow:      hidden;
+
+  &__head {
+    display:     flex;
+    align-items: center;
+    gap:         0.5rem;
+    padding:     0.55rem 0.85rem;
+    font-size:   calc(12.5px * var(--font-size-scale, 1));
+    color:       #92400e;
+    border-bottom: 1px solid rgba(245, 158, 11, .3);
+    flex-wrap:   wrap;
+
+    i.fa-triangle-exclamation { color: #f59e0b; font-size: 1.05rem; }
+
+    strong { font-weight: 700; }
+  }
+
+  &__dismiss {
+    margin-left: auto;
+    background:  none;
+    border:      none;
+    cursor:      pointer;
+    color:       #92400e;
+    padding:     2px 4px;
+    border-radius: 4px;
+    &:hover { background: rgba(245, 158, 11, .2); }
+  }
+
+  &__foot {
+    padding:     0.5rem 0.85rem;
+    border-top:  1px solid rgba(245, 158, 11, .2);
+    background:  rgba(254, 243, 199, .4);
+  }
+}
+
+.rec-dupl-list {
+  display:    flex;
+  flex-direction: column;
+  gap:        0;
+}
+
+.rec-dupl-item {
+  display:        flex;
+  align-items:    center;
+  flex-wrap:      wrap;
+  gap:            0.5rem;
+  padding:        0.55rem 0.85rem;
+  border-bottom:  1px solid rgba(245, 158, 11, .18);
+  font-size:      calc(12px * var(--font-size-scale, 1));
+
+  &:last-child { border-bottom: none; }
+
+  &__badges {
+    display:     flex;
+    gap:         0.35rem;
+    align-items: center;
+    flex-shrink: 0;
+  }
+
+  &__info {
+    flex:        1;
+    display:     flex;
+    flex-wrap:   wrap;
+    gap:         0.3rem;
+    align-items: center;
+  }
+
+  &__actions { flex-shrink: 0; }
+}
+
+.rec-dupl-dist {
+  font-weight: 700;
+  color:       #b45309;
+  white-space: nowrap;
+}
+.rec-dupl-time {
+  color:       #78716c;
+  white-space: nowrap;
+}
+.rec-dupl-estado {
+  background:  rgba(245,158,11,.15);
+  color:       #92400e;
+  border-radius: 99px;
+  padding:     1px 7px;
+  font-weight: 600;
+}
+.rec-dupl-prio {
+  background:  rgba(239,68,68,.1);
+  color:       #b91c1c;
+  border-radius: 99px;
+  padding:     1px 7px;
+  font-weight: 600;
+}
+.rec-dupl-id   { color: #64748b; }
+.rec-dupl-cod  { color: var(--policia-oscuro, #151b3b); }
+.rec-dupl-desc { color: #475569; }
+.rec-dupl-dir  {
+  color:     #64748b;
+  font-size: calc(11px * var(--font-size-scale, 1));
+  width:     100%;
+}
+
+// Dark mode
+html.dark-mode {
+  .rec-dupl-alert {
+    background:   rgba(120, 53, 15, .18);
+    border-color: rgba(245, 158, 11, .4);
+
+    &__head { color: #fcd34d; border-color: rgba(245, 158, 11, .25); }
+    &__dismiss { color: #fcd34d; }
+    &__foot { background: rgba(120, 53, 15, .12); border-color: rgba(245, 158, 11, .2); }
+  }
+
+  .rec-dupl-item { border-color: rgba(245, 158, 11, .12); }
+  .rec-dupl-dist { color: #fbbf24; }
+  .rec-dupl-time { color: #a8a29e; }
+  .rec-dupl-id   { color: #94a3b8; }
+  .rec-dupl-cod  { color: var(--ui-text, #e2e8f0); }
+  .rec-dupl-desc { color: #94a3b8; }
+  .rec-dupl-dir  { color: #94a3b8; }
+}

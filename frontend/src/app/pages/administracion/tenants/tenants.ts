@@ -64,6 +64,7 @@ export class TenantsComponent implements OnInit, OnDestroy {
       departamento: t.departamento,
       municipio:    t.municipio,
       categoria:    t.categoria ?? 'A',
+      sitioGraba:   t.sitioGraba ?? null,
       dbHost:       '',
       dbPort:       5432,
       dbName:       '',
@@ -141,6 +142,7 @@ export class TenantsComponent implements OnInit, OnDestroy {
     return {
       codDane: '', codUnidad: '', nombre: '',
       departamento: '', municipio: '', categoria: 'A',
+      sitioGraba: null,
       dbHost: '', dbPort: 5432, dbName: '',
       dbUsername: '', dbPassword: '', activo: true
     };

@@ -15,10 +15,13 @@ import { ToastService } from '../../../core/services/toast.service';
 import {
   RecepcionService,
   DtoCanalRecepcion,
+  DtoCanalSeleccionado,
   DtoCasoItem,
   DtoReferenciaSecad,
   DtoLlamadaAsociar,
   DtoRecepcion,
+  DtoPedidoCercano,
+  DtoAdjunto,
   OrigenEvento
 } from '../../../core/services/operacion/recepcion.service';
 import {
@@ -27,6 +30,10 @@ import {
   AsistentePregunta,
   parsearOpciones
 } from '../../../core/services/operacion/asistente.service';
+import {
+  AgenciaExternaService,
+  DtoAgenciaExterna
+} from '../../../core/services/operacion/agencia-externa.service';
 
 // Leaflet loaded via CDN in index.html
 declare const L: any;
@@ -119,6 +126,24 @@ export class RecepcionComponent implements OnInit, AfterViewInit, OnDestroy {
   private destroy$ = new Subject<void>();
   private pollTimer: any = null;
 
+  // ── §6.1 Agencias externas ────────────────────────────────────────────────
+  agenciasExternas:    DtoAgenciaExterna[] = [];
+  agenciasSeleccionadas = new Set<string>();
+
+  // ── §6.8 Detección de duplicados ─────────────────────────────────────────
+  duplicados:           DtoPedidoCercano[] = [];
+  verificandoDuplicados = false;
+  showDuplicados        = false;
+  /** Configuración: radio en metros y ventana temporal en minutos. */
+  readonly DUPL_RADIO   = 300;
+  readonly DUPL_MINUTOS = 20;
+  private duplicadoCheck$ = new Subject<void>();
+
+  // ── §multicanal — Adjuntos (fotos) ──────────────────────────────────────────
+  adjuntos:          DtoAdjunto[]  = [];
+  adjuntosSubiendo   = false;
+  adjuntosDragOver   = false;
+
   // ── Canal de origen (§multicanal) ────────────────────────────────────────
   /** Valor UI seleccionado por el operador. Se mapea a OrigenEvento al guardar. */
   canalOrigenUI = 'TEL_123';
@@ -157,12 +182,13 @@ export class RecepcionComponent implements OnInit, AfterViewInit, OnDestroy {
   notasAdicionales  = '';
 
   constructor(
-    private auth:        AuthService,
-    private svc:         RecepcionService,
-    private toast:       ToastService,
-    private zone:        NgZone,
-    private cdr:         ChangeDetectorRef,
-    private asistenteSvc: AsistenteService
+    private auth:          AuthService,
+    private svc:           RecepcionService,
+    private toast:         ToastService,
+    private zone:          NgZone,
+    private cdr:           ChangeDetectorRef,
+    private asistenteSvc:  AsistenteService,
+    private agenciaSvc:    AgenciaExternaService
   ) {}
 
   ngOnInit(): void {
@@ -176,6 +202,7 @@ export class RecepcionComponent implements OnInit, AfterViewInit, OnDestroy {
 
     this.cargarReferencias();
     this.cargarCanales();
+    this.cargarAgenciasExternas();
     this.iniciarPollLlamada();
 
     // Autocomplete debounce (minLength 3)
@@ -184,6 +211,11 @@ export class RecepcionComponent implements OnInit, AfterViewInit, OnDestroy {
 
     this.buscar2$.pipe(debounceTime(300), distinctUntilChanged(), takeUntil(this.destroy$))
       .subscribe(q => { if (q.length >= 3) this.doSearchCasos(q, 2); else this.casosSugeridos2 = []; });
+
+    // §6.8 — Detección de duplicados con debounce de 800 ms
+    this.duplicadoCheck$
+      .pipe(debounceTime(800), takeUntil(this.destroy$))
+      .subscribe(() => this.ejecutarBusquedaDuplicados());
   }
 
   ngAfterViewInit(): void {
@@ -244,6 +276,7 @@ export class RecepcionComponent implements OnInit, AfterViewInit, OnDestroy {
         this.latitudCaso  = lat.toFixed(6);
         this.longitudCaso = lng.toFixed(6);
         this.colocarMarcador(lat, lng);
+        this.dispararVerificacionDuplicados();  // §6.8
         this.cdr.detectChanges();
       });
       this.reverseGeocode(lat, lng); // ← llena txtDireCaso, txtBarrioCaso, txtCiudadCaso
@@ -315,6 +348,7 @@ export class RecepcionComponent implements OnInit, AfterViewInit, OnDestroy {
           this.longitudCaso = lon.toFixed(6);
           this.map?.setView([lat, lon], 17);
           this.colocarMarcador(lat, lon);
+          this.dispararVerificacionDuplicados();  // §6.8
           this.cdr.detectChanges();
         });
 
@@ -442,6 +476,7 @@ export class RecepcionComponent implements OnInit, AfterViewInit, OnDestroy {
             this.colocarMarcador(lat, lng);
             // Equivalente a ubicarLlamadaEnMapa(): reverse-geocode → rellena dirección
             this.reverseGeocode(lat, lng);
+            this.dispararVerificacionDuplicados();  // §6.8
           }
           this.llamadaEncontrada = true;
           this.canalOrigenUI     = 'TEL_123'; // llamada CTI → origen automático
@@ -503,6 +538,83 @@ export class RecepcionComponent implements OnInit, AfterViewInit, OnDestroy {
     else                                            { this.txtDispTelefonico = 'Otros';             this.hdnCodDispTelefonico = '00'; }
   }
 
+  // ════════════════════════════════════════════════════════════════════════════
+  //  §6.8 — Detección de posibles duplicados
+  // ════════════════════════════════════════════════════════════════════════════
+
+  /**
+   * Dispara la verificación de duplicados cuando cambian coordenadas o código de caso.
+   * Se llama desde los setters de coordenadas y desde seleccionarSugerencia().
+   */
+  dispararVerificacionDuplicados(): void {
+    const tieneCoords = !!this.latitudCaso && !!this.longitudCaso &&
+                        this.latitudCaso !== '0' && this.longitudCaso !== '0';
+    const tieneCodigo = !!this.txtCodigCaso.trim();
+    if (tieneCoords && tieneCodigo) {
+      this.duplicadoCheck$.next();
+    } else {
+      // Limpiar si ya no hay datos suficientes
+      this.duplicados    = [];
+      this.showDuplicados = false;
+    }
+  }
+
+  private ejecutarBusquedaDuplicados(): void {
+    const lat = parseFloat(this.latitudCaso);
+    const lng = parseFloat(this.longitudCaso);
+    if (isNaN(lat) || isNaN(lng) || lat === 0 && lng === 0) return;
+
+    this.verificandoDuplicados = true;
+    this.svc.getPedidosCercanos(
+      lat, lng,
+      this.DUPL_RADIO, this.DUPL_MINUTOS,
+      this.txtCodigCaso.trim() || undefined
+    ).pipe(takeUntil(this.destroy$))
+     .subscribe({
+       next: (resp) => {
+         this.verificandoDuplicados = false;
+         this.duplicados            = resp.data ?? [];
+         this.showDuplicados        = this.duplicados.length > 0;
+         this.cdr.detectChanges();
+       },
+       error: () => {
+         this.verificandoDuplicados = false;
+         this.duplicados            = [];
+         this.showDuplicados        = false;
+       }
+     });
+  }
+
+  /** El operador decide vincularlo como caso relacionado al pedido duplicado detectado. */
+  vincularConDuplicado(p: DtoPedidoCercano): void {
+    // Usa el mecanismo existente de "asociar llamada" para vincular el pedido nuevo
+    // al pedido preexistente. CADPEDI_SITIO_GRABA + CADPEDI_NUME_LLAMADA se envían al backend.
+    this.hdnNumeLlamadaAsociada = p.id;
+    this.hdnSitioGrabaAsociada  = String(p.sitioGraba);
+    this.txtAsociarLlamada      =
+      `Relacionado con pedido #${p.id} (${p.codiPedido ?? ''} · ${p.direCaso ?? ''})`;
+    this.cerrarAlertaDuplicados();
+    this.toast.warning('Duplicado vinculado',
+      `Este caso se relacionará con el pedido #${p.id}. Seleccione los canales y envíe.`);
+  }
+
+  /** El operador elige continuar con un caso nuevo, ignorando el posible duplicado. */
+  cerrarAlertaDuplicados(): void {
+    this.showDuplicados = false;
+  }
+
+  getPrioridadLabel(p: string | null): string {
+    const map: Record<string, string> = { '01': 'Flash', '02': 'Inmediata', '03': 'Rutina',
+                                          FLASH: 'Flash', INMEDIATA: 'Inmediata', RUTINA: 'Rutina' };
+    return map[(p ?? '').toUpperCase()] ?? (p || '—');
+  }
+
+  getEstadoLabelDupl(e: string | null): string {
+    const map: Record<string, string> = { A: 'Activo', P: 'Pendiente', E: 'En proceso',
+                                          T: 'Seguimiento', R: 'Revisión', C: 'Cerrado' };
+    return map[e ?? ''] ?? (e || '—');
+  }
+
   // ── Case autocomplete ────────────────────────────────────────────────────
 
   onDescaso1Change(val: string): void { this.buscar1$.next(val); }
@@ -528,6 +640,8 @@ export class RecepcionComponent implements OnInit, AfterViewInit, OnDestroy {
       this.txtDescaso      = c.DESCRIPCION_CASO;
       this.casosSugeridos1 = [];
       this.onCasoSeleccionadoChange(c);
+      // Disparar verificación de duplicados si ya tenemos coordenadas
+      this.dispararVerificacionDuplicados();
     } else {
       this.txtCodigCaso2   = c.CODIGO_CASO;
       this.txtDescaso2     = c.DESCRIPCION_CASO;
@@ -591,8 +705,10 @@ export class RecepcionComponent implements OnInit, AfterViewInit, OnDestroy {
     c.seleccionado = !c.seleccionado;
   }
 
-  private canalesSeleccionados(): number[] {
-    return this.canales.filter(c => c.seleccionado).map(c => c.codigo);
+  private canalesSeleccionados(): DtoCanalSeleccionado[] {
+    return this.canales
+      .filter(c => c.seleccionado)
+      .map(c => ({ codigo: c.codigo, fuerzaId: c.fuerzaId }));
   }
 
   // ── References ────────────────────────────────────────────────────────────
@@ -646,7 +762,12 @@ export class RecepcionComponent implements OnInit, AfterViewInit, OnDestroy {
       next: resp => {
         this.saving = false;
         if (resp.success) {
-          this.toast.success('Recepción', resp.message);
+          this.toast.success('Incidente registrado', resp.message);
+          // Despachar a agencias externas usando el ID real de cad_pedidos
+          // (resp.pedidoId = cad_pedidos.id, que es distinto de NUME_LLAMADA)
+          if (this.agenciasSeleccionadas.size > 0 && resp.pedidoId) {
+            this.despacharAgenciasExternas(resp.pedidoId);
+          }
           this.limpiarFormulario();
           this.reiniciarPoll();
         } else {
@@ -749,6 +870,68 @@ export class RecepcionComponent implements OnInit, AfterViewInit, OnDestroy {
     }
   }
 
+  // ── §6.1 Agencias externas ────────────────────────────────────────────────
+
+  private cargarAgenciasExternas(): void {
+    this.agenciaSvc.getActivas().subscribe({
+      next:  data => { this.agenciasExternas = data ?? []; },
+      error: ()   => { /* no crítico — si falla, simplemente no se muestran */ }
+    });
+  }
+
+  toggleAgenciaExterna(id: string): void {
+    if (this.agenciasSeleccionadas.has(id))
+      this.agenciasSeleccionadas.delete(id);
+    else
+      this.agenciasSeleccionadas.add(id);
+  }
+
+  getAgenciaIcon = (tipo: string) => this.agenciaSvc.getTipoIcon(tipo);
+
+  /** Envía el caso a las agencias externas seleccionadas después de guardar.
+   *  @param pedidoId — cad_pedidos.id (Snowflake real), NO el NUME_LLAMADA. */
+  private despacharAgenciasExternas(pedidoId: string): void {
+    if (this.agenciasSeleccionadas.size === 0) return;
+    const sg = this.sitioGraba;
+
+    // Buscar el nombre de cada agencia para mostrar mensajes específicos
+    this.agenciasSeleccionadas.forEach(agenciaId => {
+      const agencia = this.agenciasExternas.find(a => a.id === agenciaId);
+      const nombreAgencia = agencia?.nombre ?? 'agencia externa';
+
+      this.agenciaSvc.despachar({ pedidoId, sitioGraba: sg, agenciaId })
+        .pipe(takeUntil(this.destroy$))
+        .subscribe({
+          next: r => {
+            if (r.success) {
+              // Despacho exitoso
+              this.toast.success(
+                `Notificado: ${nombreAgencia}`,
+                r.message
+              );
+            } else {
+              // El incidente SÍ quedó en SECAD — solo falló la notificación externa
+              this.toast.warning(
+                `Aviso — ${nombreAgencia}`,
+                `El incidente fue creado en SECAD, pero la notificación a ${nombreAgencia} no fue exitosa: ${r.message}`
+              );
+            }
+          },
+          error: () =>
+            // Error de red/timeout — el incidente en SECAD está intacto
+            this.toast.error(
+              `Error de conexión — ${nombreAgencia}`,
+              `El incidente quedó registrado en SECAD. No se pudo contactar la API de ${nombreAgencia}. Verifique la conectividad o reenvíe desde el Hub de Integraciones.`
+            )
+        });
+    });
+  }
+
+  /** Determina si un grupo de canales pertenece a otra fuerza (no la del operador). */
+  esGrupoExterno(grupo: GrupoCanal): boolean {
+    return grupo.canales.length > 0 && grupo.canales[0].fuerzaId !== this.fuerzaId;
+  }
+
   // ── Canal → OrigenEvento mapping ─────────────────────────────────────────
   // Nota: los valores de Origen deben coincidir con el CHECK de cad_eventos.origen.
   // RADIO/CAMPO/SUPERVISION se registran como INTERNO hasta que el backend amplíe el constraint.
@@ -778,7 +961,7 @@ export class RecepcionComponent implements OnInit, AfterViewInit, OnDestroy {
     return `${dd}/${mm}/${yy} ${hh}:${mi}:${ss}`;
   }
 
-  private buildDtoRecepcion(estado: string, enviar: string, canalesSel: number[]): DtoRecepcion {
+  private buildDtoRecepcion(estado: string, enviar: string, canalesSel: DtoCanalSeleccionado[]): DtoRecepcion {
     return {
       SITIO_GRABA:           this.sitioGraba,
       NUME_LLAMADA:          Number(this.txtNumeLlamada) || 0,
@@ -879,6 +1062,109 @@ export class RecepcionComponent implements OnInit, AfterViewInit, OnDestroy {
     if (this.mapMarker && this.map) { this.map.removeLayer(this.mapMarker); this.mapMarker = null; }
     // Resetea el asistente para la próxima llamada
     this.resetAsistente();
+    // Limpia estado de duplicados
+    this.duplicados    = [];
+    this.showDuplicados = false;
+    // Limpia agencias externas seleccionadas
+    this.agenciasSeleccionadas.clear();
+    // Limpia adjuntos (nueva llamada, nuevas fotos)
+    this.adjuntos = [];
+  }
+
+  // ════════════════════════════════════════════════════════════════════════════
+  //  §multicanal — Adjuntos / Fotos
+  // ════════════════════════════════════════════════════════════════════════════
+
+  /** Carga adjuntos existentes de un pedido ya guardado. */
+  cargarAdjuntos(): void {
+    if (!this.txtNumeLlamada) return;
+    this.svc.getAdjuntos(this.txtNumeLlamada)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({ next: r => { if (r.success) this.adjuntos = r.data; } });
+  }
+
+  onFotoSeleccionada(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    if (!input.files?.length) return;
+    Array.from(input.files).forEach(f => this.subirFoto(f));
+    input.value = ''; // permite re-seleccionar el mismo archivo
+  }
+
+  onFotoDragOver(event: DragEvent): void {
+    event.preventDefault();
+    this.adjuntosDragOver = true;
+  }
+
+  onFotoDragLeave(): void {
+    this.adjuntosDragOver = false;
+  }
+
+  onFotoDrop(event: DragEvent): void {
+    event.preventDefault();
+    this.adjuntosDragOver = false;
+    if (!event.dataTransfer?.files.length) return;
+    Array.from(event.dataTransfer.files).forEach(f => this.subirFoto(f));
+  }
+
+  private subirFoto(file: File): void {
+    if (!this.txtNumeLlamada) {
+      this.toast.warning('Fotos', 'Debe generar un ID de llamada antes de subir fotos');
+      return;
+    }
+    const maxMb = 8;
+    if (file.size > maxMb * 1024 * 1024) {
+      this.toast.warning('Fotos', `"${file.name}" excede ${maxMb} MB`);
+      return;
+    }
+    const ext = file.name.split('.').pop()?.toLowerCase() ?? '';
+    if (!['jpg', 'jpeg', 'png', 'webp'].includes(ext)) {
+      this.toast.warning('Fotos', `Formato no permitido: ${ext}. Use JPG, PNG o WEBP.`);
+      return;
+    }
+
+    this.adjuntosSubiendo = true;
+    this.svc.subirAdjunto(this.txtNumeLlamada, this.sitioGraba, file)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: r => {
+          this.adjuntosSubiendo = false;
+          if (r.success) {
+            this.adjuntos = [r.data, ...this.adjuntos];
+            this.toast.success('Foto subida', `"${file.name}" adjuntada al caso`);
+          } else {
+            this.toast.warning('Fotos', r.message);
+          }
+          this.cdr.detectChanges();
+        },
+        error: () => {
+          this.adjuntosSubiendo = false;
+          this.toast.error('Fotos', 'Error al subir la foto');
+          this.cdr.detectChanges();
+        }
+      });
+  }
+
+  eliminarFoto(adjunto: DtoAdjunto): void {
+    this.svc.eliminarAdjunto(adjunto.id)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: r => {
+          if (r.success) {
+            this.adjuntos = this.adjuntos.filter(a => a.id !== adjunto.id);
+            this.toast.success('Foto eliminada', adjunto.nombreOriginal);
+          } else {
+            this.toast.warning('Fotos', r.message);
+          }
+          this.cdr.detectChanges();
+        },
+        error: () => this.toast.error('Fotos', 'Error al eliminar la foto')
+      });
+  }
+
+  formatBytes(bytes: number): string {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
   }
 
   // ════════════════════════════════════════════════════════════════════════════

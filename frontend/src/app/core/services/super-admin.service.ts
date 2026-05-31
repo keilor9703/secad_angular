@@ -13,6 +13,8 @@ export interface TenantPublico {
   categoria?: string;
   activo: boolean;
   suspendido: boolean;
+  /** Sitio de grabación principal (cad_sitios_grabacion.consecutivo) */
+  sitioGraba?: number | null;
   fechaCreacion?: string;
   fechaModificacion?: string;
   // Salud CAD (V23)
@@ -30,6 +32,8 @@ export interface TenantRequest {
   departamento?: string;
   municipio?: string;
   categoria: string;
+  /** Sitio de grabación principal del CAD (consecutivo en cad_sitios_grabacion) */
+  sitioGraba?: number | null;
   dbHost: string;
   dbPort: number;
   dbName: string;

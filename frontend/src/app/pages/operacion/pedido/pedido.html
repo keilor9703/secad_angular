@@ -766,6 +766,34 @@
 
                 </div><!-- /seg-tl-section -->
 
+                <!-- FOTOS ADJUNTAS DEL CASO -->
+                @if (adjuntos.length > 0) {
+                  <div class="seg-section seg-tl-section">
+                    <div class="seg-section__head">
+                      <i class="fa-solid fa-camera"></i>
+                      Fotos adjuntas
+                      <span class="seg-badge">{{ adjuntos.length }}</span>
+                    </div>
+                    <div class="ev-adjuntos-grid" style="padding:12px 14px;">
+                      @for (adj of adjuntos; track adj.id) {
+                        <a [href]="adj.urlPublica" target="_blank"
+                           class="ev-adjunto-card" [title]="adj.nombreOriginal">
+                          <div class="ev-adjunto-card__img">
+                            <img [src]="adj.urlPublica" [alt]="adj.nombreOriginal" loading="lazy">
+                            <i class="fa-solid fa-image ev-adjunto-card__fallback"></i>
+                          </div>
+                          <span class="ev-adjunto-card__nombre">{{ adj.nombreOriginal }}</span>
+                          <span class="ev-adjunto-card__canal">
+                            @if (adj.canalOrigen === 'API_CHAT') { Chat }
+                            @else if (adj.canalOrigen === 'API_SMS') { SMS }
+                            @else { Manual }
+                          </span>
+                        </a>
+                      }
+                    </div>
+                  </div>
+                }
+
               </div><!-- /seg-detail-scroll -->
             }
 

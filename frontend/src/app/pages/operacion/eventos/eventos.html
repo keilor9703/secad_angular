@@ -376,6 +376,13 @@
                 }
               </div>
               @if (detalle.estado !== 'C') {
+                <!-- §6.1 Remitir a agencia -->
+                <button class="ui-btn sm secondary" type="button"
+                        (click)="abrirModalRemitir()"
+                        title="Remitir este caso a otra agencia (SECAD o API externa)">
+                  <i class="fa-solid fa-share-from-square"></i>
+                  Remitir a agencia
+                </button>
                 <button class="ui-btn sm danger" type="button"
                         (click)="abrirModalCerrar()">
                   <i class="fa-solid fa-lock"></i>
@@ -982,6 +989,34 @@
                   </div>
                 }
               </div><!-- /ASISTENTE -->
+
+              <!-- FOTOS ADJUNTAS DEL CASO -->
+              @if (adjuntos.length > 0) {
+                <div class="ev-section">
+                  <div class="ev-section__head">
+                    <i class="fa-solid fa-camera"></i>
+                    Fotos del caso
+                    <span class="ev-badge" style="margin-left:auto;">{{ adjuntos.length }}</span>
+                  </div>
+                  <div class="ev-adjuntos-grid">
+                    @for (adj of adjuntos; track adj.id) {
+                      <a [href]="adj.urlPublica" target="_blank"
+                         class="ev-adjunto-card" [title]="adj.nombreOriginal">
+                        <div class="ev-adjunto-card__img">
+                          <img [src]="adj.urlPublica" [alt]="adj.nombreOriginal" loading="lazy">
+                          <i class="fa-solid fa-image ev-adjunto-card__fallback"></i>
+                        </div>
+                        <span class="ev-adjunto-card__nombre">{{ adj.nombreOriginal }}</span>
+                        <span class="ev-adjunto-card__canal">
+                          @if (adj.canalOrigen === 'API_CHAT') { Chat }
+                          @else if (adj.canalOrigen === 'API_SMS') { SMS }
+                          @else { Manual }
+                        </span>
+                      </a>
+                    }
+                  </div>
+                </div>
+              }
 
               <!-- ANOTACIONES -->
               <div class="ev-section">
@@ -1616,6 +1651,136 @@
                 (click)="confirmarCierre()">
           <i class="fa-solid fa-lock"></i>
           {{ cerrandoEvento ? 'Cerrando…' : 'Confirmar cierre' }}
+        </button>
+      </div>
+
+    </div>
+  </div>
+}
+
+<!-- ══════════════════════════════════════════════════════════════════════════
+     MODAL §6.1 — Remitir caso a agencia
+     ══════════════════════════════════════════════════════════════════════════ -->
+@if (modalRemitirVisible) {
+  <div class="ui-modal" (click)="cancelarRemitir()">
+    <div class="ui-modal__dialog ev-remitir-modal" (click)="$event.stopPropagation()">
+
+      <div class="ui-modal__head">
+        <div class="ui-modal__title">
+          <i class="fa-solid fa-share-from-square"></i>
+          Remitir caso a agencia — Evento #{{ detalle?.id }}
+        </div>
+        <button class="ui-icon-btn" type="button" (click)="cancelarRemitir()">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <div class="ui-modal__body">
+
+        <!-- Tabs -->
+        <div class="ev-remitir-tabs">
+          <button type="button" class="ev-remitir-tab"
+                  [class.ev-remitir-tab--active]="remitirTab === 'secad'"
+                  (click)="remitirTab = 'secad'">
+            <i class="fa-solid fa-tower-broadcast"></i>
+            Canal SECAD
+          </button>
+          <button type="button" class="ev-remitir-tab"
+                  [class.ev-remitir-tab--active]="remitirTab === 'externa'"
+                  (click)="remitirTab = 'externa'">
+            <i class="fa-solid fa-building-shield"></i>
+            Agencia externa (API)
+          </button>
+        </div>
+
+        <!-- ── Tab: Canales SECAD ───────────────────────────────────────────── -->
+        @if (remitirTab === 'secad') {
+          <div class="ev-remitir-tab-body">
+            <p class="ev-remitir-hint">
+              El evento quedará visible en la cola del módulo Eventos de los canales
+              seleccionados. Útil para corregir el canal de destino o para que otra
+              agencia conozca el caso.
+            </p>
+            @if (remitirCanalesGrupos.length === 0) {
+              <div class="ev-empty-state" style="padding:1.5rem 0">
+                <i class="fa-solid fa-spinner fa-spin"></i>
+                <p>Cargando canales...</p>
+              </div>
+            }
+            @for (grupo of remitirCanalesGrupos; track grupo.fuerza) {
+              <div class="ev-remitir-canal-grupo">
+                <div class="ev-remitir-canal-grupo__head">
+                  <i class="fa-solid fa-shield-halved"></i>
+                  {{ grupo.fuerza }}
+                </div>
+                <div class="ev-agencias-grid">
+                  @for (c of grupo.canales; track c.codigo) {
+                    <button type="button"
+                            class="ev-agencia-card"
+                            [class.ev-agencia-card--sel]="remitirCanalesSelec.has(canalKey(c))"
+                            (click)="toggleRemitirCanal(c)">
+                      <i class="fa-solid fa-tower-broadcast"></i>
+                      <span>{{ c.descripcion }}</span>
+                      @if (remitirCanalesSelec.has(canalKey(c))) {
+                        <i class="fa-solid fa-circle-check ev-agencia-check"></i>
+                      }
+                    </button>
+                  }
+                </div>
+              </div>
+            }
+          </div>
+        }
+
+        <!-- ── Tab: Agencia externa (API) ───────────────────────────────────── -->
+        @if (remitirTab === 'externa') {
+          <div class="ev-remitir-tab-body">
+            <p class="ev-remitir-hint">
+              Los datos del caso se enviarán a la API REST de la agencia seleccionada.
+              El resultado queda registrado en la trazabilidad del evento.
+            </p>
+            @if (remitirAgencias.length === 0) {
+              <div class="ev-empty-state" style="padding:1.5rem 0">
+                <i class="fa-solid fa-building-shield"></i>
+                <p>No hay agencias externas configuradas.<br>
+                   Ve a <strong>Administración &rarr; Agencias externas</strong>.</p>
+              </div>
+            } @else {
+              <div class="ev-agencias-grid">
+                @for (ag of remitirAgencias; track ag.id) {
+                  <button type="button"
+                          class="ev-agencia-card"
+                          [class.ev-agencia-card--sel]="remitirAgenciasSelec.has(ag.id)"
+                          (click)="toggleRemitirAgencia(ag.id)">
+                    <i class="fa-solid" [ngClass]="getAgenciaIcon(ag.tipoAgencia)"></i>
+                    <span>{{ ag.nombre }}</span>
+                    @if (remitirAgenciasSelec.has(ag.id)) {
+                      <i class="fa-solid fa-circle-check ev-agencia-check"></i>
+                    }
+                  </button>
+                }
+              </div>
+            }
+          </div>
+        }
+
+        @if (remitirError) {
+          <div class="ev-remitir-error">
+            <i class="fa-solid fa-circle-exclamation"></i> {{ remitirError }}
+          </div>
+        }
+
+      </div>
+
+      <div class="ui-modal__foot">
+        <button class="ui-btn sm ghost" type="button" (click)="cancelarRemitir()">
+          <i class="fa-solid fa-xmark"></i> Cancelar
+        </button>
+        <button class="ui-btn sm primary" type="button"
+                [disabled]="remitirEnviando || remitirTotalSelec === 0"
+                (click)="confirmarRemitir()">
+          <i class="fa-solid" [ngClass]="remitirEnviando ? 'fa-spinner fa-spin' : 'fa-share-from-square'"></i>
+          {{ remitirEnviando ? 'Enviando...' : 'Remitir (' + remitirTotalSelec + ')' }}
         </button>
       </div>
 

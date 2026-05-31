@@ -22,7 +22,7 @@ namespace Datos.Gestion
             await using var cmd = conn.CreateCommand();
             cmd.CommandText = @"
                                 SELECT id, cod_dane, cod_unidad, nombre, departamento, municipio,
-                                       db_host, db_port, db_name, db_username, db_password
+                                       db_host, db_port, db_name, db_username, db_password, sitio_graba
                                 FROM secad_tenants
                                 WHERE cod_dane = @codDane AND activo = true
                                 LIMIT 1";
@@ -42,7 +42,7 @@ namespace Datos.Gestion
             await using var cmd = conn.CreateCommand();
             cmd.CommandText = @"
                                 SELECT id, cod_dane, cod_unidad, nombre, departamento, municipio,
-                                       db_host, db_port, db_name, db_username, db_password
+                                       db_host, db_port, db_name, db_username, db_password, sitio_graba
                                 FROM secad_tenants
                                 WHERE UPPER(cod_unidad) = UPPER(@codUnidad) AND activo = true
                                 LIMIT 1";
@@ -153,7 +153,8 @@ ON CONFLICT (username) DO UPDATE SET
                 SELECT id, cod_dane, cod_unidad, nombre, departamento, municipio, categoria,
                        activo, suspendido, fecha_creacion, fecha_modificacion,
                        COALESCE(nivel_operacion, 1), latencia_ms, ultima_sincro,
-                       COALESCE(incidentes_activos, 0), observaciones
+                       COALESCE(incidentes_activos, 0), observaciones,
+                       sitio_graba
                 FROM secad_tenants
                 ORDER BY nombre";
 
@@ -174,19 +175,22 @@ ON CONFLICT (username) DO UPDATE SET
                 cmd.CommandText = @"
                     INSERT INTO secad_tenants
                         (cod_dane, cod_unidad, nombre, departamento, municipio, categoria,
+                         sitio_graba,
                          db_host, db_port, db_name, db_username, db_password, activo)
                     VALUES
                         (@codDane, @codUnidad, @nombre, @departamento, @municipio, @categoria,
+                         @sitioGraba,
                          @dbHost, @dbPort, @dbName, @dbUser, @dbPass, @activo)
                     ON CONFLICT (cod_dane) DO NOTHING
                     RETURNING cod_dane";
 
                 cmd.Parameters.AddWithValue("codDane",     req.CodDane.Trim());
-                cmd.Parameters.AddWithValue("codUnidad",   (object?)req.CodUnidad  ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("codUnidad",   (object?)req.CodUnidad    ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("nombre",      req.Nombre.Trim());
                 cmd.Parameters.AddWithValue("departamento",(object?)req.Departamento ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("municipio",   (object?)req.Municipio    ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("categoria",   req.Categoria.Trim());
+                cmd.Parameters.AddWithValue("sitioGraba",  (object?)req.SitioGraba   ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("dbHost",      req.DbHost.Trim());
                 cmd.Parameters.AddWithValue("dbPort",      req.DbPort);
                 cmd.Parameters.AddWithValue("dbName",      req.DbName.Trim());
@@ -223,6 +227,7 @@ ON CONFLICT (username) DO UPDATE SET
                     departamento       = @departamento,
                     municipio          = @municipio,
                     categoria          = @categoria,
+                    sitio_graba        = @sitioGraba,
                     activo             = @activo,
                     fecha_modificacion = NOW()");
 
@@ -240,11 +245,12 @@ ON CONFLICT (username) DO UPDATE SET
                 cmd.CommandText = $"UPDATE secad_tenants SET {setClauses} WHERE id = @id";
 
                 cmd.Parameters.AddWithValue("id",           id);
-                cmd.Parameters.AddWithValue("codUnidad",    (object?)req.CodUnidad     ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("codUnidad",    (object?)req.CodUnidad    ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("nombre",       req.Nombre.Trim());
-                cmd.Parameters.AddWithValue("departamento", (object?)req.Departamento  ?? DBNull.Value);
-                cmd.Parameters.AddWithValue("municipio",    (object?)req.Municipio     ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("departamento", (object?)req.Departamento ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("municipio",    (object?)req.Municipio    ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("categoria",    req.Categoria.Trim());
+                cmd.Parameters.AddWithValue("sitioGraba",   (object?)req.SitioGraba   ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("activo",       req.Activo);
 
                 if (updateHost) cmd.Parameters.AddWithValue("dbHost", req.DbHost.Trim());
@@ -290,7 +296,7 @@ ON CONFLICT (username) DO UPDATE SET
             await using var cmd  = conn.CreateCommand();
             cmd.CommandText = @"
                 SELECT id, cod_dane, cod_unidad, nombre, departamento, municipio,
-                       db_host, db_port, db_name, db_username, db_password
+                       db_host, db_port, db_name, db_username, db_password, sitio_graba
                 FROM secad_tenants
                 WHERE activo = true
                 ORDER BY cod_dane";
@@ -384,22 +390,28 @@ ON CONFLICT (username) DO UPDATE SET
 
         // ── Mappers ────────────────────────────────────────────────────────────
 
+        // Columnas (0-11): id, cod_dane, cod_unidad, nombre, departamento, municipio,
+        //                  db_host, db_port, db_name, db_username, db_password, sitio_graba
         private static DtoTenant MapTenant(NpgsqlDataReader r) => new()
         {
-            Id         = r.GetInt32(0),
-            CodDane    = r.GetString(1),
-            CodUnidad  = r.IsDBNull(2) ? null : r.GetString(2),
-            Nombre     = r.GetString(3),
-            Departamento = r.IsDBNull(4) ? null : r.GetString(4),
-            Municipio  = r.IsDBNull(5) ? null : r.GetString(5),
-            DbHost     = r.GetString(6),
-            DbPort     = r.GetInt32(7),
-            DbName     = r.GetString(8),
-            DbUsername = r.GetString(9),
-            DbPassword = r.GetString(10)
+            Id           = r.GetInt32(0),
+            CodDane      = r.GetString(1),
+            CodUnidad    = r.IsDBNull(2)  ? null : r.GetString(2),
+            Nombre       = r.GetString(3),
+            Departamento = r.IsDBNull(4)  ? null : r.GetString(4),
+            Municipio    = r.IsDBNull(5)  ? null : r.GetString(5),
+            DbHost       = r.GetString(6),
+            DbPort       = r.GetInt32(7),
+            DbName       = r.GetString(8),
+            DbUsername   = r.GetString(9),
+            DbPassword   = r.GetString(10),
+            SitioGraba   = r.IsDBNull(11) ? null : r.GetInt32(11)
         };
 
-        /// <summary>Reads a full row from the GetAllTenantsAsync / GetSaludCadsAsync query (16 columns).</summary>
+        // Columnas (0-16): id, cod_dane, cod_unidad, nombre, departamento, municipio, categoria,
+        //                  activo, suspendido, fecha_creacion, fecha_modificacion,
+        //                  nivel_operacion, latencia_ms, ultima_sincro, incidentes_activos,
+        //                  observaciones, sitio_graba
         private static DtoTenantPublico MapTenantPublico(NpgsqlDataReader r) => new()
         {
             Id                = r.GetInt32(0),
@@ -417,7 +429,8 @@ ON CONFLICT (username) DO UPDATE SET
             LatenciaMs        = r.IsDBNull(12) ? null : r.GetInt32(12),
             UltimaSincro      = r.IsDBNull(13) ? null : r.GetDateTime(13),
             IncidentesActivos = r.IsDBNull(14) ? 0    : r.GetInt32(14),
-            Observaciones     = r.IsDBNull(15) ? null : r.GetString(15)
+            Observaciones     = r.IsDBNull(15) ? null : r.GetString(15),
+            SitioGraba        = r.IsDBNull(16) ? null : r.GetInt32(16)
         };
     }
 }

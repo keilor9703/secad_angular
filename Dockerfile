@@ -40,6 +40,7 @@ EXPOSE 8088
 
 ENV ASPNETCORE_URLS=http://+:8088
 ENV ASPNETCORE_ENVIRONMENT=Production
+ENV TZ=America/Bogota
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
     CMD curl -f http://localhost:8088/api/health || exit 1

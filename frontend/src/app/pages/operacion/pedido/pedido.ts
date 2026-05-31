@@ -20,6 +20,10 @@ import {
   DtoActuacionListItem,
   DtoActuacionUnidad
 } from '../../../core/services/operacion/actuaciones.service';
+import {
+  RecepcionService,
+  DtoAdjunto
+} from '../../../core/services/operacion/recepcion.service';
 
 type VistaCad    = 'dashboard' | 'incidentes' | 'kpis';
 type SemaforoColor = 'semaforo-verde' | 'semaforo-amarillo' | 'semaforo-rojo';
@@ -127,6 +131,7 @@ export class PedidoComponent implements OnInit, OnDestroy {
   selectedId:     string | null                     = null;
   detalle:        DtoPedidoDetalle | null            = null;
   actuaciones:    DtoActuacionListItem[]             = [];
+  adjuntos:       DtoAdjunto[]                      = [];
   loadingDetalle  = false;
   timeline:       TimelineItem[]                    = [];
   lastRefresh:    Date                              = new Date();
@@ -155,6 +160,7 @@ export class PedidoComponent implements OnInit, OnDestroy {
     private readonly pedidoService:      PedidoService,
     private readonly eventoService:      EventoService,
     private readonly actuacionesService: ActuacionesService,
+    private readonly recepcionSvc:       RecepcionService,
     private readonly toast:              ToastService
   ) {}
 
@@ -238,6 +244,7 @@ export class PedidoComponent implements OnInit, OnDestroy {
     this.detalle        = null;
     this.timeline       = [];
     this.actuaciones    = [];
+    this.adjuntos       = [];
     this.showAnotForm   = false;
 
     // El backend filtra cad_actuaciones por pedido_id (= cad_pedidos.id),
@@ -255,6 +262,10 @@ export class PedidoComponent implements OnInit, OnDestroy {
         this.loadingDetalle = false;
         this.buildTimeline(this.detalle, this.actuaciones);
         if (this.vista === 'dashboard') this.vista = 'incidentes';
+        // Cargar fotos adjuntas del incidente
+        this.recepcionSvc.getAdjuntos(item.id)
+          .pipe(takeUntil(this.destroy$))
+          .subscribe({ next: r => { if (r.success) this.adjuntos = r.data; } });
       },
       error: () => {
         this.loadingDetalle = false;

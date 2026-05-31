@@ -26,6 +26,7 @@
         <tr>
           <th>CAD / Nombre</th>
           <th>Cód. DANE</th>
+          <th>Sitio Graba</th>
           <th>Departamento</th>
           <th>Categoría</th>
           <th>Salud</th>
@@ -40,6 +41,10 @@
             <div class="sub-text" *ngIf="t.codUnidad">{{ t.codUnidad }}</div>
           </td>
           <td><code>{{ t.codDane }}</code></td>
+          <td>
+            <code *ngIf="t.sitioGraba != null">{{ t.sitioGraba }}</code>
+            <span *ngIf="t.sitioGraba == null" class="sub-text">—</span>
+          </td>
           <td>
             {{ t.departamento }}
             <div class="sub-text" *ngIf="t.municipio">{{ t.municipio }}</div>
@@ -153,6 +158,31 @@
             <option [ngValue]="true">Activo</option>
             <option [ngValue]="false">Inactivo</option>
           </select>
+        </div>
+
+        <!-- Sitio de grabación -->
+        <div class="ui-col-12 tenant-section-title">
+          <i class="fa-solid fa-tower-broadcast"></i>
+          Sitio de grabación
+        </div>
+
+        <div class="ui-field ui-col-6">
+          <label class="ui-label">
+            Código del sitio de grabación
+            <span class="tenant-section-hint">
+              · Consecutivo en <code>cad_sitios_grabacion</code> de este CAD
+            </span>
+          </label>
+          <input class="ui-control" type="number" min="0"
+                 [(ngModel)]="form.sitioGraba"
+                 placeholder="Ej: 1">
+        </div>
+        <div class="ui-field ui-col-6" style="display:flex;align-items:flex-end;padding-bottom:4px">
+          <p style="margin:0;font-size:12px;color:var(--ui-text-muted,#6b7280);line-height:1.5">
+            Identifica el sitio principal de este CAD.<br>
+            Debe coincidir con un registro de <code>cad_sitios_grabacion</code>
+            en la base de datos del tenant.
+          </p>
         </div>
 
         <!-- Separador BD -->

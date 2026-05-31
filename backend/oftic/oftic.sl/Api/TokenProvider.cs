@@ -1,19 +1,23 @@
-﻿using Comun.Dtos;                   
+﻿using Comun.Dtos;
+using Comun.Interfaces;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Logging; 
-using Servicios.ApiInterfaz;        
+using Microsoft.Extensions.Logging;
+using Servicios.ApiInterfaz;
 using System;
-using System.Net.Http;              
+using System.Net.Http;
 using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Servicios.Api             
+namespace Servicios.Api
 {
-  
-    public class TokenProvider : ITokenProvider
+    /// <summary>
+    /// Implementa ITokenProvider (caché de token PIP) e IPipTokenProvider
+    /// (interfaz mínima accesible desde la capa de datos).
+    /// </summary>
+    public class TokenProvider : ITokenProvider, IPipTokenProvider
     {
         private readonly IHttpClientFactory _factory;
         private readonly IMemoryCache _cache;
@@ -32,6 +36,13 @@ namespace Servicios.Api
             _logger = logger;
         }
 
+        // ── IPipTokenProvider ─────────────────────────────────────────────────────
+        // Expone el token cacheado al repositorio de datos sin crear dependencia
+        // circular hacia Servicios desde Datos.
+        public Task<string> GetPipTokenAsync(CancellationToken ct = default)
+            => GetTokenAsync(ct);
+
+        // ── ITokenProvider ────────────────────────────────────────────────────────
         public async Task<string> GetTokenAsync(CancellationToken ct = default)
         {
             if (_cache.TryGetValue("oud_token", out string token))

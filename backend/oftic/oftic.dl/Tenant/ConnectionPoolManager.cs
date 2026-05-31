@@ -10,7 +10,9 @@ namespace Datos.Tenant
     /// </summary>
     public class ConnectionPoolManager
     {
-        private readonly ConcurrentDictionary<string, NpgsqlDataSource> _pools = new(StringComparer.OrdinalIgnoreCase);
+        private readonly ConcurrentDictionary<string, NpgsqlDataSource> _pools       = new(StringComparer.OrdinalIgnoreCase);
+        /// <summary>Sitio de grabación principal por tenant (de secad_tenants.sitio_graba).</summary>
+        private readonly ConcurrentDictionary<string, int?>             _sitiosGraba = new(StringComparer.OrdinalIgnoreCase);
 
         public NpgsqlDataSource GetOrCreate(DtoTenant tenant)
         {
@@ -22,6 +24,14 @@ namespace Datos.Tenant
             return _pools.TryGetValue(codDane, out dataSource);
         }
 
+        /// <summary>Almacena el sitio_graba del tenant para recuperarlo en cache hits.</summary>
+        public void SetSitioGraba(string codDane, int? sitioGraba)
+            => _sitiosGraba[codDane] = sitioGraba;
+
+        /// <summary>Recupera el sitio_graba del tenant (null si no está cacheado).</summary>
+        public int? GetSitioGraba(string codDane)
+            => _sitiosGraba.TryGetValue(codDane, out var sg) ? sg : null;
+
         /// <summary>
         /// Removes a cached DataSource for the given tenant, forcing reconnection on next request.
         /// Call this after updating tenant credentials.
@@ -32,6 +42,7 @@ namespace Datos.Tenant
             {
                 try { ds.Dispose(); } catch { /* best-effort */ }
             }
+            _sitiosGraba.TryRemove(codDane, out _);
         }
 
         private static NpgsqlDataSource BuildDataSource(DtoTenant tenant)

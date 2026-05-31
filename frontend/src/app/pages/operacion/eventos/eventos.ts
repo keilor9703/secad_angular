@@ -13,6 +13,7 @@ import { switchMap, startWith, debounceTime, distinctUntilChanged } from 'rxjs/o
 
 import { EventoService, DtoEventoListItem, DtoCanalItem, DtoSlaConfig, DtoEventoConteos } from '../../../core/services/operacion/evento.service';
 import { DtoAnotacionRequest, DtoPedidoDetalle, DtoAnotacion } from '../../../core/services/operacion/pedido.service';
+import { ToastService } from '../../../core/services/toast.service';
 import { AuthService } from '../../../core/auth/auth.service';
 import {
   AsistenteService,
@@ -37,6 +38,16 @@ import {
   DtoCodigoCierreActuacion,
   ESTADO_ACTUACION
 } from '../../../core/services/operacion/actuaciones.service';
+import {
+  AgenciaExternaService,
+  DtoAgenciaExterna
+} from '../../../core/services/operacion/agencia-externa.service';
+import {
+  RecepcionService,
+  DtoCanalRecepcion,
+  DtoCanalSeleccionado,
+  DtoAdjunto
+} from '../../../core/services/operacion/recepcion.service';
 
 // Leaflet is loaded via CDN (index.html) – type-only reference
 declare const L: any;
@@ -60,6 +71,9 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
   private actuacionSvc  = inject(ActuacionesService);
   private authSvc       = inject(AuthService);
   private asistenteSvc  = inject(AsistenteService);
+  private agenciaSvc    = inject(AgenciaExternaService);
+  private recepcionSvc  = inject(RecepcionService);
+  private toast         = inject(ToastService);
   private cdr           = inject(ChangeDetectorRef);
 
   // ─── JWT claims ──────────────────────────────────────────────────────────────
@@ -213,6 +227,22 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
   errorAsignacion           = '';
 
   readonly ESTADO_ACT = ESTADO_ACTUACION;
+
+  // ─── §6.1 Modal Remitir a agencia / canal ────────────────────────────────────
+  modalRemitirVisible   = false;
+  remitirTab:           'secad' | 'externa' = 'secad';
+  // Tab SECAD — canales disponibles agrupados por fuerza
+  remitirCanalesGrupos: { fuerza: string; fuerzaId: number; canales: DtoCanalRecepcion[] }[] = [];
+  /** Clave compuesta "codigo:fuerzaId" — el código solo no es único entre fuerzas */
+  remitirCanalesSelec   = new Set<string>();
+  // Tab externa — agencias externas por API
+  remitirAgencias:      DtoAgenciaExterna[] = [];
+  remitirAgenciasSelec  = new Set<string>();        // IDs de agencia seleccionadas
+  remitirEnviando       = false;
+  remitirError          = '';
+
+  // ─── Adjuntos (fotos del pedido) ──────────────────────────────────────────────
+  adjuntos: DtoAdjunto[] = [];
 
   // ─── §6.17 Asistente Inteligente ─────────────────────────────────────────────
   /** Panel colapsable visible en el detalle del evento. */
@@ -498,11 +528,16 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
     this.detenerPollingActuaciones();  // detener polling del evento anterior AHORA
     this.resetAsistente();
 
+    this.adjuntos = [];
     this.eventoSvc.getById(evento.id).subscribe({
       next: (d) => {
         this.detalle         = d;
         this.cargandoDetalle = false;
-        // Map will init in ngAfterViewChecked once DOM is ready
+        // Cargar fotos adjuntas del pedido (cad_adjuntos) si existe pedidoId
+        if (d?.id) {
+          this.recepcionSvc.getAdjuntos(d.id)
+            .subscribe({ next: r => { if (r.success) this.adjuntos = r.data; } });
+        }
         this.iniciarPollingRecursos();
         this.iniciarPollingActuaciones(evento.id);
       },
@@ -521,6 +556,7 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
     this.detalle            = null;
     this.eventoSeleccionado = null;
     this.actuaciones        = [];
+    this.adjuntos           = [];
     this.resetAsistente();
   }
 
@@ -1514,6 +1550,163 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
       this.mapaInicializado = false;
     }
   }
+
+  // ─── §6.1 Modal Remitir a agencia ────────────────────────────────────────────
+
+  abrirModalRemitir(): void {
+    this.remitirCanalesSelec.clear();
+    this.remitirAgenciasSelec.clear();
+    this.remitirError    = '';
+    this.remitirEnviando = false;
+    this.remitirTab      = 'secad';
+
+    // Cargar canales SECAD (agrupados por fuerza)
+    this.recepcionSvc.getCanales(this.sitioGraba).subscribe({
+      next: canales => {
+        const mapa: Record<string, { fuerza: string; fuerzaId: number; canales: DtoCanalRecepcion[] }> = {};
+        for (const c of (canales ?? [])) {
+          const key = c.fuerza || 'SIN FUERZA';
+          if (!mapa[key]) mapa[key] = { fuerza: key, fuerzaId: c.fuerzaId, canales: [] };
+          mapa[key].canales.push(c);
+        }
+        this.remitirCanalesGrupos = Object.values(mapa).sort((a, b) =>
+          a.fuerza.localeCompare(b.fuerza, 'es'));
+      },
+      error: () => { this.remitirCanalesGrupos = []; }
+    });
+
+    // Cargar agencias externas (con caché en memoria para la sesión)
+    if (this.remitirAgencias.length === 0) {
+      this.agenciaSvc.getActivas().subscribe({
+        next:  data => { this.remitirAgencias = data ?? []; },
+        error: ()   => { this.remitirAgencias = []; }
+      });
+    }
+
+    this.modalRemitirVisible = true;
+    this.toggleBodyModalClass(true);
+  }
+
+  cancelarRemitir(): void {
+    this.modalRemitirVisible = false;
+    this.toggleBodyModalClass(false);
+  }
+
+  /** Clave compuesta para un canal: "codigo:fuerzaId" */
+  canalKey(c: DtoCanalRecepcion): string { return `${c.codigo}:${c.fuerzaId}`; }
+
+  toggleRemitirCanal(c: DtoCanalRecepcion): void {
+    const key = this.canalKey(c);
+    if (this.remitirCanalesSelec.has(key)) this.remitirCanalesSelec.delete(key);
+    else                                    this.remitirCanalesSelec.add(key);
+  }
+
+  toggleRemitirAgencia(id: string): void {
+    if (this.remitirAgenciasSelec.has(id)) this.remitirAgenciasSelec.delete(id);
+    else                                    this.remitirAgenciasSelec.add(id);
+  }
+
+  get remitirTotalSelec(): number {
+    return this.remitirTab === 'secad'
+      ? this.remitirCanalesSelec.size
+      : this.remitirAgenciasSelec.size;
+  }
+
+  confirmarRemitir(): void {
+    if (!this.detalle || this.remitirEnviando) return;
+    this.remitirEnviando = true;
+    this.remitirError    = '';
+
+    const pedidoId   = this.detalle.id;                      // cad_pedidos.id
+    const sitioGraba = this.detalle.sitioGraba ?? this.sitioGraba;
+    // numeEvento = cad_eventos.id  (≠ .id que es cad_pedidos.id — ver DtoEventoListItem)
+    const eventoId   = this.eventoSeleccionado?.numeEvento
+                    ?? this.detalle.numeEvento
+                    ?? this.detalle.id;
+
+    if (this.remitirTab === 'secad') {
+      // ── Remisión a canales SECAD ────────────────────────────────────────────
+      if (this.remitirCanalesSelec.size === 0) {
+        this.remitirError = 'Selecciona al menos un canal.';
+        this.remitirEnviando = false;
+        return;
+      }
+
+      // Reconstruir DtoCanalSeleccionado[] desde las claves "codigo:fuerzaId"
+      const canalesDto: DtoCanalSeleccionado[] = [...this.remitirCanalesSelec].map(key => {
+        const [codigo, fuerzaId] = key.split(':').map(Number);
+        return { codigo, fuerzaId };
+      });
+
+      this.recepcionSvc.remitirCanal({
+        pedidoId,
+        sitioGraba,
+        eventoId,
+        canales: canalesDto,
+      }).subscribe({
+        next: r => {
+          this.remitirEnviando = false;
+          if (r.success) {
+            this.toast.success('Remisión SECAD', r.message);
+            // Añadir anotación de trazabilidad
+            const canalesNombres = [...this.remitirCanalesSelec]
+              .map(key => {
+                for (const g of this.remitirCanalesGrupos)
+                  for (const c of g.canales)
+                    if (this.canalKey(c) === key) return `${g.fuerza} – ${c.descripcion}`;
+                return key;
+              }).join(', ');
+            this.eventoSvc.createAnotacion(this.detalle!.id, {
+              titulo:        'Caso remitido a canal SECAD',
+              anotacion:     `Remitido a: ${canalesNombres}`,
+              tipoAnotacion: 'REMISION'
+            }).subscribe({ next: _ => {}, error: () => {} });
+            this.cancelarRemitir();
+          } else {
+            this.remitirError = r.message;
+          }
+        },
+        error: () => {
+          this.remitirEnviando = false;
+          this.remitirError    = 'Error de comunicación con el servidor.';
+        }
+      });
+
+    } else {
+      // ── Remisión a agencias externas por API ────────────────────────────────
+      if (this.remitirAgenciasSelec.size === 0) {
+        this.remitirError = 'Selecciona al menos una agencia.';
+        this.remitirEnviando = false;
+        return;
+      }
+
+      const promises = [...this.remitirAgenciasSelec].map(agenciaId =>
+        this.agenciaSvc.despachar({ pedidoId, sitioGraba, agenciaId }).toPromise()
+      );
+
+      Promise.allSettled(promises).then(results => {
+        this.remitirEnviando = false;
+        const ok  = results.filter(r => r.status === 'fulfilled' && (r.value as any)?.success).length;
+        const err = results.length - ok;
+
+        if (ok > 0)
+          this.toast.success('Remisión externa', `${ok} agencia(s) notificadas correctamente.`);
+        if (err > 0)
+          this.toast.warning('Remisión parcial',
+            `${err} agencia(s) no pudieron ser contactadas.`);
+
+        if (ok > 0) {
+          this.eventoSvc.getAnotaciones(this.detalle!.id).subscribe(a => {
+            if (this.detalle) this.detalle.anotaciones = a;
+          });
+          this.cancelarRemitir();
+        }
+      });
+    }
+  }
+
+  getAgenciaIcon  = (tipo: string) => this.agenciaSvc.getTipoIcon(tipo);
+  getAgenciaLabel = (tipo: string) => this.agenciaSvc.getTipoLabel(tipo);
 
   // ─── §6.17 Asistente Inteligente ─────────────────────────────────────────────
 

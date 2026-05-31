@@ -6,6 +6,8 @@ using Datos.Tenant;
 using Servicios.ApiInterfaz;
 using Microsoft.Extensions.Configuration;
 using BCrypt.Net;
+using Api.Services;
+using System.Text.Json;
 
 namespace Api.Controllers
 {
@@ -13,15 +15,20 @@ namespace Api.Controllers
     [Route("api/[controller]")]
     public class CuentaController : ControllerBase
     {
-        private readonly IApiWebOud _apiWebOud;
-        private readonly IJwtService _jwtService;
-        private readonly IDbAuthRepository _dbAuthRepository;
-        private readonly IDbMasterRepository _masterRepository;
+        private readonly IApiWebOud           _apiWebOud;
+        private readonly IJwtService          _jwtService;
+        private readonly IDbAuthRepository    _dbAuthRepository;
+        private readonly IDbMasterRepository  _masterRepository;
         private readonly ConnectionPoolManager _poolManager;
-        private readonly TenantContext _tenantContext;
+        private readonly TenantContext        _tenantContext;
         private readonly ILogger<CuentaController> _logger;
-        private readonly IWebHostEnvironment _env;
-        private readonly IConfiguration _configuration;
+        private readonly IWebHostEnvironment  _env;
+        private readonly IConfiguration       _configuration;
+        private readonly IMfaCentralService   _mfa;
+        private readonly MfaSessionTokenService _mfaSession;
+
+        // Cookie de dispositivo confiable — misma cookie en todo el sistema
+        private const string CookieTrustedDevice = "SECAD_MFA_DEVICE";
 
         public CuentaController(
             IApiWebOud apiWebOud,
@@ -32,18 +39,99 @@ namespace Api.Controllers
             TenantContext tenantContext,
             ILogger<CuentaController> logger,
             IWebHostEnvironment env,
-            IConfiguration configuration)
+            IConfiguration configuration,
+            IMfaCentralService mfa,
+            MfaSessionTokenService mfaSession)
         {
-            _apiWebOud = apiWebOud;
-            _jwtService = jwtService;
+            _apiWebOud        = apiWebOud;
+            _jwtService       = jwtService;
             _dbAuthRepository = dbAuthRepository;
             _masterRepository = masterRepository;
-            _poolManager = poolManager;
-            _tenantContext = tenantContext;
-            _logger = logger;
-            _env = env;
-            _configuration = configuration;
+            _poolManager      = poolManager;
+            _tenantContext    = tenantContext;
+            _logger           = logger;
+            _env              = env;
+            _configuration    = configuration;
+            _mfa              = mfa;
+            _mfaSession       = mfaSession;
         }
+
+        // ── Helpers internos ──────────────────────────────────────────────────
+
+        private string ClientIp() =>
+            HttpContext.Connection.RemoteIpAddress?.ToString() ?? "0.0.0.0";
+
+        private bool MfaEnabled() =>
+            _configuration.GetValue<bool>("Mfa:Enabled");
+
+        /// <summary>
+        /// Construye el MfaSessionToken y retorna la respuesta parcial de login
+        /// que el frontend usará para mostrar el modal de 2FA correcto.
+        /// </summary>
+        private DtoMfaLoginResponse BuildMfaChallenge(
+            long   idUsuario,
+            string usuario,
+            string codDane,
+            string homeCodDane,
+            string nombreCad,
+            long   identificacion,
+            int    sitioGraba,
+            int    acd,
+            int    fuerzaId,
+            int    canalCodigo,
+            List<long> roles,
+            string ip,
+            string mfaMode,
+            string? qrBase64    = null,
+            string? manualKey   = null,
+            string? enrollToken = null,
+            string? bloqueoHasta = null)
+        {
+            var sessionData = new MfaSessionTokenService.MfaSessionData(
+                IdUsuario      : idUsuario,
+                Usuario        : usuario,
+                CodDane        : codDane,
+                HomeCodDane    : homeCodDane,
+                NombreCad      : nombreCad,
+                Identificacion : identificacion,
+                SitioGraba     : sitioGraba,
+                Acd            : acd,
+                FuerzaId       : fuerzaId,
+                CanalCodigo    : canalCodigo,
+                RolesJson      : JsonSerializer.Serialize(roles),
+                Ip             : ip
+            );
+
+            return new DtoMfaLoginResponse
+            {
+                success         = false,   // aún no hay JWT real
+                RequiresMfa     = true,
+                MfaMode         = mfaMode,
+                MfaSessionToken = _mfaSession.CreateToken(sessionData),
+                MfaQrBase64     = qrBase64,
+                MfaManualKey    = manualKey,
+                MfaEnrollToken  = enrollToken,
+                BloqueoHasta    = bloqueoHasta,
+                message         = "Se requiere segundo factor de autenticación."
+            };
+        }
+
+        /// <summary>Construye el JWT definitivo una vez pasado el 2FA (o si no aplica).</summary>
+        private string BuildFinalJwt(
+            long   idUsuario,
+            string usuario,
+            List<long> roles,
+            string codDane,
+            string nombreCad,
+            int    sitioGraba,
+            int    acd,
+            int    fuerzaId,
+            int    canalCodigo,
+            string homeCodDane)
+            => _jwtService.CreateToken(
+                idUsuario, usuario, roles, codDane, nombreCad,
+                sitioGraba, acd, fuerzaId, canalCodigo,
+                homeCodDane: homeCodDane);
 
         [HttpPost("Token")]
         public async Task<IActionResult> GetToken([FromBody] DtoTokenRequest request)
@@ -197,7 +285,7 @@ namespace Api.Controllers
 
                 _ = isCivilUser; // usado para logging; JWT ya lleva tipo_usuario via roles
 
-                // Query user and roles from tenant DB
+                // ── Consultar usuario y roles en el tenant ─────────────────────────
                 var (idUsuario, roles, sitioGraba, acd, fuerzaId, canalCodigo) = await _dbAuthRepository.GetUsuarioYRolesAsync(
                     request.Usuario, CancellationToken.None);
 
@@ -213,15 +301,104 @@ namespace Api.Controllers
                     });
                 }
 
-                // homeCodDane = codDane on first login (context switching updates cod_dane but keeps home_cod_dane)
-                var jwtToken = _jwtService.CreateToken(
-                    idUsuario.Value, request.Usuario, roles, codDane!, nombreCad,
-                    sitioGraba, acd, fuerzaId, canalCodigo,
-                    homeCodDane: codDane);
+                var ip          = ClientIp();
+                var homeCodDane = codDane!;
+
+                // ════════════════════════════════════════════════════════════════
+                // DOBLE FACTOR DE AUTENTICACIÓN (MFA)
+                // Solo para usuarios OUD (funcionarios con cédula).
+                // Usuarios civiles (fallback local) no requieren 2FA institucional.
+                // ════════════════════════════════════════════════════════════════
+
+                bool skipMfa = !MfaEnabled() || isCivilUser;
+
+                if (!skipMfa)
+                {
+                    // Cédula del funcionario (viene del OUD, guardada en Items por ApiWebOud si aplica)
+                    long identificacion = idUsuario.Value;
+                    if (HttpContext.Items.TryGetValue("OudIdentificacion", out var oudId)
+                        && oudId is long oudIdLong && oudIdLong > 0)
+                        identificacion = oudIdLong;
+
+                    var mfaState = await _mfa.GetStateAsync(identificacion, request.Usuario!, CancellationToken.None);
+
+                    if (mfaState.ServiceDown)
+                    {
+                        if (_configuration.GetValue<bool>("Mfa:AllowLoginOnServiceDown"))
+                        {
+                            _logger.LogWarning("[MFA] Servicio caído — login permitido por configuración. User={U}", request.Usuario);
+                            skipMfa = true;   // continuar sin 2FA
+                        }
+                        else
+                        {
+                            return Ok(new DtoMfaLoginResponse
+                            {
+                                success     = false,
+                                RequiresMfa = true,
+                                MfaMode     = "svcdown",
+                                message     = "El servicio de doble autenticación no está disponible. Por seguridad no es posible iniciar sesión en este momento."
+                            });
+                        }
+                    }
+
+                    if (!skipMfa)
+                    {
+                        // ── Bloqueado ────────────────────────────────────────────
+                        if (mfaState.BloqueoHasta.HasValue && mfaState.BloqueoHasta.Value > DateTime.Now)
+                            return Ok(BuildMfaChallenge(
+                                idUsuario.Value, request.Usuario!, codDane!, homeCodDane, nombreCad!,
+                                identificacion, sitioGraba, acd, fuerzaId, canalCodigo, roles!, ip,
+                                mfaMode: "blocked",
+                                bloqueoHasta: mfaState.BloqueoHasta.Value.ToString("yyyy-MM-dd HH:mm:ss")));
+
+                        // ── Dispositivo confiable ─────────────────────────────────
+                        var cookieDeviceId = Request.Cookies[CookieTrustedDevice];
+                        if (!string.IsNullOrWhiteSpace(cookieDeviceId))
+                        {
+                            var trusted = await _mfa.IsTrustedAsync(identificacion, request.Usuario!, cookieDeviceId, CancellationToken.None);
+                            if (trusted)
+                            {
+                                _logger.LogInformation("[MFA] Dispositivo confiable — omitiendo 2FA. User={U}", request.Usuario);
+                                skipMfa = true;
+                            }
+                        }
+
+                        if (!skipMfa)
+                        {
+                            // ── No enrolado o debe re-enrolar ────────────────────
+                            bool debeEnrolar = mfaState.MfaHabilitado != 1 || mfaState.RequireReenroll == 1;
+                            if (debeEnrolar)
+                            {
+                                var enroll = await _mfa.EnrollStartAsync(identificacion, request.Usuario!, CancellationToken.None);
+                                if (enroll.ServiceDown)
+                                    return Ok(new DtoMfaLoginResponse { success = false, RequiresMfa = true, MfaMode = "svcdown", message = "Servicio 2FA no disponible." });
+                                if (!enroll.Ok)
+                                    return Unauthorized(new DtoTokenResponse { success = false, message = $"No fue posible iniciar el enrolamiento MFA: {enroll.Mensaje}" });
+
+                                return Ok(BuildMfaChallenge(
+                                    idUsuario.Value, request.Usuario!, codDane!, homeCodDane, nombreCad!,
+                                    identificacion, sitioGraba, acd, fuerzaId, canalCodigo, roles!, ip,
+                                    mfaMode: "enroll", qrBase64: enroll.QrBase64,
+                                    manualKey: enroll.ManualKey, enrollToken: enroll.EnrollToken));
+                            }
+
+                            // ── Enrolado → pedir código ───────────────────────────
+                            return Ok(BuildMfaChallenge(
+                                idUsuario.Value, request.Usuario!, codDane!, homeCodDane, nombreCad!,
+                                identificacion, sitioGraba, acd, fuerzaId, canalCodigo, roles!, ip,
+                                mfaMode: "verify"));
+                        }
+                    }
+                }
+
+                // ── Emitir JWT final (credenciales OK + MFA no requerido/pasado) ─
+                var jwtToken = BuildFinalJwt(
+                    idUsuario.Value, request.Usuario!, roles!,
+                    codDane!, nombreCad!, sitioGraba, acd, fuerzaId, canalCodigo, homeCodDane);
 
                 return Ok(new DtoTokenResponse
                 {
-                    token = jwtToken,
+                    token   = jwtToken,
                     usuario = request.Usuario,
                     success = true,
                     message = "Login exitoso"
@@ -232,6 +409,177 @@ namespace Api.Controllers
                 _logger.LogError(ex, "Error en login para {Usuario}", request.Usuario);
                 return StatusCode(500, new DtoTokenResponse { success = false, message = "Error al iniciar sesión" });
             }
+        }
+
+        // ════════════════════════════════════════════════════════════════════════
+        // ENDPOINTS MFA — todos requieren un MfaSessionToken válido
+        // ════════════════════════════════════════════════════════════════════════
+
+        /// <summary>
+        /// POST /api/Cuenta/MfaVerify
+        /// Verifica el código TOTP. Si es correcto, emite el JWT definitivo.
+        /// </summary>
+        [HttpPost("MfaVerify")]
+        public async Task<IActionResult> MfaVerify([FromBody] DtoMfaVerifyRequest req, CancellationToken ct)
+        {
+            var d = _mfaSession.ValidateToken(req.MfaSessionToken);
+            if (d is null)
+                return Unauthorized(new DtoMfaStepResponse { Success = false, Message = "Sesión MFA expirada o inválida. Inicie sesión nuevamente." });
+
+            if (string.IsNullOrWhiteSpace(req.Code))
+                return Ok(new DtoMfaStepResponse { Success = false, Message = "Ingrese el código de 6 dígitos." });
+
+            var ip = ClientIp();
+            var result = await _mfa.VerifyAsync(d.Identificacion, d.Usuario, req.Code, req.RememberDevice, req.DeviceId, ip, ct);
+
+            if (result.ServiceDown)
+                return Ok(new DtoMfaStepResponse { Success = false, Message = "Servicio 2FA no disponible." });
+
+            if (result.Blocked)
+                return Ok(new DtoMfaStepResponse
+                {
+                    Success      = false,
+                    Message      = $"Cuenta bloqueada temporalmente hasta {result.BloqueoHasta?.ToString("yyyy-MM-dd HH:mm:ss") ?? "próximamente"}.",
+                    BloqueoHasta = result.BloqueoHasta?.ToString("yyyy-MM-dd HH:mm:ss")
+                });
+
+            if (!result.Ok)
+                return Ok(new DtoMfaStepResponse { Success = false, Message = result.Mensaje.Length > 0 ? result.Mensaje : "Código inválido. Verifique su app de autenticación." });
+
+            // ── MFA OK → guardar cookie de dispositivo confiable ───────────────
+            if (req.RememberDevice && !string.IsNullOrWhiteSpace(req.DeviceId))
+            {
+                Response.Cookies.Append(CookieTrustedDevice, req.DeviceId, new CookieOptions
+                {
+                    HttpOnly = true,
+                    Secure   = Request.IsHttps,
+                    SameSite = SameSiteMode.Lax,
+                    Expires  = DateTimeOffset.UtcNow.AddDays(30)
+                });
+            }
+
+            var roles = ParseRoles(d.RolesJson);
+            var jwt   = BuildFinalJwt(d.IdUsuario, d.Usuario, roles, d.CodDane, d.NombreCad,
+                                       d.SitioGraba, d.Acd, d.FuerzaId, d.CanalCodigo, d.HomeCodDane);
+
+            return Ok(new DtoMfaStepResponse { Success = true, Token = jwt, Message = "Autenticación completada." });
+        }
+
+        /// <summary>
+        /// POST /api/Cuenta/MfaEnrollConfirm
+        /// Confirma el primer enrolamiento con el código TOTP escaneado del QR.
+        /// </summary>
+        [HttpPost("MfaEnrollConfirm")]
+        public async Task<IActionResult> MfaEnrollConfirm([FromBody] DtoMfaEnrollConfirmRequest req, CancellationToken ct)
+        {
+            var d = _mfaSession.ValidateToken(req.MfaSessionToken);
+            if (d is null)
+                return Unauthorized(new DtoMfaStepResponse { Success = false, Message = "Sesión MFA expirada. Inicie sesión nuevamente." });
+
+            if (string.IsNullOrWhiteSpace(req.Code))
+                return Ok(new DtoMfaStepResponse { Success = false, Message = "Ingrese el código de 6 dígitos." });
+
+            var ip     = ClientIp();
+            var result = await _mfa.EnrollConfirmAsync(d.Identificacion, d.Usuario, req.EnrollToken, req.Code, ip, ct);
+
+            if (result.ServiceDown)
+                return Ok(new DtoMfaStepResponse { Success = false, Message = "Servicio 2FA no disponible." });
+
+            if (result.Blocked)
+                return Ok(new DtoMfaStepResponse
+                {
+                    Success      = false,
+                    Message      = $"Cuenta bloqueada hasta {result.BloqueoHasta?.ToString("yyyy-MM-dd HH:mm:ss") ?? "próximamente"}.",
+                    BloqueoHasta = result.BloqueoHasta?.ToString("yyyy-MM-dd HH:mm:ss")
+                });
+
+            if (!result.Ok)
+                return Ok(new DtoMfaStepResponse { Success = false, Message = result.Mensaje.Length > 0 ? result.Mensaje : "Código inválido. Intente de nuevo." });
+
+            var roles = ParseRoles(d.RolesJson);
+            var jwt   = BuildFinalJwt(d.IdUsuario, d.Usuario, roles, d.CodDane, d.NombreCad,
+                                       d.SitioGraba, d.Acd, d.FuerzaId, d.CanalCodigo, d.HomeCodDane);
+
+            return Ok(new DtoMfaStepResponse { Success = true, Token = jwt, Message = "MFA activado y sesión iniciada correctamente." });
+        }
+
+        /// <summary>
+        /// POST /api/Cuenta/MfaResetRequest
+        /// Envía un código de recuperación al correo institucional del usuario.
+        /// </summary>
+        [HttpPost("MfaResetRequest")]
+        public async Task<IActionResult> MfaResetRequest([FromBody] DtoMfaResetRequest req, CancellationToken ct)
+        {
+            var d = _mfaSession.ValidateToken(req.MfaSessionToken);
+            if (d is null)
+                return Unauthorized(new DtoMfaStepResponse { Success = false, Message = "Sesión expirada. Inicie sesión nuevamente." });
+
+            var result = await _mfa.ResetRequestAsync(d.Identificacion, d.Usuario, ClientIp(), ct);
+
+            if (result.ServiceDown)
+                return Ok(new DtoMfaStepResponse { Success = false, Message = "Servicio 2FA no disponible." });
+
+            // IsInfo=true → el frontend muestra el mensaje informativo sin redirigir
+            return Ok(new DtoMfaStepResponse { Success = result.Ok, IsInfo = result.Ok, Message = result.Mensaje });
+        }
+
+        /// <summary>
+        /// POST /api/Cuenta/MfaResetConfirm
+        /// Confirma el código de correo, resetea el secreto TOTP e inicia un nuevo enrolamiento.
+        /// Retorna QR + manualKey + enrollToken para que el frontend abra el modal de enrolamiento.
+        /// </summary>
+        [HttpPost("MfaResetConfirm")]
+        public async Task<IActionResult> MfaResetConfirm([FromBody] DtoMfaResetConfirmRequest req, CancellationToken ct)
+        {
+            var d = _mfaSession.ValidateToken(req.MfaSessionToken);
+            if (d is null)
+                return Unauthorized(new DtoMfaStepResponse { Success = false, Message = "Sesión expirada. Inicie sesión nuevamente." });
+
+            if (string.IsNullOrWhiteSpace(req.Code))
+                return Ok(new DtoMfaStepResponse { Success = false, Message = "Ingrese el código enviado al correo." });
+
+            var ip = ClientIp();
+
+            // 1. Confirmar el código enviado al correo
+            var confirm = await _mfa.ResetConfirmAsync(d.Identificacion, d.Usuario, req.Code, ip, ct);
+            if (confirm.ServiceDown)
+                return Ok(new DtoMfaStepResponse { Success = false, Message = "Servicio 2FA no disponible." });
+
+            if (!confirm.Ok)
+                return Ok(new DtoMfaStepResponse
+                {
+                    Success = false,
+                    Message = confirm.AvailableAt.HasValue
+                        ? $"Aún no disponible. Podrá reenrolar desde las {confirm.AvailableAt.Value:HH:mm:ss}."
+                        : confirm.Mensaje
+                });
+
+            // 2. Ejecutar el reset (limpia el secreto TOTP anterior)
+            var exec = await _mfa.ResetExecuteAsync(d.Identificacion, d.Usuario, ip, ct);
+            if (!exec.Ok)
+                return Ok(new DtoMfaStepResponse { Success = false, Message = exec.Mensaje });
+
+            // 3. Iniciar nuevo enrolamiento → devolver QR para el modal de enrolamiento
+            var enroll = await _mfa.EnrollStartAsync(d.Identificacion, d.Usuario, ct);
+            if (!enroll.Ok)
+                return Ok(new DtoMfaStepResponse { Success = false, Message = "Se restableció el MFA pero no fue posible generar el nuevo QR. Inicie sesión." });
+
+            return Ok(new DtoMfaStepResponse
+            {
+                Success     = true,
+                Message     = "MFA restablecido. Escanee el nuevo código QR para activar su autenticador.",
+                QrBase64    = enroll.QrBase64,
+                ManualKey   = enroll.ManualKey,
+                EnrollToken = enroll.EnrollToken
+            });
+        }
+
+        // ── Helpers privados ──────────────────────────────────────────────────
+
+        private static List<long> ParseRoles(string rolesJson)
+        {
+            try { return System.Text.Json.JsonSerializer.Deserialize<List<long>>(rolesJson) ?? new(); }
+            catch { return new(); }
         }
 
         private async Task<Comun.Dtos.Tenant.DtoTenant?> ResolveTenantAsync(string? undeLaborandoCodigo, string? siglaLaborando)
