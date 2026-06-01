@@ -77,6 +77,108 @@
     @if (!minimized) {
     <div class="ui-panel__body">
 
+      <!-- ══════════════════════════════════════════════════════════════════════
+           §6.8 — Alerta de posibles duplicados
+           Aparece cuando se detectan eventos activos en un radio configurable.
+           ══════════════════════════════════════════════════════════════════════ -->
+
+      <!-- Spinner de verificación -->
+      @if (verificandoDuplicados) {
+        <div class="rec-dupl-checking">
+          <i class="fa-solid fa-spinner fa-spin"></i>
+          Verificando duplicados cercanos…
+        </div>
+      }
+
+      <!-- Panel de alerta (solo si hay candidatos y no fue descartado) -->
+      @if (showDuplicados && duplicados.length > 0) {
+        <div class="rec-dupl-alert">
+
+          <div class="rec-dupl-alert__head">
+            <i class="fa-solid fa-triangle-exclamation"></i>
+            <strong>⚠ Posible duplicado</strong>
+            &nbsp;—&nbsp;Se encontraron {{ duplicados.length }} evento(s) activo(s)
+            en un radio de {{ DUPL_RADIO }} m en los últimos {{ DUPL_MINUTOS }} min.
+            Verifique si es el mismo hecho antes de crear un nuevo caso.
+            <button class="rec-dupl-alert__dismiss" type="button"
+                    title="Descartar alerta y continuar como caso nuevo"
+                    (click)="cerrarAlertaDuplicados()">
+              <i class="fa-solid fa-xmark"></i>
+            </button>
+          </div>
+
+          <div class="rec-dupl-list">
+            @for (p of duplicados; track p.id) {
+              <div class="rec-dupl-item">
+
+                <!-- Distancia + badge estado -->
+                <div class="rec-dupl-item__badges">
+                  <span class="rec-dupl-dist">
+                    <i class="fa-solid fa-location-dot"></i>
+                    {{ p.distanciaMetros }} m
+                  </span>
+                  <span class="rec-dupl-time">
+                    <i class="fa-regular fa-clock"></i>
+                    Hace {{ p.minutosAtras }} min
+                  </span>
+                  <span class="rec-dupl-estado">
+                    {{ getEstadoLabelDupl(p.estado) }}
+                  </span>
+                  @if (p.prioridad) {
+                    <span class="rec-dupl-prio">
+                      {{ getPrioridadLabel(p.prioridad) }}
+                    </span>
+                  }
+                </div>
+
+                <!-- Datos del pedido cercano -->
+                <div class="rec-dupl-item__info">
+                  <span class="rec-dupl-id">Pedido #{{ p.id }}</span>
+                  @if (p.codiPedido) {
+                    <strong class="rec-dupl-cod">{{ p.codiPedido }}</strong>
+                    @if (p.codiPedido2) {
+                      <span class="rec-dupl-desc"> / {{ p.codiPedido2 }}</span>
+                    }
+                  }
+                  @if (p.direCaso) {
+                    <span class="rec-dupl-dir">
+                      <i class="fa-solid fa-map-pin"></i> {{ p.direCaso }}
+                      @if (p.barrio) { · {{ p.barrio }} }
+                      @if (p.ciudad) { · {{ p.ciudad }} }
+                    </span>
+                  }
+                  @if (p.nombLlamante) {
+                    <span class="rec-dupl-dir">
+                      <i class="fa-solid fa-user"></i> {{ p.nombLlamante }}
+                    </span>
+                  }
+                </div>
+
+                <!-- Acciones -->
+                <div class="rec-dupl-item__actions">
+                  <button class="ui-btn sm secondary" type="button"
+                          title="Vincular esta llamada al pedido existente y continuar"
+                          (click)="vincularConDuplicado(p)">
+                    <i class="fa-solid fa-link"></i>
+                    Vincular como relacionado
+                  </button>
+                </div>
+
+              </div>
+            }
+          </div>
+
+          <div class="rec-dupl-alert__foot">
+            <button class="ui-btn sm ghost" type="button"
+                    (click)="cerrarAlertaDuplicados()">
+              <i class="fa-solid fa-plus-circle"></i>
+              Continuar como caso nuevo (no es duplicado)
+            </button>
+          </div>
+
+        </div>
+      }
+
       <!-- ──────────── LAYOUT PRINCIPAL (form | mapa+canales) ──────────────── -->
       <div class="rec-layout">
 
@@ -169,136 +271,28 @@
           </div>
 
 
-          <!-- ── §6.17 Asistente Inteligente ─────────────────────────────── -->
-          <div class="rec-section rec-section--asistente">
-            <!-- Cabecera colapsable -->
-            <button class="rec-section__head rec-asistente__toggle"
-                    type="button"
-                    [attr.aria-expanded]="asistenteAbierto"
-                    (click)="toggleAsistente()">
-              <i class="fa-solid fa-robot"></i>
-              Asistente — Preguntas orientadoras
-              <i class="fa-solid rec-asistente__chevron"
-                 [class.fa-chevron-down]="!asistenteAbierto"
-                 [class.fa-chevron-up]="asistenteAbierto"></i>
-            </button>
+          <!-- ══════════════════════════════════════════════════════════════════
+               §6.17  Tipificación del incidente + Preguntas orientadoras
+               Bloque unificado: código de caso → preguntas → relato automático
+               ══════════════════════════════════════════════════════════════════ -->
+          <div class="rec-section rec-section--tipificacion"
+               [class.rec-section--asistente-auto]="asistenteAutoActivado">
 
-            @if (asistenteAbierto) {
-              <div class="rec-asistente__body">
-
-                <!-- Selector de categoría -->
-                <div class="ui-field">
-                  <label class="ui-label">Tipo de incidente</label>
-                  @if (asistenteLoadingCat) {
-                    <span class="rec-asistente__spin">
-                      <i class="fa-solid fa-spinner fa-spin"></i> Cargando categorías…
-                    </span>
-                  } @else {
-                    <select class="ui-control"
-                            [(ngModel)]="asistenteCategoriaSel"
-                            (change)="onAsistenteCategoriaChange(asistenteCategoriaSel)">
-                      <option value="">— Seleccione el tipo de incidente —</option>
-                      @for (cat of asistenteCategorias; track cat.id) {
-                        <option [value]="cat.id">
-                          {{ cat.descripcion }}
-                          @if (cat.totalPreguntas) { ({{ cat.totalPreguntas }}) }
-                        </option>
-                      }
-                    </select>
-                  }
-                </div>
-
-                <!-- Spinner / vacío -->
-                @if (asistenteLoadingPreg) {
-                  <div class="rec-asistente__spin">
-                    <i class="fa-solid fa-spinner fa-spin"></i> Cargando preguntas…
-                  </div>
-                }
-                @if (!asistenteLoadingPreg && asistenteCategoriaSel && asistentePreguntas.length === 0) {
-                  <p class="rec-asistente__empty">
-                    <i class="fa-solid fa-circle-info"></i>
-                    Sin preguntas configuradas para esta categoría.
-                  </p>
-                }
-
-                <!-- Lista de preguntas orientadoras -->
-                @if (asistentePreguntas.length > 0) {
-                  <ol class="rec-asistente__list">
-                    @for (preg of asistentePreguntas; track preg.id) {
-                      <li class="rec-asistente__item">
-                        <span class="rec-asistente__q">
-                          {{ preg.pregunta }}
-                          @if (preg.obligatoria) {
-                            <span class="rec-asistente__oblig" title="Obligatoria">*</span>
-                          }
-                        </span>
-                        @if (preg.ayuda) {
-                          <span class="rec-asistente__hint">
-                            <i class="fa-solid fa-circle-info"></i> {{ preg.ayuda }}
-                          </span>
-                        }
-                        @if (preg.tipoRespuesta === 'SINO') {
-                          <div class="rec-asistente__resp">
-                            <label><input type="radio" name="rec_asr_{{ preg.id }}" value="si"> Sí</label>
-                            <label><input type="radio" name="rec_asr_{{ preg.id }}" value="no"> No</label>
-                          </div>
-                        }
-                        @if (preg.tipoRespuesta === 'NUMERO') {
-                          <input type="number" class="ui-control rec-asistente__input-sm"
-                                 placeholder="0" min="0">
-                        }
-                        @if (preg.tipoRespuesta === 'TEXTO') {
-                          <input type="text" class="ui-control rec-asistente__input-sm"
-                                 placeholder="Respuesta…">
-                        }
-                        @if (preg.tipoRespuesta === 'SELECCION' && preg.opciones) {
-                          <select class="ui-control rec-asistente__input-sm">
-                            <option value="">Seleccione…</option>
-                            @for (op of asisParseOpc(preg.opciones); track op) {
-                              <option [value]="op">{{ op }}</option>
-                            }
-                          </select>
-                        }
-                      </li>
-                    }
-                  </ol>
-                }
-
-              </div><!-- /rec-asistente__body -->
-            }
-          </div><!-- /rec-section--asistente -->
-
-
-
-
-          <!-- ── Sección: Datos del caso ───────────────────────────────────── -->
-          <div class="rec-section">
+            <!-- Cabecera de sección -->
             <div class="rec-section__head">
               <i class="fa-solid fa-file-shield"></i>
-              Datos del caso
+              Tipificación del incidente
+              @if (asistenteAutoActivado) {
+                <span class="rec-asistente__auto-badge" style="margin-left:auto;">
+                  <i class="fa-solid fa-robot"></i>
+                  Asistente activo · {{ asistenteCategoriaDescripcion }}
+                </span>
+              }
             </div>
+
             <div class="ui-grid">
 
-              <!-- Canal de origen del incidente -->
-              <div class="ui-field ui-col-12">
-                <label class="ui-label">
-                  <i class="fa-solid fa-share-nodes" style="color:var(--policia-cielo,#08a6cb)"></i>
-                  Canal de origen <span class="rec-required">*</span>
-                </label>
-                <div class="rec-canal-origen-grid">
-                  @for (co of canalesOrigen; track co.value) {
-                    <label class="rec-origen-pill"
-                           [class.rec-origen-pill--sel]="canalOrigenUI === co.value">
-                      <input type="radio" name="canalOrigen"
-                             [value]="co.value" [(ngModel)]="canalOrigenUI">
-                      <i [class]="'fa-solid ' + co.icon"></i>
-                      <span>{{ co.label }}</span>
-                    </label>
-                  }
-                </div>
-              </div>
-
-              <!-- Caso 1 -->
+              <!-- ── Código y descripción caso 1 ──────────────────────────── -->
               <div class="ui-field ui-col-3">
                 <label class="ui-label">Código caso <span class="rec-required">*</span></label>
                 <input class="ui-control"
@@ -324,6 +318,12 @@
                              (mousedown)="seleccionarSugerencia(c, 1)">
                           <span class="rec-suggest-code">{{ c.CODIGO_CASO }}</span>
                           <span class="rec-suggest-desc">{{ c.DESCRIPCION_CASO }}</span>
+                          @if (c.CATEGORIA_DESCRIPCION) {
+                            <span class="rec-suggest-cat">
+                              <i class="fa-solid fa-robot"></i>
+                              {{ c.CATEGORIA_DESCRIPCION }}
+                            </span>
+                          }
                         </div>
                       }
                     </div>
@@ -331,7 +331,7 @@
                 </div>
               </div>
 
-              <!-- Caso 2 (opcional) -->
+              <!-- ── Código y descripción caso 2 (opcional) ───────────────── -->
               <div class="ui-field ui-col-3">
                 <label class="ui-label">Código caso 2</label>
                 <input class="ui-control" type="text"
@@ -357,6 +357,209 @@
                         </div>
                       }
                     </div>
+                  }
+                </div>
+              </div>
+
+            </div><!-- /ui-grid (códigos) -->
+
+            <!-- ── §6.17 Preguntas orientadoras ──────────────────────────────
+                 Se muestran SIEMPRE que hay un asistente activo.
+                 El operador puede colapsar las preguntas sin perder el relato.
+                 ─────────────────────────────────────────────────────────────── -->
+            @if (asistenteAutoActivado || asistenteAbierto) {
+              <div class="rec-asistente__body">
+
+                <!-- Cabecera de preguntas con toggle -->
+                <div class="rec-asistente__preg-head">
+                  @if (asistenteAutoActivado) {
+                    <span class="rec-asistente__preg-title">
+                      <i class="fa-solid fa-circle-question"></i>
+                      Preguntas orientadoras
+                    </span>
+                  } @else {
+                    <!-- Modo manual: selector de categoría -->
+                    <span class="rec-asistente__preg-title">
+                      <i class="fa-solid fa-robot"></i>
+                      Asistente — Preguntas orientadoras
+                    </span>
+                  }
+                  <button class="rec-asistente__collapse-btn" type="button"
+                          [title]="asistenteAbierto ? 'Contraer preguntas' : 'Expandir preguntas'"
+                          (click)="toggleAsistente()">
+                    <i class="fa-solid"
+                       [class.fa-chevron-up]="asistenteAbierto"
+                       [class.fa-chevron-down]="!asistenteAbierto"></i>
+                  </button>
+                </div>
+
+                @if (asistenteAbierto) {
+
+                  <!-- Selector categoría manual -->
+                  @if (!asistenteAutoActivado) {
+                    <div class="ui-field" style="padding:0 14px 8px;">
+                      <label class="ui-label">Tipo de incidente</label>
+                      @if (asistenteLoadingCat) {
+                        <span class="rec-asistente__spin">
+                          <i class="fa-solid fa-spinner fa-spin"></i> Cargando categorías…
+                        </span>
+                      } @else {
+                        <select class="ui-control"
+                                [(ngModel)]="asistenteCategoriaSel"
+                                (change)="onAsistenteCategoriaChange(asistenteCategoriaSel)">
+                          <option value="">— Seleccione el tipo de incidente —</option>
+                          @for (cat of asistenteCategorias; track cat.id) {
+                            <option [value]="cat.id">
+                              {{ cat.descripcion }}
+                              @if (cat.totalPreguntas) { ({{ cat.totalPreguntas }}) }
+                            </option>
+                          }
+                        </select>
+                      }
+                    </div>
+                  }
+
+                  <!-- Spinner -->
+                  @if (asistenteLoadingPreg) {
+                    <div class="rec-asistente__spin">
+                      <i class="fa-solid fa-spinner fa-spin"></i> Cargando preguntas…
+                    </div>
+                  }
+
+                  <!-- Sin preguntas -->
+                  @if (!asistenteLoadingPreg && asistenteCategoriaSel && asistentePreguntas.length === 0) {
+                    <p class="rec-asistente__empty">
+                      <i class="fa-solid fa-circle-info"></i>
+                      Sin preguntas configuradas para esta categoría.
+                    </p>
+                  }
+
+                  <!-- Lista de preguntas -->
+                  @if (asistentePreguntas.length > 0) {
+                    <ol class="rec-asistente__list">
+                      @for (preg of asistentePreguntas; track preg.id) {
+                        <li class="rec-asistente__item"
+                            [class.rec-asistente__item--respondida]="respuestas[preg.id]">
+
+                          <span class="rec-asistente__q">
+                            {{ preg.pregunta }}
+                            @if (preg.obligatoria) {
+                              <span class="rec-asistente__oblig" title="Obligatoria">*</span>
+                            }
+                          </span>
+
+                          @if (preg.ayuda) {
+                            <span class="rec-asistente__hint">
+                              <i class="fa-solid fa-circle-info"></i> {{ preg.ayuda }}
+                            </span>
+                          }
+
+                          @if (preg.tipoRespuesta === 'SINO') {
+                            <div class="rec-asistente__resp">
+                              <label class="rec-asistente__resp-opt"
+                                     [class.rec-asistente__resp-opt--sel]="respuestas[preg.id] === 'si'">
+                                <input type="radio"
+                                       [name]="'rec_asr_' + preg.id"
+                                       value="si"
+                                       [(ngModel)]="respuestas[preg.id]"
+                                       (ngModelChange)="onRespuestaChange(preg.id, $event)">
+                                Sí
+                              </label>
+                              <label class="rec-asistente__resp-opt"
+                                     [class.rec-asistente__resp-opt--sel]="respuestas[preg.id] === 'no'">
+                                <input type="radio"
+                                       [name]="'rec_asr_' + preg.id"
+                                       value="no"
+                                       [(ngModel)]="respuestas[preg.id]"
+                                       (ngModelChange)="onRespuestaChange(preg.id, $event)">
+                                No
+                              </label>
+                            </div>
+                          }
+
+                          @if (preg.tipoRespuesta === 'NUMERO') {
+                            <input type="number"
+                                   class="ui-control rec-asistente__input-sm"
+                                   placeholder="0" min="0"
+                                   [(ngModel)]="respuestas[preg.id]"
+                                   (ngModelChange)="onRespuestaChange(preg.id, $event)">
+                          }
+
+                          @if (preg.tipoRespuesta === 'TEXTO') {
+                            <input type="text"
+                                   class="ui-control rec-asistente__input-sm"
+                                   placeholder="Respuesta…"
+                                   [(ngModel)]="respuestas[preg.id]"
+                                   (ngModelChange)="onRespuestaChange(preg.id, $event)">
+                          }
+
+                          @if (preg.tipoRespuesta === 'SELECCION' && preg.opciones) {
+                            <select class="ui-control rec-asistente__input-sm"
+                                    [(ngModel)]="respuestas[preg.id]"
+                                    (ngModelChange)="onRespuestaChange(preg.id, $event)">
+                              <option value="">Seleccione…</option>
+                              @for (op of asisParseOpc(preg.opciones); track op) {
+                                <option [value]="op">{{ op }}</option>
+                              }
+                            </select>
+                          }
+
+                        </li>
+                      }
+                    </ol>
+                  }
+
+                }<!-- /asistenteAbierto -->
+
+              </div><!-- /rec-asistente__body -->
+            }
+
+            <!-- ── Relato automático ─────────────────────────────────────────
+                 FUERA del panel colapsable para que siempre sea visible.
+                 Se muestra desde el momento en que se selecciona el código.
+                 ─────────────────────────────────────────────────────────────── -->
+            @if (relatoAutomatico) {
+              <div class="rec-relato-preview">
+                <div class="rec-relato-preview__head">
+                  <i class="fa-solid fa-file-lines"></i>
+                  Relato del incidente
+                  <button class="rec-relato-preview__refresh-btn" type="button"
+                          title="Reconstruir el relato con los datos actuales del formulario"
+                          (click)="construirRelato()">
+                    <i class="fa-solid fa-rotate"></i>
+                    Actualizar relato
+                  </button>
+                </div>
+                <pre class="rec-relato-preview__body">{{ relatoAutomatico }}</pre>
+              </div>
+            }
+
+          </div><!-- /rec-section--tipificacion -->
+
+
+          <!-- ── Sección: Datos del caso ───────────────────────────────────── -->
+          <div class="rec-section">
+            <div class="rec-section__head">
+              <i class="fa-solid fa-map-pin"></i>
+              Datos del caso
+            </div>
+            <div class="ui-grid">
+
+              <!-- Canal de origen del incidente -->
+              <div class="ui-field ui-col-12">
+                <label class="ui-label">
+                  <i class="fa-solid fa-share-nodes" style="color:var(--policia-cielo,#08a6cb)"></i>
+                  Canal de origen <span class="rec-required">*</span>
+                </label>
+                <div class="rec-canal-origen-grid">
+                  @for (co of canalesOrigen; track co.value) {
+                    <label class="rec-origen-pill"
+                           [class.rec-origen-pill--sel]="canalOrigenUI === co.value">
+                      <input type="radio" name="canalOrigen"
+                             [value]="co.value" [(ngModel)]="canalOrigenUI">
+                      <i [class]="'fa-solid ' + co.icon"></i>
+                      <span>{{ co.label }}</span>
+                    </label>
                   }
                 </div>
               </div>
@@ -422,16 +625,29 @@
                 </select>
               </div>
 
-              <!-- Descripción de hechos -->
+              <!-- Descripción de hechos / Observaciones adicionales -->
               <div class="ui-field ui-col-12">
                 <label class="ui-label">
-                  Descripción de hechos <span class="rec-required">*</span>
+                  @if (asistenteAutoActivado && asistentePreguntas.length > 0) {
+                    Observaciones adicionales del operador
+                  } @else {
+                    Descripción de hechos <span class="rec-required">*</span>
+                  }
                 </label>
                 <textarea class="ui-control rec-textarea"
-                          [class.rec-invalid]="!txtComentario.trim()"
-                          [class.rec-valid]="txtComentario.trim()"
-                          [(ngModel)]="txtComentario"
-                          placeholder="Describa detalladamente el incidente reportado…"></textarea>
+                          [class.rec-invalid]="!notasAdicionales.trim() && !relatoAutomatico.trim()"
+                          [class.rec-valid]="notasAdicionales.trim() || relatoAutomatico.trim()"
+                          [(ngModel)]="notasAdicionales"
+                          [placeholder]="(asistenteAutoActivado && asistentePreguntas.length > 0)
+                            ? 'Agregue información adicional que las preguntas no cubran…'
+                            : 'Describa detalladamente el incidente reportado…'">
+                </textarea>
+                @if (asistenteAutoActivado && asistentePreguntas.length > 0 && !notasAdicionales.trim()) {
+                  <span class="rec-asistente__hint" style="margin-top:4px;display:block;">
+                    <i class="fa-solid fa-circle-info"></i>
+                    El relato principal se genera desde las preguntas orientadoras. Este campo es opcional.
+                  </span>
+                }
               </div>
 
             </div>
@@ -487,19 +703,25 @@
             </div>
           </div>
 
-          <!-- ── Canales de atención ──────────────────────────────────────── -->
+          <!-- ── Canales de atención SECAD ──────────────────────────────────── -->
           @if (gruposCanales.length > 0) {
             <div class="rec-section">
               <div class="rec-section__head">
                 <i class="fa-solid fa-tower-broadcast"></i>
-                Canales de atención — Agencias
+                Canales de atención — SECAD
               </div>
 
               <div class="rec-canales-wrap">
                 @for (grupo of gruposCanales; track grupo.fuerza) {
-                  <div class="rec-canal-grupo">
+                  <div class="rec-canal-grupo"
+                       [class.rec-canal-grupo--externo]="esGrupoExterno(grupo)">
                     <div class="rec-canal-grupo__head">
                       <span class="rec-canal-grupo__nombre">{{ grupo.fuerza }}</span>
+                      @if (esGrupoExterno(grupo)) {
+                        <span class="rec-canal-grupo__ext-badge">
+                          <i class="fa-solid fa-building-shield"></i> Otra agencia
+                        </span>
+                      }
                       <span class="rec-canal-grupo__badge">{{ grupo.canales.length }}</span>
                     </div>
                     <div class="rec-canal-grid">
@@ -507,6 +729,7 @@
                         <button type="button"
                                 class="rec-canal-card"
                                 [class.rec-canal-card--sel]="c.seleccionado"
+                                [class.rec-canal-card--externo]="esGrupoExterno(grupo)"
                                 (click)="toggleCanal(c)">
                           {{ c.descripcion }}
                         </button>
@@ -515,6 +738,41 @@
                   </div>
                 }
               </div>
+            </div>
+          }
+
+          <!-- ── Agencias externas (no usan SECAD — despacho por API) ──────── -->
+          @if (agenciasExternas.length > 0) {
+            <div class="rec-section">
+              <div class="rec-section__head">
+                <i class="fa-solid fa-building-shield"></i>
+                Notificar a agencias externas
+                <span class="rec-section__hint">
+                  · Se enviarán los datos del caso a su API
+                </span>
+              </div>
+              <div class="rec-canales-wrap">
+                <div class="rec-canal-grupo rec-canal-grupo--externo">
+                  <div class="rec-canal-grid">
+                    @for (ag of agenciasExternas; track ag.id) {
+                      <button type="button"
+                              class="rec-canal-card rec-canal-card--externo"
+                              [class.rec-canal-card--sel]="agenciasSeleccionadas.has(ag.id)"
+                              (click)="toggleAgenciaExterna(ag.id)">
+                        <i class="fa-solid" [ngClass]="getAgenciaIcon(ag.tipoAgencia)"></i>
+                        {{ ag.nombre }}
+                      </button>
+                    }
+                  </div>
+                </div>
+              </div>
+              @if (agenciasSeleccionadas.size > 0) {
+                <div class="rec-agencias-nota">
+                  <i class="fa-solid fa-circle-info"></i>
+                  {{ agenciasSeleccionadas.size }} agencia(s) seleccionada(s) recibirán
+                  los datos del caso vía API al guardar.
+                </div>
+              }
             </div>
           }
 
@@ -569,6 +827,110 @@
               </div>
             </div>
           </div>
+
+          <!-- ══════════════════════════════════════════════════════════════════
+               §multicanal — Fotos adjuntas al caso
+               ══════════════════════════════════════════════════════════════════ -->
+          <div class="rec-section">
+            <div class="rec-section__head">
+              <i class="fa-solid fa-camera"></i>
+              Fotos adjuntas
+              <span class="rec-section__hint">· JPG, PNG o WEBP — máx. 8 MB por foto</span>
+              @if (adjuntos.length > 0) {
+                <span class="rec-canal-grupo__badge" style="margin-left:auto;">
+                  {{ adjuntos.length }}
+                </span>
+              }
+            </div>
+
+            <!-- Zona de drop / selector de archivo -->
+            <div class="rec-adjuntos-drop"
+                 [class.rec-adjuntos-drop--over]="adjuntosDragOver"
+                 [class.rec-adjuntos-drop--loading]="adjuntosSubiendo"
+                 (dragover)="onFotoDragOver($event)"
+                 (dragleave)="onFotoDragLeave()"
+                 (drop)="onFotoDrop($event)">
+
+              @if (adjuntosSubiendo) {
+                <span class="rec-adjuntos-drop__text">
+                  <i class="fa-solid fa-spinner fa-spin"></i>
+                  Subiendo foto…
+                </span>
+              } @else {
+                <span class="rec-adjuntos-drop__text">
+                  <i class="fa-solid fa-cloud-arrow-up"></i>
+                  Arrastra fotos aquí o
+                </span>
+                <label class="ui-btn sm secondary rec-adjuntos-btn"
+                       [class.disabled]="!txtNumeLlamada">
+                  <i class="fa-solid fa-folder-open"></i>
+                  Seleccionar foto
+                  <input type="file" accept=".jpg,.jpeg,.png,.webp"
+                         multiple hidden
+                         [disabled]="!txtNumeLlamada"
+                         (change)="onFotoSeleccionada($event)">
+                </label>
+                @if (!txtNumeLlamada) {
+                  <span class="rec-adjuntos-drop__hint">
+                    <i class="fa-solid fa-circle-info"></i>
+                    Genere primero un ID de llamada
+                  </span>
+                }
+              }
+            </div>
+
+            <!-- Galería de fotos subidas -->
+            @if (adjuntos.length > 0) {
+              <div class="rec-adjuntos-galeria">
+                @for (adj of adjuntos; track adj.id) {
+                  <div class="rec-adjunto-card">
+
+                    <!-- Miniatura o icono -->
+                    <div class="rec-adjunto-card__img">
+                      <img [src]="adj.urlPublica"
+                           [alt]="adj.nombreOriginal"
+                           loading="lazy"
+                           (error)="$any($event.target).style.display='none'">
+                      <i class="fa-solid fa-image rec-adjunto-card__fallback"></i>
+                    </div>
+
+                    <!-- Nombre y metadatos -->
+                    <div class="rec-adjunto-card__info">
+                      <span class="rec-adjunto-card__nombre"
+                            [title]="adj.nombreOriginal">
+                        {{ adj.nombreOriginal }}
+                      </span>
+                      <span class="rec-adjunto-card__meta">
+                        {{ formatBytes(adj.tamanioBytes) }}
+                        @if (adj.fechaSubida) {
+                          · {{ adj.fechaSubida }}
+                        }
+                      </span>
+                      @if (adj.descripcion) {
+                        <span class="rec-adjunto-card__desc">{{ adj.descripcion }}</span>
+                      }
+                    </div>
+
+                    <!-- Acciones -->
+                    <div class="rec-adjunto-card__actions">
+                      <a [href]="adj.urlPublica" target="_blank"
+                         class="ui-icon-btn"
+                         title="Ver foto en nueva pestaña">
+                        <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                      </a>
+                      <button type="button" class="ui-icon-btn danger"
+                              title="Eliminar foto"
+                              (click)="eliminarFoto(adj)">
+                        <i class="fa-solid fa-trash-can"></i>
+                      </button>
+                    </div>
+
+                  </div>
+                }
+              </div>
+            }
+
+          </div><!-- /fotos adjuntas -->
 
           <!-- ── Botón Validar y Enviar ──────────────────────────────────── -->
           <div class="rec-section rec-section--send">

@@ -59,6 +59,12 @@ export class AdministracionInicioComponent {
       description: 'Administra dominios del sistema, para listas desplegables.',
       route: '/administracion/dominio',
       icon: 'fa fa-refresh fa-spin fa-3x fa-fw'
+    },
+    {
+      title: 'Entidades / Fuerzas',
+      description: 'Gestiona fuerzas de despacho, canales y usuarios por entidad para los módulos de operación.',
+      route: '/administracion/entidades',
+      icon: 'fa-solid fa-building'
     }
   ];
 }

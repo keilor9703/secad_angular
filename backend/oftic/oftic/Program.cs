@@ -1,5 +1,10 @@
+using Api.BackgroundServices;
 using Api.Converters;
+using Api.Services;
+using Servicios.Api;
+using Servicios.ApiInterfaz;
 using Api.Middleware;
+using Comun.Interfaces;
 using Comun.Snowflake;
 using Datos.Gestion;
 using Datos.Gestion.GestionDocumental;
@@ -32,6 +37,8 @@ builder.Services.AddControllers()
     .AddJsonOptions(options =>
     {
         options.JsonSerializerOptions.PropertyNameCaseInsensitive = true;
+        // Serializar respuestas en camelCase para que Angular las consuma directamente.
+        options.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
         // Serializar long / long? como cadena JSON para evitar pérdida de precisión
         // en JavaScript (Number.MAX_SAFE_INTEGER ≈ 9 × 10^15; Snowflake IDs ≈ 10^18).
         options.JsonSerializerOptions.Converters.Add(new LongToStringJsonConverter());
@@ -74,13 +81,27 @@ builder.Services.AddAuthentication("Bearer")
         };
     });
 
-builder.Services.AddAuthorization();
+builder.Services.AddAuthorization(options =>
+{
+    // Any user with es_admin=true (role 1 or role 2 or SuperUserIds list)
+    options.AddPolicy("Administrador", policy =>
+        policy.RequireAssertion(ctx =>
+            ctx.User.FindFirst("es_admin")?.Value == "true"));
+
+    // Only users with es_super_admin=true (role 2 or SuperUserIds list)
+    options.AddPolicy("SuperAdministrador", policy =>
+        policy.RequireAssertion(ctx =>
+            ctx.User.FindFirst("es_super_admin")?.Value == "true"));
+});
 builder.Services.AddMemoryCache();
 
 // Master DB (PostgreSQL): NpgsqlDataSource singleton
+// Se agrega Timezone=America/Bogota para que las sesiones PostgreSQL
+// usen hora Colombia por defecto (afecta NOW(), CURRENT_TIMESTAMP, etc.).
 var masterConnStr = builder.Configuration.GetConnectionString("MasterDb")
     ?? throw new InvalidOperationException("ConnectionStrings:MasterDb no configurada.");
-builder.Services.AddSingleton(NpgsqlDataSource.Create(masterConnStr));
+var masterConnStrWithTz = masterConnStr.TrimEnd(';') + ";Timezone=America/Bogota";
+builder.Services.AddSingleton(NpgsqlDataSource.Create(masterConnStrWithTz));
 
 // Tenant infrastructure
 builder.Services.AddSingleton<ConnectionPoolManager>();
@@ -94,6 +115,9 @@ builder.Services.AddSingleton<ISnowflakeGenerator, SnowflakeGenerator>();
 // HTTP clients for external APIs
 builder.Services.AddHttpClient("AuthClient");
 builder.Services.AddScoped<ITokenProvider, TokenProvider>();
+// IPipTokenProvider: interfaz mínima en Comun, accesible desde la capa de datos.
+// La misma instancia de TokenProvider la implementa (comparte caché).
+builder.Services.AddScoped<IPipTokenProvider>(sp => (IPipTokenProvider)sp.GetRequiredService<ITokenProvider>());
 builder.Services.AddTransient<AuthHeaderHandler>();
 
 builder.Services.AddHttpClient<IApiWebOud, ApiWebOud>(c =>
@@ -101,6 +125,13 @@ builder.Services.AddHttpClient<IApiWebOud, ApiWebOud>(c =>
     .AddHttpMessageHandler<AuthHeaderHandler>();
 
 builder.Services.AddScoped<IApiWebToken, ApiWebToken>();
+
+// ── MFA / 2FA (servicio centralizado Api2FA Policía Nacional) ─────────────────
+// MfaCentralService: cliente HTTP hacia Api2FA — necesita IMemoryCache (ya registrado arriba).
+// MfaSessionTokenService: singleton (sin estado mutable, solo lee config).
+builder.Services.AddHttpClient<IMfaCentralService, MfaCentralService>(c =>
+    c.Timeout = TimeSpan.FromSeconds(10));
+builder.Services.AddSingleton<MfaSessionTokenService>();
 
 // Data repositories
 builder.Services.AddScoped<IDbMasterRepository, DbMasterRepository>();
@@ -137,6 +168,39 @@ builder.Services.AddScoped<IDbAnotacionTurnoRepository, DbAnotacionTurnoReposito
 
 // Módulo §6.17 — Asistente Inteligente (preguntas orientadoras por tipo de incidente)
 builder.Services.AddScoped<IDbAsistenteRepository, DbAsistenteRepository>();
+
+// Módulo Entidades/Fuerzas — gestión de fuerzas, canales y datos operacionales de usuarios
+builder.Services.AddScoped<IDbFuerzaRepository, DbFuerzaRepository>();
+
+// Módulo §6.1 — Agencias externas (despacho interagencial por API)
+builder.Services.AddScoped<IDbAgenciaExternaRepository, DbAgenciaExternaRepository>();
+builder.Services.AddScoped<IDbAgenciaExternaService,    DbAgenciaExternaService>();
+
+// Módulo Recepción multicanal — adjuntos (fotos) + Chat/SMS API REST
+builder.Services.AddScoped<IDbAdjuntoRepository, DbAdjuntoRepository>();
+builder.Services.AddScoped<IDbAdjuntoService,    DbAdjuntoService>();
+
+// Hub de Integraciones — integraciones entrantes + auditoría unificada
+builder.Services.AddScoped<IDbIntegracionRepository, DbIntegracionRepository>();
+builder.Services.AddScoped<IDbIntegracionService,    DbIntegracionService>();
+
+// Módulo Reportes y Estadísticas (§6.16)
+builder.Services.AddScoped<IDbReporteRepository, DbReporteRepository>();
+builder.Services.AddScoped<IDbReporteService,    DbReporteService>();
+
+// Módulo GIS 2D — Mapa de Incidentes (§2.3, §6.12)
+builder.Services.AddScoped<IDbMapaRepository, DbMapaRepository>();
+
+// Módulo GIS Estadístico Delincuencial — análisis histórico con heatmap y métricas
+builder.Services.AddScoped<IDbMapaEstadisticoRepository, DbMapaEstadisticoRepository>();
+
+// ── Monitor de salud de CADs ──────────────────────────────────────────────────
+// BackgroundService que sondea periódicamente la BD de cada CAD y persiste
+// métricas en secad_tenants + secad_salud_historial.
+// Configuración: sección "HealthMonitor" en appsettings.json.
+builder.Services.Configure<CadHealthMonitorOptions>(
+    builder.Configuration.GetSection(CadHealthMonitorOptions.Section));
+builder.Services.AddHostedService<CadHealthMonitorService>();
 
 // Swagger
 builder.Services.AddEndpointsApiExplorer();

@@ -2184,3 +2184,202 @@ html.dark-mode {
   min-height:   unset !important;
   margin-top:   0.2rem;
 }
+
+// ─── §6.1 Modal Remitir a agencia ────────────────────────────────────────────
+
+.ev-remitir-modal {
+  width:          min(520px, 95vw) !important;
+  max-height:     85vh;
+  display:        flex !important;
+  flex-direction: column;
+
+  .ui-modal__body { overflow-y: auto; flex: 1; padding: 1rem 1.25rem; }
+}
+
+.ev-remitir-tab-body {
+  padding:    0.75rem 0 0.25rem;
+  min-height: 120px;
+}
+
+.ev-remitir-hint {
+  font-size:     calc(12px * var(--font-size-scale, 1));
+  color:         #64748b;
+  margin-bottom: 0.85rem;
+  line-height:   1.4;
+}
+
+.ev-remitir-canal-grupo {
+  margin-bottom: 0.75rem;
+
+  &__head {
+    font-size:     calc(11px * var(--font-size-scale, 1));
+    font-weight:   700;
+    color:         #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 0.4rem;
+    display:       flex;
+    align-items:   center;
+    gap:           0.35rem;
+  }
+}
+
+.ev-remitir-tabs {
+  display:        flex;
+  gap:            0.5rem;
+  border-bottom:  1px solid var(--ui-border, #dbe2ef);
+  margin-bottom:  0.75rem;
+}
+
+.ev-remitir-tab {
+  padding:        0.4rem 0.85rem;
+  border:         none;
+  background:     none;
+  cursor:         pointer;
+  font-size:      calc(13px * var(--font-size-scale, 1));
+  font-weight:    600;
+  color:          #64748b;
+  border-bottom:  2px solid transparent;
+  margin-bottom:  -1px;
+  display:        flex;
+  align-items:    center;
+  gap:            0.35rem;
+
+  &--active {
+    color:        var(--policia-cielo, #08a6cb);
+    border-color: var(--policia-cielo, #08a6cb);
+  }
+
+  &:hover:not(&--active) { color: #334155; }
+}
+
+.ev-agencias-grid {
+  display:               grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap:                   0.6rem;
+}
+
+.ev-agencia-card {
+  display:        flex;
+  align-items:    center;
+  gap:            0.5rem;
+  padding:        0.65rem 0.85rem;
+  border:         1px solid var(--ui-border, #dbe2ef);
+  border-radius:  8px;
+  background:     #fff;
+  cursor:         pointer;
+  font-size:      calc(12.5px * var(--font-size-scale, 1));
+  font-weight:    600;
+  color:          #334155;
+  transition:     border-color 0.12s, background 0.12s;
+  position:       relative;
+
+  &:hover { border-color: var(--policia-cielo, #08a6cb); }
+
+  &--sel {
+    border-color: var(--policia-cielo, #08a6cb);
+    background:   rgba(8, 166, 203, .08);
+    color:        var(--policia-cielo, #08a6cb);
+  }
+}
+
+.ev-agencia-check {
+  margin-left:  auto;
+  color:        var(--policia-cielo, #08a6cb);
+  font-size:    0.9rem;
+}
+
+.ev-remitir-error {
+  margin-top:    0.75rem;
+  padding:       0.5rem 0.75rem;
+  border-radius: 6px;
+  background:    rgba(239,68,68,.08);
+  color:         #b91c1c;
+  font-size:     calc(12px * var(--font-size-scale, 1));
+  display:       flex;
+  gap:           0.4rem;
+  align-items:   center;
+}
+
+html.dark-mode {
+  .ev-agencia-card {
+    background:   var(--ui-surface);
+    border-color: var(--ui-border);
+    color:        var(--ui-text);
+
+    &--sel {
+      background:   rgba(8, 166, 203, .12);
+      border-color: var(--policia-cielo, #08a6cb);
+      color:        var(--policia-cielo, #08a6cb);
+    }
+  }
+}
+
+
+// -- Fotos adjuntas del caso ---------------------------------------------------
+.ev-adjuntos-grid {
+  display:   flex;
+  flex-wrap: wrap;
+  gap:       10px;
+  padding:   12px 14px;
+}
+
+.ev-adjunto-card {
+  display:        flex;
+  flex-direction: column;
+  gap:            4px;
+  width:          110px;
+  text-decoration: none;
+  cursor:          pointer;
+  transition:      transform .12s;
+
+  &:hover { transform: scale(1.04); }
+
+  &__img {
+    position:       relative;
+    width:          110px;
+    height:         80px;
+    border-radius:  6px;
+    overflow:       hidden;
+    background:     rgba(21,27,59,.08);
+    display:        flex;
+    align-items:    center;
+    justify-content: center;
+    border:         1px solid var(--ui-border, #e5e9f0);
+
+    img {
+      width:      100%;
+      height:     100%;
+      object-fit: cover;
+    }
+  }
+
+  &__fallback {
+    position:  absolute;
+    font-size: 1.4rem;
+    color:     rgba(21,27,59,.25);
+  }
+
+  &__nombre {
+    font-size:     0.72rem;
+    color:         var(--ui-text);
+    white-space:   nowrap;
+    overflow:      hidden;
+    text-overflow: ellipsis;
+    max-width:     110px;
+  }
+
+  &__canal {
+    font-size:  0.65rem;
+    color:      var(--ui-text-muted, #6b7280);
+    font-style: italic;
+  }
+}
+
+html.dark-mode {
+  .ev-adjunto-card__img {
+    background:   rgba(255,255,255,.06);
+    border-color: rgba(255,255,255,.12);
+  }
+  .ev-adjunto-card__nombre { color: rgba(228,231,235,.9); }
+}

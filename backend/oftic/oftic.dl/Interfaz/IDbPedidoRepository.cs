@@ -1,4 +1,5 @@
 using Comun.Dtos.Incidentes;
+using Ev = Comun.Dtos.Eventos;
 
 namespace Datos.Interfaz
 {
@@ -6,9 +7,19 @@ namespace Datos.Interfaz
     {
         Task<List<DtoPedidoListItem>> GetListAsync(string? estado, int? sitioGraba, CancellationToken ct);
         Task<DtoPedidoDetalle?> GetByIdAsync(long id, CancellationToken ct);
-        Task<DtoPedidoResult> CreateAsync(DtoPedidoRequest request, long usuarioAuditoria, string maquinaAuditoria, CancellationToken ct);
+        Task<DtoPedidoResult> CreateAsync(DtoPedidoRequest request, long usuarioAuditoria, string usernameAuditoria, string maquinaAuditoria, CancellationToken ct);
         Task<DtoPedidoResult> UpdateAsync(long id, DtoPedidoRequest request, long usuarioAuditoria, string maquinaAuditoria, CancellationToken ct);
         Task<DtoPedidoResult> CerrarRapidoAsync(long id, DtoCerrarRapidoRequest request, long usuarioAuditoria, string maquinaAuditoria, CancellationToken ct);
+
+        /// <summary>
+        /// Cierra un evento desde el módulo Despachador.
+        /// Actualiza cad_eventos + cad_eventos_codigos_cierre con los datos de cierre;
+        /// en cad_pedidos SOLO actualiza estado='C' — NUNCA toca comentario ni codi_pedido.
+        /// </summary>
+        Task<DtoPedidoResult> CerrarEventoDesdeDespachoAsync(
+            long pedidoId, Ev.DtoCerrarEventoDespachoRequest request,
+            long usuarioId, string username, string maquina, CancellationToken ct);
+
         Task<DtoPedidoResult> SetEstadoAsync(long id, string estado, long usuarioAuditoria, string maquinaAuditoria, CancellationToken ct);
         Task<List<DtoAnotacion>> GetAnotacionesAsync(long idPedido, CancellationToken ct);
         Task<DtoPedidoResult> CreateAnotacionAsync(long idPedido, DtoAnotacionRequest request, long usuarioAuditoria, string usernameAuditoria, string maquinaAuditoria, CancellationToken ct);

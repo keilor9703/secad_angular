@@ -20,6 +20,7 @@ import {
 } from '../../../core/services/operacion/turnos.service';
 import { AuthService } from '../../../core/auth/auth.service';
 import { EventoService, DtoCanalItem } from '../../../core/services/operacion/evento.service';
+import { FuerzaService, DtoFuerza } from '../../../core/services/administracion/fuerza.service';
 
 // Leaflet cargado vía CDN en index.html
 declare const L: any;
@@ -56,6 +57,10 @@ export class TurnosComponent implements OnInit, OnDestroy, AfterViewChecked {
   private authSvc    = inject(AuthService);
   private cdr        = inject(ChangeDetectorRef);
   private eventoSvc  = inject(EventoService);
+  private fuerzaSvc  = inject(FuerzaService);
+
+  // ── Fuerzas disponibles (para desplegable) ────────────────────────────────────
+  fuerzas: DtoFuerza[] = [];
 
   // ── Canales de radio (cargados una vez) ───────────────────────────────────────
   canales: DtoCanalItem[] = [];
@@ -169,7 +174,15 @@ export class TurnosComponent implements OnInit, OnDestroy, AfterViewChecked {
     this.sitioGraba = claims.sitioGraba;
     this.fuerzaFiltro = this.fuerzaId;
     this.fechaBusqueda = this.hoyIso();
+    this.cargarFuerzas();
     this.cargarTurnos();
+  }
+
+  private cargarFuerzas(): void {
+    this.fuerzaSvc.getFuerzas().subscribe({
+      next: r => { this.fuerzas = (r.data ?? []).filter(f => f.vigente === 'S'); },
+      error: () => { /* no crítico — si falla, el campo queda sin opciones */ }
+    });
   }
 
   ngOnDestroy(): void {

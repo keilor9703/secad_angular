@@ -17,8 +17,13 @@ import {
 } from '../../../core/services/operacion/evento.service';
 import {
   ActuacionesService,
-  DtoActuacionListItem
+  DtoActuacionListItem,
+  DtoActuacionUnidad
 } from '../../../core/services/operacion/actuaciones.service';
+import {
+  RecepcionService,
+  DtoAdjunto
+} from '../../../core/services/operacion/recepcion.service';
 
 type VistaCad    = 'dashboard' | 'incidentes' | 'kpis';
 type SemaforoColor = 'semaforo-verde' | 'semaforo-amarillo' | 'semaforo-rojo';
@@ -37,15 +42,40 @@ interface DashStat {
   porOrigen:  Record<string, number>;
 }
 
+/** Una fase del ciclo operativo de una actuación (Asignado → Despacho → Sitio → Cierre). */
+interface ActuacionFase {
+  label:      string;
+  icono:      string;
+  timestamp:  string | null;   // ISO-8601
+  deltaMin:   number | null;   // tiempo desde la fase anterior (null si no aplica)
+  cumplida:   boolean;
+}
+
+/** Datos operativos completos de una actuación para el bloque compacto del timeline. */
+interface ActuacionBloque {
+  actId:        string;
+  canal:        string;
+  unidad:       string;
+  placa:        string;
+  despachador:  string;
+  fases:        ActuacionFase[];
+  totalMin:     number | null;   // duración total asignación→cierre en minutos
+  estado:       string;
+  caliPedido:   string;
+  totalUnidades: number;
+}
+
 interface TimelineItem {
   timestamp:     string | null;
-  tipo:          'CREACION' | 'ANOTACION' | 'CIERRE' | 'SUPERVISION';
+  tipo:          'CREACION' | 'ANOTACION' | 'CIERRE' | 'SUPERVISION' | 'ACTUACION';
   titulo:        string;
   descripcion:   string;
   actor:         string;
   icono:         string;
   colorClass:    string;
   tipoAnotacion?: string;
+  /** Presente solo cuando tipo === 'ACTUACION' — reemplaza la tarjeta genérica. */
+  actuacion?:   ActuacionBloque;
 }
 
 interface KpiItem {
@@ -91,6 +121,14 @@ export class PedidoComponent implements OnInit, OnDestroy {
   filtroEstado    = '';
   filtroTexto     = '';
   filtroPrioridad = '';
+  filtroTurno     = 0;   // 0=Todos, 1=Segundo(06-13h), 2=Tercer(14-21h), 3=Cuarto(22-05h)
+
+  readonly turnosVigilancia = [
+    { value: 0, label: 'Todos los turnos',          icono: 'fa-clock',            color: '#64748b' },
+    { value: 1, label: 'Segundo turno (06:00-13:59)',icono: 'fa-sun',              color: '#2563eb' },
+    { value: 2, label: 'Tercer turno  (14:00-21:59)',icono: 'fa-cloud-sun',        color: '#7c3aed' },
+    { value: 3, label: 'Cuarto turno  (22:00-05:59)',icono: 'fa-moon',             color: '#dc2626' },
+  ];
 
   // ── Datos ─────────────────────────────────────────────────────────────────
   listaPedidos:   DtoPedidoListItem[]               = [];
@@ -101,6 +139,7 @@ export class PedidoComponent implements OnInit, OnDestroy {
   selectedId:     string | null                     = null;
   detalle:        DtoPedidoDetalle | null            = null;
   actuaciones:    DtoActuacionListItem[]             = [];
+  adjuntos:       DtoAdjunto[]                      = [];
   loadingDetalle  = false;
   timeline:       TimelineItem[]                    = [];
   lastRefresh:    Date                              = new Date();
@@ -118,12 +157,18 @@ export class PedidoComponent implements OnInit, OnDestroy {
   savingAnotacion = false;
   showAnotForm    = false;
 
+  // ── Equipo de actuaciones (lazy load por demanda del Jefe de Turno) ──────
+  equipoExpandido: Record<string, boolean>             = {};
+  equipoDetalle:   Record<string, DtoActuacionUnidad[]> = {};
+  equipoCargando:  Record<string, boolean>             = {};
+
   private destroy$ = new Subject<void>();
 
   constructor(
     private readonly pedidoService:      PedidoService,
     private readonly eventoService:      EventoService,
     private readonly actuacionesService: ActuacionesService,
+    private readonly recepcionSvc:       RecepcionService,
     private readonly toast:              ToastService
   ) {}
 
@@ -207,6 +252,7 @@ export class PedidoComponent implements OnInit, OnDestroy {
     this.detalle        = null;
     this.timeline       = [];
     this.actuaciones    = [];
+    this.adjuntos       = [];
     this.showAnotForm   = false;
 
     // El backend filtra cad_actuaciones por pedido_id (= cad_pedidos.id),
@@ -224,6 +270,10 @@ export class PedidoComponent implements OnInit, OnDestroy {
         this.loadingDetalle = false;
         this.buildTimeline(this.detalle, this.actuaciones);
         if (this.vista === 'dashboard') this.vista = 'incidentes';
+        // Cargar fotos adjuntas del incidente
+        this.recepcionSvc.getAdjuntos(item.id)
+          .pipe(takeUntil(this.destroy$))
+          .subscribe({ next: r => { if (r.success) this.adjuntos = r.data; } });
       },
       error: () => {
         this.loadingDetalle = false;
@@ -271,79 +321,71 @@ export class PedidoComponent implements OnInit, OnDestroy {
       colorClass: 'tl-creacion',
     });
 
-    // ── 2. Actuaciones (despacho de recursos operativos) ──────────────────
+    // ── 2. Actuaciones — bloque compacto por recurso (Jefe de Turno) ─────
     for (const act of actuaciones) {
-      const canal  = [act.fuerzaDesc, act.canalDesc].filter(Boolean).join(' · ');
-      const unidad = act.unidadAsignada
-        ? `${act.unidadAsignada}${act.placaUnidad ? ' (' + act.placaUnidad + ')' : ''}`
-        : 'Sin unidad registrada';
+      const canal      = [act.fuerzaDesc, act.canalDesc].filter(Boolean).join(' / ');
+      const unidad     = act.unidadAsignada ?? '';
+      const placa      = act.placaUnidad    ?? '';
+      const despacha   = act.despachadorUsuario ?? '';
 
-      // Asignación del recurso (estado P)
+      // Fases del ciclo operativo
+      const tAsig     = this.diffMin(act.fechaCreacion,  act.fechaDespacho);
+      const tTransito = this.diffMin(act.fechaDespacho ?? act.fechaCreacion, act.fechaLlegada);
+      const tSitio    = this.diffMin(act.fechaLlegada  ?? act.fechaDespacho ?? act.fechaCreacion, act.fechaCierre);
+      const tTotal    = this.diffMin(act.fechaCreacion,  act.fechaCierre);
+
+      const fases: ActuacionFase[] = [
+        {
+          label:     'Asignado',
+          icono:     'fa-solid fa-hand-point-right',
+          timestamp: act.fechaCreacion ?? null,
+          deltaMin:  null,
+          cumplida:  true,
+        },
+        {
+          label:     'En camino',
+          icono:     'fa-solid fa-truck-fast',
+          timestamp: act.fechaDespacho ?? null,
+          deltaMin:  act.fechaDespacho ? tAsig : null,
+          cumplida:  !!act.fechaDespacho,
+        },
+        {
+          label:     'En sitio',
+          icono:     'fa-solid fa-location-dot',
+          timestamp: act.fechaLlegada ?? null,
+          deltaMin:  act.fechaLlegada ? tTransito : null,
+          cumplida:  !!act.fechaLlegada,
+        },
+        {
+          label:     act.estado === 'V' ? 'Anulado' : 'Cerrado',
+          icono:     act.estado === 'V' ? 'fa-solid fa-circle-xmark' : 'fa-solid fa-flag-checkered',
+          timestamp: act.fechaCierre ?? null,
+          deltaMin:  act.fechaCierre ? tSitio : null,
+          cumplida:  !!act.fechaCierre,
+        },
+      ];
+
       items.push({
-        timestamp:     act.fechaCreacion,
-        tipo:          'ANOTACION',
-        titulo:        `Recurso asignado — ${canal}`,
-        descripcion:   unidad,
-        actor:         '—',
-        icono:         'fa-solid fa-hand-point-right',
-        colorClass:    'tl-despacho',
-        tipoAnotacion: 'DESPACHO',
+        timestamp:  act.fechaCreacion ?? null,
+        tipo:       'ACTUACION',
+        titulo:     canal || 'Recurso despachado',
+        descripcion: '',
+        actor:      despacha || '—',
+        icono:      'fa-solid fa-shield-halved',
+        colorClass: act.estado === 'V' ? 'tl-general' : 'tl-despacho',
+        actuacion: {
+          actId:         String(act.id),
+          canal,
+          unidad,
+          placa,
+          despachador:   despacha,
+          fases,
+          totalMin:      act.fechaCierre ? tTotal : null,
+          estado:        act.estado,
+          caliPedido:    act.caliPedido ?? '',
+          totalUnidades: act.totalUnidades ?? 1,
+        }
       });
-
-      // En camino (estado D) — con tiempo desde asignación
-      if (act.fechaDespacho) {
-        const tAsig = this.diffMin(act.fechaCreacion, act.fechaDespacho);
-        items.push({
-          timestamp:     act.fechaDespacho,
-          tipo:          'ANOTACION',
-          titulo:        `Recurso en camino — ${canal}`,
-          descripcion:   `${unidad} · ⏱ Asignación→Despacho: ${this.fmtDur(tAsig)}`,
-          actor:         '—',
-          icono:         'fa-solid fa-truck-fast',
-          colorClass:    'tl-despacho',
-          tipoAnotacion: 'DESPACHO',
-        });
-      }
-
-      // En sitio (estado A) — con tiempo de tránsito
-      if (act.fechaLlegada) {
-        const tTransito = this.diffMin(act.fechaDespacho ?? act.fechaCreacion, act.fechaLlegada);
-        items.push({
-          timestamp:     act.fechaLlegada,
-          tipo:          'ANOTACION',
-          titulo:        `Recurso en sitio — ${canal}`,
-          descripcion:   `${unidad} · ⏱ Tránsito: ${this.fmtDur(tTransito)}`,
-          actor:         '—',
-          icono:         'fa-solid fa-location-dot',
-          colorClass:    'tl-operativa',
-          tipoAnotacion: 'OPERATIVA',
-        });
-      }
-
-      // Cierre de actuación (estado C o V) — con tiempos de atención y total
-      if (act.fechaCierre) {
-        const cerradoLabel = act.estado === 'V' ? 'Actuación anulada' : 'Actuación cerrada';
-        const ref          = act.fechaLlegada ?? act.fechaDespacho ?? act.fechaCreacion;
-        const tAtencion    = this.diffMin(ref, act.fechaCierre);
-        const tTotal       = this.diffMin(act.fechaCreacion, act.fechaCierre);
-        const partes       = [
-          `${unidad}`,
-          act.fechaLlegada ? `⏱ En sitio: ${this.fmtDur(tAtencion)}`    : null,
-          `⏱ Total actuación: ${this.fmtDur(tTotal)}`,
-          act.caliPedido   ? `Cal.: ${act.caliPedido}` : null,
-        ].filter(Boolean).join(' · ');
-
-        items.push({
-          timestamp:     act.fechaCierre,
-          tipo:          'CIERRE',
-          titulo:        `${cerradoLabel} — ${canal}`,
-          descripcion:   partes,
-          actor:         '—',
-          icono:         act.estado === 'V' ? 'fa-solid fa-circle-xmark' : 'fa-solid fa-flag-checkered',
-          colorClass:    act.estado === 'V' ? 'tl-general' : 'tl-cierre',
-          tipoAnotacion: 'CIERRE',
-        });
-      }
     }
 
     // ── 3. Anotaciones tipificadas del pedido ─────────────────────────────
@@ -369,6 +411,35 @@ export class PedidoComponent implements OnInit, OnDestroy {
         icono:         meta.icon,
         colorClass:    meta.clase,
         tipoAnotacion: a.tipoAnotacion,
+      });
+    }
+
+    // ── 4. Evento de cierre (si el incidente está cerrado) ───────────────
+    if ((d.estado === 'C' || d.estado === 'V') && d.fechaCierre) {
+      const codigosStr = d.codigosCierre?.length
+        ? d.codigosCierre
+            .map(c => c.descripcionLibre
+              ? `${c.codigoCierre} — ${c.descripcionLibre}`
+              : c.codigoCierre)
+            .join(' · ')
+        : null;
+
+      const partesCierre: string[] = [];
+      if (d.canalDescripcion || d.fuerzaDescripcion) {
+        const canal = [d.fuerzaDescripcion, d.canalDescripcion].filter(Boolean).join(' / ');
+        partesCierre.push(`Canal: ${canal}`);
+      }
+      if (codigosStr) partesCierre.push(`Códigos: ${codigosStr}`);
+      if (d.observacionCierre) partesCierre.push(`Obs: ${d.observacionCierre}`);
+
+      items.push({
+        timestamp:   d.fechaCierre,
+        tipo:        'CIERRE',
+        titulo:      d.estado === 'V' ? 'Evento anulado' : 'Evento cerrado',
+        descripcion: partesCierre.join(' · '),
+        actor:       d.usuarioCierre || d.usernameCreacion || '—',
+        icono:       d.estado === 'V' ? 'fa-solid fa-circle-xmark' : 'fa-solid fa-flag-checkered',
+        colorClass:  'tl-cierre',
       });
     }
 
@@ -573,6 +644,10 @@ export class PedidoComponent implements OnInit, OnDestroy {
       list = list.filter(p => this.normPrio(p) === pf);
     }
 
+    if (this.filtroTurno) {
+      list = list.filter(p => this.turnoDeIncidente(p.horaCaso) === this.filtroTurno);
+    }
+
     if (this.filtroTexto.trim()) {
       const txt = this.filtroTexto.toLowerCase().trim();
       list = list.filter(p =>
@@ -587,6 +662,36 @@ export class PedidoComponent implements OnInit, OnDestroy {
     }
 
     return list;
+  }
+
+  // ── Helpers de turno de vigilancia ─────────────────────────────────────────
+
+  /** Calcula el turno de vigilancia (1/2/3) desde hora_caso (ISO UTC). */
+  turnoDeIncidente(horaCaso: string | null | undefined): number {
+    if (!horaCaso) return 0;
+    const d = new Date(horaCaso);
+    if (isNaN(d.getTime())) return 0;
+    // Colombia es UTC-5 (sin cambio de horario)
+    const h = ((d.getUTCHours() - 5) + 24) % 24;
+    if (h >= 6  && h <= 13) return 1;   // Segundo turno
+    if (h >= 14 && h <= 21) return 2;   // Tercer turno
+    return 3;                            // Cuarto turno (22-05h)
+  }
+
+  turnoLabel(n: number): string {
+    return this.turnosVigilancia.find(t => t.value === n)?.label ?? '—';
+  }
+
+  turnoColor(n: number): string {
+    return this.turnosVigilancia.find(t => t.value === n)?.color ?? '#64748b';
+  }
+
+  turnoIcono(n: number): string {
+    return this.turnosVigilancia.find(t => t.value === n)?.icono ?? 'fa-clock';
+  }
+
+  turnoRango(n: number): string {
+    return ['', '06:00–13:59', '14:00–21:59', '22:00–05:59'][n] ?? '';
   }
 
   get incidentesCriticos(): DtoPedidoListItem[] {
@@ -727,20 +832,70 @@ export class PedidoComponent implements OnInit, OnDestroy {
   }
 
   /** Diferencia en minutos redondeados entre dos timestamps ISO. Siempre ≥ 0. */
-  private diffMin(from: string | null | undefined, to: string | null | undefined): number {
+  diffMin(from: string | null | undefined, to: string | null | undefined): number {
     if (!from || !to) return 0;
-    const diff = new Date(to).getTime() - new Date(from).getTime();
-    return Math.max(0, Math.round(diff / 60_000));
+    const a = new Date(from).getTime();
+    const b = new Date(to).getTime();
+    if (isNaN(a) || isNaN(b)) return 0;
+    return Math.max(0, Math.round((b - a) / 60_000));
   }
 
-  /** Formatea minutos como "5m", "1h 12m", etc. */
-  private fmtDur(min: number): string {
-    if (min <= 0) return '< 1m';
+  /** Formatea minutos como "5m", "1h 12m", etc. — accesible desde template. */
+  fmtDur(min: number | null): string {
+    if (min === null || min < 0) return '—';
+    if (min === 0) return '< 1m';
     if (min < 60) return `${min}m`;
     const h = Math.floor(min / 60);
     const m = min % 60;
     return m > 0 ? `${h}h ${m}m` : `${h}h`;
   }
+
+  // ──────────────────────────────────────────────────────────────────────────
+  //  Equipo de actuación (lazy load — "Ver equipo" del Jefe de Turno)
+  // ──────────────────────────────────────────────────────────────────────────
+
+  /**
+   * Alterna la visibilidad del panel de equipo de una actuación.
+   * Primera vez: carga las unidades vía API. Siguientes: colapsa/expande sin nueva llamada.
+   */
+  toggleEquipo(actId: string): void {
+    if (this.equipoExpandido[actId]) {
+      this.equipoExpandido[actId] = false;
+      return;
+    }
+    // Ya cargado en cache → solo expande
+    if (this.equipoDetalle[actId]) {
+      this.equipoExpandido[actId] = true;
+      return;
+    }
+    // Carga desde backend
+    this.equipoCargando[actId] = true;
+    this.actuacionesService.getActuacion(actId)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (resp) => {
+          this.equipoCargando[actId]  = false;
+          this.equipoDetalle[actId]   = resp.data?.unidades ?? [];
+          this.equipoExpandido[actId] = true;
+        },
+        error: () => {
+          this.equipoCargando[actId] = false;
+          this.toast.error('Equipo', 'No se pudo cargar el equipo de la actuación.');
+        }
+      });
+  }
+
+  /** Etiqueta legible del estado de una actuación para el template. */
+  getEstadoActuacionLabel(estado: string): string {
+    const map: Record<string, string> = {
+      P: 'Pendiente', D: 'En camino', A: 'En sitio', C: 'Cerrada', V: 'Anulada'
+    };
+    return map[estado] ?? estado;
+  }
+
+  // ──────────────────────────────────────────────────────────────────────────
+  //  Normalización de datos
+  // ──────────────────────────────────────────────────────────────────────────
 
   /**
    * Normaliza un item de lista enriqueciéndolo con datos del eventoMap.
@@ -814,6 +969,20 @@ export class PedidoComponent implements OnInit, OnDestroy {
       pedidoPadreNum:   item?.pedidoPadreNum   ?? item?.pedido_padre_num   ?? null,
       descPedido:       String(item?.descPedido  ?? item?.desc_pedido  ?? listItem?.descPedido  ?? ''),
       descPedido2:      String(item?.descPedido2 ?? item?.desc_pedido2 ?? listItem?.descPedido2 ?? ''),
+      // ── Datos del evento de despacho ───────────────────────────────────
+      eventoId:          item?.eventoId         ?? item?.evento_id         ?? null,
+      canalCodigo:       Number(item?.canalCodigo        ?? item?.canal_codigo        ?? 0),
+      canalDescripcion:  String(item?.canalDescripcion   ?? item?.canal_descripcion   ?? ''),
+      fuerzaDescripcion: String(item?.fuerzaDescripcion  ?? item?.fuerza_descripcion  ?? ''),
+      fechaCierre:       item?.fechaCierre      ?? item?.fecha_cierre      ?? null,
+      observacionCierre: String(item?.observacionCierre  ?? item?.observacion_cierre  ?? ''),
+      usuarioCierre:     String(item?.usuarioCierre      ?? item?.usuario_cierre      ?? ''),
+      codigosCierre: (item?.codigosCierre ?? item?.codigos_cierre ?? []).map((c: any) => ({
+        orden:            Number(c?.orden ?? 0),
+        codigoCierre:     String(c?.codigoCierre     ?? c?.codigo_cierre     ?? ''),
+        tipoCodigo:       String(c?.tipoCodigo       ?? c?.tipo_codigo       ?? ''),
+        descripcionLibre: String(c?.descripcionLibre ?? c?.descripcion_libre ?? ''),
+      })),
       anotaciones: (item?.anotaciones ?? []).map((a: any) => ({
         id:               Number(a?.id ?? 0),
         idPedido:         Number(a?.idPedido ?? a?.id_pedido ?? 0),

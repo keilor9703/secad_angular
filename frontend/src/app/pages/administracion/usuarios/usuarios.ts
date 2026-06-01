@@ -1,11 +1,14 @@
 import { Component, OnDestroy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { RouterModule } from '@angular/router';
 import { ToastService } from '../../../core/services/toast.service';
-import { DtoRolCatalogo, UsuarioAdminService, UsuarioListadoItem } from '../../../core/services/administracion/usuario-admin.service';
+import { DtoCivilUsuarioRequest, DtoRolCatalogo, UsuarioAdminService, UsuarioListadoItem, UsuarioLocalResult } from '../../../core/services/administracion/usuario-admin.service';
+import { DtoCanalFuerza, DtoFuerza, DtoUsuarioOperacionRequest, FuerzaService } from '../../../core/services/administracion/fuerza.service';
 
-type TabKey = 'datos' | 'roles';
-type RolEstado = 'Vigente' | 'Vencido';
+type TabKey = 'datos' | 'roles' | 'operacion';
+type TipoCreacion = 'policia' | 'civil';
+type RolEstado = 'Vigente' | 'Vencido' | 'Retirado';
 
 interface UserRole {
   id: number;
@@ -22,6 +25,8 @@ interface NewRoleForm {
 }
 
 interface UserProfile {
+  /** ID local en ctr_usuarios (Snowflake como string). Necesario para endpoints de operación. */
+  idUsuario: string;
   identificacion: string;
   nombres: string;
   apellidos: string;
@@ -47,20 +52,49 @@ interface UserProfile {
 @Component({
   selector: 'app-usuarios',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, RouterModule],
   templateUrl: './usuarios.html',
   styleUrls: ['./usuarios.scss']
 })
 export class UsuariosComponent implements OnInit, OnDestroy {
   constructor(
     private toast: ToastService,
-    private usuarioAdminService: UsuarioAdminService
+    private usuarioAdminService: UsuarioAdminService,
+    private fuerzaService: FuerzaService
   ) {}
 
   minimized = false;
   visible = true;
   loading = false;
   savingRole = false;
+
+  // ── Modo de creación ────────────────────────────────────────────
+  /** Controla si se crea un funcionario Policía (vía PIP) o Civil / Otra entidad */
+  tipoCreacion: TipoCreacion = 'policia';
+  modoCreacionActivo = false;
+
+  /** Formulario para usuario civil / otra entidad */
+  civilForm: DtoCivilUsuarioRequest = {
+    username: '',
+    password: '',
+    identificacion: '',
+    nombres: '',
+    apellidos: '',
+    email: '',
+    entidad: '',
+    cargo: '',
+    activo: true
+  };
+  showPassword = false;
+
+  // ── Datos operacionales (tab Operación) ────────────────────────────
+  fuerzasDisponibles: DtoFuerza[] = [];
+  canalesDisponibles: DtoCanalFuerza[] = [];
+  loadingOperacion = false;
+  savingOperacion  = false;
+  operacionForm: DtoUsuarioOperacionRequest = { cadcanaFuerzaId: 0, cadcanaCodigo: 0, acd: 0 };
+  operacionActual: { fuerzaDescripcion?: string; canalDescripcion?: string } = {};
+
   deletingRoleId: number | null = null;
   deletingUser = false;
   loadingListado = false;
@@ -87,6 +121,7 @@ export class UsuariosComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.cargarListadoUsuarios();
+    this.cargarFuerzas();
   }
 
   ngOnDestroy(): void {
@@ -110,6 +145,98 @@ export class UsuariosComponent implements OnInit, OnDestroy {
     this.showAddRoleForm = false;
     this.newRole = { rolId: null, justificacion: '', fechaFin: '' };
     this.rolesCatalogo = [];
+    this.modoCreacionActivo = true;
+    this.tipoCreacion = 'policia';
+    this.resetCivilForm();
+  }
+
+  cancelarNuevoUsuario(): void {
+    this.modoCreacionActivo = false;
+    this.user = null;
+    this.resetCivilForm();
+  }
+
+  setTipoCreacion(tipo: TipoCreacion): void {
+    this.tipoCreacion = tipo;
+    this.user = null;
+    this.searchIdentification = '';
+    this.resetCivilForm();
+  }
+
+  toggleShowPassword(): void {
+    this.showPassword = !this.showPassword;
+  }
+
+  private resetCivilForm(): void {
+    this.civilForm = {
+      username: '',
+      password: '',
+      identificacion: '',
+      nombres: '',
+      apellidos: '',
+      email: '',
+      entidad: '',
+      cargo: '',
+      activo: true
+    };
+    this.showPassword = false;
+  }
+
+  guardarCivilUsuario(): void {
+    const form = this.civilForm;
+    const esEdicion = !!this.user;   // true cuando se editó desde el listado
+    const titulo = esEdicion ? 'Editar usuario civil' : 'Crear usuario civil';
+
+    if (!form.username?.trim()) {
+      this.toast.warning(titulo, 'El nombre de usuario (username) es obligatorio.');
+      return;
+    }
+    // Contraseña obligatoria solo en creación; en edición, vacío = sin cambio
+    const password = form.password?.trim() ?? '';
+    if (!esEdicion && password.length < 8) {
+      this.toast.warning(titulo, 'La contraseña debe tener al menos 8 caracteres.');
+      return;
+    }
+    if (esEdicion && password.length > 0 && password.length < 8) {
+      this.toast.warning(titulo, 'La nueva contraseña debe tener al menos 8 caracteres (o déjala vacía para no cambiarla).');
+      return;
+    }
+    if (!form.nombres?.trim() || !form.apellidos?.trim()) {
+      this.toast.warning(titulo, 'Nombre y apellidos son obligatorios.');
+      return;
+    }
+
+    this.loading = true;
+    this.usuarioAdminService.createCivilUsuario({
+      username: form.username.trim(),
+      password: password,           // backend ignora hash si viene vacío (ON CONFLICT no cambia hash)
+      identificacion: form.identificacion?.trim() || undefined,
+      nombres: form.nombres.trim(),
+      apellidos: form.apellidos.trim(),
+      email: form.email?.trim() || undefined,
+      entidad: form.entidad?.trim() || undefined,
+      cargo: form.cargo?.trim() || undefined,
+      activo: form.activo
+    }).subscribe({
+      next: (resp) => {
+        this.loading = false;
+        if (!resp?.success) {
+          this.toast.warning(titulo, resp?.message || 'No fue posible guardar.');
+          return;
+        }
+        this.toast.success(titulo, resp.message || 'Usuario civil guardado correctamente.');
+        this.resetCivilForm();
+        this.modoCreacionActivo = false;
+        this.user = null;
+        this.cargarListadoUsuarios();
+      },
+      error: (err) => {
+        this.loading = false;
+        this.toast.error(titulo,
+          err?.error?.message ?? err?.error?.detail ?? 'Se presentó un error guardando el usuario civil.'
+        );
+      }
+    });
   }
 
   consultarUsuario(): void {
@@ -130,6 +257,7 @@ export class UsuariosComponent implements OnInit, OnDestroy {
         const nombreCompleto = `${nombres} ${apellidos}`.trim() || 'SIN NOMBRE';
 
         this.user = {
+          idUsuario: String(funcionario.idUsuario ?? '0'),
           identificacion: (funcionario.identificacion ?? documento).trim(),
           nombres,
           apellidos,
@@ -173,6 +301,9 @@ export class UsuariosComponent implements OnInit, OnDestroy {
 
   setTab(tab: TabKey): void {
     this.activeTab = tab;
+    if (tab === 'operacion' && this.user?.idUsuario) {
+      this.cargarOperacion();
+    }
   }
 
   toggleEstadoUsuario(): void {
@@ -208,6 +339,12 @@ export class UsuariosComponent implements OnInit, OnDestroy {
   guardarDatosUsuario(): void {
     if (!this.user) {
       this.toast.warning('Guardar datos', 'Primero consulta un usuario.');
+      return;
+    }
+
+    // Si estamos en modo civil (editando desde el panel civil), delegar a guardarCivilUsuario()
+    if (this.tipoCreacion === 'civil' && this.modoCreacionActivo) {
+      this.guardarCivilUsuario();
       return;
     }
 
@@ -295,7 +432,7 @@ export class UsuariosComponent implements OnInit, OnDestroy {
 
         this.toast.success('Roles', resp.message || 'Rol asignado correctamente.');
         this.cancelarNuevoRol();
-        this.consultarUsuario();
+        this.recargarUsuarioActual();
         this.cargarListadoUsuarios();
       },
       error: (err) => {
@@ -321,11 +458,12 @@ export class UsuariosComponent implements OnInit, OnDestroy {
       next: (resp) => {
         this.deletingRoleId = null;
         if (!resp?.success) {
-          this.toast.warning('Roles', resp?.message || 'No fue posible retirar el rol.');
+          // El backend devuelve 200 con success:false cuando el rol ya no estaba vigente
+          this.toast.warning('Roles', resp?.message || 'No hay roles vigentes para retirar.');
           return;
         }
         this.toast.success('Roles', resp.message || 'Rol retirado correctamente.');
-        this.consultarUsuario();
+        this.recargarUsuarioActual();
         this.cargarListadoUsuarios();
       },
       error: (err) => {
@@ -333,6 +471,35 @@ export class UsuariosComponent implements OnInit, OnDestroy {
         this.toast.error('Roles', err?.error?.detail ?? err?.error?.message ?? 'Error retirando rol.');
       }
     });
+  }
+
+  /**
+   * Recarga los datos del usuario actualmente seleccionado usando el método
+   * apropiado según su tipo (civil → BD local, policia → PIP vía searchIdentification).
+   * Evita llamar a consultarUsuario() cuando searchIdentification no está definido
+   * (usuarios cargados desde el listado o civiles).
+   */
+  private recargarUsuarioActual(): void {
+    if (!this.user) return;
+
+    if (this.tipoCreacion === 'civil') {
+      // Usuario civil / otra entidad: recargar desde BD local
+      const username = this.user.usuarioEmpresarial;
+      if (!username) return;
+      this.cargarUsuarioCivil({
+        idUsuario:      Number(this.user.idUsuario) || 0,
+        identificacion: this.user.identificacion,
+        username,
+        nombreCompleto: this.user.nombreCompleto,
+        rol:            '',
+        tipoUsuario:    'CIVIL'
+      });
+    } else if (this.searchIdentification?.trim()) {
+      // Policía cargado desde el campo de búsqueda por identificación
+      this.consultarUsuario();
+    }
+    // Si no aplica ninguno de los dos casos, no se hace nada
+    // (evita el toast "Documento requerido" cuando searchIdentification está vacío)
   }
 
   cargarListadoUsuarios(): void {
@@ -414,15 +581,96 @@ export class UsuariosComponent implements OnInit, OnDestroy {
   }
 
   editarDesdeListado(item: UsuarioListadoItem): void {
-    const identificacion = String(item?.identificacion ?? '').trim();
-    if (!identificacion) {
-      this.toast.warning('Usuarios', 'El registro no tiene identificación para cargar edición.');
+    const tipo = (item?.tipoUsuario ?? 'POLICIA').toUpperCase();
+
+    if (tipo === 'CIVIL') {
+      // Usuarios civiles: cargar desde BD local, nunca desde PIP
+      this.cargarUsuarioCivil(item);
+    } else {
+      // Funcionarios policiales: flujo normal vía PIP
+      const identificacion = String(item?.identificacion ?? '').trim();
+      if (!identificacion) {
+        this.toast.warning('Usuarios', 'El registro no tiene identificación para cargar edición.');
+        return;
+      }
+      this.modoCreacionActivo = false;
+      this.user = null;
+      this.searchIdentification = identificacion;
+      this.activeTab = 'datos';
+      this.consultarUsuario();
+    }
+  }
+
+  private cargarUsuarioCivil(item: UsuarioListadoItem): void {
+    const username = String(item?.username ?? '').trim();
+    if (!username) {
+      this.toast.warning('Usuarios', 'El registro no tiene username para cargar edición.');
       return;
     }
 
-    this.searchIdentification = identificacion;
+    this.loading = true;
+    this.modoCreacionActivo = true;
+    this.tipoCreacion = 'civil';
+    this.user = null;
     this.activeTab = 'datos';
-    this.consultarUsuario();
+
+    this.usuarioAdminService.getLocalUsuario(username).subscribe({
+      next: (resp: UsuarioLocalResult) => {
+        const u = resp.usuario;
+        this.civilForm = {
+          username: u.username ?? '',
+          password: '',               // no se pre-carga la contraseña por seguridad
+          identificacion: u.identificacion ?? '',
+          nombres: u.nombres ?? '',
+          apellidos: u.apellidos ?? '',
+          email: u.email ?? '',
+          entidad: u.entidad ?? '',
+          cargo: u.cargo ?? '',
+          activo: u.activo
+        };
+        // Cargar roles para mostrárselos (usando el panel de roles existente)
+        // Reutilizamos el user profile como contenedor mínimo para los roles
+        this.user = {
+          idUsuario: String(u.idUsuario ?? '0'),
+          identificacion: u.identificacion ?? u.username,
+          nombres: u.nombres ?? '',
+          apellidos: u.apellidos ?? '',
+          grado: 'CIVIL',
+          nombreCompleto: `${u.nombres ?? ''} ${u.apellidos ?? ''}`.trim() || u.username,
+          usuarioEmpresarial: u.username,
+          email: u.email ?? '',
+          telefono: '',
+          situacionLaboral: 'CIVIL / OTRA ENTIDAD',
+          unidad: u.entidad ?? '',
+          unidadFisica: '',
+          cargo: u.cargo ?? '',
+          gradAlfabetico: '',
+          funcionarioCodigo: '',
+          undeLaborandoCodigo: '',
+          codigoCargo: '',
+          activo: u.activo,
+          ultimoIngreso: 'Sin dato',
+          roles: (resp.rolesAsignados ?? []).map((rol) => this.mapAssignedRole(rol))
+        };
+        // Pre-cargar datos operacionales del civil si están disponibles en el DTO
+        this.operacionForm = {
+          cadcanaFuerzaId: u.cadcanaFuerzaId ?? 0,
+          cadcanaCodigo:   u.cadcanaCodigo ?? 0,
+          acd:             u.acd ?? 0
+        };
+        if ((u.cadcanaFuerzaId ?? 0) > 0) {
+          this.onFuerzaOperacionChange(u.cadcanaFuerzaId!);
+        }
+        this.rolesCatalogo = (resp.rolesCatalogo ?? []).filter((r) => Number(r.id) > 0);
+        this.loading = false;
+        this.toast.success('Usuario civil', 'Datos cargados. Edite y guarde los cambios.');
+      },
+      error: (err) => {
+        this.loading = false;
+        this.modoCreacionActivo = false;
+        this.toast.error('Usuarios', err?.error?.message ?? 'No fue posible cargar el usuario civil.');
+      }
+    });
   }
 
   abrirModalEliminarUsuario(item: UsuarioListadoItem): void {
@@ -474,10 +722,99 @@ export class UsuariosComponent implements OnInit, OnDestroy {
     });
   }
 
+  // ── Datos operacionales ────────────────────────────────────────────────────
+
+  cargarFuerzas(): void {
+    this.fuerzaService.getFuerzas().subscribe({
+      next: (r) => { this.fuerzasDisponibles = (r.data ?? []).filter(f => f.vigente === 'S'); },
+      error: () => { /* silencioso; las fuerzas son secundarias */ }
+    });
+  }
+
+  onFuerzaOperacionChange(fuerzaId?: number): void {
+    const id = fuerzaId ?? this.operacionForm.cadcanaFuerzaId;
+    this.canalesDisponibles = [];
+    this.operacionForm.cadcanaCodigo = 0;
+    if (!id || id === 0) return;
+
+    this.fuerzaService.getCanales(id).subscribe({
+      next: (r) => {
+        this.canalesDisponibles = (r.data ?? []).filter(c => c.vigente === 'S');
+        // Si ya viene un canal preseleccionado, asegurarse de que esté en la lista
+        if (fuerzaId !== undefined && this.operacionForm.cadcanaCodigo === 0) {
+          // no restablecer, el form ya tiene el valor correcto
+        }
+      },
+      error: () => { this.canalesDisponibles = []; }
+    });
+  }
+
+  cargarOperacion(): void {
+    if (!this.user?.idUsuario || this.user.idUsuario === '0') return;
+    this.loadingOperacion = true;
+    this.fuerzaService.getUsuarioOperacion(this.user.idUsuario).subscribe({
+      next: (r) => {
+        const op = r.data;
+        this.operacionForm = {
+          cadcanaFuerzaId: op.cadcanaFuerzaId ?? 0,
+          cadcanaCodigo:   op.cadcanaCodigo ?? 0,
+          acd:             op.acd ?? 0
+        };
+        this.operacionActual = {
+          fuerzaDescripcion: op.fuerzaDescripcion,
+          canalDescripcion:  op.canalDescripcion
+        };
+        // Cargar canales de la fuerza asignada
+        if ((op.cadcanaFuerzaId ?? 0) > 0) {
+          this.fuerzaService.getCanales(op.cadcanaFuerzaId).subscribe({
+            next: (cr) => { this.canalesDisponibles = (cr.data ?? []).filter(c => c.vigente === 'S'); },
+            error: () => {}
+          });
+        }
+        this.loadingOperacion = false;
+      },
+      error: () => {
+        this.loadingOperacion = false;
+        this.toast.error('Operación', 'No se pudieron cargar los datos operacionales.');
+      }
+    });
+  }
+
+  guardarOperacion(): void {
+    if (!this.user?.idUsuario || this.user.idUsuario === '0') {
+      this.toast.warning('Operación', 'No hay usuario cargado para guardar datos operacionales.');
+      return;
+    }
+    this.savingOperacion = true;
+    this.fuerzaService.saveUsuarioOperacion(this.user.idUsuario, this.operacionForm).subscribe({
+      next: (r) => {
+        this.savingOperacion = false;
+        if (r.success) {
+          this.toast.success('Operación', r.message || 'Datos operacionales guardados.');
+          this.cargarOperacion();
+        } else {
+          this.toast.warning('Operación', r.message);
+        }
+      },
+      error: (err) => {
+        this.savingOperacion = false;
+        this.toast.error('Operación', err?.error?.message ?? 'Error guardando datos operacionales.');
+      }
+    });
+  }
+
   private mapAssignedRole(rol: any): UserRole {
     const fechaExpiracion = this.normalizeDateString(rol?.fechaFin ?? rol?.fecha_fin ?? '');
     const estadoBase = String(rol?.estado ?? '').trim().toLowerCase();
-    const estado: RolEstado = estadoBase.includes('venc') ? 'Vencido' : 'Vigente';
+
+    let estado: RolEstado;
+    if (estadoBase.includes('retir') || estadoBase.includes('eliminad') || estadoBase.includes('removid')) {
+      estado = 'Retirado';
+    } else if (estadoBase.includes('venc')) {
+      estado = 'Vencido';
+    } else {
+      estado = 'Vigente';
+    }
 
     return {
       id: Number(rol?.id ?? 0),

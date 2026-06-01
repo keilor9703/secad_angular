@@ -1,4 +1,5 @@
 using Comun.Dtos.Incidentes;
+using Ev = Comun.Dtos.Eventos;
 using Datos.Interfaz;
 using Negocio.Interfaz;
 
@@ -31,7 +32,7 @@ namespace Negocio.Gestion
                     Message = "Se requiere al menos la direccion del caso o el codigo de pedido."
                 });
 
-            return _repository.CreateAsync(request, usuario, maquina, ct);
+            return _repository.CreateAsync(request, usuario, username, maquina, ct);
         }
 
         public Task<DtoPedidoResult> UpdateAsync(long id, DtoPedidoRequest request, long usuario, string username, string maquina, CancellationToken ct)
@@ -48,6 +49,18 @@ namespace Negocio.Gestion
                 return Task.FromResult(new DtoPedidoResult { Success = false, Message = "ID invalido." });
 
             return _repository.CerrarRapidoAsync(id, request, usuario, maquina, ct);
+        }
+
+        public Task<DtoPedidoResult> CerrarEventoDesdeDespachoAsync(
+            long pedidoId, Ev.DtoCerrarEventoDespachoRequest request,
+            long usuarioId, string username, string maquina, CancellationToken ct)
+        {
+            if (pedidoId <= 0)
+                return Task.FromResult(new DtoPedidoResult { Success = false, Message = "ID de pedido inválido." });
+            if (request.CodigosCierre.Count == 0)
+                return Task.FromResult(new DtoPedidoResult { Success = false, Message = "Se requiere al menos un código de cierre." });
+
+            return _repository.CerrarEventoDesdeDespachoAsync(pedidoId, request, usuarioId, username, maquina, ct);
         }
 
         public Task<DtoPedidoResult> SetEstadoAsync(long id, string estado, long usuario, string maquina, CancellationToken ct)

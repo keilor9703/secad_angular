@@ -27,7 +27,9 @@ namespace Api.Controllers.Operacion
         private int    FuerzaId     => int.TryParse(User.FindFirstValue("fuerza_id"),    out var v) ? v : 0;
         private string UsuarioClaim => User.FindFirstValue(ClaimTypes.Name)
                                     ?? User.FindFirstValue("unique_name") ?? "";
-        private long   EmpleadoId   => long.TryParse(User.FindFirstValue("id_usuario"), out var v) ? v : 0;
+        // Cédula del empleado: viene del claim "identificacion" que JwtService emite
+        // desde ctr_usuarios.identificacion — es la cédula real, NO el Snowflake id_usuario.
+        private long   EmpleadoId   => long.TryParse(User.FindFirstValue("identificacion"), out var v) ? v : 0;
 
         // ════════════════════════════════════════════════════════════════════════
         // CTI / INCOMING CALL
@@ -160,7 +162,14 @@ namespace Api.Controllers.Operacion
             try
             {
                 var result = await _svc.P_GuardarLlamadaAsync(datos, FuerzaId, UsuarioClaim, EmpleadoId, ct);
-                return Ok(new { success = result.Success, message = result.Message });
+                // Devolver pedidoId (cad_pedidos.id real) para que el frontend
+                // pueda despachar a agencias externas con el ID correcto.
+                return Ok(new
+                {
+                    success  = result.Success,
+                    message  = result.Message,
+                    pedidoId = result.PedidoId?.ToString()   // string para preservar precisión Snowflake en JS
+                });
             }
             catch (Exception ex)
             {
@@ -313,6 +322,78 @@ namespace Api.Controllers.Operacion
             {
                 _logger.LogError(ex, "CrearEventoIntegracion error");
                 return StatusCode(500, new { success = false, message = ex.Message });
+            }
+        }
+    
+
+        // ════════════════════════════════════════════════════════════════════════
+        // REMISIÓN A CANAL SECAD  §6.11 / §6.1
+        // POST api/Recepcion/remitir-canal
+        // ════════════════════════════════════════════════════════════════════════
+
+        /// <summary>
+        /// Remite un pedido/evento a uno o más canales SECAD adicionales.
+        /// Inserta filas en cad_pedidos_canales → los operadores de esos canales
+        /// ven el evento en su cola del módulo Eventos.
+        /// </summary>
+        [HttpPost("remitir-canal")]
+        public async Task<IActionResult> RemitirCanal(
+            [FromBody] DtoRemitirCanalRequest req, CancellationToken ct)
+        {
+            if (req is null || req.Canales is null || req.Canales.Count == 0)
+                return BadRequest(new { success = false, message = "Debe seleccionar al menos un canal." });
+
+            try
+            {
+                var (success, message, agregados) =
+                    await _svc.RemitirCanalAsync(req, UsuarioClaim, ct);
+
+                return Ok(new { success, message, canalesAgregados = agregados });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "RemitirCanal error");
+                return StatusCode(500, new { success = false, message = ex.Message });
+            }
+        }
+
+        // ════════════════════════════════════════════════════════════════════════
+        // DUPLICATE / NEARBY-CALL DETECTION  §6.8
+        // GET api/Recepcion/pedidos-cercanos
+        //   ?lat=4.7110&lng=-74.0721&radioMetros=300&minutosAtras=20&codCaso=120
+        //
+        // Consulta cad_pedidos (no cad_eventos) porque es donde se almacena la
+        // georreferenciación y los códigos de caso del formulario de recepción.
+        // ════════════════════════════════════════════════════════════════════════
+
+        /// <summary>
+        /// Busca en cad_pedidos llamadas activas cerca de las coordenadas dadas,
+        /// creadas en los últimos N minutos.
+        /// Usado en Recepción para alertar al operador sobre posibles duplicados.
+        /// </summary>
+        [HttpGet("pedidos-cercanos")]
+        public async Task<IActionResult> GetPedidosCercanos(
+            [FromQuery] double  lat,
+            [FromQuery] double  lng,
+            [FromQuery] int     radioMetros  = 300,
+            [FromQuery] int     minutosAtras = 20,
+            [FromQuery] string? codCaso      = null,
+            CancellationToken ct             = default)
+        {
+            try
+            {
+                if (lat == 0 && lng == 0)
+                    return Ok(new { success = true, data = Array.Empty<object>() });
+
+                var items = await _svc.G_GetPedidosCercanosAsync(
+                    lat, lng, radioMetros, minutosAtras, codCaso, ct);
+
+                return Ok(new { success = true, data = items });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "GetPedidosCercanos error");
+                return StatusCode(500, new { success = false, data = Array.Empty<object>(), message = ex.Message });
             }
         }
     }

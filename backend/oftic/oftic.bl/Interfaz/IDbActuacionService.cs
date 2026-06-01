@@ -1,9 +1,35 @@
 using Comun.Dtos.Actuaciones;
+using Comun.Dtos.Agencias;
 
 namespace Negocio.Interfaz
 {
     public interface IDbActuacionService
     {
+        // ── Retroalimentación externa (via PIP) ────────────────────────────────
+
+        /// <summary>Guarda el registro inicial de auditoría antes de procesar.</summary>
+        Task SaveAuditoriaActualizacionAsync(
+            DtoAuditoriaActualizacionExterna dto, CancellationToken ct);
+
+        /// <summary>Marca la auditoría como procesada correctamente.</summary>
+        Task UpdateAuditoriaActualizacionOkAsync(
+            long auditoriaId, long actuacionId, string estado, CancellationToken ct);
+
+        /// <summary>Marca la auditoría como error.</summary>
+        Task UpdateAuditoriaActualizacionErrorAsync(
+            long auditoriaId, string error, CancellationToken ct);
+
+        /// <summary>
+        /// Aplica la actualización de estado enviada por una agencia externa via PIP:
+        /// localiza la actuación, actualiza estado/timestamps/cierre, agrega nota
+        /// y recalcula el estado global del evento.
+        /// </summary>
+        Task<DtoActualizacionExternaResult> P_ActualizarDesdeExternoAsync(
+            long casoId,
+            DtoActualizacionExternaRequest req,
+            long auditoriaId,
+            string ipOrigen,
+            CancellationToken ct);
         Task<List<DtoActuacionListItem>> G_GetActuacionesEventoAsync(
             long eventoId, CancellationToken ct);
 

@@ -1,0 +1,894 @@
+1. ESPECIFICACION TECNICA: Desarrollo del Sistema de Información para Atención de Emergencias SECAD.
+
+2. UNIDAD SOLICITANTE: Oficina de Tecnologías de la Información y las Comunicaciones OFTIC - Grupo de Desarrollo de Software GUSOF.
+
+3. VIGENCIA: La presente especificación tendrá una vigencia de un año (01), pero estará sujeta a ser actualizada permanentemente de acuerdo a la vigilancia tecnológica que se establezca sobre el elemento a adquirir, con el objeto de que esta responda en todo momento a las necesidades y exigencias de la Policía Nacional.
+
+DESCRIPCIÓN DEL REQUERIMIENTO
+
+CUMPLE NO CUMPLE
+
+1
+
+GENERALIDADES
+
+El contratista deberá realizar el desarrollo a la medida de acuerdo a las necesidades de la
+
+Policía Nacional, utilizando lenguajes y tecnologías de código abierto sin dependencias
+
+propietarias para funciones críticas. Lenguajes principales: Java o Python o C# .NetCore
+
+1.1
+
+(últimas versiones estables). La arquitectura utilizada deberá estar enfocada en Microservicios contenerizados (Docker/Kubernetes): Servicios globales: Auth, Tenant
+
+Resolver, Connection Pool Manager, API Gateway, Analytics ETL. Servicios por tenant: CAD
+
+Core, Dispatch Engine, GIS, Communication Hub, AI Service. Servicios edge: microservicios
+
+mínimos de despacho en nodos locales.
+
+Todos los desarrollos, integraciones, funcionalidades y demás implementaciones diseñadas
+
+específicamente para este proceso, serán propiedad exclusiva de la Policía Nacional. Queda 1.2 estrictamente prohibida su reproducción, réplica o utilización para fines distintos a los
+
+establecidos en este contrato, salvo autorización previa y por escrito de la Policía Nacional.
+
+Todo el sistema deberá estar integrado con el LDAP de la Policía Nacional (OUD de Oracle)
+
+1.3 como proveedor de identidad principal, con mecanismo de fallback a base de datos local de
+
+usuarios cifrada cuando OUD no esté disponible.
+
+El contratista deberá realizar levantamiento de información necesaria que permitirá dar
+
+cumplimiento a cada uno de los requerimientos mínimos establecidos en el presente
+
+proceso, utilizando los formatos definidos por la Policía Nacional. Deberá realizar mesas de 1.4 trabajo técnico-operativas para levantamiento de historias de usuario, definición de campos
+
+de formularios, catálogos de tipificación, preguntas orientadoras y parametrización general
+
+de los módulos.
+
+El contratista deberá hacer uso de librerías y plugins con comunidad activa o soporte del
+
+1.5
+
+fabricante. El sistema debe contar con una interfaz web accesible desde navegadores estándar: Microsoft Edge, Mozilla Firefox, Google Chrome y Safari. El contratista deberá
+
+especificar las versiones compatibles de cada navegador.
+
+El contratista deberá realizar todas las pruebas necesarias para garantizar la aprobación
+
+técnica y funcional del sistema: (1) Pruebas unitarias: verificar que cada componente
+
+funcione correctamente de manera aislada. (2) Pruebas de integración: comprobar la
+
+interacción entre módulos. (3) Pruebas funcionales: validar que el sistema cumpla con los
+
+1.6 requerimientos. (4) Pruebas de usuario: asegurar que el sistema cumple con las expectativas
+
+de usuarios finales. (5) Pruebas de rendimiento: evaluar velocidad, estabilidad y
+
+escalabilidad. (6) Pruebas de seguridad: garantizar protección de datos y cumplimiento
+
+normativo.
+
+El contratista deberá implementar el sistema de información desarrollado en servidores de
+
+1.7
+
+pruebas, con el propósito de realizar las siguientes evaluaciones: • Pruebas de estrés. • Pruebas de rendimiento. • Pruebas de conectividad. • Evaluaciones de tiempos de respuesta.
+
+• Verificación del cumplimiento de los requerimientos del software. Estas pruebas permitirán
+
+DESCRIPCIÓN DEL REQUERIMIENTO
+
+CUMPLE NO CUMPLE
+
+analizar el comportamiento del sistema y la arquitectura implementada. El periodo de
+
+pruebas deberá tener una duración no inferior a 30 días posteriores a su publicación, y los
+
+resultados deberán ser validados por la Oficina de Tecnologías de la Información y las
+
+Comunicaciones - OFTIC y el usuario líder funcional.
+
+Durante este periodo, cualquier inconsistencia o irregularidad identificada deberá ser
+
+subsanada. En caso de requerirse un ajuste adicional, este podrá realizarse en un plazo no
+
+superior a 90 días, garantizando la resolución de los problemas antes de la entrega final y la
+
+aceptación a satisfacción.
+
+Se deberá garantizar la validación del sistema en el entorno de producción mediante pruebas
+
+de pilotaje, señaladas en el ítem 1.6. Los escenarios de prueba serán seleccionados por el
+
+usuario funcional y el periodo de pilotaje deberá tener una duración no menor a 60 días ni 1.8 mayor a 90 días. Este proceso deberá completarse antes de la entrega final y la aceptación a
+
+satisfacción, asegurando el correcto funcionamiento del sistema en condiciones reales de
+
+operación.
+
+Se deberán utilizar componentes en su última versión estable disponible en el mercado,
+
+debidamente liberados por el fabricante y acompañados de su matriz de compatibilidad 1.9 (librerías, plugins, frameworks). Dichos componentes no deberán generar costos adicionales
+
+para la Policía Nacional y deberán ser de código abierto (Open Source).
+
+El contratista será responsable de la instalación de los ambientes correspondientes
+
+1.10 (Desarrollo, Pruebas y Producción) para el software entregado, asegurando su correcta
+
+configuración y puesta en marcha en cada uno de ellos.
+
+El contratista deberá elaborar un cronograma de trabajo detallado para el proyecto a
+
+desarrollar, en el cual se describan las actividades previstas y los plazos de cumplimiento. El 1.11 cronograma debe incluir, entre otros documentos, el acta de inicio del proyecto y los puntos
+
+clave para su seguimiento.
+
+El contratista deberá contemplar dentro del plazo de entrega del proyecto la inclusión de
+
+funcionalidades adicionales que puedan surgir fuera del levantamiento de información inicial,
+
+1.12 siempre y cuando estén alineadas con los modelos solicitados y sean necesarias para el
+
+correcto funcionamiento del sistema. Estas funcionalidades deberán formar parte integral del
+
+software a entregar y ser implementadas hasta la etapa de pruebas.
+
+Se deberá garantizar el cumplimiento de las buenas prácticas de desarrollo seguro. La
+
+Oficina de Tecnologías de la Información y de las Comunicaciones, realizará pruebas de
+
+1.13
+
+vulnerabilidades sobre los desarrollos entregados por el contratista. Cualquier vulnerabilidad identificada deberá ser subsanada en su totalidad por el contratista en un plazo no superior a
+
+50 días, sin perjuicio de que las pruebas sean evaluadas nuevamente una vez realizados los
+
+ajustes.
+
+Se deberá considerar las integraciones y conexiones vigentes con otros sistemas de
+
+1.14 información, así como la compatibilidad con los programas y aplicaciones que están siendo
+
+utilizados actualmente por los equipos de la Policía Nacional.
+
+El contratista deberá presentar, dentro de los primeros quince (15) días calendario contados
+
+a partir de la fecha del acta de iniciación del contrato, un plan detallado del proyecto. Este
+
+plan debe incluir un cronograma de trabajo que contemple las siguientes fases:
+
+levantamiento de información, análisis, diseño, construcción, pruebas, aceptación,
+
+1.15 implementación y capacitación, así como los eventos y productos finales asociados a cada
+
+una de ellas. Adicionalmente, el contratista deberá entregar un detalle de la arquitectura
+
+propuesta (a alto nivel), junto con el plan de trabajo necesario para todas las integraciones
+
+solicitadas. Este plan deberá ser aprobado por la supervisión del contrato antes de su
+
+ejecución.
+
+El contratista deberá entregar la siguiente documentación en idioma castellano, asegurando
+
+que cumpla con los estándares requeridos para la implementación y operación de la 1.16 solución:
+
+1. Manual de usuario final: Instrucciones detalladas para que los usuarios puedan operar la
+
+DESCRIPCIÓN DEL REQUERIMIENTO
+
+CUMPLE NO CUMPLE
+
+solución de manera efectiva, incluyendo ejemplos prácticos y resolución de problemas
+
+comunes.
+
+2. Manual técnico de la solución implementada: Documentación técnica que describa la
+
+arquitectura, configuraciones, dependencias y cualquier otro aspecto necesario para el
+
+mantenimiento y actualización de la solución.
+
+3. Modelos de arquitectura: Representación gráfica y descriptiva de la arquitectura de la
+
+solución, incluyendo los componentes, interacciones y flujos principales del sistema.
+
+4. Modelos de casos de uso: Diagramas y descripciones que detallen los diferentes
+
+escenarios de interacción entre los usuarios y el sistema, especificando las funcionalidades
+
+principales y secundarias.
+
+5. Modelos entidad / relacional: Diagramas que representen la estructura de la base de
+
+datos, detallando las entidades, relaciones y atributos utilizados en la solución.
+
+El contratista deberá realizar el despliegue del compilado del proyecto en el entorno
+
+administrado por la Policía Nacional, cumpliendo con las políticas de seguridad
+
+1.17 institucionales. La entrega del proyecto deberá hacerse en el repositorio de DevOps
+
+administrado por OFTIC, con: rama master actualizada, historial completo de cambios,
+
+estructura estándar de proyecto y validación final por el equipo técnico de OFTIC.
+
+2
+
+CAPACIDADES ESENCIALES
+
+CUMPLE NO CUMPLE
+
+Gestión Integral de Comunicaciones: recepción y procesamiento de reportes por voz
+
+(línea 123 integrada con planta telefónica institucional), chat, SMS, fotografías y video. 2.1 Capacidades de transcripción de voz a texto habilitables o deshabilitables por el
+
+administrador sin afectar la operación general.
+
+Asistencia Automatizada e Inteligencia Operacional: reducción de la carga cognitiva del
+
+2.2 operador mediante verificación automática de ubicaciones, prevención de duplicidades,
+
+priorización por gravedad y recomendación de recursos cercanos al tiempo real.
+
+Visualización y Coordinación Geoespacial (GIS): módulo GIS avanzado 2D como núcleo
+
+2.3 de coordinación, con imagen operativa común, geocercas, rutas dinámicas y acceso a
+
+cámaras georreferenciadas a través del VMS institucional.
+
+Seguridad e Interoperabilidad: encriptación en tránsito y en reposo, controles de acceso
+
+2.4 estrictos, integración nativa con el ecosistema COLAB y demás entidades públicas o
+
+privadas, generación de KPIs y analítica operacional.
+
+Administración Nacional de CADs: gestión centralizada del ciclo de vida de todos los
+
+2.5 tenants (CADs) desde la aplicación, con monitoreo de salud, onboarding, configuración y
+
+control de conectividad por territorio
+
+3
+
+ARQUITECTURA MULTITENANT FEDERADA
+
+CUMPLE NO CUMPLE
+
+El sistema de información debe implementarse bajo el modelo DB-per-Tenant: aplicación única centralizada en
+
+3.1 Bogotá, con base de datos operativa aislada por CAD. Cada CAD territorial mantiene soberanía total sobre sus datos
+
+y puede operar de forma autónoma ante pérdida de conectividad.
+
+Esquema Master — Bogotá: El esquema master alberga exclusivamente los componentes 3.2 de enrutamiento y autenticación global. No contiene datos operativos de ningún CAD.
+
+Flujo de autenticación OUD y 2FA con fallback: El sistema implementa autenticación dual
+
+para garantizar continuidad operativa ante indisponibilidad del directorio institucional.
+
+1. 2. 3.3 3.
+4. 5.
+
+Pantalla de login Usuario ingresa login + contraseña. Sin necesidad de ingresar código DANE. API Gateway → OUD → 2FA: Sistema autentica contra OUD institucional (LDAP/S). Si OUD responde: flujo normal. OUD → Tenant Resolver: OUD valida credenciales, el servicio 2FA valida código TOTP y otro servicio centralizado retorna atributos del usuario, incluyendo código DANE o unidad organizacional. Tenant Resolver → tenants: Sistema consulta tabla tenants por código DANE y obtiene id_tenant. Connection Pool Manager Obtiene y descifra credenciales de BD vía Vault. Emite
+
+DESCRIPCIÓN DEL REQUERIMIENTO
+
+CUMPLE NO CUMPLE
+
+JWT con id_tenant, roles locales y TTL.
+
+6. OUD no disponible: Si OUD presenta timeout o error, el sistema autentica contra la
+
+tabla local_users_fallback (credenciales cifradas localmente). El operador accede con
+
+funcionalidad completa. El evento se registra con flag 'modo_fallback=true'. La Policía
+
+Nacional es responsable de la disponibilidad, mantenimiento y correcta gestión de los
+
+usuarios en OUD.
+
+7. El sistema tendrá la posibilidad de validar usuarios y credenciales de personal civil o de
+
+otras entidades públicas.
+
+Las credenciales de las bases de datos de tenant NUNCA viajan al cliente ni se incluyen en
+
+el JWT. El desencriptado ocurre exclusivamente en el backend mediante Vault. Rotación
+
+automática de credenciales cada 90 días.
+
+4
+
+RESILIENCIA — TRES NIVELES DE OPERACIÓN
+
+CUMPLE NO CUMPLE
+
+1. Normal: Conectado a Bogotá. Todas las escrituras van a BD primaria central. Réplica
+
+local sincronizada en standby.
+
+2. Degradado: Latencia WAN supera umbral configurable. Conmutación silenciosa a
+
+réplica local write-capable. Alerta automática al monitoreo central. 4.1 3. Offline: Pérdida total de conectividad (aplica especialmente para Vaupés, Amazonas,
+
+Vichada, Guainía, zonas PDET (Programas de Desarrollo con Enfoque Territorial.)). El
+
+servidor edge local opera como primaria. Funcionalidad completa equivalente al SECAD
+
+actual. Reconciliación automática al restaurar enlace (máx. 15 min).
+
+5
+
+ANALÍTICA NACIONAL CONSOLIDADA
+
+CUMPLE NO CUMPLE
+
+Un proceso ETL/ELT (Apache Airflow) extrae datos anónimos y agregados de cada BD de
+
+tenant hacia un Data Warehouse centralizado en Bogotá. Los datos sensibles se
+
+pseudoanonimizan antes de pasar al DW, cumpliendo la Ley 1581 de 2012. Las consultas de 5.1 BI y reportes nacionales apuntan exclusivamente al DW, sin afectar el rendimiento operativo
+
+de los CADs.
+
+6
+
+REQUISITOS MÍNIMOS OPERATIVOS - REQUISITOS FUNCIONALES
+
+Integración con Agencias: El sistema dispondrá de un único endpoint REST para salida
+
+(envío de casos a agencias) y un único endpoint REST para entrada (recepción desde
+
+agencias), bajo estándar EDXL-DE (Lenguaje de Intercambio de Datos de Emergencia -
+
+Elemento de Distribución) o similar. El contratista entregará capacidad de envío hacia diez
+
+(10) endpoints minimo por agencia que cumpla con el protocolo de la plataforma. La lógica
+
+de transformación de protocolos específicos de los sistemas receptores es responsabilidad 6.1 de cada agencia. El contratista entregará documentación técnica (Swagger o similar).
+
+Responsabilidad Policía Nacional: habilitar APIs de los sistemas institucionales (GESPO,
+
+VMS, ARCGIS) y proveer credenciales de acceso.
+
+Catálogo centralizado y auditable de agencias con información de contacto, jurisdicción,
+
+cobertura, especialidades, capacidad y horarios. Historial de cambios con trazabilidad
+
+completa.
+
+Usuarios / Roles / Perfiles: RBAC con mínimo privilegio, herencia de permisos, MFA,
+
+gestión de sesión (caducidad, bloqueo, cierre remoto). Integración con OUD institucional
+
+como primario. Mecanismo de contingencia (fallback): base de datos local de usuarios
+
+6.2 cifrada cuando OUD no esté disponible. La disponibilidad, mantenimiento y gestión de
+
+usuarios en OUD es responsabilidad exclusiva de la Policía Nacional.
+
+Integración con método de doble autenticación institucional 2FA.
+
+6.3
+
+Administración local de usuarios: Permite la creación de institución y miembros de otras entidades) y roles en cada CAD
+
+usuarios
+
+(miembros
+
+de
+
+la
+
+Administración Nacional de CADs: Módulo integrado en la plataforma para la gestión del
+
+6.4 ciclo de vida de todos los CADs (tenants) a nivel nacional, accesible exclusivamente por
+
+administradores de plataforma. Permite: registro de nuevos CADs, gestión de credenciales
+
+DESCRIPCIÓN DEL REQUERIMIENTO
+
+CUMPLE NO CUMPLE
+
+de BD, asignación de categoría de conectividad, monitoreo de salud en tiempo real,
+
+activación/desactivación de tenants, configuración de feature flags y mapeo de atributos
+
+OUD.
+
+Centralizada de todos los CADs (tenants) del país, accesible desde la aplicación exclusivamente por administradores de plataforma con rol. Permite gestionar el ciclo de vida completo de cada CAD sin intervención sobre el código fuente ni la base de datos directamente. Funcionalidades: (1) Registro de nuevos CADs con código DANE, nombre, departamento, municipio y categoría de conectividad (A/B/C); (2) Configuración segura de credenciales de base de datos del tenant (cifrado automático vía Vault, sin exposición en pantalla); (3) Activación, desactivación y suspensión de CADs; (4) Asignación y modificación de categoría de conectividad; (5) Configuración de atributos OUD por tenant (mapeo código DANE ↔ id_tenant); (6) Gestión de feature flags por CAD (habilitar/deshabilitar módulos o funcionalidades específicas); (7) Configuración de parámetros operativos por territorio (jurisdicciones, agencias disponibles, protocolos); (8) Dashboard nacional en tiempo real con estado de salud de cada CAD (Nivel 1/2/3 de conectividad); (9) Indicadores de uso y rendimiento por tenant; (10) Flujo de onboarding guiado paso a paso para incorporar nuevos CADs; (11) Registro auditable de todas las acciones administrativas sobre tenants. Gestión de Migraciones de Schema BD: Interfaz para visualizar el estado de las migraciones de base de datos (Flyway/Liquibase) en todos los tenants: versión de schema actual por CAD, historial de migraciones aplicadas, identificación de tenants desactualizados 6.5 y disparo controlado de actualizaciones de schema. Solo accesible para administradores con rol DBA nacional.
+
+Turnos de vigilancia y Posición de Recursos en Campo: Captura y procesamiento en tiempo real de la ubicación de recursos en terreno. La información se obtiene de la integración con el sistema GESPO institucional. La Policía Nacional habilitará las APIs de GESPO y proveerá permisos y credenciales para la integración.
+6.6 Creación de turnos de vigilancia asociados a una agencia, para el caso de Policía Nacional el turno y los recursos asociados serán consultados en GESPO mediante APIs y guardados en el SECAD. Para el caso de otras agencias, los turnos deberán crearse de forma manual, así como los recursos asociados, esto aplica también para Policía Nacional.
+
+Recepción de Llamadas: Centraliza las comunicaciones de emergencia recibidas por distintos canales. Registro estructurado mediante formularios predefinidos y configurables. ID único e irrepetible por incidente (con prefijo código DANE para unicidad nacional). Detección automática de duplicidades. Ciclo de vida completo. Ficha de evento con campos mínimos: ID, tipo, ícono de estado, localización geográfica, descripción, propietario, creador, fechas y documentos anexos. Clasificación diferencial por población vulnerable. Los campos del formulario serán definidos por la Policía Nacional en las mesas de trabajo iniciales.
+
+Registro y gestión de casos por: (1) Voz - Línea 123 integrada con planta telefónica; (2) Chat 6.7 - endpoint API REST para recepción automática de casos; (3) SMS - endpoint API REST; (4)
+Fotografías - endpoint API REST, adjuntadas al incidente creado; (5) Video en vivo - enlace único y temporal enviado a dispositivos PDA de unidades en campo, activado por interacción del usuario (WebRTC), sujeto a compatibilidad del navegador del dispositivo. La Policía Nacional es responsable de la compatibilidad de hardware y conectividad de los dispositivos PDA.
+
+Integración con servidores de Abonado Llamante (Operadores de telefonía) para obtener coordenadas verificadas y actualizadas en tiempo real.
+
+DESCRIPCIÓN DEL REQUERIMIENTO
+
+CUMPLE NO CUMPLE
+
+Deberá incorporar funcionalidades de mensajería instantánea y videollamadas en vivo, que
+
+permitan la interacción directa entre el ciudadano y el operador CAD para evidenciar en
+
+tiempo real la situación reportada desde el sitio de la emergencia en vivo desde su
+
+dispositivo móvil sin necesidad de instalar una aplicación, mediante un enlace seguro.
+
+Cada transmisión se asocia automáticamente al número de incidente activo y registra coordenadas GPS, hora, operador receptor y metadatos técnicos.
+
+Deberá permitir la integración con redes comunitarias y dispositivos de alerta física o digital (botones de pánico, sirenas, sensores ciudadanos), posibilitando la activación inmediata de alertas y el despacho oportuno de recursos
+
+Al momento de tipificar el incidente, el módulo despliega automáticamente un conjunto de preguntas predefinidas asociadas al tipo de evento. El contenido de las preguntas es definido y provisto exclusivamente por la Policía Nacional. La calidad, pertinencia y actualización del contenido es responsabilidad exclusiva de la entidad. El administrador carga el contenido mediante la interfaz de configuración del catálogo, sin modificar código fuente.
+
+Generación de ID raíz único e irrepetible por incidente (llamada, evento) con prefijo del código DANE (garantiza unicidad nacional entre CADs). Correlación multiagencia dentro del mismo CAD. Mecanismo automático de detección de duplicidades. Historial auditable de todas las modificaciones. Integración ELS / AML: Ubicación automática del llamante mediante ELS (Google, Android/iOS) y AML (ETSI/EENA). Visualización en capa GIS. Sin requerir app adicional ni 6.8 datos activos del usuario. La implementación está condicionada a los recursos y acuerdos vigentes entre la Policía Nacional y los operadores móviles del país. Nota: Siempre y cuando Google provea servicio. Módulo de Analítica e IA Asistida: Transcripción automática de voz a texto de las grabaciones de llamadas recibidas desde la planta telefónica institucional. La transcripción opera de forma asíncrona sobre el archivo de audio una vez finalizada la llamada (no en tiempo real durante la llamada), generando un texto asociado al registro del incidente. Sobre la transcripción se aplica extracción automática de: dirección, barrio, punto de referencia, tipo de emergencia, número de heridos y placas vehiculares. La información extraída se presenta al operador como sugerida para el formulario — el operador valida y decide qué usar. Ningún 6.10 campo se autocompleta sin intervención del operador. Este módulo puede ser habilitado o deshabilitado por el administrador sin afectar la operación del sistema. La transcripción está condicionada a que la planta telefónica provea archivos de audio en formato compatible (formatos definidos en mesas de trabajo iniciales). Integración con dashboards de OFTIC.
+
+En caso tal de que no se pueda integrar el audio de la planta, validar latencia, como se conecta el agente en tempo real con la planta para transcribir. Gestión de incidentes: Funcionalidad que permite la gestión integral del caso desde su creación hasta el cierre, enlazando los datos provenientes de la recepción multicanal con los procesos de clasificación, asignación, seguimiento y finalización. Registra automáticamente la información del ciudadano, tipo de incidente, ubicación, recursos desplegados y entidades involucradas. Cada evento se vincula con el número único de incidente y mantiene trazabilidad completa de las acciones, comunicaciones, tiempos de respuesta y decisiones 6.11 operativas.
+
+Debe disponer de dos vistas, una donde se evidencian los incidentes remitidos por el operador, con semaforización configurable por tiempos, tipo de incidente o importancia e información relevante. La otra vista se abre cuando el operador oprime sobre el incidente en la lista, esta debe permitir gestionar todo lo relacionado al caso, asignar recursos, añadir
+
+DESCRIPCIÓN DEL REQUERIMIENTO
+
+CUMPLE NO CUMPLE
+
+comentarios, despachar a otras agencias remotas, tipificar o clasificar el incidente, entre
+
+otras funcionalidades las cuales se darán a conocer en mesas de trabajo iniciales.
+
+Integra mapa para la localizar medios o recursos disponibles cercanos al lugar del incidente.
+
+Debe permitir registrar actividades operativas y preventivas asociadas al incidente, así como novedades de personal. GIS Interno 2D: Módulo GIS con mapas 2D, rutas dinámicas y geocercas. Capas de contexto: priorización de incidentes, niveles Ciudad/Región/Departamento/Nación, capa policía, entidades médicas, bomberos, ejército, otras agencias, cámaras integradas vía VMS. Capas históricas: mapas de calor, histórico por eventos, zonas con más eventos, indicadores (mínimo 3), reportes. Integración con cartografía y licencias ARCGIS de la Policía Nacional cuando aplique.
+
+6.12 Imagen operativa común del territorio del CAD. Capas de contexto: priorización de
+
+incidentes,
+
+niveles
+
+Ciudad/Región/Departamento/Nación,
+
+capa
+
+policía/médica/bomberos/ejército/otras agencias, recursos compartidos, cámaras integradas
+
+vía VMS. Capas históricas: mapas de calor, histórico por agencia/eventos, zonas con más
+
+eventos, históricos operacionales, indicadores, reportes. Herramienta de reproducción
+
+cronológica post-evento. La Policía Nacional proveerá acceso a licencias ARCGIS
+
+institucionales cuando aplique.
+
+Dashboard Nacional de Salud de CADs: Vista consolidada en tiempo real del estado de
+
+todos los CADs activos en el país. Muestra: nivel de operación actual (1-Normal, 2-
+
+Degradado, 3-Offline) por CAD, latencia de conexión al nodo central, última sincronización
+
+exitosa, cantidad de incidentes activos por CAD, alertas de CADs en modo degradado u 6.13 offline, y tendencias históricas de conectividad por región. Genera alertas automáticas al
+
+equipo de administración cuando un CAD entra en Nivel 2 o 3.
+
+Arquitectura tendría que funcionar siempre y cuando la maquina en sitio lo soporte Anotaciones Generales: Permite registrar anotaciones generales durante el turno, tales como: comunicados, revistas, actividades operativas o preventivas, novedades con personal 6.15 y cualquier información que durante la actividad de policía deba registrarse. Debe generar un ID único por registro. Reportes: Permite generar informes estadísticos, visualizar y descargar reportes que permitan evaluar la actividad de los usuarios del sistema y de los recursos en campo respecto a la atención de incidentes (Tiempos de atención, medios utilizados). Asimismo, deberá generar reportes que permitan identificar el comportamiento del ingreso de llamadas, 6.16 creación y gestión de incidentes.
+
+Deberá permitir visualizar el ciclo de vida de un incidente, mostrando el flujo desde su creación hasta el cierre, identificando responsables e intervinientes. Asistente Inteligente de Atención: Guía de preguntas orientadoras activada automáticamente al tipificar el incidente. El contenido de las preguntas, su asociación a tipos 6.17 de incidente y el orden de presentación serán definidos y provistos por la Policía Nacional antes del inicio de la implementación. El administrador del sistema cargará el contenido vía interfaz de configuración, sin modificar código fuente. Auditoría y Logs: Registro digital automático e ilimitado de todas las llamadas y acciones del sistema. Trazabilidad operativa completa de sesiones, actividades y cambios. Una vez 6.18 entregado exitosamente un caso a una agencia externa (confirmado por log), la trazabilidad dentro de los sistemas de terceros es responsabilidad de cada agencia Continuidad DRP: Alta disponibilidad 24/7. Valoración de riesgo (impacto/probabilidad). 6.19 Definición de sitios alternos. Diseño, implementación y pruebas de DRP. Simulacros periódicos con registro de lecciones aprendidas
+
+DESCRIPCIÓN DEL REQUERIMIENTO
+
+CUMPLE NO CUMPLE
+
+Sincronización de Tiempo: Sincronización horaria precisa mediante NTP (Network Time
+
+Protocol es el estándar utilizado para sincronizar los relojes de los sistemas informáticos a
+
+través de una red. Garantiza que todos los componentes "hablen" en el mismo instante
+
+6.20 temporal.). Servidor maestro y secundario con conmutación automática en máximo 30
+
+segundos. Timestamps en UTC con visualización en UTC-5 (Colombia). Precisión máxima
+
+±1 segundo respecto al servidor de referencia. Ante pérdida de conectividad NTP, cada nodo
+
+mantiene su última referencia y registra el período de desincronización en auditoría.
+
+Manejo de Colas ACD: Distribución automática omnicanal (voz, chat, SMS). Skills-based
+
+routing. Estados de agente configurables. Monitoreo en tiempo real: volumen, ASA,
+
+abandonos, SLA. Grabación con trazabilidad al ID de incidente. Integración CTI/SIP.
+
+6.21 El sistema debe integrarse con la planta telefónica con el fin de evidenciar el numero abonado que origina la llamada de emergencia.
+
+Asimismo, debe integrarse con el aplicativo Webex encargado de establecer comunicaion entre el operador y el ciudadano Interoperabilidad: Exposición controlada de información: datos abiertos e históricos accesibles vía API. API Manager para integración con otros componentes del ecosistema COLAB y demás instituciones públicas o privadas, hasta 10 integraciones por CAD. Tableros y reportes de cara al ciudadano o agencias.
+
+Soporte tecnológico a la planta telefónica y al sistema de gestión de llamadas de emergencia 6.22 y no emergencia. Cumplimiento de estándares NG911/NG112/NENA i3.
+
+Todos los servicios de la plataforma sincronizan su referencia temporal mediante NTP con
+
+desviación máxima ±1 segundo. Servidor NTP maestro con secundario de respaldo y
+
+conmutación automática en ≤30 segundos. Timestamps en UTC con conversión a UTC-5
+
+para interfaces. La conectividad estable a los servidores NTP de referencia (ej.
+
+ntp1.inm.gov.co) es responsabilidad de la Policía Nacional.
+
+7 ARQUITECTURA Y TECNOLOGÍA DE SOFTWARE - REQUISITOS NO FUNCIONALES CUMPLE NO CUMPLE
+
+Arquitectura: Microservicios contenerizados (Docker/Kubernetes). Servicios globales: Auth,
+
+Tenant Resolver, Connection Pool Manager, API Gateway, Analytics ETL. Servicios por 7.1 tenant: CAD Core, Dispatch Engine, GIS, Communication Hub, AI Service. Servicios edge:
+
+microservicios mínimos de despacho en nodos locales.
+
+Multitenant DB-per-Tenant: Aislamiento completo de datos operativos entre CADs. Schema
+
+7.2 idéntico para todos los tenants gestionado con Flyway/Liquibase. Enrutamiento mediante
+
+Connection Pool Manager con credenciales cifradas en Vault.
+
+Código Abierto: Desarrollada con lenguajes y tecnologías de código abierto sin
+
+7.3 dependencias propietarias para funciones críticas. Lenguajes principales: Java o Python o
+
+C# .NetCore (últimas versiones estables).
+
+Sistema Operativo Servidores: Distribución Linux (preferida). En caso de requerirse,
+
+Windows Server Standard con licencia Open Value registrada a nombre de la Policía 7.4 Nacional, con soporte mínimo 3 años. El contratista especificará en su oferta el sistema
+
+operativo de cada grupo de servidores.
+
+Escalabilidad: Horizontal: nuevos servidores físicos sin interrupción. 7.5 Vertical: independiente por tenant. SLA ≥99.95% servicios globales. SLA ≥99.9% por tenant.
+
+Usabilidad: Interfaces UX/UI accesibles desde navegadores estándar (Firefox, Chrome,
+
+Safari). Compatibilidad con Android, iOS y escritorio. PWA para carga offline de la interfaz. El 7.6 contratista especificará versiones compatibles de cada navegador. El sistema estará
+
+disponible únicamente en red de Policía Nacional (Polired)
+
+7.7
+
+Ambientes: Mínimo 4 ambientes con (construcción). Producción, DRP (operación).
+
+soporte
+
+multitenant:
+
+Desarrollo,
+
+Pruebas
+
+7.8 Procesamiento: Arquitectura de procesamiento paralelo y distribuido para tareas
+
+DESCRIPCIÓN DEL REQUERIMIENTO
+
+CUMPLE NO CUMPLE
+
+simultáneas en múltiples servidores. Orquestación de contenedores para portabilidad,
+
+escalabilidad y resiliencia operativa.
+
+Protección de Datos: Cumplimiento Ley 1581 de 2012. Datos personales de ciudadanos
+
+7.9 permanecen en BD del CAD territorial. El Data Warehouse de analítica solo recibe datos
+
+pseudoanonimizados.
+
+8
+
+LICENCIAMIENTO - CESIÓN DE DERECHOS PATRIMONIALES
+
+CUMPLE NO CUMPLE
+
+El contratista deberá transferir a título gratuito todos los Derechos Patrimoniales del objeto
+
+del contrato a través del documento anexo “CONTRATO DE CESIÓN DE DERECHOS
+
+PATRIMONIALES DE AUTOR” y debe estar debidamente registrado ante la Dirección
+
+Nacional de Derechos de Autor Unidad Administrativa Especial del Ministerio del Interior y
+
+8.1 protocolizado ante notaría. El contratista debe registrar el presente contrato en la entidad
+
+competente para el Registro de Derecho de Autor y remitir el certificado de inscripción como
+
+requisito previo para la suscripción del acta de recibo final a satisfacción y para la realización
+
+del último contador de pago correspondiente para cada uno de los desarrollos
+
+implementados.
+
+Los trámites de firmas de notaría por registro de firma y huella de la cesión de derechos 8.2 patrimoniales no deberán generar costo para la Policía Nacional.
+
+El contratista debe anexar como documentos entregables al contrato el CONTRATO DE
+
+CESIÓN DE DERECHOS PATRIMONIALES DE AUTOR y copia del CONTRATO DE 8.3 CESIÓN que se realizó entre los empleados contratados y la firma contratante, donde
+
+transfieren los derechos a la empresa.
+
+En caso de ser necesario el licenciamiento, este deberá ser válido a nivel nacional, ya que el
+
+8.4 acceso al sistema de información se realizará desde todas las regionales y centros zonales
+
+del país.
+
+Dada la diversidad de las aplicaciones que se implementarán, en caso de que alguna de
+
+ellas requiera la incorporación de software base adicional para su construcción o
+
+8.5 mantenimiento, las licencias correspondientes deberán ser entregadas a la Policía Nacional,
+
+y serán de su propiedad a perpetuidad. Asimismo, el licenciamiento de uso de las
+
+aplicaciones será propiedad de la Policía Nacional.
+
+El contratista deberá entregar la totalidad del código fuente correspondiente al software, en
+
+formato magnético editable, junto con los manuales elaborados (editables), también en 8.6 formato magnético, una vez finalizada la etapa de implementación. Los entregables deben
+
+estar debidamente rotulados y respaldados con la documentación que describa su contenido.
+
+Cada uno de los componentes de software necesarios para llevar a cabo el presente proceso 8.7 deberá ser licenciado y entregado a nombre de la Policía Nacional.
+
+Con la oferta, el contratista deberá enunciar cada uno de los softwares a utilizar,
+
+especificando qué labor o función de las solicitadas será soportada por cada uno de ello 8.8 Todos los plugins, complementos y funcionalidades adicionales necesarias para el correcto
+
+funcionamiento del sistema deberán ser incluidos en la oferta. s.
+
+8.9
+
+En caso de que la oferta no incluya el software necesario para cumplir presente proceso, la oferta será considerada técnicamente no válida.
+
+con
+
+el
+
+objeto
+
+del
+
+En los casos en que el licenciamiento sea por uso, cantidad de segundos, palabras, bits o
+
+cualquier otra modalidad definida por el fabricante, el contratista deberá garantizar su uso sin
+
+8.10 costos adicionales para la Policía Nacional durante los períodos de soporte y garantía
+
+establecidos en el presente estudio previo. Además, deberá entregar junto con el recibo de
+
+satisfacción las condiciones de uso aplicables durante dichos períodos de garantía y soporte
+
+El licenciamiento del software debe cubrir todas las implementaciones e integraciones 8.11 necesarias con los sistemas de la Policía Nacional.
+
+El contratista deberá realizar el despliegue del compilado del proyecto en el entorno utilizado
+
+y administrado por la Policía Nacional. El despliegue debe garantizar la compatibilidad y el 8.12 correcto funcionamiento del proyecto dentro del ecosistema gestionado por la Policía
+
+Nacional, cumpliendo con las políticas de seguridad y administración establecidas.
+
+DESCRIPCIÓN DEL REQUERIMIENTO
+
+CUMPLE NO CUMPLE
+
+Entrega del Proyecto en Repositorio de DevOps El contratista deberá entregar el proyecto
+
+completo en el repositorio de DevOps administrado por la Oficina de Tecnologías de la
+
+Información y de las Comunicaciones (OFTIC). Dicha entrega deberá cumplir con las
+
+siguientes condiciones:
+
+1. Rama Master: el código fuente deberá estar actualizado y consolidado en la rama
+
+principal (master), asegurando que esta contenga la versión final funcional y aprobada del
+
+proyecto.
+
+2. Historial de cambios: el repositorio deberá incluir el historial completo de cambios
+
+realizados durante el desarrollo, garantizando la trazabilidad de las modificaciones. 8.13 3. Estructura estándar: la estructura del repositorio deberá estar organizada de manera que
+
+facilite la comprensión, mantenimiento del código, siguiendo las prácticas recomendadas de
+
+DevOps.
+
+4. Accesos y credenciales: el contratista deberá coordinar con la OFTIC para obtener los
+
+accesos necesarios al repositorio de DevOps. En ningún caso se permitirá el uso de
+
+repositorios externos o plataformas no gestionadas por la institución.
+
+5. Validación final: la entrega del proyecto en el repositorio será validada por el equipo
+
+técnico de la OFTIC, quien verificará que se cumplan todos los lineamientos y requisitos
+
+establecidos.
+
+9
+
+SOPORTE, MANTENIMIENTO Y GARANTÍA
+
+CUMPLE NO CUMPLE
+
+Mantenimiento: Plan de mantenimiento preventivo y correctivo. Actualizaciones de firmware
+
+9.1 anuales (o cuando el fabricante libere versión estable). Plan de replicación en sitio alterno
+
+para continuidad operacional.
+
+Soporte software: 24x7 desde recibo a satisfacción. Mesa de servicio web, línea telefónica
+
+y correo electrónico. Incidencias alto impacto: atención inicial ≤2 horas. Solución definitiva
+
+≤48 horas. Garantía software: 1 año.
+
+9.2 El contratista deberá disponer del personal necesario para brindar soporte a los usuarios del
+
+sistema a través de servicio telefónico, presencial y por correo electrónico. Además, deberá
+
+capacitar a un grupo de usuarios de la Policía Nacional, quienes también estarán
+
+capacitados para brindar soporte.
+
+Se deberá contemplar la detección y corrección de las fallas de la solución implementada,
+
+9.3 así como el suministro y/o reemplazo de los módulos de aplicación que presenten daños o
+
+deficiencias en su funcionamiento.
+
+Las actualizaciones de versiones o mejoras como por ejemplo en el GUI (interfaz gráfica)
+
+9.4 que se requieren para su normal funcionamiento deben ser asumidas por el contratista,
+
+durante el periodo de garantía.
+
+El contratista se compromete a subsanar los fallos y defectos que se presenten en el
+
+software implementado, así como cualquier inconveniente en sus funcionalidades, durante el
+
+período de garantía solicitado, contado a partir de la fecha de entrega a satisfacción. En caso
+
+9.5 de que los fallos o defectos no puedan ser subsanados, el contratista deberá proporcionar
+
+una solución alternativa que permita la continuidad de la operación de la plataforma.
+
+Además, el contratista asumirá los costos de los recursos humanos o tecnológicos
+
+necesarios para implementar dicha solución alternativa
+
+Acompañamiento: Mínimo 3 meses desde entrega a satisfacción para estabilización, 9.7 ajustes de configuración y recomendaciones de mejora.
+
+10
+
+SEGURIDAD, CUMPLIMIENTO Y POLÍTICAS
+
+CUMPLE NO CUMPLE
+
+Seguridad de información: Personal del proyecto sujeto a estudio de seguridad llevado a
+
+cabo por la Dirección de Inteligencia de la Policía Nacional durante la vigencia del contrato.
+
+Firma de acuerdo de confidencialidad (Formato 1DT-FR-0010 o vigente según Res.
+
+10.1 04408/2024). Cumplimiento del SGSI (Resolución 08310 del 28/12/2016).
+
+En caso de que alguno de los colaboradores involucrados no apruebe dicho estudio, el contratista estará obligado a reemplazar a la persona en cuestión por otra que cumpla con
+
+DESCRIPCIÓN DEL REQUERIMIENTO
+
+CUMPLE NO CUMPLE
+
+las mismas condiciones de experiencia exigidas, quien también deberá someterse al estudio
+
+de seguridad.
+
+En virtud del presente contrato, el contratista se compromete a no divulgar ninguna información que obtenga o conozca durante la ejecución del mismo que esté marcada como confidencial. Esto incluye, pero no se limita, a la información relacionada con los lugares a los cuales tenga acceso con motivo de su desarrollo, así como cualquier otra información considerada confidencial. El contratista deberá firmar el formulario de acuerdo de confidencialidad correspondiente. Seguridad multitenant: Aislamiento de red por tenant (VLAN/VPC). Validación de tenant en 10.2 cada request. JWT con claims de tenant. Cross-tenant access denegado y auditado. Pruebas de penetración cross-tenant. OWASP Top 10 + guías multitenant. Seguridad IA: Procesamiento 100% local. Bloqueo de egress para inferencia. Auditoría de 10.3 consultas al motor de IA. Política ambiental: Cumplimiento de la Política Ambiental de la Policía Nacional. 10.4 Disposición final de RAEE según Ley 1672/2013. SST: Cumplimiento Sistema de Gestión de Seguridad y Salud en el Trabajo (SG-SST). EPP durante instalación, ARL vigente. 10.5 El contratista deberá cumplir con la implementación del sistema de Gestión de la Seguridad y Salud en el Trabajo, para lo cual deberán diligenciar el Formulario Sistema de Gestión de la Seguridad y Salud en el Trabajo. Anticorrupción: Compromiso anticorrupción. Incumplimiento = causal de rechazo de oferta o terminación anticipada del contrato.
+
+El contratista se compromete a cumplir con las políticas de anticorrupción dentro del
+
+proceso, manifestando su disposición a suministrar toda la información necesaria para
+
+10.6 asegurar la transparencia del mismo. En caso de comprobarse el incumplimiento de este
+
+compromiso por parte del contratista, sus empleados, representantes, asesores o cualquier
+
+otra persona que actúe en su nombre durante el proceso de contratación, dicho
+
+incumplimiento será motivo suficiente para el rechazo de la oferta o la terminación anticipada
+
+del contrato, si dicho incumplimiento ocurre después de la adjudicación. Para este efecto, el
+
+contratista deberá diligenciar el formulario de compromiso anticorrupción.
+
+11
+
+CAPACITACIÓN
+
+CUMPLE NO CUMPLE
+
+El contratista deberá realizar una transferencia de conocimiento de al menos 40 horas en las
+
+11.1 instalaciones que la Policía Nacional indique, dirigida a un mínimo de 8 personas, en temas
+
+de desarrollo de software que el supervisor indique.
+
+El contratista realizará capacitación técnica al personal de la Policía Nacional designado por
+
+11.2 el Supervisor del Contrato, sobre el código fuente de la solución implementada, en cada
+
+etapa del proyecto, hasta su puesta en producción.
+
+Capacitación operativa territorial: Mínimo 20 horas efectivas por territorio, en los territorios
+
+donde se implemente el sistema. Modalidad presencial o virtual sincrónica. Incluye
+
+componentes teórico-prácticos para operadores, coordinadores, técnicos y administradores. 11.3 El contratista entregará por cada territorio: informe de ejecución, material didáctico, guías
+
+operativas, registro de asistencia y evidencias prácticas. La capacitación se realizará antes
+
+de la entrada en operación en cada sede.
+
+Capacitación especializada en desarrollo: El contratista deberá realizar una transferencia
+
+de conocimiento de al menos 40 horas en las instalaciones que la entidad indique, dirigida a
+
+un mínimo de 8 personas designadas por el supervisor, esta transferencia de conocimiento
+
+estará enfocada en temas de arquitectura de software y el código fuente de la solución 11.4 implementada.
+
+1. Arquitectura del Sistema CAD: • Diseño, componentes y flujos internos.
+
+DESCRIPCIÓN DEL REQUERIMIENTO
+
+CUMPLE NO CUMPLE
+
+• Arquitectura basada en microservicios, enrutamiento, balanceo de carga y alta
+
+disponibilidad.
+
+• Interoperabilidad mediante APIs, colas de mensajes, integración multiagencia.
+
+2. Desarrollo y Mantenimiento de Software:
+
+• Estructura del código fuente entregado.
+
+• Guías de extensión y mantenimiento evolutivo.
+
+• Estándares de codificación en JavaScript y Python utilizados en el proyecto.
+
+• Metodologías ágiles (Scrum/Kanban) aplicadas al sistema.
+
+3. Bases de Datos e Integración:
+
+• Administración del motor de base de datos en uso (Oracle, PostgreSQL u otros
+
+definidos en el proyecto).
+
+• Replicación, respaldos, restauración y monitoreo.
+
+• Diseño de esquemas para incidentes, despachos y trazabilidad.
+
+4. Infraestructura y DevOps:
+
+• Pipeline de despliegue, automatización, pruebas y monitoreo.
+
+• Contenedores, imágenes Docker, seguridad y operación.
+
+• Gestión de logs, telemetría, análisis de desempeño y escalabilidad.
+
+

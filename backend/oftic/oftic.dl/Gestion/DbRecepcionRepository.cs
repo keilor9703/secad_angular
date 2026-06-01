@@ -101,20 +101,29 @@ namespace Datos.Gestion
             await using var conn = await _tenant.DataSource.OpenConnectionAsync(ct);
             await using var cmd  = conn.CreateCommand();
             cmd.CommandText = @"
-                SELECT codigo AS CODIGO_CASO, descripcion AS DESCRIPCION_CASO
-                FROM   cad_casos
-                WHERE (UPPER(codigo)      LIKE '%' || UPPER(@b) || '%'
-                    OR UPPER(descripcion) LIKE '%' || UPPER(@b) || '%')
-                  AND vigente = 'S'
-                ORDER  BY descripcion
+                SELECT c.codigo          AS CODIGO_CASO,
+                       c.descripcion     AS DESCRIPCION_CASO,
+                       c.id_categoria_asistente,
+                       cat.codigo        AS CATEGORIA_CODIGO,
+                       cat.descripcion   AS CATEGORIA_DESCRIPCION
+                FROM   cad_casos c
+                LEFT   JOIN cad_asistente_categorias cat
+                         ON cat.id = c.id_categoria_asistente
+                WHERE (UPPER(c.codigo)       LIKE '%' || UPPER(@b) || '%'
+                    OR UPPER(c.descripcion)  LIKE '%' || UPPER(@b) || '%')
+                  AND c.vigente = 'S'
+                ORDER  BY c.descripcion
                 LIMIT  50";
             cmd.Parameters.AddWithValue("b", busqueda ?? "");
             await using var rdr = await cmd.ExecuteReaderAsync(ct);
             while (await rdr.ReadAsync(ct))
                 result.Add(new DtoCasoItem
                 {
-                    CODIGO_CASO      = rdr.IsDBNull(0) ? "" : rdr.GetString(0),
-                    DESCRIPCION_CASO = rdr.IsDBNull(1) ? "" : rdr.GetString(1)
+                    CODIGO_CASO            = rdr.IsDBNull(0) ? "" : rdr.GetString(0),
+                    DESCRIPCION_CASO       = rdr.IsDBNull(1) ? "" : rdr.GetString(1),
+                    ID_CATEGORIA_ASISTENTE = rdr.IsDBNull(2) ? null : rdr.GetInt64(2).ToString(),
+                    CATEGORIA_CODIGO       = rdr.IsDBNull(3) ? null : rdr.GetString(3),
+                    CATEGORIA_DESCRIPCION  = rdr.IsDBNull(4) ? null : rdr.GetString(4)
                 });
             return result;
         }
@@ -125,17 +134,26 @@ namespace Datos.Gestion
             await using var conn = await _tenant.DataSource.OpenConnectionAsync(ct);
             await using var cmd  = conn.CreateCommand();
             cmd.CommandText = @"
-                SELECT codigo AS CODIGO_CASO, descripcion AS DESCRIPCION_CASO
-                FROM   cad_casos
-                WHERE  TRIM(UPPER(codigo)) = TRIM(UPPER(@c))
+                SELECT c.codigo          AS CODIGO_CASO,
+                       c.descripcion     AS DESCRIPCION_CASO,
+                       c.id_categoria_asistente,
+                       cat.codigo        AS CATEGORIA_CODIGO,
+                       cat.descripcion   AS CATEGORIA_DESCRIPCION
+                FROM   cad_casos c
+                LEFT   JOIN cad_asistente_categorias cat
+                         ON cat.id = c.id_categoria_asistente
+                WHERE  TRIM(UPPER(c.codigo)) = TRIM(UPPER(@c))
                 LIMIT  1";
             cmd.Parameters.Add("c", NpgsqlTypes.NpgsqlDbType.Varchar).Value = codigo ?? "";
             await using var rdr = await cmd.ExecuteReaderAsync(ct);
             if (!await rdr.ReadAsync(ct)) return null;
             return new DtoCasoItem
             {
-                CODIGO_CASO      = rdr.IsDBNull(0) ? "" : rdr.GetString(0),
-                DESCRIPCION_CASO = rdr.IsDBNull(1) ? "" : rdr.GetString(1)
+                CODIGO_CASO            = rdr.IsDBNull(0) ? "" : rdr.GetString(0),
+                DESCRIPCION_CASO       = rdr.IsDBNull(1) ? "" : rdr.GetString(1),
+                ID_CATEGORIA_ASISTENTE = rdr.IsDBNull(2) ? null : rdr.GetInt64(2).ToString(),
+                CATEGORIA_CODIGO       = rdr.IsDBNull(3) ? null : rdr.GetString(3),
+                CATEGORIA_DESCRIPCION  = rdr.IsDBNull(4) ? null : rdr.GetString(4)
             };
         }
 
@@ -146,11 +164,11 @@ namespace Datos.Gestion
             await using var conn = await _tenant.DataSource.OpenConnectionAsync(ct);
             await using var cmd  = conn.CreateCommand();
             cmd.CommandText = @"
-                SELECT r.codigo, r.descripcion, f.descripcion AS fuerza
+                SELECT r.codigo, r.descripcion, f.descripcion AS fuerza, f.id AS fuerza_id
                 FROM   cad_canales r
                 JOIN   cad_fuerzas f ON r.cadfuerz_id = f.id
                 WHERE  f.sitio_graba = @sg AND r.vigente = 'S'
-                ORDER  BY r.descripcion ASC";
+                ORDER  BY f.descripcion ASC, r.descripcion ASC";
             cmd.Parameters.AddWithValue("sg", sitioGraba);
             await using var rdr = await cmd.ExecuteReaderAsync(ct);
             while (await rdr.ReadAsync(ct))
@@ -158,7 +176,8 @@ namespace Datos.Gestion
                 {
                     Codigo      = rdr.IsDBNull(0) ? 0  : rdr.GetInt32(0),
                     Descripcion = rdr.IsDBNull(1) ? "" : rdr.GetString(1),
-                    Fuerza      = rdr.IsDBNull(2) ? "" : rdr.GetString(2)
+                    Fuerza      = rdr.IsDBNull(2) ? "" : rdr.GetString(2),
+                    FuerzaId    = rdr.IsDBNull(3) ? 0  : rdr.GetInt32(3)
                 });
             return result;
         }
@@ -338,7 +357,7 @@ VALUES
                 // ── 2. Generar ID del evento (Snowflake — sin round-trip) ─────
                 long numeEvento   = _snowflake.NextId();
                 int  canalPrimario = d.CANALES_SELECCIONADOS.Count > 0
-                                   ? d.CANALES_SELECCIONADOS[0] : 0;
+                                   ? d.CANALES_SELECCIONADOS[0].Codigo : 0;
                 string origenEvento = string.IsNullOrWhiteSpace(d.Origen)
                                     ? OrigenEvento.Recepcion : d.Origen;
 
@@ -366,12 +385,17 @@ INSERT INTO cad_eventos (
                     insEvt.Parameters.AddWithValue("pedidoId", newPedidoId);   // cad_pedidos.id Snowflake
                     insEvt.Parameters.AddWithValue("pedidoSg", d.SITIO_GRABA);
                     insEvt.Parameters.AddWithValue("fuerzaId", canalFuerza == 0
-                                                               ? (object)DBNull.Value : canalFuerza);
+                                                       ? (object)DBNull.Value : canalFuerza);
                     insEvt.Parameters.AddWithValue("canal",    canalPrimario == 0
-                                                               ? (object)DBNull.Value : canalPrimario);
-                    insEvt.Parameters.AddWithValue("cedu",     idEmpleado == 0
-                                                               ? (object)DBNull.Value
-                                                               : idEmpleado.ToString());
+                                                       ? (object)DBNull.Value : canalPrimario);
+                    // cedu_empleado = VARCHAR(20): guardar solo si cabe.
+                    // Un id interno tipo Snowflake (≤19 dígitos) cabe; si por alguna
+                    // razón fuera mayor, se guarda NULL para no romper la transacción.
+                    var ceduStr = idEmpleado == 0 ? null : idEmpleado.ToString();
+                    insEvt.Parameters.AddWithValue("cedu",
+                        ceduStr is null || ceduStr.Length > 20
+                        ? (object)DBNull.Value
+                        : ceduStr);
                     insEvt.Parameters.AddWithValue("usuario",  usuario);
                     await insEvt.ExecuteNonQueryAsync(ct);
                 }
@@ -386,6 +410,8 @@ INSERT INTO cad_eventos (
                 {
                     await using var insCan = conn.CreateCommand();
                     insCan.Transaction  = tx;
+                    // La llave de canal es (Codigo, FuerzaId) — no solo el código.
+                    // ON CONFLICT apunta al constraint único de V26.
                     insCan.CommandText  = @"
 INSERT INTO cad_pedidos_canales
     (cadpedi_sitiograba, cadpedi_numellamada,
@@ -399,11 +425,13 @@ VALUES
      '01', @coment,
      @estado, @enviar,
      @sg, @evento,
-     NOW(), NOW(), @usuario)";
+     NOW(), NOW(), @usuario)
+ON CONFLICT (cadpedi_sitiograba, cadpedi_numellamada, cadcana_fuerz_id, cadcana_codigo)
+DO NOTHING";
                     insCan.Parameters.AddWithValue("sg",      d.SITIO_GRABA);
                     insCan.Parameters.AddWithValue("nl",      d.NUME_LLAMADA);
-                    insCan.Parameters.AddWithValue("fuerza",  canalFuerza);
-                    insCan.Parameters.AddWithValue("canal",   canal);
+                    insCan.Parameters.AddWithValue("fuerza",  canal.FuerzaId);   // fuerza propia del canal
+                    insCan.Parameters.AddWithValue("canal",   canal.Codigo);
                     insCan.Parameters.AddWithValue("coment",  NullOrString(d.COMENTARIO));
                     insCan.Parameters.AddWithValue("estado",  NullOrString(d.ESTADO));
                     insCan.Parameters.AddWithValue("enviar",  NullOrString(d.ENVIAR));
@@ -418,7 +446,9 @@ VALUES
                     ? $"Llamada enviada ID: {d.NUME_LLAMADA} — Evento: {numeEvento}. Barrio \"{d.BARRIO}\" no encontrado."
                     : $"Llamada enviada ID: {d.NUME_LLAMADA} — Evento: {numeEvento}";
 
-                return new DtoRecepcionResult { Success = true, Message = msg };
+                // PedidoId = newPedidoId (cad_pedidos.id real, Snowflake generado aquí)
+                // NO usar d.NUME_LLAMADA — ese es cad_pedidos.nume_llamada, distinto de .id
+                return new DtoRecepcionResult { Success = true, Message = msg, EventoId = numeEvento, PedidoId = newPedidoId };
             }
             catch (Exception ex)
             {
@@ -1027,6 +1057,244 @@ WHERE  UPPER(l.descripcion) LIKE '%' || @c || '%'";
             if (!await rdr.ReadAsync(ct)) return (0, 0);
             return (rdr.IsDBNull(0) ? 0 : rdr.GetInt32(0),
                     rdr.IsDBNull(1) ? 0 : rdr.GetInt32(1));
+        }
+
+        // ════════════════════════════════════════════════════════════════════════
+        // REMISIÓN A CANAL SECAD  (§6.11 / §6.1)
+        // ════════════════════════════════════════════════════════════════════════
+
+        /// <inheritdoc/>
+        public async Task<(bool success, string message, int canalesAgregados)> RemitirCanalAsync(
+            DtoRemitirCanalRequest req, string usuario, CancellationToken ct)
+        {
+            if (req.Canales is null || req.Canales.Count == 0)
+                return (false, "Debe seleccionar al menos un canal.", 0);
+
+            try
+            {
+                await using var conn = await _tenant.DataSource.OpenConnectionAsync(ct);
+                await using var tx   = await conn.BeginTransactionAsync(ct);
+
+                // ── Resolver la clave correcta de cad_pedidos_canales ────────────
+                // cad_pedidos tiene DOS identificadores:
+                //   · id           = Snowflake generado en SERVIDOR (lo que ve el frontend)
+                //   · nume_llamada = Snowflake generado en CLIENTE  (lo que usa cad_pedidos_canales)
+                // El frontend envía req.PedidoId = cad_pedidos.id (servidor).
+                // Pero la listing query une por: pc.cadpedi_numellamada = p.nume_llamada.
+                // → Hay que resolver p.nume_llamada y usarla en el INSERT.
+                long numeLlamada = req.PedidoId;
+                int  sitioGraba  = req.SitioGraba;
+
+                await using (var cmdNl = conn.CreateCommand())
+                {
+                    cmdNl.Transaction = tx;
+                    cmdNl.CommandText =
+                        "SELECT COALESCE(nume_llamada, id), sitio_graba " +
+                        "FROM   cad_pedidos WHERE id = @id LIMIT 1";
+                    cmdNl.Parameters.AddWithValue("id", req.PedidoId);
+                    await using var rNl = await cmdNl.ExecuteReaderAsync(ct);
+                    if (await rNl.ReadAsync(ct))
+                    {
+                        numeLlamada = rNl.GetInt64(0);
+                        sitioGraba  = rNl.GetInt32(1);
+                    }
+                }
+
+                var comentario = string.IsNullOrWhiteSpace(req.Observacion)
+                    ? $"Remitido a canal por {usuario}"
+                    : req.Observacion.Trim();
+
+                // Deduplicar por (Codigo, FuerzaId)
+                var canalesUnicos = req.Canales
+                    .GroupBy(c => (c.Codigo, c.FuerzaId))
+                    .Select(g => g.First())
+                    .ToList();
+
+                int agregados = 0;
+                foreach (var canal in canalesUnicos)
+                {
+                    await using var insCan = conn.CreateCommand();
+                    insCan.Transaction = tx;
+                    // INSERT sólo si no existe ya ese canal para este pedido.
+                    // No depende de ON CONFLICT para funcionar sin la migración V26.
+                    insCan.CommandText = @"
+                        INSERT INTO cad_pedidos_canales
+                            (cadpedi_sitiograba, cadpedi_numellamada,
+                             cadcana_fuerz_id,   cadcana_codigo,
+                             cali_pedido,        comentario,
+                             estado,             enviar,
+                             cadeven_sitio_graba, cadeven_nume_evento,
+                             fecha_grabacion,    fecha_modificacion,  usua_modifica)
+                        SELECT @sg, @nl, @fuerza, @canal,
+                               '01', @coment,
+                               'P', 'S',
+                               @sg, @evento,
+                               NOW(), NOW(), @usuario
+                        WHERE NOT EXISTS (
+                            SELECT 1 FROM cad_pedidos_canales
+                            WHERE  cadpedi_sitiograba  = @sg
+                              AND  cadpedi_numellamada = @nl
+                              AND  cadcana_fuerz_id    = @fuerza
+                              AND  cadcana_codigo      = @canal
+                        )";
+
+                    insCan.Parameters.AddWithValue("sg",      sitioGraba);
+                    insCan.Parameters.AddWithValue("nl",      numeLlamada);  // ← nume_llamada, no id
+                    insCan.Parameters.AddWithValue("fuerza",  canal.FuerzaId);
+                    insCan.Parameters.AddWithValue("canal",   canal.Codigo);
+                    insCan.Parameters.AddWithValue("coment",  comentario);
+                    insCan.Parameters.AddWithValue("evento",  req.EventoId);
+                    insCan.Parameters.AddWithValue("usuario", NullOrString(usuario));
+
+                    var rows = await insCan.ExecuteNonQueryAsync(ct);
+                    if (rows > 0) agregados++;
+                }
+
+                await tx.CommitAsync(ct);
+
+                var msg = agregados > 0
+                    ? $"Caso remitido a {agregados} canal(es) correctamente."
+                    : "El caso ya estaba asignado a todos los canales seleccionados.";
+
+                return (true, msg, agregados);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error remitiendo a canales SECAD. PedidoId={Id}", req.PedidoId);
+                return (false, $"Error al remitir: {ex.Message}", 0);
+            }
+        }
+
+        // ════════════════════════════════════════════════════════════════════════
+        // DUPLICATE / NEARBY-CALL DETECTION  (§6.8)
+        // Fuente: cad_pedidos — donde se almacena la georreferenciación y los
+        // códigos de caso del formulario de recepción.
+        // ════════════════════════════════════════════════════════════════════════
+
+        /// <inheritdoc/>
+        public async Task<List<DtoPedidoCercano>> G_GetPedidosCercanosAsync(
+            double lat, double lng, int radioMetros, int minutosAtras,
+            string? codCaso, CancellationToken ct)
+        {
+            // Deltas de bounding box para pre-filtro SQL rápido
+            // (1° lat ≈ 111 km;  1° lng ≈ 111 km × cos(lat))
+            double deltaLat = radioMetros / 111_000.0;
+            double deltaLng = radioMetros / (111_000.0 * Math.Cos(lat * Math.PI / 180.0));
+
+            await using var conn = await _tenant.DataSource.OpenConnectionAsync(ct);
+            await using var cmd  = conn.CreateCommand();
+
+            // Pre-filtro por bounding box + ventana temporal.
+            // Se protege contra valores varchar no numéricos con regex.
+            // Solo se incluyen pedidos reales despachados (enviar = 'S'),
+            // excluyendo cierres rápidos (estado = 'C') y anulados.
+            cmd.CommandText = @"
+                SELECT p.id,
+                       p.sitio_graba,
+                       p.codi_pedido,
+                       p.codi_pedido2,
+                       p.dire_caso,
+                       p.ciudad,
+                       p.barrio,
+                       p.estado,
+                       p.prioridad,
+                       p.nomb_llamante,
+                       p.hora_caso,
+                       p.latitud_caso,
+                       p.longitud_caso
+                FROM   cad_pedidos p
+                WHERE  p.estado NOT IN ('C', 'V')
+                  AND  p.enviar = 'S'
+                  AND  p.fecha_creacion > NOW() - (@mins * INTERVAL '1 minute')
+                  AND  p.latitud_caso  IS NOT NULL AND p.latitud_caso  <> '' AND p.latitud_caso  <> '0'
+                  AND  p.longitud_caso IS NOT NULL AND p.longitud_caso <> '' AND p.longitud_caso <> '0'
+                  AND  p.latitud_caso  ~ '^-?[0-9]+\.?[0-9]*$'
+                  AND  p.longitud_caso ~ '^-?[0-9]+\.?[0-9]*$'
+                  AND  p.latitud_caso ::float BETWEEN @latMin AND @latMax
+                  AND  p.longitud_caso::float BETWEEN @lngMin AND @lngMax
+                ORDER  BY p.fecha_creacion DESC
+                LIMIT  30";
+
+            cmd.Parameters.AddWithValue("mins",   minutosAtras);
+            cmd.Parameters.AddWithValue("latMin", lat - deltaLat);
+            cmd.Parameters.AddWithValue("latMax", lat + deltaLat);
+            cmd.Parameters.AddWithValue("lngMin", lng - deltaLng);
+            cmd.Parameters.AddWithValue("lngMax", lng + deltaLng);
+
+            // Leer filas crudas
+            var rows = new List<(DtoPedidoCercano item, double pLat, double pLng)>();
+            await using var reader = await cmd.ExecuteReaderAsync(ct);
+            while (await reader.ReadAsync(ct))
+            {
+                var rawLat = reader.IsDBNull(11) ? "" : reader.GetString(11);
+                var rawLng = reader.IsDBNull(12) ? "" : reader.GetString(12);
+
+                if (!double.TryParse(rawLat, System.Globalization.NumberStyles.Any,
+                        System.Globalization.CultureInfo.InvariantCulture, out var pLat)) continue;
+                if (!double.TryParse(rawLng, System.Globalization.NumberStyles.Any,
+                        System.Globalization.CultureInfo.InvariantCulture, out var pLng)) continue;
+
+                // hora_caso es timestamptz — leer directamente como DateTime
+                DateTime? hora = reader.IsDBNull(10)
+                    ? null
+                    : reader.GetDateTime(10).ToLocalTime();
+
+                rows.Add((new DtoPedidoCercano
+                {
+                    Id           = reader.GetInt64(0).ToString(),
+                    SitioGraba   = reader.IsDBNull(1)  ? 0    : reader.GetInt32(1),
+                    CodiPedido   = reader.IsDBNull(2)  ? null : reader.GetString(2),
+                    CodiPedido2  = reader.IsDBNull(3)  ? null : reader.GetString(3),
+                    DireCaso     = reader.IsDBNull(4)  ? null : reader.GetString(4),
+                    Ciudad       = reader.IsDBNull(5)  ? null : reader.GetString(5),
+                    Barrio       = reader.IsDBNull(6)  ? null : reader.GetString(6),
+                    Estado       = reader.IsDBNull(7)  ? null : reader.GetString(7),
+                    Prioridad    = reader.IsDBNull(8)  ? null : reader.GetString(8),
+                    NombLlamante = reader.IsDBNull(9)  ? null : reader.GetString(9),
+                    HoraCaso     = hora?.ToString("O"),
+                    MinutosAtras = hora.HasValue
+                        ? (int)Math.Round((DateTime.Now - hora.Value).TotalMinutes)
+                        : 0,
+                }, pLat, pLng));
+            }
+
+            // Calcular distancia exacta Haversine + aplicar radio + filtro por código de caso
+            var codPrefix = codCaso?.Trim().ToUpperInvariant();
+            var result    = new List<DtoPedidoCercano>();
+
+            foreach (var (item, pLat, pLng) in rows)
+            {
+                var dist = HaversineMetros(lat, lng, pLat, pLng);
+                if (dist > radioMetros) continue;
+
+                // Filtro por código de caso (si se proporcionó): exacto o prefijo de 3 chars
+                if (!string.IsNullOrEmpty(codPrefix))
+                {
+                    var pfx = codPrefix[..Math.Min(3, codPrefix.Length)];
+                    bool codMatch =
+                        (item.CodiPedido?.ToUpperInvariant().StartsWith(pfx)  == true) ||
+                        (item.CodiPedido2?.ToUpperInvariant().StartsWith(pfx) == true) ||
+                        (item.CodiPedido?.Equals(codPrefix, StringComparison.OrdinalIgnoreCase) == true);
+                    if (!codMatch) continue;
+                }
+
+                item.DistanciaMetros = (int)Math.Round(dist);
+                result.Add(item);
+            }
+
+            return result.OrderBy(r => r.DistanciaMetros).Take(5).ToList();
+        }
+
+        /// <summary>Haversine formula — returns distance in metres between two WGS-84 points.</summary>
+        private static double HaversineMetros(double lat1, double lon1, double lat2, double lon2)
+        {
+            const double R = 6_371_000.0;
+            var dLat = (lat2 - lat1) * Math.PI / 180.0;
+            var dLon = (lon2 - lon1) * Math.PI / 180.0;
+            var a    = Math.Sin(dLat / 2) * Math.Sin(dLat / 2)
+                     + Math.Cos(lat1 * Math.PI / 180.0) * Math.Cos(lat2 * Math.PI / 180.0)
+                     * Math.Sin(dLon / 2) * Math.Sin(dLon / 2);
+            return R * 2.0 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1.0 - a));
         }
     }
 }

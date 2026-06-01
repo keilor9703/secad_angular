@@ -1,0 +1,296 @@
+.salud-cads-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+// ── Badge contador de refresco ────────────────────────────────────────────────
+.refresh-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: calc(11px * var(--font-size-scale, 1));
+  font-weight: 700;
+  color: var(--policia-acento, #cdff00);
+  opacity: 0.85;
+  margin-right: 0.5rem;
+}
+
+// ── Tarjetas resumen ──────────────────────────────────────────────────────────
+.summary-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+
+  @media (max-width: 900px) { grid-template-columns: repeat(2, 1fr); }
+  @media (max-width: 560px) { grid-template-columns: 1fr; }
+}
+
+.summary-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3rem;
+  padding: 1rem 1.25rem;
+  border-radius: 10px;
+  border: 1px solid var(--ui-border, #dbe2ef);
+  background: #fff;
+
+  &--ok   { border-left: 4px solid #22c55e; }
+  &--warn { border-left: 4px solid #f59e0b; }
+  &--err  { border-left: 4px solid #ef4444; }
+  &--info { border-left: 4px solid var(--policia-cielo, #08a6cb); }
+}
+
+.summary-tile__count {
+  font-size: 2rem;
+  font-weight: 800;
+  line-height: 1;
+
+  .summary-tile--ok   & { color: #15803d; }
+  .summary-tile--warn & { color: #b45309; }
+  .summary-tile--err  & { color: #b91c1c; }
+  .summary-tile--info & { color: var(--policia-cielo, #08a6cb); }
+}
+
+.summary-tile__label {
+  font-size: calc(11.5px * var(--font-size-scale, 1));
+  font-weight: 600;
+  color: #64748b;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+// ── Barra de filtros ──────────────────────────────────────────────────────────
+.filter-grid {
+  margin-bottom: 0.25rem;
+}
+
+.filter-actions {
+  display: flex;
+  align-items: flex-end;
+  padding-bottom: 0.05rem;
+}
+
+.filter-meta {
+  margin-bottom: 0.75rem;
+  font-size: calc(11.5px * var(--font-size-scale, 1));
+}
+
+// ── Grilla CAD ────────────────────────────────────────────────────────────────
+.cad-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1rem;
+}
+
+.cad-card {
+  background: #fff;
+  border: 1px solid var(--ui-border, #dbe2ef);
+  border-radius: 12px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  transition: box-shadow 0.15s, border-color 0.15s;
+
+  &:hover { box-shadow: 0 4px 16px rgba(0, 0, 0, .08); }
+
+  &--degradado {
+    border-color: rgba(245, 158, 11, .45);
+    background:   rgba(255, 251, 235, .5);
+  }
+
+  &--offline {
+    border-color: rgba(239, 68, 68, .45);
+    background:   rgba(254, 242, 242, .5);
+  }
+
+  &--selected {
+    border-color: var(--policia-cielo, #08a6cb);
+    box-shadow:   0 0 0 2px rgba(8, 166, 203, .18);
+  }
+}
+
+.cad-card__band {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 0.85rem;
+  border-bottom: 1px solid var(--ui-border, #dbe2ef);
+  background: #f8fafc;
+}
+
+.cad-card__dane {
+  font-size: calc(11px * var(--font-size-scale, 1));
+  background: rgba(21, 27, 59, .06);
+  border-radius: 4px;
+  padding: 1px 5px;
+  color: #64748b;
+}
+
+.cad-card__body {
+  padding: 0.75rem 0.85rem 0.5rem;
+  flex: 1;
+}
+
+.cad-card__nombre {
+  margin: 0 0 0.2rem;
+  font-size: calc(14px * var(--font-size-scale, 1));
+  font-weight: 700;
+  color: var(--policia-oscuro, #151b3b);
+}
+
+.cad-card__ubicacion {
+  margin: 0;
+  font-size: calc(12px * var(--font-size-scale, 1));
+  color: #64748b;
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.cad-card__metrics {
+  display: flex;
+  justify-content: space-around;
+  padding: 0.6rem 0.85rem;
+  border-top:    1px solid var(--ui-border, #dbe2ef);
+  border-bottom: 1px solid var(--ui-border, #dbe2ef);
+}
+
+.cad-metric {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.18rem;
+}
+
+.cad-metric__label {
+  font-size: calc(10px * var(--font-size-scale, 1));
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #94a3b8;
+}
+
+.cad-metric__value {
+  font-size: calc(13px * var(--font-size-scale, 1));
+  font-weight: 700;
+  color: #334155;
+
+  &--alert { color: #dc2626; }
+}
+
+.latencia-ok   { color: #16a34a; }
+.latencia-warn { color: #d97706; }
+.latencia-bad  { color: #dc2626; }
+
+.cad-card__obs {
+  padding: 0.4rem 0.85rem;
+  font-size: calc(11.5px * var(--font-size-scale, 1));
+  color: #475569;
+  background: #f8fafc;
+  border-top: 1px solid var(--ui-border, #dbe2ef);
+  display: flex;
+  align-items: flex-start;
+  gap: 0.3rem;
+}
+
+.cad-card__footer {
+  padding: 0.5rem 0.85rem;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.cad-grid__empty {
+  grid-column: 1 / -1;
+  padding: 2.5rem;
+  text-align: center;
+  color: #94a3b8;
+  p { margin-top: 0.75rem; }
+}
+
+// ── Panel historial ───────────────────────────────────────────────────────────
+.historial-panel {
+  // Hereda .ui-panel base — solo necesita marginar el contenedor de filas
+}
+
+.historial-table-wrap {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.historial-row {
+  // .role-item ya provee el flex layout con __content y __actions
+}
+
+// ── Loading inline ────────────────────────────────────────────────────────────
+.list-loading {
+  padding: 2.5rem;
+  text-align: center;
+  color: #64748b;
+  p { margin-top: 0.75rem; }
+}
+
+// ── Botón Pausar / estado pausado ────────────────────────────────────────────
+.monitor-paused {
+  background: rgba(245, 158, 11, .15) !important;
+  color:       #b45309              !important;
+  border:      1px solid rgba(245, 158, 11, .4) !important;
+
+  &:hover {
+    background: rgba(245, 158, 11, .25) !important;
+  }
+}
+
+// ── Banner de monitoreo pausado ───────────────────────────────────────────────
+.monitor-pause-banner {
+  display:       flex;
+  align-items:   center;
+  gap:           0.75rem;
+  padding:       0.6rem 1rem;
+  margin-bottom: 1rem;
+  border-radius: 8px;
+  border:        1px solid rgba(245, 158, 11, .45);
+  background:    rgba(254, 243, 199, .7);
+  font-size:     calc(13px * var(--font-size-scale, 1));
+  color:         #92400e;
+
+  i { font-size: 1.1rem; flex-shrink: 0; }
+
+  span { flex: 1; }
+
+  .ui-btn { flex-shrink: 0; }
+}
+
+// ── Dark mode ─────────────────────────────────────────────────────────────────
+html.dark-mode {
+  .summary-tile {
+    background:   var(--ui-surface);
+    border-color: var(--ui-border);
+  }
+
+  .cad-card {
+    background:   var(--ui-surface);
+    border-color: var(--ui-border);
+
+    &__band { background: rgba(255, 255, 255, .03); }
+    &__obs  { background: rgba(255, 255, 255, .03); }
+  }
+
+  .cad-card--degradado { background: rgba(146, 64, 14, .12); }
+  .cad-card--offline   { background: rgba(153, 27, 27, .12); }
+
+  .cad-metric__value { color: var(--ui-text, #e2e8f0); }
+  .cad-card__nombre  { color: var(--ui-text, #e2e8f0); }
+
+  .refresh-badge { color: var(--policia-acento, #cdff00); }
+
+  .monitor-pause-banner {
+    background:   rgba(146, 64, 14, .18);
+    border-color: rgba(245, 158, 11, .35);
+    color:        #fcd34d;
+  }
+}

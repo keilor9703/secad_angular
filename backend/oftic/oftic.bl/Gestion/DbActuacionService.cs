@@ -1,4 +1,5 @@
 using Comun.Dtos.Actuaciones;
+using Comun.Dtos.Agencias;
 using Datos.Interfaz;
 using Negocio.Interfaz;
 
@@ -72,5 +73,23 @@ namespace Negocio.Gestion
         public Task<List<DtoCodigoCasoItem>> G_BuscarCodigosCierreAsync(
             string q, int limit, CancellationToken ct)
             => _repo.G_BuscarCodigosCierreAsync(q, limit, ct);
+
+        // ── Retroalimentación externa (via PIP) ────────────────────────────────
+        public Task SaveAuditoriaActualizacionAsync(
+            DtoAuditoriaActualizacionExterna dto, CancellationToken ct)
+            => _repo.SaveAuditoriaActualizacionAsync(dto, ct);
+
+        public Task UpdateAuditoriaActualizacionOkAsync(
+            long auditoriaId, long actuacionId, string estado, CancellationToken ct)
+            => _repo.UpdateAuditoriaActualizacionOkAsync(auditoriaId, actuacionId, estado, ct);
+
+        public Task UpdateAuditoriaActualizacionErrorAsync(
+            long auditoriaId, string error, CancellationToken ct)
+            => _repo.UpdateAuditoriaActualizacionErrorAsync(auditoriaId, error, ct);
+
+        public Task<DtoActualizacionExternaResult> P_ActualizarDesdeExternoAsync(
+            long casoId, DtoActualizacionExternaRequest req,
+            long auditoriaId, string ipOrigen, CancellationToken ct)
+            => _repo.P_ActualizarDesdeExternoAsync(casoId, req, auditoriaId, ipOrigen, ct);
     }
 }

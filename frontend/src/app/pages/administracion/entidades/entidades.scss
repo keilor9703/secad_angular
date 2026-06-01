@@ -1,0 +1,434 @@
+// ── entidades.scss ─────────────────────────────────────────────────────────
+// Usa exclusivamente las variables CSS del sistema (styles.scss).
+// Sin colores hardcodeados, sin darken/lighten de Sass.
+
+:host { display: block; }
+
+.entidades-page {
+  padding: 10px;
+  min-height: calc(100vh - 210px);
+}
+
+// ── Layout maestro-detalle ─────────────────────────────────────────────────
+.entidades-layout {
+  display: grid;
+  grid-template-columns: minmax(340px, 420px) 1fr;
+  gap: 16px;
+  align-items: start;
+}
+
+@media (max-width: 860px) {
+  .entidades-layout { grid-template-columns: 1fr; }
+}
+
+// ── Tarjeta base — igual que el resto de módulos de administración ─────────
+.tab-card {
+  margin-top: 0;
+  border: 1px solid rgba(21, 27, 59, .12);
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 10px 30px rgba(2, 6, 23, .08);
+  padding: 10px;
+  color: rgba(21, 27, 59, .85);
+
+  h3 {
+    margin: 0 0 14px;
+    font-size: calc(14px * var(--font-size-scale));
+    font-weight: 900;
+    color: var(--policia-oscuro);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+
+    i { color: var(--policia-cielo); }
+  }
+}
+
+.tab-actions {
+  margin-top: 14px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+// ── Encabezado del sidebar ─────────────────────────────────────────────────
+.sidebar-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(21, 27, 59, .10);
+
+  &__title {
+    font-size: calc(11px * var(--font-size-scale));
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    color: rgba(21, 27, 59, .55);
+  }
+}
+
+// ── Lista de fuerzas ───────────────────────────────────────────────────────
+.fuerzas-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.fuerza-item {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid rgba(21, 27, 59, .10);
+  border-radius: 12px;
+  background: #fff;
+  cursor: pointer;
+  transition: border-color .18s ease, background .18s ease;
+
+  &:hover {
+    border-color: rgba(8, 166, 203, .40);
+    background: rgba(8, 166, 203, .04);
+  }
+
+  &--selected {
+    border-left: 3px solid var(--policia-cielo);
+    border-color: rgba(8, 166, 203, .55);
+    background: rgba(8, 166, 203, .06);
+  }
+
+  &--inactiva { opacity: .60; }
+
+  &__body  { flex: 1; min-width: 0; }
+
+  &__nombre {
+    display: block;
+    font-size: calc(13px * var(--font-size-scale));
+    font-weight: 700;
+    color: var(--policia-oscuro);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  &__abrev {
+    display: inline-block;
+    margin-top: 2px;
+    font-size: calc(11px * var(--font-size-scale));
+    color: var(--policia-cielo);
+    font-weight: 600;
+  }
+
+  &__stats {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    margin-top: 5px;
+    font-size: calc(11px * var(--font-size-scale));
+    color: rgba(83, 86, 90, .80);
+
+    i { font-size: 10px; }
+  }
+
+  &__actions {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    flex-shrink: 0;
+  }
+}
+
+.empty-item {
+  padding: 24px 12px;
+  text-align: center;
+  color: rgba(83, 86, 90, .65);
+  font-size: calc(13px * var(--font-size-scale));
+  i { margin-right: 6px; }
+}
+
+// ── Badge de vigencia ──────────────────────────────────────────────────────
+.badge-vigente {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 8px;
+  border-radius: 9999px;
+  font-size: calc(10px * var(--font-size-scale));
+  font-weight: 700;
+  background: rgba(34, 197, 94, .12);
+  color: #166534;
+
+  &--no {
+    background: rgba(239, 68, 68, .10);
+    color: #dc2626;
+  }
+}
+
+// ── Header del detalle de la fuerza seleccionada ───────────────────────────
+.detail-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  background: linear-gradient(135deg, #f8fafc 0%, #eef2f7 100%);
+  border: 1px solid rgba(21, 27, 59, .10);
+  border-radius: 12px;
+  margin-bottom: 12px;
+
+  &__nombre {
+    margin: 0 0 5px;
+    font-size: calc(16px * var(--font-size-scale));
+    font-weight: 900;
+    color: var(--policia-oscuro);
+  }
+
+  &__meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+  }
+}
+
+// ── Tags de metadata ───────────────────────────────────────────────────────
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 10px;
+  border-radius: 9999px;
+  font-size: calc(11px * var(--font-size-scale));
+  font-weight: 600;
+  background: rgba(21, 27, 59, .07);
+  color: rgba(21, 27, 59, .70);
+
+  &--activa   { background: rgba(34, 197, 94, .12); color: #166534; }
+  &--inactiva { background: rgba(239, 68, 68, .10); color: #dc2626; }
+  &--abrev    { background: rgba(8, 166, 203, .12); color: var(--policia-medio); }
+  &--stat     { background: rgba(21, 27, 59, .06);  color: rgba(21, 27, 59, .60); }
+}
+
+// ── Tabs del panel de detalle ──────────────────────────────────────────────
+.detail-tabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 2px solid rgba(21, 27, 59, .10);
+  margin-bottom: 14px;
+}
+
+.detail-tab {
+  padding: 8px 16px;
+  border: none;
+  background: transparent;
+  font-size: calc(13px * var(--font-size-scale));
+  font-weight: 700;
+  color: rgba(83, 86, 90, .80);
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  cursor: pointer;
+  transition: color .15s ease, border-color .15s ease, background .15s ease;
+  border-radius: 6px 6px 0 0;
+
+  i { margin-right: 5px; }
+
+  &--active {
+    color: var(--policia-cielo);
+    border-bottom-color: var(--policia-cielo);
+    background: rgba(8, 166, 203, .06);
+  }
+
+  &:hover:not(.detail-tab--active) {
+    color: var(--policia-oscuro);
+    background: rgba(21, 27, 59, .04);
+  }
+}
+
+// ── Barra de herramientas del tab ──────────────────────────────────────────
+.tab-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  min-height: 34px;
+}
+
+.tab-hint {
+  font-size: calc(12px * var(--font-size-scale));
+  color: rgba(83, 86, 90, .70);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+
+  a {
+    color: var(--policia-cielo);
+    text-decoration: none;
+    font-weight: 700;
+    &:hover { text-decoration: underline; }
+  }
+}
+
+// ── Formulario inline de canal ─────────────────────────────────────────────
+.inline-form {
+  padding: 14px;
+  background: rgba(8, 166, 203, .04);
+  border: 1px solid rgba(8, 166, 203, .20);
+  border-radius: 12px;
+  margin-bottom: 14px;
+
+  &__title {
+    margin: 0 0 12px;
+    font-size: calc(13px * var(--font-size-scale));
+    font-weight: 900;
+    color: var(--policia-oscuro);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+
+    i { color: var(--policia-cielo); }
+  }
+}
+
+// ── Estado vacío ───────────────────────────────────────────────────────────
+.empty-state {
+  text-align: center;
+  padding: 60px 20px;
+  color: rgba(83, 86, 90, .65);
+
+  i    { color: rgba(21, 27, 59, .14); margin-bottom: 14px; display: block; }
+  p    { margin: 0; font-size: calc(14px * var(--font-size-scale)); line-height: 1.6; }
+  strong { color: var(--policia-oscuro); }
+}
+
+.empty-msg {
+  padding: 24px;
+  text-align: center;
+  color: rgba(83, 86, 90, .65);
+  font-size: calc(13px * var(--font-size-scale));
+  i { margin-right: 6px; }
+}
+
+// ── Spinner de carga ───────────────────────────────────────────────────────
+.loading-row {
+  padding: 18px;
+  text-align: center;
+  color: rgba(83, 86, 90, .70);
+  font-size: calc(13px * var(--font-size-scale));
+  i { margin-right: 6px; }
+}
+
+// ── Botones de icono ───────────────────────────────────────────────────────
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid rgba(21, 27, 59, .14);
+  border-radius: 8px;
+  background: #fff;
+  color: rgba(83, 86, 90, .75);
+  cursor: pointer;
+  font-size: 11px;
+  transition: background .15s ease, border-color .15s ease, color .15s ease;
+
+  &:hover {
+    background: var(--policia-cielo);
+    border-color: var(--policia-cielo);
+    color: #fff;
+  }
+}
+
+// ── Helpers de tabla ───────────────────────────────────────────────────────
+.actions-cell {
+  white-space: nowrap;
+  display: flex;
+  gap: 6px;
+}
+
+.row-inactivo td { opacity: .65; }
+.text-success { color: #166534; }
+.text-muted   { color: rgba(83, 86, 90, .70); }
+
+.required { color: #dc2626; margin-left: 2px; }
+
+// ── Modo oscuro ────────────────────────────────────────────────────────────
+html.dark-mode {
+
+  .tab-card {
+    background: var(--ui-surface);
+    border-color: var(--ui-border);
+    color: var(--ui-text);
+
+   
+    h3 { color: var(--ui-text); }
+  }
+
+  .sidebar-head {
+    border-bottom-color: var(--ui-border);
+    &__title { color: rgba(228, 231, 235, .45); }
+  }
+
+  .fuerza-item {
+    background: var(--ui-surface);
+    border-color: var(--ui-border);
+
+    &:hover          { background: rgba(8, 166, 203, .08); border-color: rgba(8, 166, 203, .35); }
+    &--selected      { background: rgba(8, 166, 203, .14); border-color: rgba(8, 166, 203, .45); }
+    &__nombre        { color: var(--ui-text); }
+    &__stats         { color: var(--ui-muted); }
+  }
+
+  .detail-header {
+    background: rgba(255, 255, 255, .04);
+    border-color: var(--ui-border);
+    &__nombre { color: var(--ui-text); }
+  }
+
+  .detail-tabs        { border-bottom-color: var(--ui-border); }
+  .detail-tab         { color: var(--ui-muted); }
+  .detail-tab--active { color: var(--policia-cielo); background: rgba(8, 166, 203, .08); }
+
+  .tag       { background: rgba(255, 255, 255, .08); color: var(--ui-muted); }
+  .tag--stat { background: rgba(255, 255, 255, .06); }
+
+  .inline-form {
+    background: rgba(8, 166, 203, .06);
+    border-color: rgba(8, 166, 203, .20);
+    &__title { color: var(--ui-text); }
+  }
+
+  .icon-btn {
+    background: var(--ui-surface);
+    border-color: var(--ui-border);
+    color: var(--ui-muted);
+  }
+
+  .empty-state {
+    i      { color: rgba(255, 255, 255, .08); }
+    strong { color: var(--ui-text); }
+  }
+
+  .tab-hint { color: var(--ui-muted); }
+}
+
+
+// ── Estilos específicos para las tablas de este componente ─────────────────
+.ui-table {
+  thead {
+    th {
+      /* Usamos 'background' en lugar de 'background-color' para matar el gradiente base */
+      background-color: var(--policia-oscuro); 
+      color: #050505; 
+      border-bottom: none;
+      
+      &:first-child { border-top-left-radius: 8px; }
+      &:last-child { border-top-right-radius: 8px; }
+    }
+  }
+}

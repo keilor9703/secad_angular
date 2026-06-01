@@ -4,6 +4,7 @@ using Comun.Dtos;
 using Datos.Interfaz;
 using Servicios.ApiInterfaz;
 using System.Security.Claims;
+using BCrypt.Net;
 
 namespace ofic.Controllers.Administracion
 {
@@ -14,17 +15,20 @@ namespace ofic.Controllers.Administracion
     {
         private readonly IApiWebToken _apiWebToken;
         private readonly IDbUsuarioRepository _dbUsuarioRepository;
+        private readonly IDbMasterRepository _masterRepository;
         private readonly ILogger<UsuarioController> _logger;
         private readonly IConfiguration _configuration;
 
         public UsuarioController(
             IApiWebToken apiWebToken,
             IDbUsuarioRepository dbUsuarioRepository,
+            IDbMasterRepository masterRepository,
             ILogger<UsuarioController> logger,
             IConfiguration configuration)
         {
             _apiWebToken = apiWebToken;
             _dbUsuarioRepository = dbUsuarioRepository;
+            _masterRepository = masterRepository;
             _logger = logger;
             _configuration = configuration;
         }
@@ -102,13 +106,12 @@ namespace ofic.Controllers.Administracion
                     });
                 }
 
-                // Persistir automÃ¡ticamente en DB local si no existe.
-                // No debe romper la consulta principal si falla la persistencia local.
+                // Persistir automáticamente en DB local si no existe; capturar idUsuario resultante.
                 if (empleado is not null)
                 {
                     try
                     {
-                        await _dbUsuarioRepository.EnsureUsuarioExistsAsync(empleado, HttpContext.RequestAborted);
+                        empleado.idUsuario = await _dbUsuarioRepository.EnsureUsuarioExistsAsync(empleado, HttpContext.RequestAborted);
                     }
                     catch (Exception ex)
                     {
@@ -421,6 +424,144 @@ namespace ofic.Controllers.Administracion
             }
         }
 
+        /// <summary>
+        /// Devuelve los datos de un usuario directamente desde ctr_usuarios (sin pasar por PIP).
+        /// Usado para editar usuarios civiles / otras entidades desde el panel de administración.
+        /// </summary>
+        [HttpGet("Local")]
+        public async Task<IActionResult> GetLocalUser([FromQuery] string username)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(username))
+                    return BadRequest(new { success = false, message = "Username requerido." });
+
+                var usuario = await _dbUsuarioRepository.GetLocalUsuarioAsync(
+                    username.Trim(), HttpContext.RequestAborted);
+
+                if (usuario is null)
+                    return NotFound(new { success = false, message = "Usuario no encontrado en la base de datos local." });
+
+                var roles = await _dbUsuarioRepository.GetRolesAsignadosAsync(
+                    username.Trim(), HttpContext.RequestAborted);
+
+                var rolesCatalogo = await _dbUsuarioRepository.GetRolesAsync(HttpContext.RequestAborted);
+
+                return Ok(new
+                {
+                    usuario,
+                    rolesAsignados = roles,
+                    rolesCatalogo  = rolesCatalogo.Where(r => r.id > 0).ToList()
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error consultando usuario local. username={Username}", username);
+                return StatusCode(500, new { success = false, message = "Error al consultar el usuario." });
+            }
+        }
+
+        /// <summary>
+        /// Crea o actualiza un usuario civil / de otra entidad.
+        /// Estos usuarios autentican SOLO localmente (nunca via OUD/LDAP/PIP).
+        /// El codigo_dane y sitio_graba son heredados del JWT del administrador que crea el usuario,
+        /// garantizando que el tenant del nuevo usuario sea el mismo que el del creador.
+        /// </summary>
+        [HttpPost("Civil")]
+        public async Task<IActionResult> CreateCivilUsuario([FromBody] DtoCivilUsuarioRequest request)
+        {
+            try
+            {
+                if (request is null)
+                    return BadRequest(new { success = false, message = "Payload inválido." });
+
+                var username = (request.username ?? request.identificacion ?? string.Empty).Trim();
+                if (string.IsNullOrWhiteSpace(username))
+                    return BadRequest(new { success = false, message = "Se requiere username o identificación." });
+
+                // Contraseña: obligatoria en creación; en actualización puede venir vacía (sin cambio)
+                var passwordPlain = (request.password ?? string.Empty).Trim();
+                var esActualizacion = await _dbUsuarioRepository.GetUsuarioIdByUsernameAsync(
+                    username, HttpContext.RequestAborted) is not null;
+
+                if (!esActualizacion && string.IsNullOrWhiteSpace(passwordPlain))
+                    return BadRequest(new { success = false, message = "La contraseña es requerida para crear un nuevo usuario civil." });
+
+                if (!string.IsNullOrWhiteSpace(passwordPlain) && passwordPlain.Length < 8)
+                    return BadRequest(new { success = false, message = "La contraseña debe tener al menos 8 caracteres." });
+
+                // Heredar codigo_dane del JWT del administrador creador
+                var codDane = User.FindFirstValue("codigo_dane")
+                    ?? User.FindFirstValue("cod_dane")
+                    ?? string.Empty;
+
+                if (string.IsNullOrWhiteSpace(codDane))
+                    return BadRequest(new { success = false, message = "No se pudo determinar el CAD del administrador. Verifique la sesión." });
+
+                var maquinaAuditoria =
+                    HttpContext.Connection.RemoteIpAddress?.ToString()
+                    ?? Environment.MachineName
+                    ?? "N/A";
+
+                var usuarioAuditoria = await ResolveUsuarioAuditoriaAsync(
+                    User, request.identificacion, HttpContext.RequestAborted);
+
+                // 1. Guardar en BD de tenant (ctr_usuarios)
+                var tenantResult = await _dbUsuarioRepository.CreateCivilUsuarioAsync(
+                    request, usuarioAuditoria, maquinaAuditoria, HttpContext.RequestAborted);
+
+                if (tenantResult.idUsuario <= 0)
+                {
+                    return BadRequest(new
+                    {
+                        success = false,
+                        message = string.IsNullOrWhiteSpace(tenantResult.message)
+                            ? "No fue posible guardar el usuario en la base de datos del CAD."
+                            : tenantResult.message
+                    });
+                }
+
+                // 2. Guardar credenciales en master (secad_users_fallback) con hash BCrypt
+                // Si passwordPlain está vacío (edición sin cambio de contraseña), pasar "" para que el
+                // SQL CASE lo ignore y conserve el hash existente.
+                var passwordHash = string.IsNullOrWhiteSpace(passwordPlain)
+                    ? string.Empty
+                    : BCrypt.Net.BCrypt.HashPassword(passwordPlain, workFactor: 12);
+                var masterResult = await _masterRepository.SaveCivilUserAsync(
+                    username, passwordHash, codDane, request.activo, HttpContext.RequestAborted);
+
+                if (!masterResult.success)
+                {
+                    _logger.LogWarning(
+                        "Usuario civil guardado en tenant pero falló en master fallback. username={Username}, codDane={CodDane}",
+                        username, codDane);
+                    // No revertimos el tenant — el administrador puede reintentar.
+                    return StatusCode(207, new
+                    {
+                        success = false,
+                        idUsuario = tenantResult.idUsuario,
+                        message = "Usuario guardado en el CAD, pero falló el registro de credenciales locales. " + masterResult.message
+                    });
+                }
+
+                _logger.LogInformation(
+                    "Usuario civil creado. username={Username}, codDane={CodDane}, idUsuario={Id}",
+                    username, codDane, tenantResult.idUsuario);
+
+                return Ok(new
+                {
+                    success = true,
+                    idUsuario = tenantResult.idUsuario,
+                    message = "Usuario civil creado correctamente. Ya puede ingresar con su usuario y contraseña."
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error creando usuario civil. username={Username}", request?.username);
+                return StatusCode(500, new { success = false, message = "Error al crear el usuario civil." });
+            }
+        }
+
         private async Task<string> ResolveUsuarioAuditoriaAsync(
             ClaimsPrincipal? user,
             string? identificacionRequest,
@@ -633,12 +774,9 @@ namespace ofic.Controllers.Administracion
                     maquinaAuditoria,
                     HttpContext.RequestAborted);
 
-                if (result.idUsuario <= 0)
-                {
-                    return BadRequest(new { success = false, message = result.message });
-                }
-
-                return Ok(new { success = true, message = result.message });
+                // Devolver siempre 200 OK; el frontend distingue success:true/false
+                // para mostrar toast verde (éxito) o amarillo (advertencia), no rojo (error).
+                return Ok(new { success = result.idUsuario > 0, message = result.message });
             }
             catch (Exception ex)
             {

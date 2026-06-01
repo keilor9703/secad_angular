@@ -566,3 +566,162 @@ html.dark-mode {
   margin: 0 0 12px 0;
   color: rgba(83, 86, 90, .95);
 }
+
+// ── Panel de creación de usuario ──────────────────────────────────────────────
+
+.creation-panel {
+  margin-bottom: 16px;
+  border: 1px solid rgba(21, 27, 59, .12);
+  border-radius: 14px;
+  padding: 16px;
+  background: #fff;
+  box-shadow: 0 4px 16px rgba(2, 6, 23, .06);
+}
+
+.creation-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+
+  h3 {
+    margin: 0;
+    color: var(--policia-oscuro);
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+}
+
+// Botones de selección de tipo de usuario
+.tipo-selector {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.tipo-btn {
+  flex: 1;
+  min-width: 200px;
+  padding: 10px 16px;
+  border: 2px solid rgba(21, 27, 59, .15);
+  border-radius: 10px;
+  background: rgba(21, 27, 59, .02);
+  color: rgba(83, 86, 90, .85);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: all .15s ease;
+
+  &:hover {
+    border-color: var(--policia-medio);
+    color: var(--policia-oscuro);
+  }
+
+  &.active {
+    border-color: var(--policia-principal, #002a66);
+    background: rgba(0, 42, 102, .08);
+    color: var(--policia-oscuro, #002a66);
+  }
+
+  i {
+    font-size: 16px;
+  }
+}
+
+.helper-text {
+  font-size: 12px;
+  color: rgba(83, 86, 90, .85);
+  background: rgba(21, 27, 59, .03);
+  border: 1px solid rgba(21, 27, 59, .08);
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-bottom: 14px;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  line-height: 1.4;
+
+  i { color: var(--policia-medio); margin-top: 1px; }
+}
+
+.required {
+  color: #b91c1c;
+  font-weight: 700;
+}
+
+html.dark-mode {
+  .creation-panel {
+    background:   var(--ui-surface);
+    border-color: var(--ui-border);
+  }
+
+  .creation-header h3 { color: var(--ui-text); }
+
+  .tipo-btn {
+    background:   rgba(255,255,255,.03);
+    border-color: var(--ui-border);
+    color:        var(--ui-muted);
+
+    &.active {
+      background:   rgba(255,255,255,.08);
+      border-color: var(--ui-accent, #4f8fff);
+      color:        var(--ui-text);
+    }
+  }
+
+  .helper-text {
+    background:   rgba(255,255,255,.03);
+    border-color: var(--ui-border);
+    color:        var(--ui-muted);
+  }
+}
+
+// ── Tab Operación: asignación actual ─────────────────────────────────────────
+
+.operacion-actual {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 18px;
+  padding: 10px 14px;
+  background: rgba(37, 99, 235, .05);
+  border: 1px solid rgba(37, 99, 235, .15);
+  border-radius: 8px;
+}
+
+.op-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 12px;
+  background: rgba(37, 99, 235, .1);
+  border-radius: 9999px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #1d4ed8;
+
+  i { font-size: 11px; }
+}
+
+.op-sep {
+  font-size: 10px;
+  color: rgba(83, 86, 90, .5);
+}
+
+html.dark-mode {
+  .operacion-actual {
+    background:   rgba(96, 165, 250, .06);
+    border-color: rgba(96, 165, 250, .2);
+  }
+  .op-badge {
+    background: rgba(96, 165, 250, .12);
+    color:      #93c5fd;
+  }
+}

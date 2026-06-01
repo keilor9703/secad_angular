@@ -6,6 +6,7 @@ import { HeaderComponent } from '../components/header/header';
 import { FooterComponent } from '../components/footer/footer';
 import { BreadcrumbComponent } from '../components/breadcrumb/breadcrumb';
 import { AccessibilityMenuComponent } from '../components/accessibility-menu/accessibility-menu';
+import { ContextBannerComponent } from '../components/context-banner/context-banner';
 import { SidebarService } from '../services/sidebar';
 
 @Component({
@@ -13,7 +14,8 @@ import { SidebarService } from '../services/sidebar';
   templateUrl: './layout.html',
   styleUrls: ['./layout.scss'],
   standalone: true,
-  imports: [CommonModule, RouterOutlet, SidebarComponent, HeaderComponent, FooterComponent, BreadcrumbComponent, AccessibilityMenuComponent],
+  imports: [CommonModule, RouterOutlet, SidebarComponent, HeaderComponent, FooterComponent,
+            BreadcrumbComponent, AccessibilityMenuComponent, ContextBannerComponent],
 })
 export class LayoutComponent {
   constructor(private sidebarService: SidebarService) {}

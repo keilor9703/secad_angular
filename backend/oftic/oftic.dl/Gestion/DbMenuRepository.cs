@@ -20,32 +20,42 @@ namespace Datos.Gestion
             await using var conn = await _tenant.DataSource.OpenConnectionAsync(ct);
             await using var cmd = conn.CreateCommand();
             cmd.CommandText = @"
-WITH roles_vigentes AS (
+WITH RECURSIVE
+-- 1. Roles activos del usuario
+roles_vigentes AS (
     SELECT DISTINCT rua.id_rol
     FROM ctr_roles_user_admin rua
     WHERE rua.id_usuario = @pIdUsuario
       AND COALESCE(rua.vigente, 0) = 1
       AND (rua.fecha_fin IS NULL OR rua.fecha_fin >= CURRENT_DATE)
 ),
+-- 2. Ítems asignados explícitamente a los roles del usuario
 menus_asignados AS (
-    SELECT DISTINCT m.id_menu
-    FROM ctr_menu m
-    WHERE EXISTS (SELECT 1 FROM roles_vigentes rv WHERE rv.id_rol = 1)
-    UNION
     SELECT DISTINCT mr.id_menu
     FROM ctr_menu_roles mr
     JOIN roles_vigentes rv ON rv.id_rol = mr.id_rol
+    JOIN ctr_menu       m  ON m.id_menu = mr.id_menu AND m.vigente = 1
 ),
+-- 3. Árbol hacia arriba: ítems asignados + todos sus grupos padre
+--    (necesario para que el sidebar renderice el nodo contenedor)
 menu_tree AS (
-    SELECT m.id_menu, m.descripcion, m.idpadre, m.posicion, m.tipo, m.icono, m.vigente, m.detalle
+    -- Ancla: ítems directamente asignados
+    SELECT m.id_menu, m.descripcion, m.idpadre, m.posicion,
+           m.tipo, m.icono, m.vigente, m.detalle
     FROM ctr_menu m
     WHERE m.id_menu IN (SELECT id_menu FROM menus_asignados)
+      AND m.vigente = 1
+
     UNION
-    SELECT p.id_menu, p.descripcion, p.idpadre, p.posicion, p.tipo, p.icono, p.vigente, p.detalle
+
+    -- Recursivo: sube al grupo padre de cada ítem ya incluido
+    SELECT p.id_menu, p.descripcion, p.idpadre, p.posicion,
+           p.tipo, p.icono, p.vigente, p.detalle
     FROM ctr_menu p
-    INNER JOIN menu_tree t ON t.idpadre = p.id_menu
-        AND t.id_menu <> t.idpadre
-        AND t.idpadre <> 0
+    INNER JOIN menu_tree t
+           ON  p.id_menu   = t.idpadre
+           AND t.id_menu  <> t.idpadre   -- detiene la recursión en nodos raíz (idpadre=id_menu)
+           AND t.idpadre  <> 0           -- no sube si no hay padre
 )
 SELECT DISTINCT id_menu, descripcion, idpadre, posicion, tipo, icono, vigente, detalle
 FROM menu_tree

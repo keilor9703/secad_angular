@@ -1,0 +1,611 @@
+import {
+  Component,
+  OnInit,
+  OnDestroy,
+  AfterViewInit,
+  NgZone,
+  ChangeDetectorRef
+} from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
+import { Subject, interval } from 'rxjs';
+import { takeUntil, switchMap, startWith } from 'rxjs/operators';
+import { Router } from '@angular/router';
+import { AuthService } from '../../../core/auth/auth.service';
+import { ToastService } from '../../../core/services/toast.service';
+import { MapaService, DtoMapaIncidente } from '../../../core/services/operacion/mapa.service';
+import { EventoService, DtoCanalItem } from '../../../core/services/operacion/evento.service';
+
+// Leaflet loaded via CDN in index.html
+declare const L: any;
+
+/** Color del marcador según prioridad del incidente. */
+type PrioridadColor = '#cc0000' | '#e67300' | '#0066cc' | '#555555';
+
+@Component({
+  selector: 'app-mapa-incidentes',
+  standalone: true,
+  imports: [CommonModule, FormsModule],
+  templateUrl: './mapa-incidentes.html',
+  styleUrls: ['./mapa-incidentes.scss']
+})
+export class MapaIncidentesComponent implements OnInit, AfterViewInit, OnDestroy {
+
+  // ── Claims JWT ────────────────────────────────────────────────────────────
+  sitioGraba = 0;
+  codDane    = '';
+  fuerzaId   = 0;
+
+  // ── Estado de la UI ───────────────────────────────────────────────────────
+  cargando      = false;
+  errorCarga    = false;
+  panelAbierto  = false;
+  incidenteSeleccionado: DtoMapaIncidente | null = null;
+
+  // ── Búsqueda de dirección ─────────────────────────────────────────────────
+  direccionBusqueda = '';
+
+  // ── Filtros ───────────────────────────────────────────────────────────────
+  filtroEstado    = '';  // '' = todos
+  filtroPrioridad = '';  // '' = todos
+  filtroTexto     = '';  // búsqueda por dirección / código caso
+  filtroCanal     = 0;   // 0 = todos los canales (se envía al backend)
+
+  // ── Canales disponibles para el filtro ────────────────────────────────────
+  canalesDisponibles: DtoCanalItem[] = [];
+
+  // ── Datos ─────────────────────────────────────────────────────────────────
+  incidentes:     DtoMapaIncidente[] = [];
+  incidentesFiltrados: DtoMapaIncidente[] = [];
+
+  // ── Estadísticas rápidas ──────────────────────────────────────────────────
+  get totalActivos():   number { return this.incidentes.filter(i => i.estado === 'A').length; }
+  get totalPendientes():number { return this.incidentes.filter(i => i.estado === 'P').length; }
+  get totalEnProceso(): number { return this.incidentes.filter(i => ['E','T','R'].includes(i.estado)).length; }
+  get totalFlash():     number { return this.incidentes.filter(i => this.esFlash(i.prioridad)).length; }
+
+  // ── Mapa Leaflet ──────────────────────────────────────────────────────────
+  private map:             any = null;
+  private municipioLayer:  any = null;
+  private cuadrantesLayer: any = null;
+  private markers:         Map<string, any> = new Map();
+
+  private readonly ARCGIS_BASE =
+    'https://services3.arcgis.com/8cBoM4o6pnuUb1z1/ArcGIS/rest/services/SIDENCO_SinMalla/FeatureServer';
+
+  private readonly REFRESH_INTERVAL_MS = 30_000; // 30 segundos
+
+  private destroy$ = new Subject<void>();
+
+  constructor(
+    private auth:       AuthService,
+    private svc:        MapaService,
+    private eventoSvc:  EventoService,
+    private toast:      ToastService,
+    private zone:       NgZone,
+    private cdr:        ChangeDetectorRef,
+    private router:     Router
+  ) {}
+
+  // ══════════════════════════════════════════════════════════════════════════
+  //  Lifecycle
+  // ══════════════════════════════════════════════════════════════════════════
+
+  ngOnInit(): void {
+    const claims    = this.auth.getJwtClaims();
+    this.sitioGraba = claims.sitioGraba;
+    this.codDane    = claims.codDane;
+    this.fuerzaId   = claims.fuerzaId;
+    this.cargarCanales();
+  }
+
+  private cargarCanales(): void {
+    this.eventoSvc.getCanales(this.sitioGraba)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: data => {
+          this.canalesDisponibles = data ?? [];
+          this.cdr.detectChanges();
+        },
+        error: () => { /* no crítico — filtro de canal simplemente no aparece */ }
+      });
+  }
+
+  ngAfterViewInit(): void {
+    this.initMap();
+    this.iniciarPolling();
+    // Registrar callback global para botones dentro de popups de Leaflet
+    (window as any)._secadMapaAbrirDetalle = (id: string) => {
+      this.zone.run(() => {
+        const inc = this.incidentes.find(i => i.id === id);
+        if (inc) this.seleccionarIncidente(inc);
+        this.cdr.detectChanges();
+      });
+    };
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+    // Limpiar callback global
+    delete (window as any)._secadMapaAbrirDetalle;
+    if (this.map) {
+      this.map.off();
+      this.map.remove();
+      this.map = null;
+    }
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  //  Mapa — Inicialización
+  // ══════════════════════════════════════════════════════════════════════════
+
+  private initMap(): void {
+    if (typeof L === 'undefined') {
+      console.warn('[Mapa] Leaflet no disponible. Verifique index.html.');
+      return;
+    }
+
+    this.map = L.map('mapaIncidentesDiv', {
+      zoomControl: true,
+      attributionControl: true
+    }).setView([4.7110, -74.0721], 12);
+
+    // Capa base: OpenStreetMap
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© <a href="https://openstreetmap.org">OpenStreetMap</a>',
+      maxZoom: 19
+    }).addTo(this.map);
+
+    // Cargar capas institucionales si hay codDane
+    if (this.codDane) {
+      this.cargarCapaMunicipios(this.codDane);
+    }
+
+    // Invalidar tamaño al renderizar (evita mapa gris)
+    setTimeout(() => this.map?.invalidateSize(), 200);
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  //  Polling de datos
+  // ══════════════════════════════════════════════════════════════════════════
+
+  private iniciarPolling(): void {
+    interval(this.REFRESH_INTERVAL_MS).pipe(
+      startWith(0),
+      switchMap(() => {
+        this.cargando = true;
+        return this.svc.getIncidentesActivos(this.sitioGraba, this.filtroCanal);
+      }),
+      takeUntil(this.destroy$)
+    ).subscribe({
+      next: (data) => {
+        this.zone.run(() => {
+          this.cargando    = false;
+          this.errorCarga  = false;
+          this.incidentes  = data;
+          this.aplicarFiltros();
+          this.sincronizarMarcadores(data);
+          this.cdr.detectChanges();
+        });
+      },
+      error: () => {
+        this.zone.run(() => {
+          this.cargando   = false;
+          this.errorCarga = true;
+          this.cdr.detectChanges();
+        });
+      }
+    });
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  //  Marcadores en el mapa
+  // ══════════════════════════════════════════════════════════════════════════
+
+  private sincronizarMarcadores(incidentes: DtoMapaIncidente[]): void {
+    if (!this.map) return;
+
+    const idsActuales = new Set(incidentes.map(i => i.id));
+
+    // Eliminar marcadores de incidentes que ya cerraron
+    this.markers.forEach((marker, id) => {
+      if (!idsActuales.has(id)) {
+        this.map.removeLayer(marker);
+        this.markers.delete(id);
+      }
+    });
+
+    // Agregar o actualizar marcadores
+    for (const inc of incidentes) {
+      const lat = parseFloat(inc.latitudCaso);
+      const lng = parseFloat(inc.longitudCaso);
+      if (isNaN(lat) || isNaN(lng)) continue;
+
+      if (this.markers.has(inc.id)) {
+        // Actualizar posición y popup si el marcador ya existe
+        const marker = this.markers.get(inc.id);
+        marker.setLatLng([lat, lng]);
+        marker.setPopupContent(this.buildPopupContent(inc));
+      } else {
+        // Crear nuevo marcador
+        const icon   = this.crearIcono(inc.prioridad);
+        const marker = L.marker([lat, lng], { icon })
+          .bindPopup(this.buildPopupContent(inc), { maxWidth: 280, minWidth: 220 })
+          .on('click', () => {
+            this.zone.run(() => {
+              this.seleccionarIncidente(inc);
+              this.cdr.detectChanges();
+            });
+          });
+        marker.addTo(this.map);
+        this.markers.set(inc.id, marker);
+      }
+    }
+  }
+
+  private crearIcono(prioridad: string): any {
+    const color = this.colorPorPrioridad(prioridad);
+    const label = this.labelPrioridadCorto(prioridad);
+
+    return L.divIcon({
+      className: '',
+      html: `
+        <div style="
+          position: relative;
+          width: 32px;
+          height: 42px;
+        ">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 42" width="32" height="42">
+            <path d="M16 0 C7.163 0 0 7.163 0 16 C0 27 16 42 16 42 C16 42 32 27 32 16 C32 7.163 24.837 0 16 0 Z"
+                  fill="${color}" stroke="rgba(0,0,0,0.4)" stroke-width="1.5"/>
+            <circle cx="16" cy="16" r="9" fill="rgba(255,255,255,0.25)"/>
+          </svg>
+          <span style="
+            position: absolute;
+            top: 6px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #fff;
+            font-size: 8px;
+            font-weight: 700;
+            font-family: sans-serif;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.6);
+            white-space: nowrap;
+            line-height: 1;
+          ">${label}</span>
+        </div>`,
+      iconSize:    [32, 42],
+      iconAnchor:  [16, 42],
+      popupAnchor: [0, -44]
+    });
+  }
+
+  private buildPopupContent(inc: DtoMapaIncidente): string {
+    const estadoBadge = this.estadoBadgeHtml(inc.estado);
+    const actuaciones = inc.totalActuaciones > 0
+      ? `<span style="color:#0a9242;font-weight:600">
+           <i class="fa-solid fa-car-side"></i> ${inc.totalActuaciones} unidad(es)
+         </span>`
+      : `<span style="color:#888">Sin unidades asignadas</span>`;
+
+    const desc2 = inc.codiPedido2
+      ? `<div style="font-size:11px;color:#666;margin-top:2px">
+           ${inc.codiPedido2} — ${inc.descPedido2 || ''}
+         </div>`
+      : '';
+
+    return `
+      <div style="font-family:sans-serif;min-width:200px">
+        <div style="font-weight:700;font-size:13px;margin-bottom:4px;color:#1a1a2e">
+          ${inc.codiPedido} — ${inc.descPedido || 'Sin descripción'}
+        </div>
+        ${desc2}
+        <div style="font-size:11px;color:#444;margin:6px 0 2px">
+          <i class="fa-solid fa-location-dot"></i>
+          ${inc.direCaso || '—'}
+          ${inc.barrio ? ` · ${inc.barrio}` : ''}
+        </div>
+        <div style="font-size:11px;color:#555;margin-bottom:6px">
+          <i class="fa-regular fa-clock"></i> ${inc.horaCaso || ''}
+          &nbsp;|&nbsp;
+          <i class="fa-solid fa-user"></i> ${inc.usernameCreacion || '—'}
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+          ${estadoBadge}
+          ${actuaciones}
+        </div>
+        <button
+          onclick="window._secadMapaAbrirDetalle && window._secadMapaAbrirDetalle('${inc.id}')"
+          style="
+            background:#003087;color:#fff;border:none;border-radius:4px;
+            padding:4px 10px;font-size:11px;cursor:pointer;width:100%;margin-top:4px
+          ">
+          <i class='fa-solid fa-arrow-up-right-from-square'></i> Ver detalle
+        </button>
+      </div>`;
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  //  Capas GIS (ArcGIS REST → Leaflet GeoJSON)
+  // ══════════════════════════════════════════════════════════════════════════
+
+  private cargarCapaMunicipios(codDane: string): void {
+    if (!codDane || !this.map) return;
+    const url =
+      `${this.ARCGIS_BASE}/3/query?` +
+      `where=CODIGO='${encodeURIComponent(codDane)}'` +
+      `&outFields=CODIGO,NOMBRE&returnGeometry=true&f=geojson`;
+
+    fetch(url)
+      .then(r => r.json())
+      .then((geojson: any) => {
+        if (!this.map) return;
+        if (this.municipioLayer) this.map.removeLayer(this.municipioLayer);
+
+        this.municipioLayer = L.geoJSON(geojson, {
+          style: {
+            color: '#ff0000', weight: 1.5,
+            fillColor: '#7d7d7d', fillOpacity: 0.20
+          }
+        }).addTo(this.map);
+
+        const bounds = this.municipioLayer.getBounds();
+        if (bounds.isValid()) {
+          this.map.fitBounds(bounds, { padding: [20, 20] });
+          this.cargarCapaCuadrantesPorBbox(bounds);
+        }
+      })
+      .catch(err => console.warn('[Mapa] Error cargando municipio:', err));
+  }
+
+  private cargarCapaCuadrantesPorBbox(bounds: any): void {
+    if (!this.map) return;
+    const sw   = bounds.getSouthWest();
+    const ne   = bounds.getNorthEast();
+    const bbox = `${sw.lng},${sw.lat},${ne.lng},${ne.lat}`;
+
+    const url =
+      `${this.ARCGIS_BASE}/11/query?` +
+      `geometry=${encodeURIComponent(bbox)}` +
+      `&geometryType=esriGeometryEnvelope` +
+      `&spatialRel=esriSpatialRelIntersects` +
+      `&outFields=*&returnGeometry=true&f=geojson` +
+      `&resultRecordCount=2000`;
+
+    fetch(url)
+      .then(r => r.json())
+      .then((geojson: any) => {
+        if (!this.map) return;
+        if (this.cuadrantesLayer) this.map.removeLayer(this.cuadrantesLayer);
+        this.cuadrantesLayer = L.geoJSON(geojson, {
+          style: {
+            color: '#ff0000', weight: 1.5,
+            fillOpacity: 0, opacity: 0.55
+          }
+        }).addTo(this.map);
+      })
+      .catch(err => console.warn('[Mapa] Error cargando cuadrantes:', err));
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  //  Búsqueda de dirección (Nominatim forward geocode)
+  // ══════════════════════════════════════════════════════════════════════════
+
+  geocodificarDireccion(): void {
+    const q = this.direccionBusqueda.trim();
+    if (!q) return;
+
+    const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=1`;
+    fetch(url)
+      .then(r => r.json())
+      .then((data: any[]) => {
+        if (!data?.length) {
+          this.toast.warning('Mapa', 'Dirección no encontrada');
+          return;
+        }
+        const lat = parseFloat(data[0].lat);
+        const lon = parseFloat(data[0].lon);
+        this.zone.run(() => {
+          this.map?.setView([lat, lon], 17);
+          this.cdr.detectChanges();
+        });
+      })
+      .catch(() => this.toast.error('Mapa', 'Error al geocodificar'));
+  }
+
+  onBusquedaKeyup(event: KeyboardEvent): void {
+    if (event.key === 'Enter') this.geocodificarDireccion();
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  //  Filtros
+  // ══════════════════════════════════════════════════════════════════════════
+
+  aplicarFiltros(): void {
+    let lista = this.incidentes;
+
+    if (this.filtroEstado) {
+      if (this.filtroEstado === 'EP') {
+        lista = lista.filter(i => ['E','T','R'].includes(i.estado));
+      } else {
+        lista = lista.filter(i => i.estado === this.filtroEstado);
+      }
+    }
+
+    if (this.filtroPrioridad) {
+      lista = lista.filter(i => this.normalizarPrioridad(i.prioridad) === this.filtroPrioridad);
+    }
+
+    if (this.filtroTexto.trim()) {
+      const txt = this.filtroTexto.trim().toLowerCase();
+      lista = lista.filter(i =>
+        (i.direCaso  || '').toLowerCase().includes(txt) ||
+        (i.codiPedido|| '').toLowerCase().includes(txt) ||
+        (i.descPedido|| '').toLowerCase().includes(txt) ||
+        (i.ciudad    || '').toLowerCase().includes(txt)
+      );
+    }
+
+    this.incidentesFiltrados = lista;
+
+    // Actualizar visibilidad de marcadores
+    if (this.map) {
+      const idsVisibles = new Set(lista.map(i => i.id));
+      this.markers.forEach((marker, id) => {
+        if (idsVisibles.has(id)) {
+          if (!this.map.hasLayer(marker)) marker.addTo(this.map);
+        } else {
+          if (this.map.hasLayer(marker)) this.map.removeLayer(marker);
+        }
+      });
+    }
+  }
+
+  /** Cambia el filtro de canal y re-consulta el backend inmediatamente. */
+  onCanalChange(): void {
+    this.cargando = true;
+    this.svc.getIncidentesActivos(this.sitioGraba, this.filtroCanal)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: data => {
+          this.zone.run(() => {
+            this.cargando   = false;
+            this.errorCarga = false;
+            this.incidentes = data;
+            this.aplicarFiltros();
+            this.sincronizarMarcadores(data);
+            this.cdr.detectChanges();
+          });
+        },
+        error: () => {
+          this.zone.run(() => {
+            this.cargando   = false;
+            this.errorCarga = true;
+            this.cdr.detectChanges();
+          });
+        }
+      });
+  }
+
+  limpiarFiltros(): void {
+    this.filtroEstado    = '';
+    this.filtroPrioridad = '';
+    this.filtroTexto     = '';
+    this.filtroCanal     = 0;
+    this.onCanalChange();   // re-consulta con canal=0 (todos)
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  //  Selección de incidente
+  // ══════════════════════════════════════════════════════════════════════════
+
+  seleccionarIncidente(inc: DtoMapaIncidente): void {
+    this.incidenteSeleccionado = inc;
+    this.panelAbierto = true;
+
+    // Centrar mapa en el incidente seleccionado
+    const lat = parseFloat(inc.latitudCaso);
+    const lng = parseFloat(inc.longitudCaso);
+    if (!isNaN(lat) && !isNaN(lng) && this.map) {
+      this.map.setView([lat, lng], 16);
+      this.markers.get(inc.id)?.openPopup();
+    }
+
+    this.cdr.detectChanges();
+  }
+
+  cerrarPanel(): void {
+    this.panelAbierto          = false;
+    this.incidenteSeleccionado = null;
+  }
+
+  /** Navega al módulo de Pedido con el ID del incidente seleccionado. */
+  irAPedido(id: string): void {
+    this.router.navigate(['/operacion/pedido'], { queryParams: { id } });
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  //  Helpers de UI
+  // ══════════════════════════════════════════════════════════════════════════
+
+  colorPorPrioridad(prioridad: string): PrioridadColor {
+    const p = this.normalizarPrioridad(prioridad);
+    if (p === 'FLASH')    return '#cc0000';
+    if (p === 'INMEDIATA') return '#e67300';
+    if (p === 'RUTINA')   return '#0066cc';
+    return '#555555';
+  }
+
+  labelPrioridadCorto(prioridad: string): string {
+    const p = this.normalizarPrioridad(prioridad);
+    if (p === 'FLASH')    return 'FLH';
+    if (p === 'INMEDIATA') return 'INM';
+    return 'RUT';
+  }
+
+  normalizarPrioridad(prioridad: string): string {
+    const map: Record<string, string> = {
+      '01': 'FLASH', 'FLASH': 'FLASH',
+      '02': 'INMEDIATA', 'INMEDIATA': 'INMEDIATA',
+      '03': 'RUTINA',    'RUTINA': 'RUTINA'
+    };
+    return map[(prioridad || '').toUpperCase()] ?? 'RUTINA';
+  }
+
+  labelPrioridad(prioridad: string): string {
+    const p = this.normalizarPrioridad(prioridad);
+    if (p === 'FLASH')    return 'Flash';
+    if (p === 'INMEDIATA') return 'Inmediata';
+    return 'Rutina';
+  }
+
+  esFlash(prioridad: string): boolean {
+    return this.normalizarPrioridad(prioridad) === 'FLASH';
+  }
+
+  labelEstado(estado: string): string {
+    const map: Record<string, string> = {
+      A: 'Activo', P: 'Pendiente', E: 'En proceso',
+      T: 'Seguimiento', R: 'Revisión', C: 'Cerrado', V: 'Anulado'
+    };
+    return map[estado ?? ''] ?? estado;
+  }
+
+  claseEstado(estado: string): string {
+    const map: Record<string, string> = {
+      A: 'badge-activo', P: 'badge-pendiente',
+      E: 'badge-proceso', T: 'badge-seguimiento',
+      R: 'badge-revision', C: 'badge-cerrado'
+    };
+    return map[estado ?? ''] ?? 'badge-default';
+  }
+
+  estadoBadgeHtml(estado: string): string {
+    const label = this.labelEstado(estado);
+    const cls   = this.claseEstado(estado);
+    const colors: Record<string, string> = {
+      'badge-activo':      'background:#d4edda;color:#155724',
+      'badge-pendiente':   'background:#fff3cd;color:#856404',
+      'badge-proceso':     'background:#cce5ff;color:#004085',
+      'badge-seguimiento': 'background:#e2d9f3;color:#6f42c1',
+      'badge-revision':    'background:#f8d7da;color:#721c24',
+      'badge-cerrado':     'background:#d6d8db;color:#383d41'
+    };
+    const style = colors[cls] ?? 'background:#eee;color:#333';
+    return `<span style="${style};padding:2px 7px;border-radius:10px;font-size:10px;font-weight:600">${label}</span>`;
+  }
+
+  labelOrigen(origen: string): string {
+    const map: Record<string, string> = {
+      CTI:        'Llamada CTI',
+      RECEPCION:  'Recepción',
+      APP_MOVIL:  'App Móvil',
+      INTEGRACION:'Integración',
+      INTERNO:    'Radio/Campo',
+      MANUAL:     'Manual',
+      SIEDCO:     'SIEDCO'
+    };
+    return map[origen ?? ''] ?? origen;
+  }
+}

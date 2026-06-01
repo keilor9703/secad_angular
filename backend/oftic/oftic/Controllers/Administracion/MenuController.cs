@@ -368,25 +368,35 @@ namespace Api.Controllers.Administracion
 
         private async Task<List<DtoMenuItem>> GetMenuForUserAsync(long idUsuario, CancellationToken ct)
         {
-            if (IsSuperUser(idUsuario))
+            // Superusuarios configurados explícitamente en appsettings reciben todo el menú admin.
+            // Usuarios con id_rol=1 (Administrador) o id_rol=2 (SuperAdministrador) son
+            // identificados por el JWT claim es_admin=true emitido en JwtService.
+            if (IsSuperUser(idUsuario) || IsAdmin())
             {
                 var adminMenu = await _service.GetAdminMenuAsync(ct);
-                var filtered = adminMenu.Where(x => x.Vigente == 1).ToList();
-                _logger.LogInformation("Regla superusuario aplicada para idUsuario {IdUsuario}. MenÃº admin vigente: {Count}", idUsuario, filtered.Count);
+                var filtered  = adminMenu.Where(x => x.Vigente == 1).ToList();
+                _logger.LogInformation("[Menu] Admin {Id}: {N} ítems.", idUsuario, filtered.Count);
                 return filtered;
             }
 
-            return await _service.GetMyMenuAsync(idUsuario, ct);
+            var menu = await _service.GetMyMenuAsync(idUsuario, ct);
+            _logger.LogInformation("[Menu] Usuario {Id}: {N} ítems por roles.", idUsuario, menu.Count);
+            return menu;
         }
 
+        /// <summary>
+        /// Verifica el claim es_admin del JWT.
+        /// JwtService lo emite como "true" cuando el usuario tiene id_rol=1 o id_rol=2.
+        /// </summary>
+        private bool IsAdmin()
+            => string.Equals(User.FindFirstValue("es_admin"), "true", StringComparison.OrdinalIgnoreCase);
+
         private bool IsSuperUser(long idUsuario)
-        {
-            return _superUserIds.Contains(idUsuario);
-        }
+            => _superUserIds.Contains(idUsuario);
 
         private static HashSet<long> ResolveSuperUserIds(IConfiguration configuration)
         {
-            var ids = new HashSet<long> { 1 }; // fallback por defecto
+            var ids = new HashSet<long>();
 
             var configured = configuration["Menu:SuperUserIds"];
             if (string.IsNullOrWhiteSpace(configured))

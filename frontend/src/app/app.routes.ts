@@ -12,10 +12,13 @@ import { LineaMandoAdminComponent } from './pages/administracion/linea-mando/lin
 import { AdministracionInicioComponent } from './pages/administracion/administracion-inicio/administracion-inicio';
 import { DominioAdminComponent } from './pages/administracion/dominio/dominio';
 import { authGuard } from './core/auth/auth.guard';
+import { adminGuard } from './core/auth/admin.guard';
+import { superAdminGuard } from './core/auth/super-admin.guard';
+import { EntidadesComponent } from './pages/administracion/entidades/entidades';
 import { PedidoComponent } from './pages/operacion/pedido/pedido';
 import { RecepcionComponent } from './pages/operacion/recepcion/recepcion';
 import { EventosComponent } from './pages/operacion/eventos/eventos';
-import { TurnosComponent }  from './pages/operacion/turnos/turnos';
+import { TurnosComponent } from './pages/operacion/turnos/turnos';
 
 export const routes: Routes = [
   { path: '', redirectTo: 'login', pathMatch: 'full' },
@@ -35,27 +38,61 @@ export const routes: Routes = [
           { path: '', component: AdministracionInicioComponent, canActivate: [authGuard] },
           { path: 'inicio', component: AdministracionInicioComponent, canActivate: [authGuard] },
           { path: 'formularios', component: Formularios, canActivate: [authGuard] },
-          { path: 'usuarios', component: UsuariosComponent, canActivate: [authGuard] },
-          { path: 'roles', component: RolesAdminComponent, canActivate: [authGuard] },
-          { path: 'menu', component: MenuAdminComponent, canActivate: [authGuard] },
-          { path: 'configuracion-sistema', component: ConfiguracionSistemaComponent, canActivate: [authGuard] },
+          { path: 'usuarios', component: UsuariosComponent, canActivate: [adminGuard] },
+          { path: 'roles', component: RolesAdminComponent, canActivate: [adminGuard] },
+          { path: 'menu', component: MenuAdminComponent, canActivate: [adminGuard] },
+          { path: 'configuracion-sistema', component: ConfiguracionSistemaComponent, canActivate: [adminGuard] },
           { path: 'admin-multimedia', redirectTo: 'configuracion-sistema', pathMatch: 'full' },
           { path: 'video-unidad', redirectTo: 'configuracion-sistema', pathMatch: 'full' },
           { path: 'configuracion-imagen-sitio', redirectTo: 'configuracion-sistema', pathMatch: 'full' },
-          { path: 'linea-mando', component: LineaMandoAdminComponent, canActivate: [authGuard] },
-          { path: 'dominio', component: DominioAdminComponent, canActivate: [authGuard] },
+          { path: 'linea-mando', component: LineaMandoAdminComponent, canActivate: [adminGuard] },
+          { path: 'dominio', component: DominioAdminComponent, canActivate: [adminGuard] },
+          { path: 'entidades', component: EntidadesComponent, canActivate: [adminGuard] },
           {
             path: 'cuentas-email',
             loadComponent: () => import('./pages/administracion/cuentas-email/cuentas-email').then(m => m.CuentasEmailComponent),
-            canActivate: [authGuard]
+            canActivate: [adminGuard]
           },
           {
             path: 'asistente',
             loadComponent: () => import('./pages/administracion/asistente/asistente').then(m => m.AsistenteAdminComponent),
-            canActivate: [authGuard]
+            canActivate: [adminGuard]
+          },
+          // ─── Hub de Integraciones (salientes + entrantes + auditoría) ──────
+          {
+            path: 'integraciones',
+            loadComponent: () => import('./pages/administracion/integraciones/integraciones').then(m => m.IntegracionesComponent),
+            canActivate: [adminGuard]
+          },
+          // ─── Redirect backward-compat: agencias-externas → integraciones ─
+          {
+            path: 'agencias-externas',
+            redirectTo: 'integraciones',
+            pathMatch: 'full'
           }
         ]
       },
+      // ─── Módulo SuperAdmin ────────────────────────────────────────────────
+      {
+        path: 'super',
+        canActivate: [superAdminGuard],
+        children: [
+          { path: '', redirectTo: 'salud-cads', pathMatch: 'full' },
+          {
+            path: 'salud-cads',
+            loadComponent: () => import('./pages/super/salud-cads/salud-cads').then(m => m.SaludCadsComponent),
+            canActivate: [superAdminGuard]
+          },
+          // ─── Gestión de Tenants movido aquí ───────────────────────────────
+          {
+            path: 'tenants',
+            loadComponent: () => import('./pages/administracion/tenants/tenants').then(m => m.TenantsComponent),
+            canActivate: [superAdminGuard]
+          }
+        ]
+      },
+      { path: 'salud-cads', redirectTo: 'super/salud-cads', pathMatch: 'full' },
+      { path: 'tenants',    redirectTo: 'super/tenants', pathMatch: 'full' },
       // ─── Gestión Documental ───────────────────────────────────────────────
       {
         path: 'gestion-documental',
@@ -76,16 +113,36 @@ export const routes: Routes = [
         children: [
           { path: '', redirectTo: 'recepcion', pathMatch: 'full' },
           { path: 'recepcion', component: RecepcionComponent, canActivate: [authGuard] },
-          { path: 'pedido',    component: PedidoComponent,   canActivate: [authGuard] },
+          { path: 'pedido',    component: PedidoComponent,    canActivate: [authGuard] },
           { path: 'eventos',   component: EventosComponent,  canActivate: [authGuard] },
           { path: 'turnos',    component: TurnosComponent,   canActivate: [authGuard] },
           {
             path: 'anotaciones',
             loadComponent: () => import('./pages/operacion/anotaciones-turno/anotaciones-turno').then(m => m.AnotacionesTurnoComponent),
             canActivate: [authGuard]
+          },
+          {
+            path: 'reportes',
+            loadComponent: () => import('./pages/operacion/reportes/reportes').then(m => m.ReportesComponent),
+            canActivate: [authGuard]
+          },
+          // ─── Módulo GIS 2D — Mapa de Incidentes (§2.3, §6.12) ────────────
+          {
+            path: 'mapa-incidentes',
+            loadComponent: () => import('./pages/operacion/mapa-incidentes/mapa-incidentes').then(m => m.MapaIncidentesComponent),
+            canActivate: [authGuard]
+          },
+          // ─── Módulo GIS Estadístico Delincuencial ─────────────────────────
+          {
+            path: 'mapa-estadistico',
+            loadComponent: () => import('./pages/operacion/mapa-estadistico/mapa-estadistico').then(m => m.MapaEstadisticoComponent),
+            canActivate: [authGuard]
           }
         ]
       },
+      { path: 'mapa-incidentes',  redirectTo: 'operacion/mapa-incidentes',  pathMatch: 'full' },
+      { path: 'mapa-estadistico', redirectTo: 'operacion/mapa-estadistico', pathMatch: 'full' },
+      { path: 'reportes',    redirectTo: 'operacion/reportes',    pathMatch: 'full' },
       { path: 'pedido',      redirectTo: 'operacion/pedido',      pathMatch: 'full' },
       { path: 'recepcion',   redirectTo: 'operacion/recepcion',   pathMatch: 'full' },
       { path: 'eventos',     redirectTo: 'operacion/eventos',     pathMatch: 'full' },
@@ -103,12 +160,13 @@ export const routes: Routes = [
       { path: 'linea-mando', redirectTo: 'administracion/linea-mando', pathMatch: 'full' },
       { path: 'radio', redirectTo: 'administracion/radio', pathMatch: 'full' },
       { path: 'dominio', redirectTo: 'administracion/dominio', pathMatch: 'full' },
+      { path: 'entidades', redirectTo: 'administracion/entidades', pathMatch: 'full' },
       // ─── Gestión Documental shortcuts ─────────────────────────────────────
       { path: 'cuentas-email', redirectTo: 'administracion/cuentas-email', pathMatch: 'full' },
-      { path: 'asistente',    redirectTo: 'administracion/asistente',    pathMatch: 'full' },
+      { path: 'asistente',          redirectTo: 'administracion/asistente',          pathMatch: 'full' },
+      { path: 'agencias-externas', redirectTo: 'administracion/agencias-externas', pathMatch: 'full' },
       { path: 'gestion-correos-electronicos', redirectTo: 'gestion-documental/gestion-correos-electronicos', pathMatch: 'full' }
     ]
   },
   { path: '**', redirectTo: 'login' }
 ];
-
