@@ -388,9 +388,14 @@ INSERT INTO cad_eventos (
                                                        ? (object)DBNull.Value : canalFuerza);
                     insEvt.Parameters.AddWithValue("canal",    canalPrimario == 0
                                                        ? (object)DBNull.Value : canalPrimario);
-                    insEvt.Parameters.AddWithValue("cedu",     idEmpleado == 0
-                                                       ? (object)DBNull.Value
-                                                       : idEmpleado.ToString());
+                    // cedu_empleado = VARCHAR(20): guardar solo si cabe.
+                    // Un id interno tipo Snowflake (≤19 dígitos) cabe; si por alguna
+                    // razón fuera mayor, se guarda NULL para no romper la transacción.
+                    var ceduStr = idEmpleado == 0 ? null : idEmpleado.ToString();
+                    insEvt.Parameters.AddWithValue("cedu",
+                        ceduStr is null || ceduStr.Length > 20
+                        ? (object)DBNull.Value
+                        : ceduStr);
                     insEvt.Parameters.AddWithValue("usuario",  usuario);
                     await insEvt.ExecuteNonQueryAsync(ct);
                 }

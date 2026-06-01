@@ -125,9 +125,23 @@ export const routes: Routes = [
             path: 'reportes',
             loadComponent: () => import('./pages/operacion/reportes/reportes').then(m => m.ReportesComponent),
             canActivate: [authGuard]
+          },
+          // ─── Módulo GIS 2D — Mapa de Incidentes (§2.3, §6.12) ────────────
+          {
+            path: 'mapa-incidentes',
+            loadComponent: () => import('./pages/operacion/mapa-incidentes/mapa-incidentes').then(m => m.MapaIncidentesComponent),
+            canActivate: [authGuard]
+          },
+          // ─── Módulo GIS Estadístico Delincuencial ─────────────────────────
+          {
+            path: 'mapa-estadistico',
+            loadComponent: () => import('./pages/operacion/mapa-estadistico/mapa-estadistico').then(m => m.MapaEstadisticoComponent),
+            canActivate: [authGuard]
           }
         ]
       },
+      { path: 'mapa-incidentes',  redirectTo: 'operacion/mapa-incidentes',  pathMatch: 'full' },
+      { path: 'mapa-estadistico', redirectTo: 'operacion/mapa-estadistico', pathMatch: 'full' },
       { path: 'reportes',    redirectTo: 'operacion/reportes',    pathMatch: 'full' },
       { path: 'pedido',      redirectTo: 'operacion/pedido',      pathMatch: 'full' },
       { path: 'recepcion',   redirectTo: 'operacion/recepcion',   pathMatch: 'full' },

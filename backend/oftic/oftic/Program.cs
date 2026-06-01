@@ -37,6 +37,8 @@ builder.Services.AddControllers()
     .AddJsonOptions(options =>
     {
         options.JsonSerializerOptions.PropertyNameCaseInsensitive = true;
+        // Serializar respuestas en camelCase para que Angular las consuma directamente.
+        options.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
         // Serializar long / long? como cadena JSON para evitar pérdida de precisión
         // en JavaScript (Number.MAX_SAFE_INTEGER ≈ 9 × 10^15; Snowflake IDs ≈ 10^18).
         options.JsonSerializerOptions.Converters.Add(new LongToStringJsonConverter());
@@ -185,6 +187,12 @@ builder.Services.AddScoped<IDbIntegracionService,    DbIntegracionService>();
 // Módulo Reportes y Estadísticas (§6.16)
 builder.Services.AddScoped<IDbReporteRepository, DbReporteRepository>();
 builder.Services.AddScoped<IDbReporteService,    DbReporteService>();
+
+// Módulo GIS 2D — Mapa de Incidentes (§2.3, §6.12)
+builder.Services.AddScoped<IDbMapaRepository, DbMapaRepository>();
+
+// Módulo GIS Estadístico Delincuencial — análisis histórico con heatmap y métricas
+builder.Services.AddScoped<IDbMapaEstadisticoRepository, DbMapaEstadisticoRepository>();
 
 // ── Monitor de salud de CADs ──────────────────────────────────────────────────
 // BackgroundService que sondea periódicamente la BD de cada CAD y persiste

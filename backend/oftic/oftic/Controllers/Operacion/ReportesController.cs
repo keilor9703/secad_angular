@@ -28,23 +28,27 @@ namespace Api.Controllers.Operacion
         }
 
         // ── Helper parámetros base ────────────────────────────────────────────
-        private DtoReporteParams BaseParams(string? desde, string? hasta, int fuerzaId) => new()
+        private DtoReporteParams BaseParams(string? desde, string? hasta, int fuerzaId,
+            int turnoVigilancia = 0) => new()
         {
-            Desde    = desde,
-            Hasta    = hasta,
-            FuerzaId = fuerzaId
+            Desde            = desde,
+            Hasta            = hasta,
+            FuerzaId         = fuerzaId,
+            TurnoVigilancia  = turnoVigilancia
         };
 
         private DtoReporteParamsEx ExtParams(string? desde, string? hasta, int fuerzaId,
-            int page = 1, int limit = 100, string? calidad = null, int top = 50) => new()
+            int page = 1, int limit = 100, string? calidad = null, int top = 50,
+            int turnoVigilancia = 0) => new()
         {
-            Desde    = desde,
-            Hasta    = hasta,
-            FuerzaId = fuerzaId,
-            Page     = page,
-            Limit    = limit,
-            Calidad  = calidad,
-            Top      = top
+            Desde            = desde,
+            Hasta            = hasta,
+            FuerzaId         = fuerzaId,
+            Page             = page,
+            Limit            = limit,
+            Calidad          = calidad,
+            Top              = top,
+            TurnoVigilancia  = turnoVigilancia
         };
 
         // ════════════════════════════════════════════════════════════════════════
@@ -54,14 +58,15 @@ namespace Api.Controllers.Operacion
         /// <summary>Dashboard: resumen, por origen, por fuerza, top casos, tiempos, SLA y distribución horaria.</summary>
         [HttpGet]
         public async Task<IActionResult> GetReporte(
-            [FromQuery] string? desde    = null,
-            [FromQuery] string? hasta    = null,
-            [FromQuery] int     fuerzaId = 0,
-            CancellationToken   ct       = default)
+            [FromQuery] string? desde           = null,
+            [FromQuery] string? hasta           = null,
+            [FromQuery] int     fuerzaId        = 0,
+            [FromQuery] int     turnoVigilancia = 0,
+            CancellationToken   ct              = default)
         {
             try
             {
-                var data = await _svc.GetReporteCompletoAsync(BaseParams(desde, hasta, fuerzaId), ct);
+                var data = await _svc.GetReporteCompletoAsync(BaseParams(desde, hasta, fuerzaId, turnoVigilancia), ct);
                 return Ok(new { success = true, data });
             }
             catch (Exception ex)
@@ -78,13 +83,14 @@ namespace Api.Controllers.Operacion
 
         [HttpGet("calidad")]
         public async Task<IActionResult> GetPorCalidad(
-            [FromQuery] string? desde    = null,
-            [FromQuery] string? hasta    = null,
-            CancellationToken   ct       = default)
+            [FromQuery] string? desde           = null,
+            [FromQuery] string? hasta           = null,
+            [FromQuery] int     turnoVigilancia = 0,
+            CancellationToken   ct              = default)
         {
             try
             {
-                var data = await _svc.GetPorCalidadAsync(BaseParams(desde, hasta, 0), ct);
+                var data = await _svc.GetPorCalidadAsync(BaseParams(desde, hasta, 0, turnoVigilancia), ct);
                 return Ok(new { success = true, data });
             }
             catch (Exception ex)
@@ -104,14 +110,15 @@ namespace Api.Controllers.Operacion
             [FromQuery] string? desde    = null,
             [FromQuery] string? hasta    = null,
             [FromQuery] int     fuerzaId = 0,
-            [FromQuery] string? calidad  = null,
-            [FromQuery] int     page     = 1,
-            [FromQuery] int     limit    = 100,
-            CancellationToken   ct       = default)
+            [FromQuery] string? calidad          = null,
+            [FromQuery] int     page             = 1,
+            [FromQuery] int     limit            = 100,
+            [FromQuery] int     turnoVigilancia  = 0,
+            CancellationToken   ct               = default)
         {
             try
             {
-                var data = await _svc.GetEfectivosAsync(ExtParams(desde, hasta, fuerzaId, page, limit, calidad), ct);
+                var data = await _svc.GetEfectivosAsync(ExtParams(desde, hasta, fuerzaId, page, limit, calidad, turnoVigilancia: turnoVigilancia), ct);
                 return Ok(new { success = true, data });
             }
             catch (Exception ex)
@@ -131,13 +138,14 @@ namespace Api.Controllers.Operacion
             [FromQuery] string? desde    = null,
             [FromQuery] string? hasta    = null,
             [FromQuery] int     fuerzaId = 0,
-            [FromQuery] int     page     = 1,
-            [FromQuery] int     limit    = 100,
-            CancellationToken   ct       = default)
+            [FromQuery] int     page             = 1,
+            [FromQuery] int     limit            = 100,
+            [FromQuery] int     turnoVigilancia  = 0,
+            CancellationToken   ct               = default)
         {
             try
             {
-                var data = await _svc.GetTiemposDetalleAsync(ExtParams(desde, hasta, fuerzaId, page, limit), ct);
+                var data = await _svc.GetTiemposDetalleAsync(ExtParams(desde, hasta, fuerzaId, page, limit, turnoVigilancia: turnoVigilancia), ct);
                 return Ok(new { success = true, data });
             }
             catch (Exception ex)
@@ -156,12 +164,13 @@ namespace Api.Controllers.Operacion
         public async Task<IActionResult> GetTrabajoOperadores(
             [FromQuery] string? desde    = null,
             [FromQuery] string? hasta    = null,
-            [FromQuery] int     fuerzaId = 0,
-            CancellationToken   ct       = default)
+            [FromQuery] int     fuerzaId        = 0,
+            [FromQuery] int     turnoVigilancia = 0,
+            CancellationToken   ct              = default)
         {
             try
             {
-                var data = await _svc.GetTrabajoOperadoresAsync(BaseParams(desde, hasta, fuerzaId), ct);
+                var data = await _svc.GetTrabajoOperadoresAsync(BaseParams(desde, hasta, fuerzaId, turnoVigilancia), ct);
                 return Ok(new { success = true, data });
             }
             catch (Exception ex)
@@ -181,12 +190,13 @@ namespace Api.Controllers.Operacion
             [FromQuery] string? desde    = null,
             [FromQuery] string? hasta    = null,
             [FromQuery] int     fuerzaId = 0,
-            [FromQuery] int     top      = 50,
-            CancellationToken   ct       = default)
+            [FromQuery] int     top             = 50,
+            [FromQuery] int     turnoVigilancia = 0,
+            CancellationToken   ct              = default)
         {
             try
             {
-                var data = await _svc.GetPorCodigoAsync(ExtParams(desde, hasta, fuerzaId, top: top), ct);
+                var data = await _svc.GetPorCodigoAsync(ExtParams(desde, hasta, fuerzaId, top: top, turnoVigilancia: turnoVigilancia), ct);
                 return Ok(new { success = true, data });
             }
             catch (Exception ex)

@@ -121,6 +121,14 @@ export class PedidoComponent implements OnInit, OnDestroy {
   filtroEstado    = '';
   filtroTexto     = '';
   filtroPrioridad = '';
+  filtroTurno     = 0;   // 0=Todos, 1=Segundo(06-13h), 2=Tercer(14-21h), 3=Cuarto(22-05h)
+
+  readonly turnosVigilancia = [
+    { value: 0, label: 'Todos los turnos',          icono: 'fa-clock',            color: '#64748b' },
+    { value: 1, label: 'Segundo turno (06:00-13:59)',icono: 'fa-sun',              color: '#2563eb' },
+    { value: 2, label: 'Tercer turno  (14:00-21:59)',icono: 'fa-cloud-sun',        color: '#7c3aed' },
+    { value: 3, label: 'Cuarto turno  (22:00-05:59)',icono: 'fa-moon',             color: '#dc2626' },
+  ];
 
   // ── Datos ─────────────────────────────────────────────────────────────────
   listaPedidos:   DtoPedidoListItem[]               = [];
@@ -406,6 +414,35 @@ export class PedidoComponent implements OnInit, OnDestroy {
       });
     }
 
+    // ── 4. Evento de cierre (si el incidente está cerrado) ───────────────
+    if ((d.estado === 'C' || d.estado === 'V') && d.fechaCierre) {
+      const codigosStr = d.codigosCierre?.length
+        ? d.codigosCierre
+            .map(c => c.descripcionLibre
+              ? `${c.codigoCierre} — ${c.descripcionLibre}`
+              : c.codigoCierre)
+            .join(' · ')
+        : null;
+
+      const partesCierre: string[] = [];
+      if (d.canalDescripcion || d.fuerzaDescripcion) {
+        const canal = [d.fuerzaDescripcion, d.canalDescripcion].filter(Boolean).join(' / ');
+        partesCierre.push(`Canal: ${canal}`);
+      }
+      if (codigosStr) partesCierre.push(`Códigos: ${codigosStr}`);
+      if (d.observacionCierre) partesCierre.push(`Obs: ${d.observacionCierre}`);
+
+      items.push({
+        timestamp:   d.fechaCierre,
+        tipo:        'CIERRE',
+        titulo:      d.estado === 'V' ? 'Evento anulado' : 'Evento cerrado',
+        descripcion: partesCierre.join(' · '),
+        actor:       d.usuarioCierre || d.usernameCreacion || '—',
+        icono:       d.estado === 'V' ? 'fa-solid fa-circle-xmark' : 'fa-solid fa-flag-checkered',
+        colorClass:  'tl-cierre',
+      });
+    }
+
     // Ordenar cronológicamente
     items.sort((a, b) => {
       if (!a.timestamp) return -1;
@@ -607,6 +644,10 @@ export class PedidoComponent implements OnInit, OnDestroy {
       list = list.filter(p => this.normPrio(p) === pf);
     }
 
+    if (this.filtroTurno) {
+      list = list.filter(p => this.turnoDeIncidente(p.horaCaso) === this.filtroTurno);
+    }
+
     if (this.filtroTexto.trim()) {
       const txt = this.filtroTexto.toLowerCase().trim();
       list = list.filter(p =>
@@ -621,6 +662,36 @@ export class PedidoComponent implements OnInit, OnDestroy {
     }
 
     return list;
+  }
+
+  // ── Helpers de turno de vigilancia ─────────────────────────────────────────
+
+  /** Calcula el turno de vigilancia (1/2/3) desde hora_caso (ISO UTC). */
+  turnoDeIncidente(horaCaso: string | null | undefined): number {
+    if (!horaCaso) return 0;
+    const d = new Date(horaCaso);
+    if (isNaN(d.getTime())) return 0;
+    // Colombia es UTC-5 (sin cambio de horario)
+    const h = ((d.getUTCHours() - 5) + 24) % 24;
+    if (h >= 6  && h <= 13) return 1;   // Segundo turno
+    if (h >= 14 && h <= 21) return 2;   // Tercer turno
+    return 3;                            // Cuarto turno (22-05h)
+  }
+
+  turnoLabel(n: number): string {
+    return this.turnosVigilancia.find(t => t.value === n)?.label ?? '—';
+  }
+
+  turnoColor(n: number): string {
+    return this.turnosVigilancia.find(t => t.value === n)?.color ?? '#64748b';
+  }
+
+  turnoIcono(n: number): string {
+    return this.turnosVigilancia.find(t => t.value === n)?.icono ?? 'fa-clock';
+  }
+
+  turnoRango(n: number): string {
+    return ['', '06:00–13:59', '14:00–21:59', '22:00–05:59'][n] ?? '';
   }
 
   get incidentesCriticos(): DtoPedidoListItem[] {
@@ -898,6 +969,20 @@ export class PedidoComponent implements OnInit, OnDestroy {
       pedidoPadreNum:   item?.pedidoPadreNum   ?? item?.pedido_padre_num   ?? null,
       descPedido:       String(item?.descPedido  ?? item?.desc_pedido  ?? listItem?.descPedido  ?? ''),
       descPedido2:      String(item?.descPedido2 ?? item?.desc_pedido2 ?? listItem?.descPedido2 ?? ''),
+      // ── Datos del evento de despacho ───────────────────────────────────
+      eventoId:          item?.eventoId         ?? item?.evento_id         ?? null,
+      canalCodigo:       Number(item?.canalCodigo        ?? item?.canal_codigo        ?? 0),
+      canalDescripcion:  String(item?.canalDescripcion   ?? item?.canal_descripcion   ?? ''),
+      fuerzaDescripcion: String(item?.fuerzaDescripcion  ?? item?.fuerza_descripcion  ?? ''),
+      fechaCierre:       item?.fechaCierre      ?? item?.fecha_cierre      ?? null,
+      observacionCierre: String(item?.observacionCierre  ?? item?.observacion_cierre  ?? ''),
+      usuarioCierre:     String(item?.usuarioCierre      ?? item?.usuario_cierre      ?? ''),
+      codigosCierre: (item?.codigosCierre ?? item?.codigos_cierre ?? []).map((c: any) => ({
+        orden:            Number(c?.orden ?? 0),
+        codigoCierre:     String(c?.codigoCierre     ?? c?.codigo_cierre     ?? ''),
+        tipoCodigo:       String(c?.tipoCodigo       ?? c?.tipo_codigo       ?? ''),
+        descripcionLibre: String(c?.descripcionLibre ?? c?.descripcion_libre ?? ''),
+      })),
       anotaciones: (item?.anotaciones ?? []).map((a: any) => ({
         id:               Number(a?.id ?? 0),
         idPedido:         Number(a?.idPedido ?? a?.id_pedido ?? 0),

@@ -48,6 +48,7 @@ namespace Datos.Gestion
                       AND p.enviar = 'S'
                     """;
                 if (p.FuerzaId > 0) cmd.CommandText += "\n  AND e.fuerza_id = @fuerza";
+                if (p.TurnoVigilancia > 0) cmd.CommandText += $"\n{TurnoSql(p.TurnoVigilancia)}";
                 AddParams(cmd, desde, hasta, p.FuerzaId);
 
                 await using var rdr = await cmd.ExecuteReaderAsync(ct);
@@ -87,6 +88,7 @@ namespace Datos.Gestion
                       AND  p.enviar = 'S'
                     """;
                 if (p.FuerzaId > 0) cmd.CommandText += "\n  AND  e.fuerza_id = @fuerza";
+                if (p.TurnoVigilancia > 0) cmd.CommandText += $"\n{TurnoSql(p.TurnoVigilancia)}";
                 cmd.CommandText += "\nGROUP BY origen ORDER BY total DESC";
                 AddParams(cmd, desde, hasta, p.FuerzaId);
 
@@ -121,10 +123,9 @@ namespace Datos.Gestion
                     WHERE  p.fecha_creacion >= @fd
                       AND  p.fecha_creacion <= @fh
                       AND  p.enviar = 'S'
-                    GROUP  BY f.id, f.descripcion
-                    ORDER  BY total DESC
-                    LIMIT  10
                     """;
+                if (p.TurnoVigilancia > 0) cmd.CommandText += $"\n{TurnoSql(p.TurnoVigilancia)}";
+                cmd.CommandText += "\nGROUP BY f.id, f.descripcion ORDER BY total DESC LIMIT 10";
                 AddParams(cmd, desde, hasta, 0);
 
                 await using var rdr = await cmd.ExecuteReaderAsync(ct);
@@ -164,6 +165,7 @@ namespace Datos.Gestion
                     """;
                 if (p.FuerzaId > 0) cmd.CommandText += "\n  AND  e.fuerza_id = @fuerza";
                 cmd.CommandText += "\nGROUP BY p.codi_pedido, c.descripcion ORDER BY total DESC LIMIT 10";
+                if (p.TurnoVigilancia > 0) cmd.CommandText += $"\n{TurnoSql(p.TurnoVigilancia)}";
                 AddParams(cmd, desde, hasta, p.FuerzaId);
 
                 await using var rdr = await cmd.ExecuteReaderAsync(ct);
@@ -224,6 +226,7 @@ namespace Datos.Gestion
                 if (p.FuerzaId > 0)
                     cmd.CommandText += "\n  AND EXISTS (SELECT 1 FROM cad_eventos ef WHERE ef.pedido_id = p.id AND ef.fuerza_id = @fuerza2)";
 
+                if (p.TurnoVigilancia > 0) cmd.CommandText += $"\n{TurnoSql(p.TurnoVigilancia)}";
                 AddParams(cmd, desde, hasta, p.FuerzaId);
                 // El segundo parámetro de fuerza para el EXISTS final (si aplica)
                 if (p.FuerzaId > 0)
@@ -314,6 +317,7 @@ namespace Datos.Gestion
                     """;
                 if (p.FuerzaId > 0) cmd.CommandText += "\n  AND  e.fuerza_id = @fuerza";
                 cmd.CommandText += "\nGROUP BY hora ORDER BY hora";
+                if (p.TurnoVigilancia > 0) cmd.CommandText += $"\n{TurnoSql(p.TurnoVigilancia)}";
                 AddParams(cmd, desde, hasta, p.FuerzaId);
 
                 await using var rdr = await cmd.ExecuteReaderAsync(ct);
@@ -381,6 +385,19 @@ namespace Datos.Gestion
                 cmd.Parameters.AddWithValue("@fuerza", fuerzaId);
         }
 
+        /// <summary>
+        /// Genera el fragmento SQL AND ... para filtrar por turno de vigilancia.
+        /// Turno 1=Segundo(06-13h), 2=Tercer(14-21h), 3=Cuarto(22-05h). 0=sin filtro.
+        /// col debe ser una columna TIMESTAMPTZ de la tabla ya aliasada.
+        /// </summary>
+        private static string TurnoSql(int turno, string col = "p.fecha_creacion") => turno switch
+        {
+            1 => $"AND EXTRACT(HOUR FROM {col} AT TIME ZONE 'America/Bogota') BETWEEN 6 AND 13",
+            2 => $"AND EXTRACT(HOUR FROM {col} AT TIME ZONE 'America/Bogota') BETWEEN 14 AND 21",
+            3 => $"AND (EXTRACT(HOUR FROM {col} AT TIME ZONE 'America/Bogota') >= 22 OR EXTRACT(HOUR FROM {col} AT TIME ZONE 'America/Bogota') < 6)",
+            _ => ""
+        };
+
         private static int     ToInt   (NpgsqlDataReader r, int col) => r.IsDBNull(col) ? 0 : Convert.ToInt32(r.GetValue(col));
         private static double? ToDouble(NpgsqlDataReader r, int col) => r.IsDBNull(col) ? null : Math.Round(Convert.ToDouble(r.GetValue(col)), 1);
         private static string  Str     (NpgsqlDataReader r, int col) => r.IsDBNull(col) ? "" : r.GetString(col);
@@ -426,6 +443,7 @@ namespace Datos.Gestion
                 GROUP  BY calidad
                 ORDER  BY total DESC
                 """;
+            if (p.TurnoVigilancia > 0) cmd.CommandText += $"\n{TurnoSql(p.TurnoVigilancia)}";
             AddParams(cmd, desde, hasta, 0);
 
             var rows = new List<(string cali, int total)>();
@@ -693,6 +711,7 @@ namespace Datos.Gestion
                 GROUP  BY ev.usuario_genera
                 ORDER  BY casos_recibidos DESC
                 """;
+            if (p.TurnoVigilancia > 0) cmd.CommandText += $"\n{TurnoSql(p.TurnoVigilancia)}";
             AddParams(cmd, desde, hasta, p.FuerzaId);
 
             var result = new List<DtoTrabajoOperador>();
@@ -742,6 +761,7 @@ namespace Datos.Gestion
                 ORDER  BY total DESC
                 LIMIT  {top}
                 """;
+            if (p.TurnoVigilancia > 0) cmd.CommandText += $"\n{TurnoSql(p.TurnoVigilancia)}";
             AddParams(cmd, desde, hasta, p.FuerzaId);
 
             var rows = new List<(string cod, string desc, int total)>();

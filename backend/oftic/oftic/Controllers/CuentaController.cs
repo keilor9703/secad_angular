@@ -82,24 +82,26 @@ namespace Api.Controllers
             List<long> roles,
             string ip,
             string mfaMode,
-            string? qrBase64    = null,
-            string? manualKey   = null,
-            string? enrollToken = null,
-            string? bloqueoHasta = null)
+            string? qrBase64         = null,
+            string? manualKey        = null,
+            string? enrollToken      = null,
+            string? bloqueoHasta     = null,
+            string? identificacionStr = null)   // cédula real (VARCHAR de ctr_usuarios)
         {
             var sessionData = new MfaSessionTokenService.MfaSessionData(
-                IdUsuario      : idUsuario,
-                Usuario        : usuario,
-                CodDane        : codDane,
-                HomeCodDane    : homeCodDane,
-                NombreCad      : nombreCad,
-                Identificacion : identificacion,
-                SitioGraba     : sitioGraba,
-                Acd            : acd,
-                FuerzaId       : fuerzaId,
-                CanalCodigo    : canalCodigo,
-                RolesJson      : JsonSerializer.Serialize(roles),
-                Ip             : ip
+                IdUsuario         : idUsuario,
+                Usuario           : usuario,
+                CodDane           : codDane,
+                HomeCodDane       : homeCodDane,
+                NombreCad         : nombreCad,
+                Identificacion    : identificacion,
+                SitioGraba        : sitioGraba,
+                Acd               : acd,
+                FuerzaId          : fuerzaId,
+                CanalCodigo       : canalCodigo,
+                RolesJson         : JsonSerializer.Serialize(roles),
+                Ip                : ip,
+                IdentificacionStr : identificacionStr ?? ""
             );
 
             return new DtoMfaLoginResponse
@@ -127,11 +129,13 @@ namespace Api.Controllers
             int    acd,
             int    fuerzaId,
             int    canalCodigo,
-            string homeCodDane)
+            string homeCodDane,
+            string? identificacion = null)
             => _jwtService.CreateToken(
                 idUsuario, usuario, roles, codDane, nombreCad,
                 sitioGraba, acd, fuerzaId, canalCodigo,
-                homeCodDane: homeCodDane);
+                homeCodDane:    homeCodDane,
+                identificacion: identificacion);
 
         [HttpPost("Token")]
         public async Task<IActionResult> GetToken([FromBody] DtoTokenRequest request)
@@ -285,8 +289,8 @@ namespace Api.Controllers
 
                 _ = isCivilUser; // usado para logging; JWT ya lleva tipo_usuario via roles
 
-                // ── Consultar usuario y roles en el tenant ─────────────────────────
-                var (idUsuario, roles, sitioGraba, acd, fuerzaId, canalCodigo) = await _dbAuthRepository.GetUsuarioYRolesAsync(
+                // ── Consultar usuario, identificación y roles en el tenant ─────────
+                var (idUsuario, identificacionDb, roles, sitioGraba, acd, fuerzaId, canalCodigo) = await _dbAuthRepository.GetUsuarioYRolesAsync(
                     request.Usuario, CancellationToken.None);
 
                 _logger.LogInformation("User {Usuario} — idUsuario: {Id}, roles: {Count}, tenant: {Tenant}, sitio: {Sitio}, acd: {Acd}, canal: {Canal}",
@@ -303,6 +307,20 @@ namespace Api.Controllers
 
                 var ip          = ClientIp();
                 var homeCodDane = codDane!;
+
+                // Cédula final del empleado: prioridad OUD > ctr_usuarios.identificacion
+                // Se calcula aquí para que esté disponible tanto en el JWT directo
+                // como en los tokens MFA intermedios.
+                string? identificacionFinal = null;
+                if (HttpContext.Items.TryGetValue("OudIdentificacion", out var oudIdObj)
+                    && oudIdObj is long oudIdVal && oudIdVal > 0)
+                {
+                    identificacionFinal = oudIdVal.ToString();
+                }
+                else if (!string.IsNullOrWhiteSpace(identificacionDb))
+                {
+                    identificacionFinal = identificacionDb;
+                }
 
                 // ════════════════════════════════════════════════════════════════
                 // DOBLE FACTOR DE AUTENTICACIÓN (MFA)
@@ -349,7 +367,8 @@ namespace Api.Controllers
                                 idUsuario.Value, request.Usuario!, codDane!, homeCodDane, nombreCad!,
                                 identificacion, sitioGraba, acd, fuerzaId, canalCodigo, roles!, ip,
                                 mfaMode: "blocked",
-                                bloqueoHasta: mfaState.BloqueoHasta.Value.ToString("yyyy-MM-dd HH:mm:ss")));
+                                bloqueoHasta: mfaState.BloqueoHasta.Value.ToString("yyyy-MM-dd HH:mm:ss"),
+                                identificacionStr: identificacionFinal));
 
                         // ── Dispositivo confiable ─────────────────────────────────
                         var cookieDeviceId = Request.Cookies[CookieTrustedDevice];
@@ -379,14 +398,15 @@ namespace Api.Controllers
                                     idUsuario.Value, request.Usuario!, codDane!, homeCodDane, nombreCad!,
                                     identificacion, sitioGraba, acd, fuerzaId, canalCodigo, roles!, ip,
                                     mfaMode: "enroll", qrBase64: enroll.QrBase64,
-                                    manualKey: enroll.ManualKey, enrollToken: enroll.EnrollToken));
+                                    manualKey: enroll.ManualKey, enrollToken: enroll.EnrollToken,
+                                    identificacionStr: identificacionFinal));
                             }
 
                             // ── Enrolado → pedir código ───────────────────────────
                             return Ok(BuildMfaChallenge(
                                 idUsuario.Value, request.Usuario!, codDane!, homeCodDane, nombreCad!,
                                 identificacion, sitioGraba, acd, fuerzaId, canalCodigo, roles!, ip,
-                                mfaMode: "verify"));
+                                mfaMode: "verify", identificacionStr: identificacionFinal));
                         }
                     }
                 }
@@ -394,7 +414,8 @@ namespace Api.Controllers
                 // ── Emitir JWT final (credenciales OK + MFA no requerido/pasado) ─
                 var jwtToken = BuildFinalJwt(
                     idUsuario.Value, request.Usuario!, roles!,
-                    codDane!, nombreCad!, sitioGraba, acd, fuerzaId, canalCodigo, homeCodDane);
+                    codDane!, nombreCad!, sitioGraba, acd, fuerzaId, canalCodigo, homeCodDane,
+                    identificacion: identificacionFinal);
 
                 return Ok(new DtoTokenResponse
                 {
@@ -460,7 +481,8 @@ namespace Api.Controllers
 
             var roles = ParseRoles(d.RolesJson);
             var jwt   = BuildFinalJwt(d.IdUsuario, d.Usuario, roles, d.CodDane, d.NombreCad,
-                                       d.SitioGraba, d.Acd, d.FuerzaId, d.CanalCodigo, d.HomeCodDane);
+                                       d.SitioGraba, d.Acd, d.FuerzaId, d.CanalCodigo, d.HomeCodDane,
+                                       identificacion: string.IsNullOrEmpty(d.IdentificacionStr) ? null : d.IdentificacionStr);
 
             return Ok(new DtoMfaStepResponse { Success = true, Token = jwt, Message = "Autenticación completada." });
         }
@@ -498,7 +520,8 @@ namespace Api.Controllers
 
             var roles = ParseRoles(d.RolesJson);
             var jwt   = BuildFinalJwt(d.IdUsuario, d.Usuario, roles, d.CodDane, d.NombreCad,
-                                       d.SitioGraba, d.Acd, d.FuerzaId, d.CanalCodigo, d.HomeCodDane);
+                                       d.SitioGraba, d.Acd, d.FuerzaId, d.CanalCodigo, d.HomeCodDane,
+                                       identificacion: string.IsNullOrEmpty(d.IdentificacionStr) ? null : d.IdentificacionStr);
 
             return Ok(new DtoMfaStepResponse { Success = true, Token = jwt, Message = "MFA activado y sesión iniciada correctamente." });
         }

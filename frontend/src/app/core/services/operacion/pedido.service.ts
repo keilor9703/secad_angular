@@ -73,6 +73,22 @@ export interface DtoPedidoDetalle extends DtoPedidoListItem {
   /** Descripción del código de caso 2 (JOIN cad_casos.descripcion). */
   descPedido2: string;
   anotaciones: DtoAnotacion[];
+  // ── Datos del evento de despacho ─────────────────────────────────────────
+  eventoId:          string | null;
+  canalCodigo:       number;
+  canalDescripcion:  string;
+  fuerzaDescripcion: string;
+  fechaCierre:       string | null;
+  observacionCierre: string;
+  usuarioCierre:     string;
+  codigosCierre:     DtoCodigoCierrePedido[];
+}
+
+export interface DtoCodigoCierrePedido {
+  orden:            number;
+  codigoCierre:     string;
+  tipoCodigo:       string;
+  descripcionLibre: string;
 }
 
 export interface DtoPedidoRequest {

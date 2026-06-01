@@ -479,12 +479,23 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
 
   get eventosFiltrados(): DtoEventoListItem[] {
     if (!this.filtroTexto) return this.eventos;
-    const q = this.filtroTexto.toLowerCase();
+    const q = this.filtroTexto.trim().toLowerCase();
     return this.eventos.filter(e =>
-      e.direCaso?.toLowerCase().includes(q)      ||
-      e.codiPedido?.toLowerCase().includes(q)     ||
-      e.ciudad?.toLowerCase().includes(q)         ||
-      String(e.numeLlamada ?? '').includes(q)     ||
+      // Dirección y ubicación
+      e.direCaso?.toLowerCase().includes(q)              ||
+      e.ciudad?.toLowerCase().includes(q)                ||
+      // Código de caso
+      e.codiPedido?.toLowerCase().includes(q)            ||
+      e.codiPedido2?.toLowerCase().includes(q)           ||
+      e.descPedido?.toLowerCase().includes(q)            ||
+      // Identificadores numéricos
+      String(e.numeLlamada  ?? '').includes(q)           ||  // N° llamada CTI
+      String(e.numeTelefono ?? '').includes(q)           ||  // Teléfono del llamante
+      String(e.numeEvento   ?? '').includes(q)           ||  // ID del evento (Snowflake)
+      String(e.id           ?? '').includes(q)           ||  // ID del pedido (Snowflake)
+      // Persona
+      e.nombLlamante?.toLowerCase().includes(q)          ||  // Nombre del llamante / afectado
+      // Operador
       e.usernameCreacion?.toLowerCase().includes(q)
     );
   }

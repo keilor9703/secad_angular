@@ -149,10 +149,30 @@ export class ReportesService {
 
   // ── Dashboard (existente) ─────────────────────────────────────────────────
 
+  // ── Constantes de turnos de vigilancia ───────────────────────────────────
+
+  static readonly TURNOS = [
+    { value: 0, label: 'Todos los turnos',          rango: ''            },
+    { value: 1, label: 'Segundo turno (06-13h)',     rango: '06:00–13:59' },
+    { value: 2, label: 'Tercer turno  (14-21h)',     rango: '14:00–21:59' },
+    { value: 3, label: 'Cuarto turno  (22-05h)',     rango: '22:00–05:59' },
+  ];
+
+  turnoLabel(v: number): string {
+    return ReportesService.TURNOS.find(t => t.value === v)?.label ?? 'Todos';
+  }
+
+  turnoBadgeColor(v: number): string {
+    return ['#64748b', '#2563eb', '#7c3aed', '#dc2626'][v] ?? '#64748b';
+  }
+
+  // ── Dashboard (existente) ─────────────────────────────────────────────────
+
   getReporte(params: {
-    desde?:    string;
-    hasta?:    string;
-    fuerzaId?: number;
+    desde?:           string;
+    hasta?:           string;
+    fuerzaId?:        number;
+    turnoVigilancia?: number;
   }): Observable<{ success: boolean; data: DtoReporteCompleto }> {
     return this.http.get<{ success: boolean; data: DtoReporteCompleto }>(
       `${this.base}${this.qs(params)}`
@@ -161,7 +181,7 @@ export class ReportesService {
 
   // ── R1 — Llamadas por calidad ─────────────────────────────────────────────
 
-  getPorCalidad(params: { desde?: string; hasta?: string }): Observable<{ success: boolean; data: DtoPorCalidad[] }> {
+  getPorCalidad(params: { desde?: string; hasta?: string; turnoVigilancia?: number }): Observable<{ success: boolean; data: DtoPorCalidad[] }> {
     return this.http.get<{ success: boolean; data: DtoPorCalidad[] }>(
       `${this.base}/calidad${this.qs(params)}`
     );
@@ -170,12 +190,13 @@ export class ReportesService {
   // ── R2 — Pedidos con detalle (paginado, filtro calidad) ───────────────────
 
   getEfectivos(params: {
-    desde?:    string;
-    hasta?:    string;
-    fuerzaId?: number;
-    calidad?:  string;
-    page?:     number;
-    limit?:    number;
+    desde?:           string;
+    hasta?:           string;
+    fuerzaId?:        number;
+    calidad?:         string;
+    page?:            number;
+    limit?:           number;
+    turnoVigilancia?: number;
   }): Observable<{ success: boolean; data: DtoPagedResult<DtoPedidoEfectivo> }> {
     return this.http.get<{ success: boolean; data: DtoPagedResult<DtoPedidoEfectivo> }>(
       `${this.base}/efectivos${this.qs(params)}`
@@ -185,11 +206,12 @@ export class ReportesService {
   // ── R3 — Tiempos detalle por unidad (paginado) ────────────────────────────
 
   getTiemposDetalle(params: {
-    desde?:    string;
-    hasta?:    string;
-    fuerzaId?: number;
-    page?:     number;
-    limit?:    number;
+    desde?:           string;
+    hasta?:           string;
+    fuerzaId?:        number;
+    page?:            number;
+    limit?:           number;
+    turnoVigilancia?: number;
   }): Observable<{ success: boolean; data: DtoPagedResult<DtoTiempoDetalleItem> }> {
     return this.http.get<{ success: boolean; data: DtoPagedResult<DtoTiempoDetalleItem> }>(
       `${this.base}/tiempos-detalle${this.qs(params)}`
@@ -199,9 +221,10 @@ export class ReportesService {
   // ── R4 — Trabajo de operadores/despachadores ──────────────────────────────
 
   getTrabajoOperadores(params: {
-    desde?:    string;
-    hasta?:    string;
-    fuerzaId?: number;
+    desde?:           string;
+    hasta?:           string;
+    fuerzaId?:        number;
+    turnoVigilancia?: number;
   }): Observable<{ success: boolean; data: DtoTrabajoOperador[] }> {
     return this.http.get<{ success: boolean; data: DtoTrabajoOperador[] }>(
       `${this.base}/operadores${this.qs(params)}`
@@ -211,10 +234,11 @@ export class ReportesService {
   // ── R5 — Llamadas por código (top configurable) ───────────────────────────
 
   getPorCodigo(params: {
-    desde?:    string;
-    hasta?:    string;
-    fuerzaId?: number;
-    top?:      number;
+    desde?:           string;
+    hasta?:           string;
+    fuerzaId?:        number;
+    top?:             number;
+    turnoVigilancia?: number;
   }): Observable<{ success: boolean; data: DtoTopCaso[] }> {
     return this.http.get<{ success: boolean; data: DtoTopCaso[] }>(
       `${this.base}/codigos${this.qs(params)}`

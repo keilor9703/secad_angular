@@ -178,9 +178,18 @@ export class RolesAdminComponent implements OnInit {
     });
   }
 
+  /**
+   * Ítems de menú disponibles para asignar al rol.
+   * Se muestran SOLO los ítems hoja (que tienen detalle/ruta configurada),
+   * nunca los grupos padre. Esto evita que el admin asigne accidentalmente
+   * un grupo entero en vez de un módulo específico.
+   */
   get availableMenus(): DbMenuItem[] {
     const assigned = new Set(this.roleMenus.map((x) => x.idMenu));
-    return this.allMenus.filter((m) => !assigned.has(m.idMenu));
+    return this.allMenus.filter((m) =>
+      !assigned.has(m.idMenu) &&
+      !!m.detalle?.trim()      // solo ítems con ruta (ítems hoja)
+    );
   }
 
   asignarMenu(): void {

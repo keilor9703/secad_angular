@@ -68,23 +68,44 @@ namespace Datos.Gestion
             await using var conn = await _tenant.DataSource.OpenConnectionAsync(ct);
             await using var cmd = conn.CreateCommand();
             cmd.CommandText = @"
-                                SELECT p.id, p.sitio_graba, p.nume_llamada, p.hora_caso,
-                                       p.nume_telefono, p.prop_telefono, p.nomb_llamante,
-                                       p.barrio, p.ciudad, p.dire_llamante, p.dire_caso,
-                                       p.latitud_caso, p.longitud_caso, p.cordx, p.cordy,
-                                       p.tiposhape, p.radio, p.comentario,
-                                       p.codi_pedido, p.codi_pedido2, p.tipo_pedido, p.cali_pedido,
-                                       p.importancia, p.prioridad, p.disp_telefonico, p.celda_marcacion,
-                                       p.canales, p.canal_fuerza, p.enviar, p.estado,
-                                       p.pedido_padre_sitio, p.pedido_padre_num,
-                                       u.username AS username_creacion, p.fecha_creacion,
-                                       c1.descripcion AS desc_pedido,
-                                       c2.descripcion AS desc_pedido2
-                                FROM cad_pedidos p
-                                LEFT JOIN ctr_usuarios u  ON u.username              = p.cadusua_usuario
-                                LEFT JOIN cad_casos    c1 ON TRIM(UPPER(c1.codigo))  = TRIM(UPPER(p.codi_pedido))
-                                LEFT JOIN cad_casos    c2 ON TRIM(UPPER(c2.codigo))  = TRIM(UPPER(p.codi_pedido2))
-                                WHERE p.id = @id";
+SELECT p.id, p.sitio_graba, p.nume_llamada, p.hora_caso,
+       p.nume_telefono, p.prop_telefono, p.nomb_llamante,
+       p.barrio, p.ciudad, p.dire_llamante, p.dire_caso,
+       p.latitud_caso, p.longitud_caso, p.cordx, p.cordy,
+       p.tiposhape, p.radio, p.comentario,
+       p.codi_pedido, p.codi_pedido2, p.tipo_pedido, p.cali_pedido,
+       p.importancia, p.prioridad, p.disp_telefonico, p.celda_marcacion,
+       p.canales, p.canal_fuerza, p.enviar, p.estado,
+       p.pedido_padre_sitio, p.pedido_padre_num,
+       u.username             AS username_creacion,    -- col 32
+       p.fecha_creacion,                               -- col 33
+       c1.descripcion         AS desc_pedido,          -- col 34
+       c2.descripcion         AS desc_pedido2,         -- col 35
+       -- ── Datos del evento de despacho más reciente ──────────────────
+       e.id                   AS evento_id,            -- col 36
+       e.canal_codigo,                                  -- col 37
+       COALESCE(cn.descripcion, '') AS canal_descripcion, -- col 38
+       COALESCE(f.descripcion,  '') AS fuerza_descripcion, -- col 39
+       e.fecha_cierre,                                  -- col 40
+       COALESCE(e.observacion_cierre, '') AS observacion_cierre, -- col 41
+       COALESCE(e.usuario_modifica, '')  AS usuario_cierre       -- col 42
+FROM cad_pedidos p
+LEFT JOIN ctr_usuarios u  ON u.username             = p.cadusua_usuario
+LEFT JOIN cad_casos    c1 ON TRIM(UPPER(c1.codigo)) = TRIM(UPPER(p.codi_pedido))
+LEFT JOIN cad_casos    c2 ON TRIM(UPPER(c2.codigo)) = TRIM(UPPER(p.codi_pedido2))
+-- Evento más reciente del pedido
+LEFT JOIN LATERAL (
+    SELECT id, canal_codigo, fuerza_id, fecha_cierre,
+           observacion_cierre, usuario_modifica
+    FROM   cad_eventos ev
+    WHERE  ev.pedido_id = p.id
+    ORDER  BY ev.fecha_creacion DESC
+    LIMIT  1
+) e ON TRUE
+LEFT JOIN cad_canales cn ON cn.codigo      = e.canal_codigo
+                         AND cn.cadfuerz_id = e.fuerza_id
+LEFT JOIN cad_fuerzas f  ON f.id           = e.fuerza_id
+WHERE p.id = @id";
             cmd.Parameters.AddWithValue("id", id);
 
             await using var reader = await cmd.ExecuteReaderAsync(ct);
@@ -94,7 +115,11 @@ namespace Datos.Gestion
             var item = MapDetalle(reader);
             await reader.CloseAsync();
 
-            item.Anotaciones = await GetAnotacionesAsync(id, ct);
+            // Cargar anotaciones y códigos de cierre en paralelo
+            item.Anotaciones   = await GetAnotacionesAsync(id, ct);
+            if (item.EventoId.HasValue)
+                item.CodigosCierre = await GetCodigosCierreAsync(item.EventoId.Value, conn, ct);
+
             return item;
         }
 
@@ -549,7 +574,8 @@ SELECT p.id, p.sitio_graba, p.nume_llamada, p.hora_caso,
         WHERE a.pedido_id = p.id
           AND a.estado NOT IN ('C','V'))::int AS total_actuaciones_activas,
        e.id                         AS evento_id,   -- col 19: Snowflake ID del evento (≠ p.id)
-       COALESCE(e.origen, 'MANUAL') AS origen        -- col 20: canal de origen del evento
+       COALESCE(e.origen, 'MANUAL') AS origen,       -- col 20: canal de origen del evento
+       COALESCE(p.nomb_llamante, '') AS nomb_llamante -- col 21: nombre del llamante / afectado
 FROM cad_pedidos p
 LEFT JOIN ctr_usuarios u  ON u.id_usuario         = p.usuario_creacion
 LEFT JOIN cad_casos    c1 ON TRIM(UPPER(c1.codigo)) = TRIM(UPPER(p.codi_pedido))
@@ -869,7 +895,9 @@ ORDER BY f.descripcion, c.codigo";
             // col 19: cad_eventos.id — el número oficial del evento para el despachador
             NumeEvento               = r.IsDBNull(19) ? null : r.GetInt64(19),
             // col 20: cad_eventos.origen — canal de origen (CTI, RECEPCION, MANUAL, etc.)
-            Origen                   = r.IsDBNull(20) ? "MANUAL" : r.GetString(20)
+            Origen                   = r.IsDBNull(20) ? "MANUAL" : r.GetString(20),
+            // col 21: nombre del llamante / afectado (cad_pedidos.nomb_llamante)
+            NombLlamante             = r.IsDBNull(21) ? "" : r.GetString(21)
         };
 
         private static DtoPedidoListItem MapListItem(NpgsqlDataReader r) => new()
@@ -892,42 +920,75 @@ ORDER BY f.descripcion, c.codigo";
         private static DtoPedidoDetalle MapDetalle(NpgsqlDataReader r) => new()
         {
             Id               = r.GetInt64(0),
-            SitioGraba       = r.IsDBNull(1)  ? 0   : r.GetInt32(1),
-            NumeLlamada      = r.IsDBNull(2)  ? null : r.GetInt64(2),
-            HoraCaso         = r.IsDBNull(3)  ? null : r.GetDateTime(3),
-            NumeTelefono     = r.IsDBNull(4)  ? null : r.GetInt64(4),
-            PropTelefono     = r.IsDBNull(5)  ? ""   : r.GetString(5),
-            NombLlamante     = r.IsDBNull(6)  ? ""   : r.GetString(6),
-            Barrio           = r.IsDBNull(7)  ? ""   : r.GetString(7),
-            Ciudad           = r.IsDBNull(8)  ? ""   : r.GetString(8),
-            DireLlamante     = r.IsDBNull(9)  ? ""   : r.GetString(9),
-            DireCaso         = r.IsDBNull(10) ? ""   : r.GetString(10),
-            LatitudCaso      = r.IsDBNull(11) ? ""   : r.GetString(11),
-            LongitudCaso     = r.IsDBNull(12) ? ""   : r.GetString(12),
-            Cordx            = r.IsDBNull(13) ? ""   : r.GetString(13),
-            Cordy            = r.IsDBNull(14) ? ""   : r.GetString(14),
-            Tiposhape        = r.IsDBNull(15) ? ""   : r.GetString(15),
-            Radio            = r.IsDBNull(16) ? 0    : r.GetInt32(16),
-            Comentario       = r.IsDBNull(17) ? ""   : r.GetString(17),
-            CodiPedido       = r.IsDBNull(18) ? ""   : r.GetString(18),
-            CodiPedido2      = r.IsDBNull(19) ? ""   : r.GetString(19),
-            TipoPedido       = r.IsDBNull(20) ? ""   : r.GetString(20),
-            CaliPedido       = r.IsDBNull(21) ? ""   : r.GetString(21),
-            Importancia      = r.IsDBNull(22) ? ""   : r.GetString(22),
-            Prioridad        = r.IsDBNull(23) ? ""   : r.GetString(23),
-            DispTelefonico   = r.IsDBNull(24) ? ""   : r.GetString(24),
-            CeldaMarcacion   = r.IsDBNull(25) ? ""   : r.GetString(25),
-            Canales          = r.IsDBNull(26) ? ""   : r.GetString(26),
-            CanalFuerza      = r.IsDBNull(27) ? ""   : r.GetString(27),
-            Enviar           = r.IsDBNull(28) ? ""   : r.GetString(28),
-            Estado           = r.IsDBNull(29) ? ""   : r.GetString(29),
-            PedidoPadreSitio = r.IsDBNull(30) ? null : r.GetInt32(30),
-            PedidoPadreNum   = r.IsDBNull(31) ? null : r.GetInt64(31),
-            UsernameCreacion = r.IsDBNull(32) ? ""   : r.GetString(32),
-            FechaCreacion    = r.IsDBNull(33) ? null : r.GetDateTime(33),
-            DescPedido       = r.IsDBNull(34) ? ""   : r.GetString(34),
-            DescPedido2      = r.IsDBNull(35) ? ""   : r.GetString(35)
+            SitioGraba       = r.IsDBNull(1)  ? 0    : r.GetInt32(1),
+            NumeLlamada      = r.IsDBNull(2)  ? null  : r.GetInt64(2),
+            HoraCaso         = r.IsDBNull(3)  ? null  : r.GetDateTime(3),
+            NumeTelefono     = r.IsDBNull(4)  ? null  : r.GetInt64(4),
+            PropTelefono     = r.IsDBNull(5)  ? ""    : r.GetString(5),
+            NombLlamante     = r.IsDBNull(6)  ? ""    : r.GetString(6),
+            Barrio           = r.IsDBNull(7)  ? ""    : r.GetString(7),
+            Ciudad           = r.IsDBNull(8)  ? ""    : r.GetString(8),
+            DireLlamante     = r.IsDBNull(9)  ? ""    : r.GetString(9),
+            DireCaso         = r.IsDBNull(10) ? ""    : r.GetString(10),
+            LatitudCaso      = r.IsDBNull(11) ? ""    : r.GetString(11),
+            LongitudCaso     = r.IsDBNull(12) ? ""    : r.GetString(12),
+            Cordx            = r.IsDBNull(13) ? ""    : r.GetString(13),
+            Cordy            = r.IsDBNull(14) ? ""    : r.GetString(14),
+            Tiposhape        = r.IsDBNull(15) ? ""    : r.GetString(15),
+            Radio            = r.IsDBNull(16) ? 0     : r.GetInt32(16),
+            Comentario       = r.IsDBNull(17) ? ""    : r.GetString(17),
+            CodiPedido       = r.IsDBNull(18) ? ""    : r.GetString(18),
+            CodiPedido2      = r.IsDBNull(19) ? ""    : r.GetString(19),
+            TipoPedido       = r.IsDBNull(20) ? ""    : r.GetString(20),
+            CaliPedido       = r.IsDBNull(21) ? ""    : r.GetString(21),
+            Importancia      = r.IsDBNull(22) ? ""    : r.GetString(22),
+            Prioridad        = r.IsDBNull(23) ? ""    : r.GetString(23),
+            DispTelefonico   = r.IsDBNull(24) ? ""    : r.GetString(24),
+            CeldaMarcacion   = r.IsDBNull(25) ? ""    : r.GetString(25),
+            Canales          = r.IsDBNull(26) ? ""    : r.GetString(26),
+            CanalFuerza      = r.IsDBNull(27) ? ""    : r.GetString(27),
+            Enviar           = r.IsDBNull(28) ? ""    : r.GetString(28),
+            Estado           = r.IsDBNull(29) ? ""    : r.GetString(29),
+            PedidoPadreSitio = r.IsDBNull(30) ? null  : r.GetInt32(30),
+            PedidoPadreNum   = r.IsDBNull(31) ? null  : r.GetInt64(31),
+            UsernameCreacion = r.IsDBNull(32) ? ""    : r.GetString(32),
+            FechaCreacion    = r.IsDBNull(33) ? null  : r.GetDateTime(33),
+            DescPedido       = r.IsDBNull(34) ? ""    : r.GetString(34),
+            DescPedido2      = r.IsDBNull(35) ? ""    : r.GetString(35),
+            // ── Datos del evento ──────────────────────────────────────────────
+            EventoId         = r.IsDBNull(36) ? null  : r.GetInt64(36),
+            CanalCodigo      = r.IsDBNull(37) ? 0     : r.GetInt32(37),
+            CanalDescripcion = r.IsDBNull(38) ? ""    : r.GetString(38),
+            FuerzaDescripcion= r.IsDBNull(39) ? ""    : r.GetString(39),
+            FechaCierre      = r.IsDBNull(40) ? null  : r.GetDateTime(40),
+            ObservacionCierre= r.IsDBNull(41) ? ""    : r.GetString(41),
+            UsuarioCierre    = r.IsDBNull(42) ? ""    : r.GetString(42)
         };
+
+        private static async Task<List<DtoCodigoCierrePedido>> GetCodigosCierreAsync(
+            long eventoId, NpgsqlConnection conn, CancellationToken ct)
+        {
+            var result = new List<DtoCodigoCierrePedido>();
+            await using var cmd = conn.CreateCommand();
+            cmd.CommandText = @"
+SELECT orden, codigo_cierre, tipo_codigo, COALESCE(descripcion_libre, '') AS descripcion_libre
+FROM   cad_eventos_codigos_cierre
+WHERE  evento_id = @eventoId
+ORDER  BY orden";
+            cmd.Parameters.AddWithValue("eventoId", eventoId);
+            await using var r = await cmd.ExecuteReaderAsync(ct);
+            while (await r.ReadAsync(ct))
+            {
+                result.Add(new DtoCodigoCierrePedido
+                {
+                    Orden            = r.GetInt16(0),
+                    CodigoCierre     = r.IsDBNull(1) ? "" : r.GetString(1),
+                    TipoCodigo       = r.IsDBNull(2) ? "" : r.GetString(2),
+                    DescripcionLibre = r.GetString(3)
+                });
+            }
+            return result;
+        }
 
         private static DtoAnotacion MapAnotacion(NpgsqlDataReader r) => new()
         {

@@ -49,13 +49,14 @@ namespace Api.Services
             string       CodDane,
             string       HomeCodDane,
             string       NombreCad,
-            long         Identificacion,   // cedula (OUD) o idUsuario (fallback)
+            long         Identificacion,   // cedula como long (OUD) o idUsuario (fallback)
             int          SitioGraba,
             int          Acd,
             int          FuerzaId,
             int          CanalCodigo,
             string       RolesJson,        // JSON array de longs
-            string       Ip
+            string       Ip,
+            string       IdentificacionStr = "" // cédula real de ctr_usuarios (VARCHAR)
         );
 
         // ── Crear token ───────────────────────────────────────────────────────
@@ -74,8 +75,9 @@ namespace Api.Services
                 new Claim("acd",            d.Acd.ToString()),
                 new Claim("fuerza_id",      d.FuerzaId.ToString()),
                 new Claim("canal_codigo",   d.CanalCodigo.ToString()),
-                new Claim("roles_json",     d.RolesJson),
-                new Claim("ip",             d.Ip),
+                new Claim("roles_json",        d.RolesJson),
+                new Claim("ip",                d.Ip),
+                new Claim("identificacion_str", d.IdentificacionStr ?? ""),
             };
 
             var jwt = new JwtSecurityToken(
@@ -115,18 +117,19 @@ namespace Api.Services
                 int    I(string n) => int.TryParse(G(n), out var v) ? v : 0;
 
                 return new MfaSessionData(
-                    IdUsuario:      L("id_usuario"),
-                    Usuario:        G("usuario"),
-                    CodDane:        G("cod_dane"),
-                    HomeCodDane:    G("home_cod_dane"),
-                    NombreCad:      G("nombre_cad"),
-                    Identificacion: L("identificacion"),
-                    SitioGraba:     I("sitio_graba"),
-                    Acd:            I("acd"),
-                    FuerzaId:       I("fuerza_id"),
-                    CanalCodigo:    I("canal_codigo"),
-                    RolesJson:      G("roles_json"),
-                    Ip:             G("ip")
+                    IdUsuario:         L("id_usuario"),
+                    Usuario:           G("usuario"),
+                    CodDane:           G("cod_dane"),
+                    HomeCodDane:       G("home_cod_dane"),
+                    NombreCad:         G("nombre_cad"),
+                    Identificacion:    L("identificacion"),
+                    SitioGraba:        I("sitio_graba"),
+                    Acd:               I("acd"),
+                    FuerzaId:          I("fuerza_id"),
+                    CanalCodigo:       I("canal_codigo"),
+                    RolesJson:         G("roles_json"),
+                    Ip:                G("ip"),
+                    IdentificacionStr: G("identificacion_str")
                 );
             }
             catch

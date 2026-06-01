@@ -27,7 +27,9 @@ namespace Api.Controllers.Operacion
         private int    FuerzaId     => int.TryParse(User.FindFirstValue("fuerza_id"),    out var v) ? v : 0;
         private string UsuarioClaim => User.FindFirstValue(ClaimTypes.Name)
                                     ?? User.FindFirstValue("unique_name") ?? "";
-        private long   EmpleadoId   => long.TryParse(User.FindFirstValue("id_usuario"), out var v) ? v : 0;
+        // Cédula del empleado: viene del claim "identificacion" que JwtService emite
+        // desde ctr_usuarios.identificacion — es la cédula real, NO el Snowflake id_usuario.
+        private long   EmpleadoId   => long.TryParse(User.FindFirstValue("identificacion"), out var v) ? v : 0;
 
         // ════════════════════════════════════════════════════════════════════════
         // CTI / INCOMING CALL

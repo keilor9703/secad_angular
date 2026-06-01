@@ -45,6 +45,11 @@ export interface DtoEventoListItem {
    * Serializado como string para preservar precisión en JavaScript.
    */
   numeEvento?: string | null;
+  /**
+   * Nombre de la persona que realizó la llamada o del afectado reportado.
+   * Proviene de cad_pedidos.nomb_llamante. Permite búsqueda en lista sin cargar detalle.
+   */
+  nombLlamante?: string;
 }
 
 /** Contadores por estado para los badges de los filtros del canal. */

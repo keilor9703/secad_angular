@@ -8,6 +8,10 @@ namespace Comun.Dtos.Reportes
         /// <summary>Fecha fin en formato yyyy-MM-dd. Nulo = ahora.</summary>
         public string? Hasta     { get; set; }
         public int     FuerzaId  { get; set; }   // 0 = todas
+        /// <summary>
+        /// Turno de vigilancia: 0=Todos, 1=Segundo(06-13h), 2=Tercer(14-21h), 3=Cuarto(22-05h).
+        /// </summary>
+        public int     TurnoVigilancia { get; set; }  // 0 = todos los turnos
     }
 
     // ── Resumen general del período ───────────────────────────────────────────

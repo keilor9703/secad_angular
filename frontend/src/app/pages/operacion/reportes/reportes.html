@@ -75,6 +75,29 @@
       </select>
     </div>
 
+    <!-- Turno de vigilancia -->
+    <div class="rep-filtro-field">
+      <label class="rep-filtro-label">
+        <i class="fa-solid fa-shield-halved" style="color:#7c3aed;margin-right:3px"></i>
+        Turno
+      </label>
+      <select class="ui-control rep-date-input rep-turno-select"
+              [(ngModel)]="turnoVigilancia" (change)="onFiltroChange()">
+        @for (t of turnos; track t.value) {
+          <option [ngValue]="t.value">{{ t.label }}</option>
+        }
+      </select>
+    </div>
+
+    <!-- Badge del turno activo -->
+    @if (turnoVigilancia > 0) {
+      <div class="rep-turno-badge"
+           [style.background]="svc.turnoBadgeColor(turnoVigilancia)">
+        <i class="fa-solid fa-clock"></i>
+        {{ svc.turnoLabel(turnoVigilancia) }}
+      </div>
+    }
+
   </div>
 
   <!-- ── Error ─────────────────────────────────────────────────────────── -->

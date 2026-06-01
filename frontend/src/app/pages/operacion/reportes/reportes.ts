@@ -44,10 +44,13 @@ export class ReportesComponent implements OnInit, AfterViewInit, OnDestroy {
   datos: DtoReporteCompleto | null = null;
 
   // ── Filtros compartidos ───────────────────────────────────────────────────
-  desde     = this.hoy();
-  hasta     = this.hoy();
-  fuerzaId  = 0;
+  desde            = this.hoy();
+  hasta            = this.hoy();
+  fuerzaId         = 0;
+  turnoVigilancia  = 0;   // 0=Todos, 1=Segundo, 2=Tercer, 3=Cuarto
   fuerzas: DtoFuerza[] = [];
+
+  readonly turnos = ReportesService.TURNOS;
 
   // ── Reportes detallados — selector ───────────────────────────────────────
   reporteActivo: 'calidad' | 'efectivos' | 'tiempos' | 'operadores' | 'codigos' = 'calidad';
@@ -105,11 +108,11 @@ export class ReportesComponent implements OnInit, AfterViewInit, OnDestroy {
   private destroy$ = new Subject<void>();
 
   constructor(
-    private svc:      ReportesService,
-    private fuerzaSvc:FuerzaService,
-    private authSvc:  AuthService,
-    private toast:    ToastService,
-    private cdr:      ChangeDetectorRef
+    readonly svc:      ReportesService,   // readonly para acceso desde el template
+    private fuerzaSvc: FuerzaService,
+    private authSvc:   AuthService,
+    private toast:     ToastService,
+    private cdr:       ChangeDetectorRef
   ) {}
 
   ngOnInit(): void {
@@ -139,7 +142,7 @@ export class ReportesComponent implements OnInit, AfterViewInit, OnDestroy {
   cargar(): void {
     this.cargando = true;
     this.error    = '';
-    this.svc.getReporte({ desde: this.desde, hasta: this.hasta, fuerzaId: this.fuerzaId })
+    this.svc.getReporte({ desde: this.desde, hasta: this.hasta, fuerzaId: this.fuerzaId, turnoVigilancia: this.turnoVigilancia || undefined })
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: r => {
@@ -343,7 +346,7 @@ export class ReportesComponent implements OnInit, AfterViewInit, OnDestroy {
 
   cargarCalidad(): void {
     this.cargandoCal = true;
-    this.svc.getPorCalidad({ desde: this.desde, hasta: this.hasta })
+    this.svc.getPorCalidad({ desde: this.desde, hasta: this.hasta, turnoVigilancia: this.turnoVigilancia || undefined })
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next:  r => { this.calidad = r.data ?? []; this.cargandoCal = false; this.cdr.detectChanges(); },
@@ -375,6 +378,7 @@ export class ReportesComponent implements OnInit, AfterViewInit, OnDestroy {
       desde: this.desde, hasta: this.hasta,
       fuerzaId: this.fuerzaId || undefined,
       calidad:  this.filtroCalidad || undefined,
+      turnoVigilancia: this.turnoVigilancia || undefined,
       page: this.paginaEfe, limit: this.limitEfe,
     }).pipe(takeUntil(this.destroy$))
       .subscribe({
@@ -424,6 +428,7 @@ export class ReportesComponent implements OnInit, AfterViewInit, OnDestroy {
       desde: this.desde, hasta: this.hasta,
       fuerzaId: this.fuerzaId || undefined,
       page: this.paginaTieDet, limit: this.limitTieDet,
+      turnoVigilancia: this.turnoVigilancia || undefined,
     }).pipe(takeUntil(this.destroy$))
       .subscribe({
         next:  r => { this.tiemposDetalle = r.data; this.cargandoTieDet = false; this.cdr.detectChanges(); },
@@ -466,7 +471,7 @@ export class ReportesComponent implements OnInit, AfterViewInit, OnDestroy {
 
   cargarOperadores(): void {
     this.cargandoOpe = true;
-    this.svc.getTrabajoOperadores({ desde: this.desde, hasta: this.hasta, fuerzaId: this.fuerzaId || undefined })
+    this.svc.getTrabajoOperadores({ desde: this.desde, hasta: this.hasta, fuerzaId: this.fuerzaId || undefined, turnoVigilancia: this.turnoVigilancia || undefined })
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next:  r => { this.operadores = r.data ?? []; this.cargandoOpe = false; this.cdr.detectChanges(); },
@@ -499,6 +504,7 @@ export class ReportesComponent implements OnInit, AfterViewInit, OnDestroy {
       desde: this.desde, hasta: this.hasta,
       fuerzaId: this.fuerzaId || undefined,
       top: this.topCodigos,
+      turnoVigilancia: this.turnoVigilancia || undefined,
     }).pipe(takeUntil(this.destroy$))
       .subscribe({
         next:  r => { this.codigos = r.data ?? []; this.cargandoCod = false; this.cdr.detectChanges(); },
