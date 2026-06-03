@@ -182,10 +182,8 @@ onItemTap(item: MenuItem, ev: MouseEvent) {
         }
         const mapped = this.mapDbMenu(items);
         this.menuItems = this.ensureInicioItem(
-          this.ensureOperacionItems(
-            this.groupAdministrationItems(
-              this.groupOperacionItems(mapped)
-            )
+          this.groupAdministrationItems(
+            this.groupOperacionItems(mapped)
           )
         );
       },
@@ -198,7 +196,7 @@ onItemTap(item: MenuItem, ev: MouseEvent) {
   private loadMenuByUserFallback(): void {
     const userId = this.authService.getUserId();
     if (!userId) {
-      this.menuItems = [];
+      this.menuItems = this.ensureInicioItem([]);
       return;
     }
 
@@ -206,15 +204,16 @@ onItemTap(item: MenuItem, ev: MouseEvent) {
       next: (items) => {
         const mapped = this.mapDbMenu(items);
         this.menuItems = this.ensureInicioItem(
-          this.ensureOperacionItems(
-            this.groupAdministrationItems(
-              this.groupOperacionItems(mapped)
-            )
+          this.groupAdministrationItems(
+            this.groupOperacionItems(mapped)
           )
         );
       },
       error: () => {
-        this.menuItems = this.ensureInicioItem(this.ensureOperacionItems([]));
+        // Si ambas llamadas fallan completamente, solo mostrar el botón Inicio.
+        // NO agregar módulos hardcodeados — el usuario debe ver solo lo que
+        // sus roles le permiten, no un fallback sin control de permisos.
+        this.menuItems = this.ensureInicioItem([]);
       }
     });
   }
@@ -481,31 +480,6 @@ onItemTap(item: MenuItem, ev: MouseEvent) {
     }
 
     return kept;
-  }
-
-  /**
-   * Garantiza que exista un nodo "Operación" con los módulos clave
-   * incluso cuando la BD todavía no tiene esas entradas configuradas.
-   */
-  private ensureOperacionItems(items: MenuItem[]): MenuItem[] {
-    const yaExiste = items.some(
-      item =>
-        (item.route && this.isOperacionRoute(item.route)) ||
-        item.submenu?.some(sub => this.isOperacionRoute(sub.route))
-    );
-    if (yaExiste) return items;
-
-    const opItem: MenuItem = {
-      id: 999002,
-      icon: 'fa-solid fa-tower-broadcast',
-      label: 'Operación',
-      submenu: [
-        { id: 999010, label: 'Recepción', route: '/operacion/recepcion' },
-        { id: 999011, label: 'Eventos',   route: '/operacion/eventos'   },
-        { id: 999012, label: 'Turnos',    route: '/operacion/turnos'    }
-      ]
-    };
-    return [...items, opItem];
   }
 
   private ensureInicioItem(items: MenuItem[]): MenuItem[] {

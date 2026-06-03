@@ -298,6 +298,25 @@
                   <option value="RUTINA">Rutina</option>
                 </select>
               </div>
+
+              <!-- Filtro por turno de vigilancia -->
+              <div class="seg-filter-row">
+                <select class="ui-control seg-filter-sel seg-turno-sel"
+                        [(ngModel)]="filtroTurno">
+                  @for (t of turnosVigilancia; track t.value) {
+                    <option [ngValue]="t.value">
+                      {{ t.value === 0 ? 'Todos los turnos' : t.label }}
+                    </option>
+                  }
+                </select>
+                @if (filtroTurno > 0) {
+                  <span class="seg-turno-badge"
+                        [style.background]="turnoColor(filtroTurno)">
+                    <i class="fa-solid {{ turnoIcono(filtroTurno) }}"></i>
+                    {{ turnoRango(filtroTurno) }}
+                  </span>
+                }
+              </div>
             </div>
 
             <!-- Contador -->
@@ -372,6 +391,15 @@
                       <span><i class="fa-solid fa-calendar-day"></i>
                         {{ (item.horaCaso | date:'dd/MM HH:mm') || '—' }}
                       </span>
+                      <!-- Badge de turno por fila -->
+                      @if (turnoDeIncidente(item.horaCaso) > 0) {
+                        <span class="seg-item__turno-chip"
+                              [style.color]="turnoColor(turnoDeIncidente(item.horaCaso))"
+                              [title]="turnoLabel(turnoDeIncidente(item.horaCaso)) + ' · ' + turnoRango(turnoDeIncidente(item.horaCaso))">
+                          <i class="fa-solid {{ turnoIcono(turnoDeIncidente(item.horaCaso)) }}"></i>
+                          T{{ turnoDeIncidente(item.horaCaso) }}
+                        </span>
+                      }
                       @if (item.numeEvento) {
                         <span class="seg-item__ev-id">
                           <i class="fa-solid fa-bolt"></i> Ev.{{ item.numeEvento }}
@@ -433,18 +461,33 @@
                   </div>
                 </div>
 
-                <!-- Bloque de identificadores (ID pedido, ID evento, N° llamada, teléfono) -->
+                <!-- ── Bloque de identificadores ─────────────────────────── -->
                 <div class="seg-id-block">
                   <span class="seg-id-chip">
                     <i class="fa-solid fa-hashtag"></i>
                     <span class="seg-id-chip__lbl">ID Pedido</span>
                     <span class="seg-id-chip__val">{{ detalle.id }}</span>
                   </span>
-                  @if (detalle.numeEvento) {
+
+                  <!-- Turno de vigilancia en que fue creado el incidente -->
+                  @if (turnoDeIncidente(detalle.horaCaso) > 0) {
+                    <span class="seg-id-chip seg-id-chip--turno"
+                          [style.background]="turnoColor(turnoDeIncidente(detalle.horaCaso)) + '18'"
+                          [style.border-color]="turnoColor(turnoDeIncidente(detalle.horaCaso)) + '55'">
+                      <i class="fa-solid {{ turnoIcono(turnoDeIncidente(detalle.horaCaso)) }}"
+                         [style.color]="turnoColor(turnoDeIncidente(detalle.horaCaso))"></i>
+                      <span class="seg-id-chip__lbl">Turno</span>
+                      <span class="seg-id-chip__val"
+                            [style.color]="turnoColor(turnoDeIncidente(detalle.horaCaso))">
+                        {{ turnoLabel(turnoDeIncidente(detalle.horaCaso)) }}
+                      </span>
+                    </span>
+                  }
+                  @if (detalle.eventoId || detalle.numeEvento) {
                     <span class="seg-id-chip seg-id-chip--evento">
                       <i class="fa-solid fa-bolt"></i>
                       <span class="seg-id-chip__lbl">ID Evento</span>
-                      <span class="seg-id-chip__val">{{ detalle.numeEvento }}</span>
+                      <span class="seg-id-chip__val">{{ detalle.eventoId || detalle.numeEvento }}</span>
                     </span>
                   }
                   @if (detalle.numeLlamada) {
@@ -461,17 +504,159 @@
                       <span class="seg-id-chip__val">{{ detalle.numeTelefono }}</span>
                     </span>
                   }
+                  @if (detalle.sitioGraba) {
+                    <span class="seg-id-chip seg-id-chip--sitio">
+                      <i class="fa-solid fa-building-shield"></i>
+                      <span class="seg-id-chip__lbl">Sitio CAD</span>
+                      <span class="seg-id-chip__val">{{ detalle.sitioGraba }}</span>
+                    </span>
+                  }
                 </div>
 
-                <!-- Datos clave del incidente -->
+                <!-- ── Canal del evento (cuando no hay actuaciones registradas) ── -->
+                @if (actuaciones.length === 0 && (detalle.canalDescripcion || detalle.fuerzaDescripcion)) {
+                  <div class="seg-canales-bloque">
+                    <div class="seg-canales-bloque__titulo">
+                      <i class="fa-solid fa-headset"></i>
+                      Canal de atención
+                    </div>
+                    <div class="seg-canales-lista">
+                      <div class="seg-canal-item seg-canal-item--cerrado">
+                        <div class="seg-canal-item__estado-dot seg-canal-dot--C"></div>
+                        <div class="seg-canal-item__info">
+                          <div class="seg-canal-item__nombre">
+                            <i class="fa-solid fa-shield-halved"></i>
+                            <strong>{{ detalle.fuerzaDescripcion || '—' }}</strong>
+                            @if (detalle.canalDescripcion) {
+                              <span class="seg-canal-sep">/</span>
+                              <span class="seg-canal-item__canal">{{ detalle.canalDescripcion }}</span>
+                            }
+                          </div>
+                        </div>
+                        @if (detalle.fechaCierre) {
+                          <div class="seg-canal-item__estado-badge">
+                            <span class="seg-act-chip seg-act-chip--C">Cerrado</span>
+                            <span class="seg-canal-item__hora">
+                              {{ detalle.fechaCierre | date:'HH:mm' }}
+                            </span>
+                          </div>
+                        }
+                      </div>
+                    </div>
+                  </div>
+                }
+
+                <!-- ── Canales de atención con recursos despachados ────────── -->
+                @if (actuaciones.length > 0) {
+                  <div class="seg-canales-bloque">
+                    <div class="seg-canales-bloque__titulo">
+                      <i class="fa-solid fa-headset"></i>
+                      Canales de atención
+                      <span class="seg-canales-bloque__badge">
+                        {{ actuaciones.length }} canal{{ actuaciones.length !== 1 ? 'es' : '' }}
+                      </span>
+                    </div>
+                    <div class="seg-canales-lista">
+                      @for (act of actuaciones; track act.id) {
+                        <div class="seg-canal-item"
+                             [class.seg-canal-item--activo]="act.estado === 'D' || act.estado === 'A'"
+                             [class.seg-canal-item--cerrado]="act.estado === 'C' || act.estado === 'V'">
+                          <!-- Estado visual -->
+                          <div class="seg-canal-item__estado-dot seg-canal-dot--{{ act.estado }}"></div>
+                          <!-- Canal y fuerza -->
+                          <div class="seg-canal-item__info">
+                            <div class="seg-canal-item__nombre">
+                              <i class="fa-solid fa-shield-halved"></i>
+                              <strong>{{ act.fuerzaDesc || '—' }}</strong>
+                              @if (act.canalDesc) {
+                                <span class="seg-canal-sep">/</span>
+                                <span class="seg-canal-item__canal">{{ act.canalDesc }}</span>
+                              }
+                            </div>
+                            <div class="seg-canal-item__recursos">
+                              @if (act.unidadAsignada) {
+                                <span class="seg-canal-recurso">
+                                  <i class="fa-solid fa-car-side"></i> {{ act.unidadAsignada }}
+                                </span>
+                              }
+                              @if (act.placaUnidad) {
+                                <span class="seg-canal-recurso seg-canal-recurso--placa">
+                                  {{ act.placaUnidad }}
+                                </span>
+                              }
+                              @if (act.despachadorUsuario) {
+                                <span class="seg-canal-recurso seg-canal-recurso--dispatch">
+                                  <i class="fa-solid fa-user-tie"></i> {{ act.despachadorUsuario }}
+                                </span>
+                              }
+                            </div>
+                          </div>
+                          <!-- Estado etiqueta -->
+                          <div class="seg-canal-item__estado-badge">
+                            <span class="seg-act-chip seg-act-chip--{{ act.estado }}">
+                              {{ getEstadoActuacionLabel(act.estado) }}
+                            </span>
+                            @if (act.fechaCreacion) {
+                              <span class="seg-canal-item__hora">
+                                {{ act.fechaCreacion | date:'HH:mm' }}
+                              </span>
+                            }
+                          </div>
+                        </div>
+                      }
+                    </div>
+                  </div>
+                } @else if (!loadingDetalle) {
+                  <div class="seg-canales-bloque seg-canales-bloque--vacio">
+                    <i class="fa-solid fa-headset" style="opacity:.4"></i>
+                    <span>Sin canales de atención asignados</span>
+                  </div>
+                }
+
+                <!-- ── Datos completos del incidente ──────────────────────── -->
                 <div class="seg-inc-info">
                   <div class="seg-info-grid">
+
+                    <!-- Dirección -->
                     <div class="seg-info-df seg-info-df--full">
-                      <span class="seg-info-dl">Dirección del incidente</span>
+                      <span class="seg-info-dl">
+                        <i class="fa-solid fa-location-dot"></i> Dirección del incidente
+                      </span>
                       <span class="seg-info-dv seg-info-dv--hl">{{ detalle.direCaso || '—' }}</span>
                     </div>
-                    <div class="seg-info-df">
-                      <span class="seg-info-dl">Tipo de caso</span>
+
+                    <!-- Barrio / Ciudad -->
+                    @if (detalle.barrio || detalle.ciudad) {
+                      <div class="seg-info-df">
+                        <span class="seg-info-dl">Barrio / Ciudad</span>
+                        <span class="seg-info-dv">
+                          {{ detalle.barrio || '—' }}
+                          @if (detalle.ciudad) { · {{ detalle.ciudad }} }
+                        </span>
+                      </div>
+                    }
+
+                    <!-- Coordenadas -->
+                    @if (detalle.latitudCaso && detalle.longitudCaso &&
+                         detalle.latitudCaso !== '0' && detalle.longitudCaso !== '0') {
+                      <div class="seg-info-df">
+                        <span class="seg-info-dl">
+                          <i class="fa-solid fa-map-location-dot"></i> Coordenadas
+                        </span>
+                        <span class="seg-info-dv seg-info-dv--mono">
+                          {{ detalle.latitudCaso }}, {{ detalle.longitudCaso }}
+                        </span>
+                      </div>
+                    }
+
+                    <!-- Separador sección: Tipificación -->
+                    <div class="seg-info-section-sep seg-info-df--full">
+                      <span>Tipificación del caso</span>
+                    </div>
+
+                    <!-- Tipo de caso -->
+                    <div class="seg-info-df seg-info-df--full">
+                      <span class="seg-info-dl">Código de caso</span>
                       <span class="seg-info-dv">
                         <strong>{{ detalle.codiPedido || '—' }}</strong>
                         @if (detalle.descPedido) {
@@ -486,21 +671,60 @@
                         }
                       </span>
                     </div>
+
+                    <!-- Tipo pedido y Calificación -->
+                    @if (detalle.tipoPedido) {
+                      <div class="seg-info-df">
+                        <span class="seg-info-dl">Tipo de pedido</span>
+                        <span class="seg-info-dv">{{ detalle.tipoPedido }}</span>
+                      </div>
+                    }
+                    @if (detalle.caliPedido) {
+                      <div class="seg-info-df">
+                        <span class="seg-info-dl">Calificación</span>
+                        <span class="seg-info-dv">{{ detalle.caliPedido }}</span>
+                      </div>
+                    }
+
+                    <!-- Separador sección: Recepción -->
+                    <div class="seg-info-section-sep seg-info-df--full">
+                      <span>Recepción de la llamada</span>
+                    </div>
+
+                    <!-- Hora del caso + Turno de vigilancia -->
                     <div class="seg-info-df">
-                      <span class="seg-info-dl">Hora del caso</span>
-                      <span class="seg-info-dv">
+                      <span class="seg-info-dl">
+                        <i class="fa-regular fa-clock"></i> Hora del caso
+                      </span>
+                      <span class="seg-info-dv seg-hora-turno">
                         {{ (detalle.horaCaso | date:'dd/MM/yyyy HH:mm:ss') || '—' }}
+                        @if (turnoDeIncidente(detalle.horaCaso) > 0) {
+                          <span class="seg-turno-inline"
+                                [style.color]="turnoColor(turnoDeIncidente(detalle.horaCaso))"
+                                [style.border-color]="turnoColor(turnoDeIncidente(detalle.horaCaso)) + '66'">
+                            <i class="fa-solid {{ turnoIcono(turnoDeIncidente(detalle.horaCaso)) }}"></i>
+                            {{ turnoLabel(turnoDeIncidente(detalle.horaCaso)) }}
+                            · {{ turnoRango(turnoDeIncidente(detalle.horaCaso)) }}
+                          </span>
+                        }
                       </span>
                     </div>
+
+                    <!-- Operador / Creado por -->
                     <div class="seg-info-df">
-                      <span class="seg-info-dl">Creado por</span>
+                      <span class="seg-info-dl">
+                        <i class="fa-solid fa-user"></i> Operador
+                      </span>
                       <span class="seg-info-dv">{{ detalle.usernameCreacion || '(sin usuario)' }}</span>
                     </div>
+
+                    <!-- Canal origen (cómo llegó la llamada) -->
                     <div class="seg-info-df">
-                      <span class="seg-info-dl">Canal origen</span>
+                      <span class="seg-info-dl">
+                        <i class="fa-solid fa-share-nodes"></i> Canal origen
+                      </span>
                       <span class="seg-info-dv">
                         @if (detalle.origen) {
-                          <i class="fa-solid fa-share-nodes" style="font-size:10px;opacity:.6"></i>
                           {{ getOrigenLabel(detalle.origen) }}
                           <span class="seg-info-dv-sub">({{ detalle.origen }})</span>
                         } @else {
@@ -508,27 +732,65 @@
                         }
                       </span>
                     </div>
+
+                    <!-- Informante -->
                     @if (detalle.nombLlamante) {
                       <div class="seg-info-df">
-                        <span class="seg-info-dl">Informante</span>
-                        <span class="seg-info-dv">{{ detalle.nombLlamante }}</span>
+                        <span class="seg-info-dl">
+                          <i class="fa-solid fa-person"></i> Llamante / Afectado
+                        </span>
+                        <span class="seg-info-dv seg-info-dv--hl-soft">{{ detalle.nombLlamante }}</span>
                       </div>
                     }
-                    @if (detalle.barrio || detalle.ciudad) {
+
+                    <!-- Propietario del teléfono -->
+                    @if (detalle.propTelefono) {
                       <div class="seg-info-df">
-                        <span class="seg-info-dl">Barrio / Ciudad</span>
+                        <span class="seg-info-dl">Propietario del teléfono</span>
+                        <span class="seg-info-dv">{{ detalle.propTelefono }}</span>
+                      </div>
+                    }
+
+                    <!-- Tipo dispositivo -->
+                    @if (detalle.dispTelefonico) {
+                      <div class="seg-info-df">
+                        <span class="seg-info-dl">
+                          <i class="fa-solid fa-mobile-screen"></i> Dispositivo
+                        </span>
+                        <span class="seg-info-dv">{{ detalle.dispTelefonico }}</span>
+                      </div>
+                    }
+
+                    <!-- Dirección del llamante (si es diferente) -->
+                    @if (detalle.direLlamante && detalle.direLlamante !== detalle.direCaso) {
+                      <div class="seg-info-df">
+                        <span class="seg-info-dl">Dirección del llamante</span>
+                        <span class="seg-info-dv">{{ detalle.direLlamante }}</span>
+                      </div>
+                    }
+
+                    <!-- Incidente relacionado -->
+                    @if (detalle.pedidoPadreSitio || detalle.pedidoPadreNum) {
+                      <div class="seg-info-df">
+                        <span class="seg-info-dl">
+                          <i class="fa-solid fa-link"></i> Relacionado con pedido
+                        </span>
                         <span class="seg-info-dv">
-                          {{ detalle.barrio || '—' }}
-                          @if (detalle.ciudad) { · {{ detalle.ciudad }} }
+                          Sitio {{ detalle.pedidoPadreSitio }} · Llamada #{{ detalle.pedidoPadreNum }}
                         </span>
                       </div>
                     }
+
+                    <!-- Descripción de hechos (al final, full width) -->
                     @if (detalle.comentario) {
+                      <div class="seg-info-section-sep seg-info-df--full">
+                        <span>Descripción de hechos</span>
+                      </div>
                       <div class="seg-info-df seg-info-df--full">
-                        <span class="seg-info-dl">Descripción de hechos</span>
-                        <span class="seg-info-dv">{{ detalle.comentario }}</span>
+                        <span class="seg-info-dv seg-comentario">{{ detalle.comentario }}</span>
                       </div>
                     }
+
                   </div>
                 </div>
 
@@ -605,6 +867,7 @@
                     @for (ev of timeline; track $index) {
                       <div class="seg-tl-item" [class]="'seg-tl-item--' + ev.colorClass">
 
+                        <!-- Marcador izquierdo: ícono + línea vertical -->
                         <div class="seg-tl-item__marker">
                           <div class="seg-tl-item__dot">
                             <i [class]="ev.icono"></i>
@@ -614,27 +877,184 @@
                           }
                         </div>
 
-                        <div class="seg-tl-item__card">
-                          <div class="seg-tl-item__head">
-                            <span class="seg-tl-item__titulo">{{ ev.titulo }}</span>
-                            @if (ev.tipoAnotacion) {
-                              <span class="seg-tl-item__tipo">{{ ev.tipoAnotacion }}</span>
+                        <!-- ── Tarjeta de actuación (bloque compacto de fases) ── -->
+                        @if (ev.tipo === 'ACTUACION' && ev.actuacion) {
+                          <div class="seg-tl-act-block">
+
+                            <!-- Cabecera: canal · unidad · placa · estado · duración total -->
+                            <div class="seg-tl-act-block__head">
+                              <div class="seg-tl-act-block__title">
+                                <i class="fa-solid fa-shield-halved"></i>
+                                <strong>{{ ev.actuacion.canal || 'Recurso despachado' }}</strong>
+                                @if (ev.actuacion.unidad) {
+                                  <span class="seg-tl-act-unidad">{{ ev.actuacion.unidad }}</span>
+                                }
+                                @if (ev.actuacion.placa) {
+                                  <span class="seg-tl-act-placa">
+                                    <i class="fa-solid fa-car-side"></i>{{ ev.actuacion.placa }}
+                                  </span>
+                                }
+                              </div>
+                              <div class="seg-tl-act-block__badges">
+                                <span class="seg-tl-act-estado seg-tl-act-estado--{{ ev.actuacion.estado }}">
+                                  {{ getEstadoActuacionLabel(ev.actuacion.estado) }}
+                                </span>
+                                @if (ev.actuacion.totalMin !== null) {
+                                  <span class="seg-tl-act-duracion">
+                                    <i class="fa-regular fa-clock"></i>
+                                    {{ fmtDur(ev.actuacion.totalMin) }}
+                                  </span>
+                                }
+                              </div>
+                            </div>
+
+                            <!-- Flujo de fases: Asignado → En camino → En sitio → Cerrado -->
+                            <div class="seg-tl-act-fases">
+                              @for (fase of ev.actuacion.fases; track fase.label; let last = $last) {
+                                <div class="seg-tl-act-fase"
+                                     [class.seg-tl-act-fase--cumplida]="fase.cumplida"
+                                     [class.seg-tl-act-fase--pendiente]="!fase.cumplida">
+                                  <div class="seg-tl-act-fase__icon">
+                                    <i [class]="fase.icono"></i>
+                                  </div>
+                                  <div class="seg-tl-act-fase__label">{{ fase.label }}</div>
+                                  @if (fase.timestamp) {
+                                    <div class="seg-tl-act-fase__ts">
+                                      {{ fase.timestamp | date:'dd/MM HH:mm' }}
+                                    </div>
+                                  } @else {
+                                    <div class="seg-tl-act-fase__ts seg-tl-act-fase__ts--vacio">—</div>
+                                  }
+                                  @if (fase.deltaMin !== null && fase.cumplida) {
+                                    <div class="seg-tl-act-fase__delta">
+                                      +{{ fmtDur(fase.deltaMin) }}
+                                    </div>
+                                  }
+                                </div>
+                                @if (!last) {
+                                  <div class="seg-tl-act-fase__sep">
+                                    <i class="fa-solid fa-chevron-right"></i>
+                                  </div>
+                                }
+                              }
+                            </div>
+
+                            <!-- Pie: despachador + botón "Ver equipo" -->
+                            <div class="seg-tl-act-block__foot">
+                              <span class="seg-tl-act-dispatch">
+                                <i class="fa-solid fa-user-tie"></i>
+                                {{ ev.actuacion.despachador || '(sin despachador)' }}
+                              </span>
+                              @if (ev.actuacion.caliPedido) {
+                                <span class="seg-tl-act-cali">
+                                  <i class="fa-solid fa-star"></i>
+                                  {{ ev.actuacion.caliPedido }}
+                                </span>
+                              }
+                              <button type="button"
+                                      class="seg-tl-act-equipo-btn"
+                                      (click)="toggleEquipo(ev.actuacion.actId)">
+                                <i class="fa-solid fa-{{
+                                  equipoCargando[ev.actuacion.actId] ? 'spinner fa-spin' :
+                                  (equipoExpandido[ev.actuacion.actId] ? 'chevron-up' : 'users')
+                                }}"></i>
+                                @if (equipoCargando[ev.actuacion.actId]) {
+                                  Cargando…
+                                } @else if (equipoExpandido[ev.actuacion.actId]) {
+                                  Ocultar equipo
+                                } @else {
+                                  Ver equipo ({{ ev.actuacion.totalUnidades }})
+                                }
+                              </button>
+                            </div>
+
+                            <!-- Panel de equipo expandible (lazy) -->
+                            @if (equipoExpandido[ev.actuacion.actId]) {
+                              <div class="seg-tl-act-equipo">
+                                @if (!equipoDetalle[ev.actuacion.actId] || equipoDetalle[ev.actuacion.actId].length === 0) {
+                                  <p class="seg-tl-act-equipo__vacio">
+                                    <i class="fa-solid fa-info-circle"></i>
+                                    Solo la unidad principal está registrada.
+                                  </p>
+                                }
+                                @for (u of (equipoDetalle[ev.actuacion.actId] ?? []); track u.id) {
+                                  <div class="seg-tl-act-equipo__item">
+                                    <i class="fa-solid fa-user-shield"></i>
+                                    <span class="seg-tl-act-equipo__cod">{{ u.unidadCodigo }}</span>
+                                    @if (u.placa) {
+                                      <span class="seg-tl-act-equipo__placa">{{ u.placa }}</span>
+                                    }
+                                    @if (u.tipoUnidad) {
+                                      <span class="seg-tl-act-equipo__tipo">{{ u.tipoUnidad }}</span>
+                                    }
+                                    <span class="seg-tl-act-equipo__estado seg-tl-act-equipo__estado--{{ u.estado }}">
+                                      {{ u.estado === 'D' ? 'En camino' : u.estado === 'A' ? 'En sitio' : u.estado === 'L' ? 'Libre' : 'Anulado' }}
+                                    </span>
+                                    @if (u.fechaDespacho) {
+                                      <span class="seg-tl-act-equipo__hora">
+                                        <i class="fa-regular fa-clock"></i>
+                                        {{ u.fechaDespacho | date:'HH:mm' }}
+                                      </span>
+                                    }
+                                  </div>
+                                }
+                              </div>
                             }
-                            <span class="seg-tl-item__time">
-                              {{ (ev.timestamp | date:'dd/MM/yy HH:mm') || '—' }}
-                            </span>
+
+                          </div><!-- /seg-tl-act-block -->
+
+                        <!-- ── Tarjeta genérica (creación, anotación, cierre) ── -->
+                        } @else {
+                          <div class="seg-tl-item__card">
+                            <div class="seg-tl-item__head">
+                              <span class="seg-tl-item__titulo">{{ ev.titulo }}</span>
+                              @if (ev.tipoAnotacion) {
+                                <span class="seg-tl-item__tipo">{{ ev.tipoAnotacion }}</span>
+                              }
+                              <span class="seg-tl-item__time">
+                                {{ (ev.timestamp | date:'dd/MM/yy HH:mm') || '—' }}
+                              </span>
+                            </div>
+                            <div class="seg-tl-item__desc">{{ ev.descripcion }}</div>
+                            <div class="seg-tl-item__actor">
+                              <i class="fa-solid fa-user"></i> {{ ev.actor }}
+                            </div>
                           </div>
-                          <div class="seg-tl-item__desc">{{ ev.descripcion }}</div>
-                          <div class="seg-tl-item__actor">
-                            <i class="fa-solid fa-user"></i> {{ ev.actor }}
-                          </div>
-                        </div>
+                        }
 
                       </div>
                     }
                   </div><!-- /seg-timeline -->
 
                 </div><!-- /seg-tl-section -->
+
+                <!-- FOTOS ADJUNTAS DEL CASO -->
+                @if (adjuntos.length > 0) {
+                  <div class="seg-section seg-tl-section">
+                    <div class="seg-section__head">
+                      <i class="fa-solid fa-camera"></i>
+                      Fotos adjuntas
+                      <span class="seg-badge">{{ adjuntos.length }}</span>
+                    </div>
+                    <div class="ev-adjuntos-grid" style="padding:12px 14px;">
+                      @for (adj of adjuntos; track adj.id) {
+                        <a [href]="adj.urlPublica" target="_blank"
+                           class="ev-adjunto-card" [title]="adj.nombreOriginal">
+                          <div class="ev-adjunto-card__img">
+                            <img [src]="adj.urlPublica" [alt]="adj.nombreOriginal" loading="lazy">
+                            <i class="fa-solid fa-image ev-adjunto-card__fallback"></i>
+                          </div>
+                          <span class="ev-adjunto-card__nombre">{{ adj.nombreOriginal }}</span>
+                          <span class="ev-adjunto-card__canal">
+                            @if (adj.canalOrigen === 'API_CHAT') { Chat }
+                            @else if (adj.canalOrigen === 'API_SMS') { SMS }
+                            @else { Manual }
+                          </span>
+                        </a>
+                      }
+                    </div>
+                  </div>
+                }
 
               </div><!-- /seg-detail-scroll -->
             }

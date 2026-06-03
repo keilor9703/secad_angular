@@ -1,9 +1,35 @@
 using Comun.Dtos.Actuaciones;
+using Comun.Dtos.Agencias;
 
 namespace Datos.Interfaz
 {
     public interface IDbActuacionRepository
     {
+        // ── Retroalimentación desde agencias externas (via PIP) ─────────────────
+
+        /// <summary>
+        /// Registra la auditoría de una actualización entrante desde PIP y
+        /// aplica el cambio de estado a la actuación correspondiente.
+        /// Equivalente a SaveAuditoriaAsync + UpdateAuditoria* en RecepcionExterna.
+        /// </summary>
+        Task<DtoActualizacionExternaResult> P_ActualizarDesdeExternoAsync(
+            long casoId,
+            DtoActualizacionExternaRequest req,
+            long auditoriaId,
+            string ipOrigen,
+            CancellationToken ct);
+
+        /// <summary>Guarda el registro de auditoría antes de procesar.</summary>
+        Task SaveAuditoriaActualizacionAsync(
+            DtoAuditoriaActualizacionExterna dto, CancellationToken ct);
+
+        /// <summary>Marca la auditoría como procesada con la actuacionId resuelta.</summary>
+        Task UpdateAuditoriaActualizacionOkAsync(
+            long auditoriaId, long actuacionId, string estado, CancellationToken ct);
+
+        /// <summary>Marca la auditoría como error.</summary>
+        Task UpdateAuditoriaActualizacionErrorAsync(
+            long auditoriaId, string error, CancellationToken ct);
         // ── Consultas ───────────────────────────────────────────────────────────
 
         /// <summary>

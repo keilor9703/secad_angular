@@ -1,0 +1,389 @@
+<div class="gis-wrapper">
+
+  <!-- ══ PANEL DE FILTROS ══════════════════════════════════════════════════ -->
+  <div class="gis-filtros">
+
+    <div class="gis-filtros__titulo">
+      <i class="fa-solid fa-chart-area"></i>
+      GIS Estadístico Delincuencial
+    </div>
+
+    <!-- Fechas -->
+    <div class="gis-filtros__grupo">
+      <label class="gis-label">Desde</label>
+      <input type="date" class="gis-input" [(ngModel)]="filtro.desde" />
+    </div>
+    <div class="gis-filtros__grupo">
+      <label class="gis-label">Hasta</label>
+      <input type="date" class="gis-input" [(ngModel)]="filtro.hasta" />
+    </div>
+
+    <!-- Tipo de caso -->
+    <div class="gis-filtros__grupo">
+      <label class="gis-label">Código de caso</label>
+      <input type="text" class="gis-input" [(ngModel)]="filtro.codiPedido"
+             placeholder="Ej: 905, 120…" maxlength="20" />
+    </div>
+
+    <!-- Turno de vigilancia -->
+    <div class="gis-filtros__grupo">
+      <label class="gis-label">
+        <i class="fa-solid fa-shield-halved"></i> Turno
+      </label>
+      <select class="gis-input" [(ngModel)]="filtro.turnoVigilancia">
+        @for (t of turnos; track t.value) {
+          <option [ngValue]="t.value">{{ t.label }}</option>
+        }
+      </select>
+      @if ((filtro.turnoVigilancia ?? 0) > 0) {
+        <span class="gis-turno-badge"
+              [style.background]="turnoBadgeColor(filtro.turnoVigilancia!)">
+          <i class="fa-solid fa-clock"></i> {{ turnoLabel(filtro.turnoVigilancia!) }}
+        </span>
+      }
+    </div>
+
+    <!-- Prioridad -->
+    <div class="gis-filtros__grupo">
+      <label class="gis-label">Prioridad</label>
+      <select class="gis-input" [(ngModel)]="filtro.prioridad">
+        <option value="">Todas</option>
+        <option value="FLASH">Flash</option>
+        <option value="INMEDIATA">Inmediata</option>
+        <option value="RUTINA">Rutina</option>
+      </select>
+    </div>
+
+    <!-- Ciudad — solo visible para SuperAdmin -->
+    @if (esSuperAdmin) {
+      <div class="gis-filtros__grupo">
+        <label class="gis-label">Ciudad / Municipio</label>
+        <select class="gis-input"
+                [(ngModel)]="filtro.ciudad"
+                (ngModelChange)="onCiudadChange()"
+                [disabled]="cargandoListas">
+          <option value="">Todas las ciudades</option>
+          @for (c of ciudades; track c) {
+            <option [value]="c">{{ c }}</option>
+          }
+        </select>
+        @if (cargandoListas) {
+          <span class="gis-lista-cargando">
+            <i class="fa-solid fa-spinner fa-spin"></i> Cargando…
+          </span>
+        }
+      </div>
+    }
+
+    <!-- Ciudad como etiqueta para no-SuperAdmin -->
+    @if (!esSuperAdmin && ciudadUsuario) {
+      <div class="gis-filtros__grupo">
+        <label class="gis-label">Ciudad / Municipio</label>
+        <div class="gis-ciudad-badge">
+          <i class="fa-solid fa-location-dot"></i> {{ ciudadUsuario }}
+        </div>
+      </div>
+    }
+
+    <!-- Barrio — dropdown -->
+    <div class="gis-filtros__grupo">
+      <label class="gis-label">Barrio / Sector</label>
+      <select class="gis-input"
+              [(ngModel)]="filtro.barrio"
+              [disabled]="cargandoListas || barrios.length === 0">
+        <option value="">Todos los barrios</option>
+        @for (b of barrios; track b) {
+          <option [value]="b">{{ b }}</option>
+        }
+      </select>
+      @if (!cargandoListas && barrios.length === 0) {
+        <span class="gis-lista-hint">Sin barrios disponibles</span>
+      }
+    </div>
+
+    <!-- Solo cerrados -->
+    <div class="gis-filtros__grupo gis-filtros__grupo--check">
+      <label class="gis-check-label">
+        <input type="checkbox" [(ngModel)]="filtro.soloCerrados" />
+        Solo incidentes cerrados
+      </label>
+    </div>
+
+    <!-- Acciones -->
+    <div class="gis-filtros__acciones">
+      <button class="gis-btn gis-btn--primario" (click)="consultar()" [disabled]="cargando">
+        <i class="fa-solid fa-{{ cargando ? 'spinner fa-spin' : 'magnifying-glass-chart' }}"></i>
+        {{ cargando ? 'Analizando…' : 'Analizar' }}
+      </button>
+      <button class="gis-btn gis-btn--secundario" (click)="limpiarFiltros()" [disabled]="cargando">
+        <i class="fa-solid fa-xmark"></i> Limpiar
+      </button>
+      @if (consultado && !cargando) {
+        <button class="gis-btn gis-btn--informe" (click)="generarInforme()"
+                title="Exportar informe para imprimir o guardar como PDF">
+          <i class="fa-solid fa-file-pdf"></i> Generar informe
+        </button>
+      }
+    </div>
+
+    @if (errorCarga) {
+      <div class="gis-error">
+        <i class="fa-solid fa-triangle-exclamation"></i>
+        Error al consultar. Verifique la conexión.
+      </div>
+    }
+
+    <!-- Resumen rápido (post-consulta) -->
+    @if (consultado) {
+      <div class="gis-resumen">
+        <div class="gis-resumen__titulo">
+          <i class="fa-solid fa-chart-pie"></i> Resumen
+        </div>
+        <div class="gis-resumen__fila">
+          <span>Total incidentes</span>
+          <strong>{{ metricas.total | number }}</strong>
+        </div>
+        <div class="gis-resumen__fila gis-resumen__fila--flash">
+          <span>Flash</span>
+          <strong>{{ metricas.totalFlash | number }}</strong>
+        </div>
+        <div class="gis-resumen__fila gis-resumen__fila--inmd">
+          <span>Inmediata</span>
+          <strong>{{ metricas.totalInmd | number }}</strong>
+        </div>
+        <div class="gis-resumen__fila gis-resumen__fila--rut">
+          <span>Rutina</span>
+          <strong>{{ metricas.totalRutina | number }}</strong>
+        </div>
+        <div class="gis-resumen__fila">
+          <span>Con coordenadas</span>
+          <strong>{{ metricas.conCoordenadas | number }}</strong>
+        </div>
+        <div class="gis-resumen__fila">
+          <span>En mapa</span>
+          <strong>{{ puntos.length | number }}</strong>
+        </div>
+        @if (topCaso) {
+          <div class="gis-resumen__insight">
+            <i class="fa-solid fa-triangle-exclamation" style="color:#e67300"></i>
+            Tipo más frecuente: <strong>{{ topCaso.descripcion || topCaso.clave }}</strong>
+            ({{ topCaso.total | number }})
+          </div>
+        }
+        <div class="gis-resumen__insight">
+          <i class="fa-solid fa-clock" style="color:#003087"></i>
+          Hora pico: <strong>{{ horaPico }}</strong>
+        </div>
+        <div class="gis-resumen__insight">
+          <i class="fa-solid fa-calendar-day" style="color:#003087"></i>
+          Día más activo: <strong>{{ diaPico }}</strong>
+        </div>
+      </div>
+    }
+
+  </div>
+  <!-- /gis-filtros -->
+
+
+  <!-- ══ ÁREA PRINCIPAL (Mapa + Stats) ════════════════════════════════════ -->
+  <div class="gis-main">
+
+    <!-- ─── MAPA ──────────────────────────────────────────────────────────── -->
+    <div class="gis-mapa-area">
+
+      <!-- Controles de capa -->
+      <div class="gis-capas">
+        <button class="gis-capa-btn"
+                [class.activo]="capaActiva === 'calor'"
+                (click)="cambiarCapa('calor')"
+                title="Mapa de calor (densidad)">
+          <i class="fa-solid fa-fire"></i> Calor
+        </button>
+        <button class="gis-capa-btn"
+                [class.activo]="capaActiva === 'clusters'"
+                (click)="cambiarCapa('clusters')"
+                title="Agrupar por proximidad">
+          <i class="fa-solid fa-circle-nodes"></i> Clusters
+        </button>
+        <button class="gis-capa-btn"
+                [class.activo]="capaActiva === 'puntos'"
+                (click)="cambiarCapa('puntos')"
+                title="Puntos individuales">
+          <i class="fa-solid fa-map-pin"></i> Puntos
+        </button>
+      </div>
+
+      <!-- Leyenda de calor -->
+      @if (capaActiva === 'calor' && consultado) {
+        <div class="gis-leyenda-calor">
+          <div class="gis-leyenda-calor__titulo">Densidad delincuencial</div>
+          <div class="gis-leyenda-calor__barra"></div>
+          <div class="gis-leyenda-calor__labels">
+            <span>Baja</span><span>Media</span><span>Alta</span>
+          </div>
+          <div style="font-size:9px;color:#777;margin-top:3px;text-align:center">
+            Intensidad mayor para prioridad Flash
+          </div>
+        </div>
+      }
+
+      <!-- Leyenda de prioridades (puntos/clusters) -->
+      @if (capaActiva !== 'calor') {
+        <div class="gis-leyenda-puntos">
+          <div class="gis-leyenda-puntos__titulo">Prioridad</div>
+          <div class="gis-lp-item">
+            <span class="gis-lp-dot" style="background:#cc0000"></span>
+            <span>Flash</span>
+          </div>
+          <div class="gis-lp-item">
+            <span class="gis-lp-dot" style="background:#e67300"></span>
+            <span>Inmediata</span>
+          </div>
+          <div class="gis-lp-item">
+            <span class="gis-lp-dot" style="background:#0066cc"></span>
+            <span>Rutina</span>
+          </div>
+          @if (capaActiva === 'clusters') {
+            <div class="gis-lp-sep"></div>
+            <div class="gis-lp-item gis-lp-item--cluster">
+              <span class="gis-cluster-mini" style="background:#0066cc">5</span>
+              <span>&lt; 10</span>
+            </div>
+            <div class="gis-lp-item gis-lp-item--cluster">
+              <span class="gis-cluster-mini" style="background:#e67300">25</span>
+              <span>10–49</span>
+            </div>
+            <div class="gis-lp-item gis-lp-item--cluster">
+              <span class="gis-cluster-mini" style="background:#cc0000">99</span>
+              <span>≥ 50</span>
+            </div>
+          }
+        </div>
+      }
+
+      <!-- Estado vacío pre-consulta -->
+      @if (!consultado && !cargando) {
+        <div class="gis-mapa-overlay">
+          <i class="fa-solid fa-magnifying-glass-chart fa-2x" style="color:#ccc"></i>
+          <p>Configure los filtros y presione <strong>Analizar</strong></p>
+        </div>
+      }
+
+      @if (cargando) {
+        <div class="gis-mapa-overlay">
+          <i class="fa-solid fa-spinner fa-spin fa-2x" style="color:#003087"></i>
+          <p>Procesando análisis estadístico…</p>
+        </div>
+      }
+
+      @if (consultado && puntos.length === 0 && !cargando) {
+        <div class="gis-mapa-overlay">
+          <i class="fa-solid fa-map-location-dot fa-2x" style="color:#ccc"></i>
+          <p>No se encontraron incidentes con coordenadas<br>en el rango seleccionado.</p>
+        </div>
+      }
+
+      <!-- El mapa -->
+      <div id="mapaEstadisticoDiv" class="gis-mapa-leaflet"></div>
+    </div>
+    <!-- /gis-mapa-area -->
+
+
+    <!-- ─── PANEL DE ESTADÍSTICAS ─────────────────────────────────────────── -->
+    <div class="gis-stats">
+
+      @if (!consultado) {
+        <div class="gis-stats-vacio">
+          <i class="fa-solid fa-chart-bar fa-2x" style="opacity:.2"></i>
+          <p>Las estadísticas aparecerán<br>después de consultar.</p>
+        </div>
+      }
+
+      @if (consultado) {
+
+        <!-- Distribución por prioridad (donut) -->
+        <div class="gis-chart-card">
+          <div class="gis-chart-titulo">
+            <i class="fa-solid fa-chart-pie"></i> Distribución por prioridad
+          </div>
+          <div class="gis-chart-wrap gis-chart-wrap--sm">
+            <canvas #chartPrioridad></canvas>
+          </div>
+        </div>
+
+        <!-- Top tipos de caso (barras horizontales) -->
+        <div class="gis-chart-card">
+          <div class="gis-chart-titulo">
+            <i class="fa-solid fa-ranking-star"></i> Top tipos de caso
+          </div>
+          <div class="gis-chart-wrap"
+               [style.height.px]="metricas.porTipoCaso.slice(0,12).length * 22 + 20"
+               style="min-height:120px">
+            <canvas #chartTipo></canvas>
+          </div>
+        </div>
+
+        <!-- Por hora del día (línea) -->
+        <div class="gis-chart-card">
+          <div class="gis-chart-titulo">
+            <i class="fa-solid fa-clock"></i> Incidentes por hora del día
+          </div>
+          <div class="gis-chart-wrap">
+            <canvas #chartHora></canvas>
+          </div>
+        </div>
+
+        <!-- Por día de semana (barras) -->
+        <div class="gis-chart-card">
+          <div class="gis-chart-titulo">
+            <i class="fa-solid fa-calendar-week"></i> Por día de la semana
+          </div>
+          <div class="gis-chart-wrap">
+            <canvas #chartDia></canvas>
+          </div>
+        </div>
+
+        <!-- Tendencia mensual (línea) -->
+        <div class="gis-chart-card">
+          <div class="gis-chart-titulo">
+            <i class="fa-solid fa-arrow-trend-up"></i> Tendencia mensual
+          </div>
+          <div class="gis-chart-wrap">
+            <canvas #chartMes></canvas>
+          </div>
+        </div>
+
+        <!-- Top ciudades -->
+        @if (metricas.porCiudad.length > 0) {
+          <div class="gis-chart-card">
+            <div class="gis-chart-titulo">
+              <i class="fa-solid fa-city"></i> Top ciudades / municipios
+            </div>
+            <div class="gis-lista-ciudad">
+              @for (c of metricas.porCiudad.slice(0, 8); track c.clave) {
+                <div class="gis-ciudad-row">
+                  <span class="gis-ciudad-nombre">{{ c.descripcion }}</span>
+                  <div class="gis-ciudad-barra-track">
+                    <div class="gis-ciudad-barra-fill"
+                         [style.width.%]="metricas.porCiudad[0]?.total
+                           ? (c.total / metricas.porCiudad[0].total * 100) : 0">
+                    </div>
+                  </div>
+                  <span class="gis-ciudad-total">{{ c.total | number }}</span>
+                </div>
+              }
+            </div>
+          </div>
+        }
+
+      }
+      <!-- /consultado -->
+
+    </div>
+    <!-- /gis-stats -->
+
+  </div>
+  <!-- /gis-main -->
+
+</div>
+<!-- /gis-wrapper -->

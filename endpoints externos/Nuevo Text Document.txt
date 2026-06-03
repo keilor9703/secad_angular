@@ -1,0 +1,79 @@
+B. Chat API REST (sistema externo → SECAD)
+Configura primero appsettings.json:
+
+"RecepcionExterna": {
+  "ApiKey": "TU_CLAVE_SECRETA_AQUI"
+}
+Llamada desde el sistema de chat (WhatsApp, Telegram, etc.):
+
+POST http://tu-servidor:8088/api/RecepcionExterna/chat
+Headers:
+  X-Api-Key: TU_CLAVE_SECRETA_AQUI
+  X-Cod-Dane: 11001          # Código DANE del CAD destino
+  Content-Type: application/json
+
+Body:
+{
+  "sitioGraba": 1,
+  "nombreReportante": "Juan Pérez",
+  "contactoId": "3001234567",
+  "mensaje": "Hay un hurto en la Cra 7 con 32",
+  "direccionCaso": "Carrera 7 # 32-15",
+  "ciudad": "Bogotá",
+  "barrio": "La Candelaria",
+  "latitudCaso": "4.598056",
+  "longitudCaso": "-74.075833",
+  "codigoCaso": "120",
+  "caliPedido": "01",
+  "canales": [1, 2]
+}
+Respuesta exitosa:
+
+{
+  "success": true,
+  "message": "Recepción de chat procesada correctamente.",
+  "pedidoId": "318895395662991361",
+  "eventoId": "318895395662991362",
+  "canal": "CHAT"
+}
+
+El evento aparece en el módulo Eventos del operador con origen CHAT.
+
+C. SMS API REST
+POST http://tu-servidor:8088/api/RecepcionExterna/sms
+Headers:
+  X-Api-Key: TU_CLAVE_SECRETA_AQUI
+  X-Cod-Dane: 11001
+  Content-Type: application/json
+
+Body:
+{
+  "sitioGraba": 1,
+  "numeroCelular": "+573001234567",
+  "nombreReportante": "CIUDADANO",
+  "mensajeSms": "Accidente de tránsito Av El Dorado con cra 50",
+  "direccionCaso": "Av El Dorado con Cra 50",
+  "ciudad": "Bogotá",
+  "barrio": "Fontibón",
+  "codigoCaso": "300",
+  "caliPedido": "01",
+  "canales": [1]
+}
+D. Foto desde API externa (adjuntar al pedido desde sistema externo)
+POST http://tu-servidor:8088/api/Adjunto/subir
+Headers:
+  Authorization: Bearer <JWT_TOKEN>
+  (multipart/form-data)
+
+Form data:
+  File: [archivo imagen]
+  PedidoId: 318895395662991360
+  SitioGraba: 1
+  CanalOrigen: API_FOTO
+  Descripcion: "Foto de la escena"
+  
+  
+E. Verificar fotos de un pedido
+GET http://tu-servidor:8088/api/Adjunto/318895395662991360
+Headers:
+  Authorization: Bearer <JWT_TOKEN>

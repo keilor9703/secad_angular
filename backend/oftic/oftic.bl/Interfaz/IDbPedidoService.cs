@@ -1,4 +1,5 @@
 using Comun.Dtos.Incidentes;
+using Ev = Comun.Dtos.Eventos;
 
 namespace Negocio.Interfaz
 {
@@ -9,6 +10,15 @@ namespace Negocio.Interfaz
         Task<DtoPedidoResult> CreateAsync(DtoPedidoRequest request, long usuarioAuditoria, string usernameAuditoria, string maquinaAuditoria, CancellationToken ct);
         Task<DtoPedidoResult> UpdateAsync(long id, DtoPedidoRequest request, long usuarioAuditoria, string usernameAuditoria, string maquinaAuditoria, CancellationToken ct);
         Task<DtoPedidoResult> CerrarRapidoAsync(long id, DtoCerrarRapidoRequest request, long usuarioAuditoria, string maquinaAuditoria, CancellationToken ct);
+
+        /// <summary>
+        /// Cierra un evento desde el módulo Despachador.
+        /// Persiste datos en cad_eventos; NUNCA modifica cad_pedidos.comentario.
+        /// </summary>
+        Task<DtoPedidoResult> CerrarEventoDesdeDespachoAsync(
+            long pedidoId, Ev.DtoCerrarEventoDespachoRequest request,
+            long usuarioId, string username, string maquina, CancellationToken ct);
+
         Task<DtoPedidoResult> SetEstadoAsync(long id, string estado, long usuarioAuditoria, string maquinaAuditoria, CancellationToken ct);
         Task<List<DtoAnotacion>> GetAnotacionesAsync(long idPedido, CancellationToken ct);
         Task<DtoPedidoResult> CreateAnotacionAsync(long idPedido, DtoAnotacionRequest request, long usuarioAuditoria, string usernameAuditoria, string maquinaAuditoria, CancellationToken ct);

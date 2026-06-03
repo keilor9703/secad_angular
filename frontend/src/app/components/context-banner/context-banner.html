@@ -1,0 +1,47 @@
+<ng-container *ngIf="isSuperAdmin">
+  <div class="ctx-banner" [class.ctx-switched]="isCtxSwitched">
+    <!-- Label + CAD selector dropdown -->
+    <span class="ctx-label">
+      <i class="fa-solid fa-satellite-dish"></i>
+      Contexto activo:
+    </span>
+
+    <div class="ctx-selector">
+      <button class="ctx-cad-btn" type="button" (click)="toggleDropdown()" [disabled]="switching">
+        <i class="fa-solid fa-building-shield"></i>
+        <span class="ctx-cad-name">{{ nombreCad || activeCodDane }}</span>
+        <i class="fa-solid fa-chevron-down ctx-chevron" [class.rotated]="showDropdown"></i>
+      </button>
+
+      <div class="ctx-dropdown" *ngIf="showDropdown">
+        <div class="ctx-dropdown-header">Seleccionar CAD</div>
+        <button
+          *ngFor="let t of tenants"
+          class="ctx-dropdown-item"
+          [class.active]="t.codDane === activeCodDane"
+          type="button"
+          (click)="switchTo(t.codDane)">
+          <span class="ctx-item-name">{{ t.nombre }}</span>
+          <span class="ctx-item-dane">{{ t.codDane }}</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- "Volver a mi CAD" button — only visible when context is switched -->
+    <button
+      *ngIf="isCtxSwitched"
+      class="ctx-return-btn"
+      type="button"
+      (click)="returnToHome()"
+      [disabled]="switching"
+      title="Volver a tu CAD de origen">
+      <i class="fa-solid fa-arrow-left"></i>
+      Volver a mi CAD
+    </button>
+
+    <!-- Spinner while switching -->
+    <span class="ctx-spinner" *ngIf="switching">
+      <i class="fa-solid fa-spinner fa-spin"></i>
+    </span>
+  </div>
+</ng-container>

@@ -15,49 +15,53 @@ namespace Datos.Gestion
             _logger = logger;
         }
 
-        public async Task<(long? idUsuario, List<long> roles, int sitioGraba, int acd, int fuerzaId, int canalCodigo)> GetUsuarioYRolesAsync(string usuario, CancellationToken ct)
+        public async Task<(long? idUsuario, string identificacion, List<long> roles, int sitioGraba, int acd, int fuerzaId, int canalCodigo)> GetUsuarioYRolesAsync(string usuario, CancellationToken ct)
         {
             await using var conn = await _tenant.DataSource.OpenConnectionAsync(ct);
 
             _logger.LogInformation("Buscando usuario: {Usuario}", usuario);
 
-            long? idUsuario   = null;
-            int   sitioGraba  = 0;
-            int   acd         = 0;
-            int   fuerzaId    = 0;
-            int   canalCodigo = 0;
+            long?  idUsuario      = null;
+            string identificacion = "";   // cédula / identificación del empleado
+            int    sitioGraba     = 0;
+            int    acd            = 0;
+            int    fuerzaId       = 0;
+            int    canalCodigo    = 0;
 
             await using (var cmd = conn.CreateCommand())
             {
                 cmd.CommandText = @"
-                                    SELECT id_usuario,
-                                           COALESCE(sitio_grabacion, 0)    AS sitio_grabacion,
-                                           COALESCE(acd, 0)                AS acd,
-                                           COALESCE(cadcana_fuerza_id, 0)  AS cadcana_fuerza_id,
-                                           COALESCE(cadcana_codigo, 0)     AS cadcana_codigo
-                                    FROM ctr_usuarios
-                                    WHERE UPPER(username) = UPPER(@pUsuario) AND bloqueado = 0
-                                    LIMIT 1";
+SELECT id_usuario,
+       COALESCE(identificacion, '')     AS identificacion,
+       COALESCE(sitio_grabacion, 0)    AS sitio_grabacion,
+       COALESCE(acd, 0)                AS acd,
+       COALESCE(cadcana_fuerza_id, 0)  AS cadcana_fuerza_id,
+       COALESCE(cadcana_codigo, 0)     AS cadcana_codigo
+FROM ctr_usuarios
+WHERE UPPER(username) = UPPER(@pUsuario) AND bloqueado = 0
+LIMIT 1";
                 cmd.Parameters.AddWithValue("pUsuario", usuario);
 
                 await using var rdr = await cmd.ExecuteReaderAsync(ct);
                 if (await rdr.ReadAsync(ct))
                 {
-                    idUsuario   = rdr.IsDBNull(0) ? null : (long?)Convert.ToInt64(rdr.GetValue(0));
-                    sitioGraba  = rdr.IsDBNull(1) ? 0 : rdr.GetInt32(1);
-                    acd         = rdr.IsDBNull(2) ? 0 : rdr.GetInt32(2);
-                    fuerzaId    = rdr.IsDBNull(3) ? 0 : rdr.GetInt32(3);
-                    canalCodigo = rdr.IsDBNull(4) ? 0 : rdr.GetInt32(4);
+                    idUsuario      = rdr.IsDBNull(0) ? null : (long?)Convert.ToInt64(rdr.GetValue(0));
+                    identificacion = rdr.IsDBNull(1) ? "" : rdr.GetString(1);
+                    sitioGraba     = rdr.IsDBNull(2) ? 0 : rdr.GetInt32(2);
+                    acd            = rdr.IsDBNull(3) ? 0 : rdr.GetInt32(3);
+                    fuerzaId       = rdr.IsDBNull(4) ? 0 : rdr.GetInt32(4);
+                    canalCodigo    = rdr.IsDBNull(5) ? 0 : rdr.GetInt32(5);
                 }
             }
 
             if (idUsuario is null)
             {
                 _logger.LogWarning("Usuario no encontrado o bloqueado: {Usuario}", usuario);
-                return (null, new List<long>(), 0, 0, 0, 0);
+                return (null, "", new List<long>(), 0, 0, 0, 0);
             }
 
-            _logger.LogInformation("Usuario encontrado con ID: {IdUsuario}", idUsuario);
+            _logger.LogInformation("Usuario encontrado con ID: {IdUsuario}, identificacion: {Ident}",
+                idUsuario, string.IsNullOrEmpty(identificacion) ? "(vacía)" : "OK");
 
             var roles = new List<long>();
 
@@ -75,7 +79,7 @@ WHERE id_usuario = @pIdUsuario";
             }
 
             _logger.LogInformation("Roles encontrados: {Count}", roles.Count);
-            return (idUsuario.Value, roles, sitioGraba, acd, fuerzaId, canalCodigo);
+            return (idUsuario.Value, identificacion, roles, sitioGraba, acd, fuerzaId, canalCodigo);
         }
     }
 }

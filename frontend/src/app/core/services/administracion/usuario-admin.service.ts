@@ -22,6 +22,8 @@ export interface DtoFuncionario {
   codigoCargo?: string | null;
   cargo?: string | null;
   activo?: boolean;
+  /** ID local en ctr_usuarios (Snowflake, como string para evitar pérdida de precisión). */
+  idUsuario?: string | null;
 }
 
 export interface DtoRolAsignado {
@@ -52,6 +54,32 @@ export interface UsuarioListadoItem {
   nombreCompleto: string;
   rol: string;
   fechaFinRol?: string | null;
+  /** 'POLICIA' o 'CIVIL' — determina si la consulta de detalle va a PIP o BD local */
+  tipoUsuario: string;
+}
+
+export interface DtoUsuarioLocalDetalle {
+  idUsuario: string;     // Snowflake → string
+  username: string;
+  identificacion?: string | null;
+  nombres?: string | null;
+  apellidos?: string | null;
+  email?: string | null;
+  entidad?: string | null;
+  cargo?: string | null;
+  tipoUsuario: string;
+  activo: boolean;
+  // Datos operacionales (módulos Recepción / Turnos / Eventos)
+  cadcanaFuerzaId?: number;
+  cadcanaCodigo?: number;
+  acd?: number;
+  sitioGrabacion?: number;
+}
+
+export interface UsuarioLocalResult {
+  usuario: DtoUsuarioLocalDetalle;
+  rolesAsignados: DtoRolAsignado[];
+  rolesCatalogo: DtoRolCatalogo[];
 }
 
 export interface SaveUsuarioRequest {
@@ -64,6 +92,19 @@ export interface SaveUsuarioRequest {
   funcionario: string;
   undeLaborando: string;
   codigoCargo: string;
+  activo: boolean;
+}
+
+/** Solicitud para crear un usuario civil / de otra entidad (autenticación local). */
+export interface DtoCivilUsuarioRequest {
+  username: string;
+  password: string;
+  identificacion?: string;
+  nombres: string;
+  apellidos: string;
+  email?: string;
+  entidad?: string;
+  cargo?: string;
   activo: boolean;
 }
 
@@ -152,6 +193,21 @@ export class UsuarioAdminService {
 
   guardarUsuario(payload: SaveUsuarioRequest): Observable<SaveUsuarioResponse> {
     return this.http.post<SaveUsuarioResponse>(this.baseUrl, payload);
+  }
+
+  /** Crea o actualiza un usuario civil / de otra entidad (autenticación local). */
+  createCivilUsuario(payload: DtoCivilUsuarioRequest): Observable<SaveUsuarioResponse> {
+    return this.http.post<SaveUsuarioResponse>(`${this.baseUrl}/Civil`, payload);
+  }
+
+  /**
+   * Lee los datos de un usuario directamente desde ctr_usuarios (sin PIP).
+   * Usar para usuarios civiles / otras entidades.
+   */
+  getLocalUsuario(username: string): Observable<UsuarioLocalResult> {
+    return this.http.get<UsuarioLocalResult>(`${this.baseUrl}/Local`, {
+      params: { username: username.trim() }
+    });
   }
 
   asignarRol(payload: AsignarRolRequest): Observable<AsignarRolResponse> {

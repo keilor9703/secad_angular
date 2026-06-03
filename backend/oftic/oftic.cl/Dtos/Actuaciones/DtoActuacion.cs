@@ -88,9 +88,12 @@ public class DtoActuacionListItem
     public string? FechaDespacho   { get; set; }
     public string? FechaLlegada    { get; set; }
     public string? FechaCierre     { get; set; }
-    public string? CaliPedido      { get; set; }
-    public int?    TotalUnidades   { get; set; }
-    public int?    TotalNotas      { get; set; }
+    public string? CaliPedido          { get; set; }
+    public int?    TotalUnidades       { get; set; }
+    public int?    TotalNotas          { get; set; }
+    public string? PlacaUnidad         { get; set; }
+    /// <summary>Username del despachador que asignó el recurso (auditoría del Jefe de Turno).</summary>
+    public string? DespachadorUsuario  { get; set; }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

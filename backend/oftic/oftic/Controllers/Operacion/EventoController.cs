@@ -1,4 +1,5 @@
 using Comun.Dtos.Incidentes;
+using Ev = Comun.Dtos.Eventos;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Mvc;
@@ -147,13 +148,16 @@ namespace Api.Controllers.Operacion
         }
 
         /// <summary>
-        /// Quick-close an event with a closing comment.
+        /// Closes an event from the dispatcher module.
+        /// Persists closure codes and observation to cad_eventos only.
+        /// cad_pedidos.comentario is IMMUTABLE and is never touched here —
+        /// only cad_pedidos.estado is updated to 'C'.
         /// </summary>
         [HttpPost("{id:long}/cerrar")]
-        public async Task<ActionResult> Cerrar(long id, [FromBody] DtoCerrarRapidoRequest request, CancellationToken ct)
+        public async Task<ActionResult> Cerrar(long id, [FromBody] Ev.DtoCerrarEventoDespachoRequest request, CancellationToken ct)
         {
-            var (usuario, _, maquina) = ObtenerAuditoria();
-            var result = await _service.CerrarRapidoAsync(id, request, usuario, maquina, ct);
+            var (usuarioId, username, maquina) = ObtenerAuditoria();
+            var result = await _service.CerrarEventoDesdeDespachoAsync(id, request, usuarioId, username, maquina, ct);
             if (!result.Success)
                 return BadRequest(new { success = false, message = result.Message });
             return Ok(new { success = true, message = result.Message });

@@ -69,5 +69,31 @@ namespace Datos.Interfaz
         /// </summary>
         Task<DtoEventoResult> P_CrearEventoIntegracionAsync(
             DtoEventoIntegracionRequest request, string usuario, CancellationToken ct);
+
+        // ── Remisión a canal SECAD (§6.11 / §6.1) ──────────────────────────────
+        /// <summary>
+        /// Inserta filas en cad_pedidos_canales para los canales indicados, haciendo
+        /// que el evento sea visible en la cola Eventos de esos canales.
+        /// Si un canal ya estaba asignado al pedido, su fila se ignora (ON CONFLICT DO NOTHING).
+        /// </summary>
+        Task<(bool success, string message, int canalesAgregados)> RemitirCanalAsync(
+            DtoRemitirCanalRequest req, string usuario, CancellationToken ct);
+
+        // ── Duplicate / nearby-call detection (§6.8) ───────────────────────────
+        /// <summary>
+        /// Busca en <c>cad_pedidos</c> llamadas activas dentro de
+        /// <paramref name="radioMetros"/> metros de las coordenadas dadas,
+        /// creadas en los últimos <paramref name="minutosAtras"/> minutos.
+        /// Se usa en Recepción para alertar al operador sobre posibles duplicados.
+        /// Si se proporciona <paramref name="codCaso"/>, filtra adicionalmente
+        /// por coincidencia exacta o prefijo (3 caracteres) del código de caso.
+        /// </summary>
+        Task<List<DtoPedidoCercano>> G_GetPedidosCercanosAsync(
+            double  lat,
+            double  lng,
+            int     radioMetros,
+            int     minutosAtras,
+            string? codCaso,
+            CancellationToken ct);
     }
 }

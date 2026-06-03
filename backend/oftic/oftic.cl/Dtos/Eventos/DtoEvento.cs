@@ -138,6 +138,28 @@ public class DtoCierreEventoRequest
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Request: cerrar un evento desde el módulo Despachador (por pedido_id).
+// IMPORTANTE: Este DTO NO contiene comentario ni codiPedido del pedido —
+// esos campos son INMUTABLES en cad_pedidos una vez registrados en Recepción.
+// Solo actualiza cad_eventos y cad_eventos_codigos_cierre; en cad_pedidos
+// únicamente se actualiza el estado a 'C'.
+// ─────────────────────────────────────────────────────────────────────────────
+public class DtoCerrarEventoDespachoRequest
+{
+    /// <summary>Estado final: C=Cerrado (default), V=Anulado.</summary>
+    public string Estado { get; set; } = EstadoEvento.Cerrado;
+
+    /// <summary>Clasificación de cierre (FK catálogo).</summary>
+    public string? ClasifCierre { get; set; }
+
+    /// <summary>Observación libre del despachador. Va a cad_eventos.observacion_cierre.</summary>
+    public string? ObservacionCierre { get; set; }
+
+    /// <summary>Códigos de cierre seleccionados. El de Orden=1 es el primario.</summary>
+    public List<DtoCodigoCierreEvento> CodigosCierre { get; set; } = new();
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Request: actualizar el estado de ciclo operativo (despacho / llegada).
 // ─────────────────────────────────────────────────────────────────────────────
 public class DtoActualizarEstadoEventoRequest

@@ -1,0 +1,236 @@
+<section class="salud-cads-page">
+
+  <!-- ─── Panel principal ─────────────────────────────────────────────────── -->
+  <div class="ui-panel">
+    <div class="ui-panel__head">
+      <div class="ui-panel__title">
+        <i class="fa-solid fa-heart-pulse"></i>
+        Dashboard Nacional — Salud de CADs
+      </div>
+      <div class="ui-panel__actions ui-window-controls">
+
+        <!-- Contador de refresco (solo visible cuando activo) -->
+        <span class="refresh-badge" *ngIf="!paused">
+          <i class="fa-regular fa-clock"></i>
+          {{ nextRefreshIn }}s
+        </span>
+
+        <!-- Botón pausar / reanudar monitoreo -->
+        <button class="ui-btn sm"
+                [class.monitor-paused]="paused"
+                [class.secondary]="!paused"
+                type="button"
+                (click)="togglePause()"
+                [title]="paused ? 'Reanudar monitoreo automático' : 'Pausar monitoreo automático'">
+          <i class="fa-solid" [ngClass]="paused ? 'fa-play' : 'fa-pause'"></i>
+          {{ paused ? 'Reanudar' : 'Pausar' }}
+        </button>
+
+        <button class="ui-icon-btn ui-win-btn is-min" type="button" title="Minimizar"
+                (click)="minimized = !minimized">
+          <i class="fa-solid fa-minus"></i>
+        </button>
+      </div>
+    </div>
+
+    <div class="ui-panel__body" *ngIf="!minimized">
+
+      <!-- Banner: monitoreo pausado -->
+      <div class="monitor-pause-banner" *ngIf="paused">
+        <i class="fa-solid fa-circle-pause"></i>
+        <span>
+          <strong>Monitoreo automático pausado.</strong>
+          Los datos mostrados corresponden al último ciclo registrado y no se actualizarán hasta reanudar.
+        </span>
+        <button class="ui-btn sm primary" type="button" (click)="togglePause()">
+          <i class="fa-solid fa-play"></i> Reanudar
+        </button>
+      </div>
+
+      <!-- Tarjetas resumen -->
+      <div class="summary-row">
+        <div class="summary-tile summary-tile--ok">
+          <span class="summary-tile__count">{{ totalNormal }}</span>
+          <span class="summary-tile__label">
+            <i class="fa-solid fa-circle-check"></i> Normal
+          </span>
+        </div>
+        <div class="summary-tile summary-tile--warn">
+          <span class="summary-tile__count">{{ totalDegradado }}</span>
+          <span class="summary-tile__label">
+            <i class="fa-solid fa-triangle-exclamation"></i> Degradado
+          </span>
+        </div>
+        <div class="summary-tile summary-tile--err">
+          <span class="summary-tile__count">{{ totalOffline }}</span>
+          <span class="summary-tile__label">
+            <i class="fa-solid fa-circle-xmark"></i> Offline
+          </span>
+        </div>
+        <div class="summary-tile summary-tile--info">
+          <span class="summary-tile__count">{{ cads.length }}</span>
+          <span class="summary-tile__label">
+            <i class="fa-solid fa-server"></i> Total CADs
+          </span>
+        </div>
+      </div>
+
+      <!-- Barra de filtros -->
+      <div class="ui-grid filter-grid">
+        <div class="ui-field ui-col-6">
+          <label class="ui-label">Buscar CAD</label>
+          <input class="ui-control" type="text" [(ngModel)]="filterText"
+                 placeholder="Nombre o código DANE…">
+        </div>
+        <div class="ui-field ui-col-4">
+          <label class="ui-label">Nivel operación</label>
+          <select class="ui-control" [(ngModel)]="filterNivel">
+            <option [ngValue]="0">Todos</option>
+            <option [ngValue]="1">Normal</option>
+            <option [ngValue]="2">Degradado</option>
+            <option [ngValue]="3">Offline</option>
+          </select>
+        </div>
+        <div class="ui-col-2 filter-actions">
+          <button class="ui-btn secondary" (click)="load()" [disabled]="loading">
+            <i class="fa-solid" [ngClass]="loading ? 'fa-spinner fa-spin' : 'fa-arrows-rotate'"></i>
+            Actualizar
+          </button>
+        </div>
+      </div>
+
+      <p class="filter-meta meta">
+        Mostrando {{ filteredCads.length }} de {{ cads.length }} CADs
+        <ng-container *ngIf="lastUpdated">
+          · Actualizado {{ lastUpdated | date:'HH:mm:ss' }}
+        </ng-container>
+      </p>
+
+      <!-- Grilla de tarjetas CAD -->
+      <div class="cad-grid" *ngIf="!loading; else loadingTpl">
+
+        <div class="cad-card"
+             *ngFor="let c of filteredCads"
+             [class.cad-card--degradado]="c.nivelOperacion === 2"
+             [class.cad-card--offline]="c.nivelOperacion === 3"
+             [class.cad-card--selected]="selectedCad?.id === c.id">
+
+          <div class="cad-card__band">
+            <span class="ui-badge" [ngClass]="nivelClass(c.nivelOperacion)">
+              <i class="fa-solid" [ngClass]="nivelIcon(c.nivelOperacion)"></i>
+              {{ nivelLabel(c.nivelOperacion) }}
+            </span>
+            <code class="cad-card__dane">{{ c.codDane }}</code>
+          </div>
+
+          <div class="cad-card__body">
+            <h3 class="cad-card__nombre">{{ c.nombre }}</h3>
+            <p class="cad-card__ubicacion">
+              <i class="fa-solid fa-location-dot"></i>
+              {{ c.departamento }}{{ c.municipio ? ' · ' + c.municipio : '' }}
+            </p>
+          </div>
+
+          <div class="cad-card__metrics">
+            <div class="cad-metric">
+              <span class="cad-metric__label">Latencia</span>
+              <span class="cad-metric__value" [ngClass]="latenciaClass(c.latenciaMs)">
+                {{ c.latenciaMs != null ? c.latenciaMs + ' ms' : '—' }}
+              </span>
+            </div>
+            <div class="cad-metric">
+              <span class="cad-metric__label">Últ. Sync</span>
+              <span class="cad-metric__value">{{ formatSincro(c.ultimaSincro) }}</span>
+            </div>
+            <div class="cad-metric">
+              <span class="cad-metric__label">Incidentes</span>
+              <span class="cad-metric__value"
+                    [class.cad-metric__value--alert]="c.incidentesActivos > 0">
+                {{ c.incidentesActivos }}
+              </span>
+            </div>
+          </div>
+
+          <div class="cad-card__obs" *ngIf="c.observaciones">
+            <i class="fa-solid fa-circle-info"></i> {{ c.observaciones }}
+          </div>
+
+          <div class="cad-card__footer">
+            <button class="ui-btn secondary" type="button" (click)="openHistorial(c)">
+              <i class="fa-solid fa-chart-line"></i> Historial
+            </button>
+          </div>
+        </div>
+
+        <!-- Estado vacío -->
+        <div class="cad-grid__empty"
+             *ngIf="filteredCads.length === 0 && cads.length > 0">
+          <i class="fa-solid fa-filter-slash fa-2x"></i>
+          <p>Sin resultados para el filtro aplicado.</p>
+        </div>
+        <div class="cad-grid__empty" *ngIf="cads.length === 0">
+          <i class="fa-solid fa-server fa-2x"></i>
+          <p>No hay tenants registrados.</p>
+        </div>
+      </div>
+
+      <ng-template #loadingTpl>
+        <div class="list-loading">
+          <i class="fa-solid fa-spinner fa-spin fa-2x"></i>
+          <p>Cargando datos de salud...</p>
+        </div>
+      </ng-template>
+
+    </div><!-- /ui-panel__body -->
+  </div><!-- /ui-panel principal -->
+
+
+  <!-- ─── Panel historial (aparece al seleccionar un CAD) ──────────────────── -->
+  <div class="ui-panel historial-panel" *ngIf="showHistorial">
+    <div class="ui-panel__head">
+      <div class="ui-panel__title">
+        <i class="fa-solid fa-chart-line"></i>
+        Historial — {{ selectedCad?.nombre }}
+        <span class="meta">· últimas 48 h</span>
+      </div>
+      <div class="ui-panel__actions ui-window-controls">
+        <button class="ui-icon-btn ui-win-btn is-min" type="button"
+                title="Cerrar historial" (click)="closeHistorial()">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+    </div>
+
+    <div class="ui-panel__body">
+
+      <div class="list-loading" *ngIf="loadingHistorial">
+        <i class="fa-solid fa-spinner fa-spin"></i> Cargando historial...
+      </div>
+
+      <div class="historial-table-wrap" *ngIf="!loadingHistorial && historial.length > 0">
+        <div class="role-item historial-row" *ngFor="let h of historial">
+          <div class="role-item__content">
+            <strong>{{ h.registradoEn | date:'dd/MM/yyyy HH:mm' }}</strong>
+            <span class="meta">
+              <span class="ui-badge" [ngClass]="nivelClass(h.nivelOperacion)">
+                {{ nivelLabel(h.nivelOperacion) }}
+              </span>
+              <ng-container *ngIf="h.latenciaMs != null">
+                &nbsp;·&nbsp;Latencia: {{ h.latenciaMs }} ms
+              </ng-container>
+            </span>
+            <span class="meta" *ngIf="h.observacion">
+              <i class="fa-regular fa-comment-dots"></i> {{ h.observacion }}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div class="news-state" *ngIf="!loadingHistorial && historial.length === 0">
+        Sin registros históricos para este CAD en las últimas 48 horas.
+      </div>
+
+    </div>
+  </div><!-- /panel historial -->
+
+</section>

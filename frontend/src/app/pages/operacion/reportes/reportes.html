@@ -1,0 +1,821 @@
+<!-- ══════════════════════════════════════════════════════════════════════
+     Módulo de Reportes y Estadísticas — §6.16 SECAD
+     ══════════════════════════════════════════════════════════════════════ -->
+
+<div class="rep-page">
+
+  <!-- ── Cabecera ─────────────────────────────────────────────────────── -->
+  <div class="rep-header">
+    <div class="rep-header__left">
+      <h1 class="rep-title">
+        <i class="fa-solid fa-chart-bar"></i>
+        Reportes y Estadísticas
+      </h1>
+      @if (datos) {
+        <span class="rep-periodo">
+          <i class="fa-regular fa-calendar"></i>
+          {{ datos.resumen.fechaDesde }} — {{ datos.resumen.fechaHasta }}
+        </span>
+      }
+    </div>
+    <button class="ui-btn ghost sm" (click)="cargar()" [disabled]="cargando"
+            title="Actualizar">
+      <i class="fa-solid fa-arrows-rotate" [class.fa-spin]="cargando"></i>
+      Actualizar
+    </button>
+  </div>
+
+  <!-- ── Tabs de sección ──────────────────────────────────────────────── -->
+  <div class="rep-seccion-tabs">
+    <button class="rep-seccion-tab" [class.rep-seccion-tab--active]="seccion === 'dashboard'"
+            (click)="setSeccion('dashboard')">
+      <i class="fa-solid fa-gauge-high"></i>
+      Dashboard
+    </button>
+    <button class="rep-seccion-tab" [class.rep-seccion-tab--active]="seccion === 'detallados'"
+            (click)="setSeccion('detallados')">
+      <i class="fa-solid fa-table-list"></i>
+      Reportes Detallados
+    </button>
+  </div>
+
+  <!-- ── Barra de filtros ──────────────────────────────────────────────── -->
+  <div class="rep-filtros">
+
+    <!-- Rangos rápidos -->
+    <div class="rep-rangos">
+      <button class="rep-rango-btn" (click)="setRango('hoy')">Hoy</button>
+      <button class="rep-rango-btn" (click)="setRango('semana')">Últimos 7 días</button>
+      <button class="rep-rango-btn" (click)="setRango('mes')">Mes actual</button>
+    </div>
+
+    <!-- Fecha desde -->
+    <div class="rep-filtro-field">
+      <label class="rep-filtro-label">Desde</label>
+      <input class="ui-control rep-date-input" type="date"
+             [(ngModel)]="desde" (change)="onFiltroChange()">
+    </div>
+
+    <!-- Fecha hasta -->
+    <div class="rep-filtro-field">
+      <label class="rep-filtro-label">Hasta</label>
+      <input class="ui-control rep-date-input" type="date"
+             [(ngModel)]="hasta" (change)="onFiltroChange()">
+    </div>
+
+    <!-- Fuerza -->
+    <div class="rep-filtro-field">
+      <label class="rep-filtro-label">Fuerza</label>
+      <select class="ui-control rep-date-input"
+              [(ngModel)]="fuerzaId" (change)="onFiltroChange()">
+        <option [ngValue]="0">Todas las fuerzas</option>
+        @for (f of fuerzas; track f.id) {
+          <option [ngValue]="f.id">{{ f.descripcion }}</option>
+        }
+      </select>
+    </div>
+
+    <!-- Turno de vigilancia -->
+    <div class="rep-filtro-field">
+      <label class="rep-filtro-label">
+        <i class="fa-solid fa-shield-halved" style="color:#7c3aed;margin-right:3px"></i>
+        Turno
+      </label>
+      <select class="ui-control rep-date-input rep-turno-select"
+              [(ngModel)]="turnoVigilancia" (change)="onFiltroChange()">
+        @for (t of turnos; track t.value) {
+          <option [ngValue]="t.value">{{ t.label }}</option>
+        }
+      </select>
+    </div>
+
+    <!-- Badge del turno activo -->
+    @if (turnoVigilancia > 0) {
+      <div class="rep-turno-badge"
+           [style.background]="svc.turnoBadgeColor(turnoVigilancia)">
+        <i class="fa-solid fa-clock"></i>
+        {{ svc.turnoLabel(turnoVigilancia) }}
+      </div>
+    }
+
+  </div>
+
+  <!-- ── Error ─────────────────────────────────────────────────────────── -->
+  @if (error) {
+    <div class="rep-error">
+      <i class="fa-solid fa-triangle-exclamation"></i> {{ error }}
+    </div>
+  }
+
+  <!-- ── Loading ───────────────────────────────────────────────────────── -->
+  @if (cargando && !datos) {
+    <div class="rep-loading">
+      <i class="fa-solid fa-spinner fa-spin fa-2x"></i>
+      <p>Calculando estadísticas…</p>
+    </div>
+  }
+
+  <!-- ═══════════════════════════════════════════════════════════════════
+       SECCIÓN: DASHBOARD (existente)
+       ═══════════════════════════════════════════════════════════════════ -->
+  @if (seccion === 'dashboard' && datos) {
+
+    <!-- ── KPI Cards ────────────────────────────────────────────────── -->
+    <div class="rep-kpis">
+
+      <div class="rep-kpi rep-kpi--total">
+        <div class="rep-kpi__val">{{ resumen.totalIncidentes }}</div>
+        <div class="rep-kpi__lbl">Total incidentes</div>
+      </div>
+
+      <div class="rep-kpi rep-kpi--activos">
+        <div class="rep-kpi__val">{{ resumen.activos }}</div>
+        <div class="rep-kpi__lbl">Activos</div>
+        <div class="rep-kpi__bar">
+          <div class="rep-kpi__bar-fill"
+               [style.width.%]="resumen.totalIncidentes ? (resumen.activos / resumen.totalIncidentes * 100) : 0">
+          </div>
+        </div>
+      </div>
+
+      <div class="rep-kpi rep-kpi--cerrados">
+        <div class="rep-kpi__val">{{ resumen.cerrados }}</div>
+        <div class="rep-kpi__lbl">Cerrados</div>
+        <div class="rep-kpi__bar">
+          <div class="rep-kpi__bar-fill"
+               [style.width.%]="resumen.totalIncidentes ? (resumen.cerrados / resumen.totalIncidentes * 100) : 0">
+          </div>
+        </div>
+      </div>
+
+      <div class="rep-kpi rep-kpi--flash">
+        <div class="rep-kpi__val">{{ resumen.flash }}</div>
+        <div class="rep-kpi__lbl">
+          <i class="fa-solid fa-bolt"></i> Flash
+        </div>
+      </div>
+
+      <div class="rep-kpi rep-kpi--inmediatos">
+        <div class="rep-kpi__val">{{ resumen.inmediatos }}</div>
+        <div class="rep-kpi__lbl">Inmediatos</div>
+      </div>
+
+      <div class="rep-kpi rep-kpi--pendientes">
+        <div class="rep-kpi__val">{{ resumen.pendientes }}</div>
+        <div class="rep-kpi__lbl">Sin despachar</div>
+      </div>
+
+    </div>
+
+    <!-- ── Tiempos de atención ───────────────────────────────────────── -->
+    <div class="rep-section">
+      <div class="rep-section__head">
+        <i class="fa-solid fa-stopwatch"></i>
+        Tiempos Promedio de Atención
+        <span class="rep-section__hint">Calculados sobre {{ tiempos.cerrados }} incidente(s) cerrado(s)</span>
+      </div>
+      <div class="rep-tiempos">
+
+        <div class="rep-tiempo-card">
+          <div class="rep-tiempo-card__icon">
+            <i class="fa-solid fa-eye"></i>
+          </div>
+          <div class="rep-tiempo-card__data">
+            <span class="rep-tiempo-card__val">{{ formatMin(tiempos.minutosPrimerAccesoPromedio) }}</span>
+            <span class="rep-tiempo-card__lbl">Primer acceso</span>
+            <span class="rep-tiempo-card__sub">Desde ingreso hasta que el despachador abre el evento</span>
+          </div>
+        </div>
+
+        <div class="rep-tiempo-card">
+          <div class="rep-tiempo-card__icon rep-tiempo-card__icon--despacho">
+            <i class="fa-solid fa-truck-fast"></i>
+          </div>
+          <div class="rep-tiempo-card__data">
+            <span class="rep-tiempo-card__val">{{ formatMin(tiempos.minutosDespachoPromedio) }}</span>
+            <span class="rep-tiempo-card__lbl">Tiempo a despacho</span>
+            <span class="rep-tiempo-card__sub">{{ tiempos.conDespacho }} incidentes con despacho registrado</span>
+          </div>
+        </div>
+
+        <div class="rep-tiempo-card">
+          <div class="rep-tiempo-card__icon rep-tiempo-card__icon--cierre">
+            <i class="fa-solid fa-flag-checkered"></i>
+          </div>
+          <div class="rep-tiempo-card__data">
+            <span class="rep-tiempo-card__val">{{ formatMin(tiempos.minutosCierrePromedio) }}</span>
+            <span class="rep-tiempo-card__lbl">Tiempo a cierre</span>
+            <span class="rep-tiempo-card__sub">Desde ingreso hasta cierre del evento</span>
+          </div>
+        </div>
+
+        <div class="rep-tiempo-card rep-tiempo-card--flash">
+          <div class="rep-tiempo-card__icon rep-tiempo-card__icon--flash">
+            <i class="fa-solid fa-bolt"></i>
+          </div>
+          <div class="rep-tiempo-card__data">
+            <span class="rep-tiempo-card__val">{{ formatMin(tiempos.minutosFlashPromedio) }}</span>
+            <span class="rep-tiempo-card__lbl">Despacho Flash</span>
+            <span class="rep-tiempo-card__sub">Tiempo promedio solo para prioridad Flash</span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ── Grid: Origen + Prioridad ─────────────────────────────────── -->
+    <div class="rep-grid-2">
+
+      <!-- Donut por canal de origen -->
+      <div class="rep-section">
+        <div class="rep-section__head">
+          <i class="fa-solid fa-share-nodes"></i>
+          Canal de Origen
+        </div>
+        <div class="rep-chart-container" style="height:260px">
+          @if (porOrigen.length > 0) {
+            <canvas #canvasOrigen></canvas>
+          } @else {
+            <div class="rep-empty-chart">Sin datos</div>
+          }
+        </div>
+        <!-- Leyenda detallada debajo -->
+        @if (porOrigen.length > 0) {
+          <div class="rep-origen-list">
+            @for (o of porOrigen; track o.origen) {
+              <div class="rep-origen-item">
+                <span class="rep-origen-dot" [style.background]="origenClr(o.origen)"></span>
+                <span class="rep-origen-lbl">{{ origenLbl(o.origen) }}</span>
+                <span class="rep-origen-total">{{ o.total }}</span>
+                <span class="rep-origen-pct">{{ o.porcentaje }}%</span>
+              </div>
+            }
+          </div>
+        }
+      </div>
+
+      <!-- Barras horizontales por prioridad -->
+      <div class="rep-section">
+        <div class="rep-section__head">
+          <i class="fa-solid fa-gauge-high"></i>
+          Por Prioridad
+        </div>
+        <div class="rep-chart-container" style="height:180px">
+          <canvas #canvasPrio></canvas>
+        </div>
+        <div class="rep-prio-summary">
+          <div class="rep-prio-item rep-prio-item--flash">
+            <i class="fa-solid fa-bolt"></i>
+            <strong>{{ resumen.flash }}</strong> Flash
+          </div>
+          <div class="rep-prio-item rep-prio-item--inmd">
+            <i class="fa-solid fa-circle-exclamation"></i>
+            <strong>{{ resumen.inmediatos }}</strong> Inmediatos
+          </div>
+          <div class="rep-prio-item rep-prio-item--rutina">
+            <i class="fa-solid fa-circle"></i>
+            <strong>{{ resumen.rutina }}</strong> Rutina
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ── Distribución horaria ──────────────────────────────────────── -->
+    <div class="rep-section">
+      <div class="rep-section__head">
+        <i class="fa-solid fa-clock"></i>
+        Distribución por Hora del Día
+        <span class="rep-section__hint">🔴 Alta demanda · 🟡 Media · 🔵 Baja</span>
+      </div>
+      <div class="rep-chart-container" style="height:200px">
+        <canvas #canvasHoras></canvas>
+      </div>
+    </div>
+
+    <!-- ── SLA ───────────────────────────────────────────────────────── -->
+    @if (sla.length > 0) {
+      <div class="rep-section">
+        <div class="rep-section__head">
+          <i class="fa-solid fa-traffic-light"></i>
+          Cumplimiento SLA
+          <span class="rep-section__hint">Basado en tiempo al primer acceso del despachador</span>
+        </div>
+        <div class="rep-sla-grid">
+          @for (s of sla; track s.nombre) {
+            <div class="rep-sla-card" [ngClass]="slaClass(s.porcentajeCumplimiento)">
+              <div class="rep-sla-card__head">
+                <span class="rep-sla-card__nombre">{{ s.nombre }}</span>
+                <span class="rep-sla-card__umbral">≤ {{ s.umbralMinutos }} min</span>
+              </div>
+              <!-- Gauge circular con CSS -->
+              <div class="rep-sla-gauge">
+                <svg viewBox="0 0 80 80" class="rep-sla-svg">
+                  <circle cx="40" cy="40" r="34" fill="none" stroke="#e5e7eb" stroke-width="8"/>
+                  <circle cx="40" cy="40" r="34" fill="none"
+                          [attr.stroke]="s.colorHex"
+                          stroke-width="8"
+                          stroke-linecap="round"
+                          stroke-dasharray="213.6"
+                          [attr.stroke-dashoffset]="213.6 - (213.6 * s.porcentajeCumplimiento / 100)"
+                          transform="rotate(-90 40 40)"/>
+                </svg>
+                <div class="rep-sla-gauge__pct">{{ s.porcentajeCumplimiento }}%</div>
+              </div>
+              <div class="rep-sla-card__stats">
+                <span class="rep-sla-ok">
+                  <i class="fa-solid fa-check"></i> {{ s.cumplieron }} cumplieron
+                </span>
+                <span class="rep-sla-bad">
+                  <i class="fa-solid fa-xmark"></i> {{ s.incumplieron }} superaron
+                </span>
+              </div>
+            </div>
+          }
+        </div>
+      </div>
+    }
+
+    <!-- ── Grid: Top Casos + Por Fuerza ──────────────────────────────── -->
+    <div class="rep-grid-2">
+
+      <!-- Top 10 tipos de incidente -->
+      <div class="rep-section">
+        <div class="rep-section__head">
+          <i class="fa-solid fa-ranking-star"></i>
+          Top Tipos de Incidente
+        </div>
+        @if (topCasos.length === 0) {
+          <div class="rep-empty">Sin datos para el período seleccionado.</div>
+        } @else {
+          <div class="rep-top-list">
+            @for (c of topCasos; track c.codigoCaso; let i = $index) {
+              <div class="rep-top-item">
+                <span class="rep-top-item__rank">{{ i + 1 }}</span>
+                <div class="rep-top-item__info">
+                  <span class="rep-top-item__desc">{{ c.descripcion }}</span>
+                  <span class="rep-top-item__cod">{{ c.codigoCaso }}</span>
+                </div>
+                <div class="rep-top-item__bar-wrap">
+                  <div class="rep-top-item__bar"
+                       [style.width.%]="c.porcentaje">
+                  </div>
+                </div>
+                <span class="rep-top-item__total">{{ c.total }}</span>
+                <span class="rep-top-item__pct">{{ c.porcentaje }}%</span>
+              </div>
+            }
+          </div>
+        }
+      </div>
+
+      <!-- Por fuerza de despacho -->
+      <div class="rep-section">
+        <div class="rep-section__head">
+          <i class="fa-solid fa-shield-halved"></i>
+          Por Fuerza de Despacho
+        </div>
+        @if (porFuerza.length === 0) {
+          <div class="rep-empty">Sin datos para el período seleccionado.</div>
+        } @else {
+          <div class="rep-fuerza-list">
+            @for (f of porFuerza; track f.fuerzaId) {
+              <div class="rep-fuerza-item">
+                <div class="rep-fuerza-item__info">
+                  <span class="rep-fuerza-item__nombre">{{ f.fuerza }}</span>
+                  <div class="rep-fuerza-item__badges">
+                    <span class="rep-badge-activos">{{ f.activos }} activos</span>
+                    <span class="rep-badge-cerrados">{{ f.cerrados }} cerrados</span>
+                  </div>
+                </div>
+                <div class="rep-fuerza-item__bar-wrap">
+                  <div class="rep-fuerza-item__bar" [style.width.%]="f.porcentaje"></div>
+                </div>
+                <div class="rep-fuerza-item__nums">
+                  <strong>{{ f.total }}</strong>
+                  <span>{{ f.porcentaje }}%</span>
+                </div>
+              </div>
+            }
+          </div>
+        }
+      </div>
+
+    </div>
+
+  }<!-- /if seccion=dashboard -->
+
+  <!-- ═══════════════════════════════════════════════════════════════════
+       SECCIÓN: REPORTES DETALLADOS
+       ═══════════════════════════════════════════════════════════════════ -->
+  @if (seccion === 'detallados') {
+    <div class="rep-det">
+
+      <!-- ── Menú lateral de reportes ─────────────────────────────────── -->
+      <div class="rep-det__sidebar">
+        @for (m of reportesMenu; track m.key) {
+          <button class="rep-det__menu-btn"
+                  [class.rep-det__menu-btn--active]="reporteActivo === m.key"
+                  (click)="setReporteActivo(m.key)">
+            <i class="fa-solid" [ngClass]="m.icon"></i>
+            {{ m.label }}
+          </button>
+        }
+      </div>
+
+      <!-- ── Panel del reporte activo ─────────────────────────────────── -->
+      <div class="rep-det__panel">
+
+        <!-- ══════════════════════════════════════════════════════════════
+             R1 — Llamadas por Calidad
+             ══════════════════════════════════════════════════════════════ -->
+        @if (reporteActivo === 'calidad') {
+          <div class="rep-det__header">
+            <div>
+              <h2 class="rep-det__title">
+                <i class="fa-solid fa-tags"></i>
+                Llamadas por Calidad (Cali Pedido)
+              </h2>
+              <p class="rep-det__sub">
+                Distribución de todos los pedidos según su tipo de calidad en el período seleccionado.
+              </p>
+            </div>
+            <div class="rep-det__actions">
+              <button class="ui-btn ghost sm" (click)="cargarCalidad()" [disabled]="cargandoCal">
+                <i class="fa-solid fa-arrows-rotate" [class.fa-spin]="cargandoCal"></i>
+                Actualizar
+              </button>
+              <button class="ui-btn ghost sm" (click)="exportarCalidad()" [disabled]="!calidad.length">
+                <i class="fa-solid fa-file-csv"></i>
+                Exportar CSV
+              </button>
+            </div>
+          </div>
+
+          @if (cargandoCal) {
+            <div class="rep-loading"><i class="fa-solid fa-spinner fa-spin"></i><p>Cargando…</p></div>
+          } @else if (!calidad.length) {
+            <div class="rep-empty">Sin datos para el período seleccionado.</div>
+          } @else {
+            <!-- Tabla + barras visuales -->
+            <div class="rep-cal-grid">
+              @for (c of calidad; track c.caliPedido) {
+                <div class="rep-cal-row">
+                  <div class="rep-cal-dot" [style.background]="calidadClr(c.caliPedido)"></div>
+                  <div class="rep-cal-lbl">{{ c.descripcion }}</div>
+                  <div class="rep-cal-bar-wrap">
+                    <div class="rep-cal-bar"
+                         [style.width.%]="c.total / maxCalidad() * 100"
+                         [style.background]="calidadClr(c.caliPedido)"></div>
+                  </div>
+                  <div class="rep-cal-total">{{ c.total }}</div>
+                  <div class="rep-cal-pct">{{ c.porcentaje }}%</div>
+                </div>
+              }
+            </div>
+            <!-- Total -->
+            <div class="rep-cal-footer">
+              Total: <strong>{{ totalCalidad }}</strong> pedidos
+            </div>
+          }
+        }
+
+        <!-- ══════════════════════════════════════════════════════════════
+             R2 — Pedidos con detalle
+             ══════════════════════════════════════════════════════════════ -->
+        @if (reporteActivo === 'efectivos') {
+          <div class="rep-det__header">
+            <div>
+              <h2 class="rep-det__title">
+                <i class="fa-solid fa-list-check"></i>
+                Pedidos con Detalle
+              </h2>
+              <p class="rep-det__sub">
+                Tabla detallada de pedidos con información de tiempos de despacho, llegada y atención.
+              </p>
+            </div>
+            <div class="rep-det__actions">
+              <select class="ui-control rep-det__select" [(ngModel)]="filtroCalidad"
+                      (change)="paginaEfe=1; cargarEfectivos()">
+                @for (op of opcionesCalidad; track op.value) {
+                  <option [value]="op.value">{{ op.label }}</option>
+                }
+              </select>
+              <button class="ui-btn ghost sm" (click)="cargarEfectivos()" [disabled]="cargandoEfe">
+                <i class="fa-solid fa-arrows-rotate" [class.fa-spin]="cargandoEfe"></i>
+                Actualizar
+              </button>
+              <button class="ui-btn ghost sm" (click)="exportarEfectivos()"
+                      [disabled]="!efectivos?.data?.length">
+                <i class="fa-solid fa-file-csv"></i>
+                Exportar CSV
+              </button>
+            </div>
+          </div>
+
+          @if (cargandoEfe) {
+            <div class="rep-loading"><i class="fa-solid fa-spinner fa-spin"></i><p>Cargando…</p></div>
+          } @else if (!efectivos?.data?.length) {
+            <div class="rep-empty">Sin datos para el período y filtro seleccionados.</div>
+          } @else {
+            <!-- Paginación -->
+            <div class="rep-pag-bar">
+              <span class="rep-pag-info">{{ paginaInfo(efectivos!, paginaEfe, limitEfe) }}</span>
+              <div class="rep-pag-btns">
+                <button class="ui-btn ghost xs" (click)="paginaAnteriorEfe()" [disabled]="paginaEfe <= 1">
+                  <i class="fa-solid fa-chevron-left"></i>
+                </button>
+                <span class="rep-pag-page">Pág. {{ paginaEfe }}</span>
+                <button class="ui-btn ghost xs" (click)="paginaSiguienteEfe()"
+                        [disabled]="paginaEfe * limitEfe >= (efectivos?.total ?? 0)">
+                  <i class="fa-solid fa-chevron-right"></i>
+                </button>
+              </div>
+            </div>
+
+            <div class="rep-tabla-scroll">
+              <table class="rep-tabla">
+                <thead>
+                  <tr>
+                    <th>Teléfono</th>
+                    <th>Llamada</th>
+                    <th>Hora Llamada</th>
+                    <th>Código</th>
+                    <th>Calidad</th>
+                    <th>Prioridad</th>
+                    <th>Canal</th>
+                    <th>Patrulla</th>
+                    <th>H/Asigna</th>
+                    <th>H/Llega</th>
+                    <th>H/Ter</th>
+                    <th>T/Llegada</th>
+                    <th>T/Atención</th>
+                    <th>T/Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (r of efectivos!.data; track r.numeLlamada) {
+                    <tr [class.rep-row-efectivo]="r.caliPedido === 'REAL'">
+                      <td class="rep-td-mono">{{ r.numeTelefono || '—' }}</td>
+                      <td class="rep-td-mono rep-td-id">{{ r.numeLlamada }}</td>
+                      <td class="rep-td-ts">{{ r.horaLlamada }}</td>
+                      <td>
+                        <span class="rep-badge-cod">{{ r.codigoCaso }}</span>
+                        <span class="rep-td-desc">{{ r.descCaso }}</span>
+                      </td>
+                      <td>
+                        <span class="rep-badge-cali" [style.background]="calidadClr(r.caliPedido) + '22'"
+                              [style.color]="calidadClr(r.caliPedido)">
+                          {{ calidadLbl(r.caliPedido) }}
+                        </span>
+                      </td>
+                      <td>{{ prioLbl(r.prioridad) || '—' }}</td>
+                      <td class="rep-td-sm">{{ r.canal || '—' }}</td>
+                      <td class="rep-td-sm">{{ r.unidad || '—' }}</td>
+                      <td class="rep-td-time">{{ r.horaAsignacion || '—' }}</td>
+                      <td class="rep-td-time">{{ r.horaLlegada || '—' }}</td>
+                      <td class="rep-td-time">{{ r.horaTermino || '—' }}</td>
+                      <td class="rep-td-dur">{{ r.tiempoLlegada || '—' }}</td>
+                      <td class="rep-td-dur">{{ r.tiempoAtencion || '—' }}</td>
+                      <td class="rep-td-dur rep-td-total">{{ r.tiempoTotal || '—' }}</td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          }
+        }
+
+        <!-- ══════════════════════════════════════════════════════════════
+             R3 — Tiempos de Atención Detalle
+             ══════════════════════════════════════════════════════════════ -->
+        @if (reporteActivo === 'tiempos') {
+          <div class="rep-det__header">
+            <div>
+              <h2 class="rep-det__title">
+                <i class="fa-solid fa-stopwatch"></i>
+                Resumen de Tiempos de Atención por Unidad
+              </h2>
+              <p class="rep-det__sub">
+                Detalle completo por actuación: tiempos de desplazamiento, atención y totales.
+              </p>
+            </div>
+            <div class="rep-det__actions">
+              <button class="ui-btn ghost sm" (click)="cargarTiempos()" [disabled]="cargandoTieDet">
+                <i class="fa-solid fa-arrows-rotate" [class.fa-spin]="cargandoTieDet"></i>
+                Actualizar
+              </button>
+              <button class="ui-btn ghost sm" (click)="exportarTiempos()"
+                      [disabled]="!tiemposDetalle?.data?.length">
+                <i class="fa-solid fa-file-csv"></i>
+                Exportar CSV
+              </button>
+            </div>
+          </div>
+
+          @if (cargandoTieDet) {
+            <div class="rep-loading"><i class="fa-solid fa-spinner fa-spin"></i><p>Cargando…</p></div>
+          } @else if (!tiemposDetalle?.data?.length) {
+            <div class="rep-empty">Sin datos para el período seleccionado.</div>
+          } @else {
+            <div class="rep-pag-bar">
+              <span class="rep-pag-info">{{ paginaInfo(tiemposDetalle!, paginaTieDet, limitTieDet) }}</span>
+              <div class="rep-pag-btns">
+                <button class="ui-btn ghost xs" (click)="paginaAnteriorTie()" [disabled]="paginaTieDet <= 1">
+                  <i class="fa-solid fa-chevron-left"></i>
+                </button>
+                <span class="rep-pag-page">Pág. {{ paginaTieDet }}</span>
+                <button class="ui-btn ghost xs" (click)="paginaSiguienteTie()"
+                        [disabled]="paginaTieDet * limitTieDet >= (tiemposDetalle?.total ?? 0)">
+                  <i class="fa-solid fa-chevron-right"></i>
+                </button>
+              </div>
+            </div>
+
+            <div class="rep-tabla-scroll">
+              <table class="rep-tabla rep-tabla--tiempos">
+                <thead>
+                  <tr>
+                    <th>Seccional</th>
+                    <th>Unidad</th>
+                    <th>Nro Llam.</th>
+                    <th>Caso</th>
+                    <th>H/Llamada</th>
+                    <th title="Hora en que el operador tomó la llamada">CALL-CENT H/Envío</th>
+                    <th title="Hora en que el despachador asignó el evento">CALL-Desp H/Asig.</th>
+                    <th title="Hora en que la patrulla llegó al sitio">Pat. H/Llegada</th>
+                    <th>H/Termino</th>
+                    <th class="rep-th-dur">Desplaz.</th>
+                    <th class="rep-th-dur">Atención</th>
+                    <th class="rep-th-dur rep-th-total">Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (r of tiemposDetalle!.data; track r.nroLlamada + r.unidad) {
+                    <tr>
+                      <td class="rep-td-sm">{{ r.seccional }}</td>
+                      <td class="rep-td-sm">
+                        {{ r.unidad || '—' }}
+                        @if (r.placa) { <span class="rep-td-placa">{{ r.placa }}</span> }
+                      </td>
+                      <td class="rep-td-mono rep-td-id">{{ r.nroLlamada }}</td>
+                      <td>
+                        <span class="rep-badge-cod">{{ r.codigoCaso }}</span>
+                        <span class="rep-td-desc">{{ r.descCaso }}</span>
+                      </td>
+                      <td class="rep-td-time">{{ r.horaLlamada }}</td>
+                      <td class="rep-td-time">{{ r.horaEnvioCentral || '—' }}</td>
+                      <td class="rep-td-time">{{ r.horaDespacho || '—' }}</td>
+                      <td class="rep-td-time">{{ r.horaLlegada || '—' }}</td>
+                      <td class="rep-td-time">{{ r.horaTermino || '—' }}</td>
+                      <td class="rep-td-dur">{{ r.tiempoDesplazamiento || '—' }}</td>
+                      <td class="rep-td-dur">{{ r.tiempoAtencionCaso || '—' }}</td>
+                      <td class="rep-td-dur rep-td-total">{{ r.tiempoTotalCaso || '—' }}</td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          }
+        }
+
+        <!-- ══════════════════════════════════════════════════════════════
+             R4 — Trabajo de Operadores y Despachadores
+             ══════════════════════════════════════════════════════════════ -->
+        @if (reporteActivo === 'operadores') {
+          <div class="rep-det__header">
+            <div>
+              <h2 class="rep-det__title">
+                <i class="fa-solid fa-users-between-lines"></i>
+                Trabajo de Operadores y Despachadores
+              </h2>
+              <p class="rep-det__sub">
+                Actividad por usuario: casos gestionados, eventos despachados y tiempos promedio.
+              </p>
+            </div>
+            <div class="rep-det__actions">
+              <button class="ui-btn ghost sm" (click)="cargarOperadores()" [disabled]="cargandoOpe">
+                <i class="fa-solid fa-arrows-rotate" [class.fa-spin]="cargandoOpe"></i>
+                Actualizar
+              </button>
+              <button class="ui-btn ghost sm" (click)="exportarOperadores()" [disabled]="!operadores.length">
+                <i class="fa-solid fa-file-csv"></i>
+                Exportar CSV
+              </button>
+            </div>
+          </div>
+
+          @if (cargandoOpe) {
+            <div class="rep-loading"><i class="fa-solid fa-spinner fa-spin"></i><p>Cargando…</p></div>
+          } @else if (!operadores.length) {
+            <div class="rep-empty">Sin datos para el período seleccionado.</div>
+          } @else {
+            <div class="rep-tabla-scroll">
+              <table class="rep-tabla">
+                <thead>
+                  <tr>
+                    <th>Usuario / Operador</th>
+                    <th class="rep-th-num">Casos Recibidos</th>
+                    <th class="rep-th-num">Eventos Despachados</th>
+                    <th class="rep-th-num">Actuaciones</th>
+                    <th class="rep-th-num">Eventos Cerrados</th>
+                    <th class="rep-th-num">Prom. Min. Despacho</th>
+                    <th>Primera Actividad</th>
+                    <th>Última Actividad</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (op of operadores; track op.usuario; let i = $index) {
+                    <tr [class.rep-row-top]="i < 3">
+                      <td>
+                        <div class="rep-op-usuario">
+                          @if (i < 3) {
+                            <span class="rep-op-rank rep-op-rank--{{ i + 1 }}">{{ i + 1 }}</span>
+                          }
+                          <i class="fa-solid fa-user-tie rep-op-icon"></i>
+                          {{ op.usuario }}
+                        </div>
+                      </td>
+                      <td class="rep-td-num">
+                        <strong>{{ op.casosRecibidos }}</strong>
+                      </td>
+                      <td class="rep-td-num">{{ op.eventosDespachados }}</td>
+                      <td class="rep-td-num">{{ op.actuaciones }}</td>
+                      <td class="rep-td-num">{{ op.eventosCerrados }}</td>
+                      <td class="rep-td-num">
+                        {{ op.promMinDespacho !== null ? formatMin(op.promMinDespacho) : '—' }}
+                      </td>
+                      <td class="rep-td-time">{{ op.primeraActividad || '—' }}</td>
+                      <td class="rep-td-time">{{ op.ultimaActividad || '—' }}</td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          }
+        }
+
+        <!-- ══════════════════════════════════════════════════════════════
+             R5 — Llamadas por Código
+             ══════════════════════════════════════════════════════════════ -->
+        @if (reporteActivo === 'codigos') {
+          <div class="rep-det__header">
+            <div>
+              <h2 class="rep-det__title">
+                <i class="fa-solid fa-chart-bar"></i>
+                Llamadas por Código de Caso
+              </h2>
+              <p class="rep-det__sub">
+                Cantidad de llamadas por cada tipo de código de caso registrado.
+              </p>
+            </div>
+            <div class="rep-det__actions">
+              <div class="rep-det__top-ctrl">
+                <label class="rep-filtro-label">Mostrar top</label>
+                <select class="ui-control rep-det__select-sm" [(ngModel)]="topCodigos"
+                        (change)="cargarCodigos()">
+                  <option [ngValue]="20">20</option>
+                  <option [ngValue]="50">50</option>
+                  <option [ngValue]="100">100</option>
+                  <option [ngValue]="999">Todos</option>
+                </select>
+              </div>
+              <button class="ui-btn ghost sm" (click)="cargarCodigos()" [disabled]="cargandoCod">
+                <i class="fa-solid fa-arrows-rotate" [class.fa-spin]="cargandoCod"></i>
+                Actualizar
+              </button>
+              <button class="ui-btn ghost sm" (click)="exportarCodigos()" [disabled]="!codigos.length">
+                <i class="fa-solid fa-file-csv"></i>
+                Exportar CSV
+              </button>
+            </div>
+          </div>
+
+          @if (cargandoCod) {
+            <div class="rep-loading"><i class="fa-solid fa-spinner fa-spin"></i><p>Cargando…</p></div>
+          } @else if (!codigos.length) {
+            <div class="rep-empty">Sin datos para el período seleccionado.</div>
+          } @else {
+            <div class="rep-cod-list">
+              @for (c of codigos; track c.codigoCaso; let i = $index) {
+                <div class="rep-cod-row">
+                  <span class="rep-cod-rank">{{ i + 1 }}</span>
+                  <span class="rep-badge-cod rep-badge-cod--lg">{{ c.codigoCaso }}</span>
+                  <span class="rep-cod-desc">{{ c.descripcion }}</span>
+                  <div class="rep-cod-bar-wrap">
+                    <div class="rep-cod-bar"
+                         [style.width.%]="c.total / maxCodigo() * 100"></div>
+                  </div>
+                  <span class="rep-cod-total">{{ c.total }}</span>
+                  <span class="rep-cod-pct">{{ c.porcentaje }}%</span>
+                </div>
+              }
+            </div>
+          }
+        }
+
+      </div><!-- /panel -->
+    </div><!-- /rep-det -->
+  }<!-- /if seccion=detallados -->
+
+</div><!-- /rep-page -->

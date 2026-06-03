@@ -107,6 +107,42 @@ namespace Comun.Dtos.Incidentes
         /// <summary>Descripción del código de caso 2 (JOIN cad_casos.descripcion).</summary>
         public string DescPedido2 { get; set; } = string.Empty;
         public List<DtoAnotacion> Anotaciones { get; set; } = new();
+
+        // ── Datos del evento de despacho (cad_eventos) ────────────────────────
+
+        /// <summary>Snowflake ID del evento de despacho asociado.</summary>
+        [JsonNumberHandling(JsonNumberHandling.WriteAsString | JsonNumberHandling.AllowReadingFromString)]
+        public long? EventoId { get; set; }
+
+        /// <summary>Código del canal de atención que gestionó el incidente.</summary>
+        public int CanalCodigo { get; set; }
+
+        /// <summary>Descripción del canal de atención.</summary>
+        public string CanalDescripcion { get; set; } = string.Empty;
+
+        /// <summary>Descripción de la fuerza que atendió.</summary>
+        public string FuerzaDescripcion { get; set; } = string.Empty;
+
+        /// <summary>Fecha y hora en que se cerró el evento formalmente.</summary>
+        public DateTime? FechaCierre { get; set; }
+
+        /// <summary>Observación libre registrada al cerrar el evento.</summary>
+        public string ObservacionCierre { get; set; } = string.Empty;
+
+        /// <summary>Usuario que cerró el evento (cad_eventos.usuario_modifica).</summary>
+        public string UsuarioCierre { get; set; } = string.Empty;
+
+        /// <summary>Códigos de cierre registrados en cad_eventos_codigos_cierre.</summary>
+        public List<DtoCodigoCierrePedido> CodigosCierre { get; set; } = new();
+    }
+
+    /// <summary>Código de cierre asociado a un evento, para mostrar en la trazabilidad.</summary>
+    public class DtoCodigoCierrePedido
+    {
+        public int    Orden             { get; set; }
+        public string CodigoCierre      { get; set; } = string.Empty;
+        public string TipoCodigo        { get; set; } = string.Empty;
+        public string DescripcionLibre  { get; set; } = string.Empty;
     }
 
     public class DtoPedidoResult
@@ -186,6 +222,13 @@ namespace Comun.Dtos.Incidentes
         /// </summary>
         [JsonNumberHandling(JsonNumberHandling.WriteAsString | JsonNumberHandling.AllowReadingFromString)]
         public long? NumeEvento { get; set; }
+
+        /// <summary>
+        /// Nombre de la persona que realizó la llamada o del afectado reportado.
+        /// Proviene de cad_pedidos.nomb_llamante. Incluido en la lista para permitir
+        /// búsqueda sin necesidad de cargar el detalle completo.
+        /// </summary>
+        public string NombLlamante { get; set; } = string.Empty;
     }
 
     /// <summary>

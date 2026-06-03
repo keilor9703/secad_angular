@@ -96,23 +96,81 @@ export class AuthService {
   }
 
   /** Decode the stored JWT and return all relevant claims. */
-  getJwtClaims(): { sitioGraba: number; acd: number; fuerzaId: number; canalId: number; codDane: string; usuario: string; idUsuario: number; esAdmin: boolean } {
+  getJwtClaims(): {
+    sitioGraba: number; acd: number; fuerzaId: number; canalId: number;
+    codDane: string; homeCodDane: string; usuario: string; idUsuario: number;
+    esAdmin: boolean; esSuperAdmin: boolean; nombreCad: string;
+  } {
     const token = this.getToken();
-    const empty = { sitioGraba: 0, acd: 0, fuerzaId: 0, canalId: 0, codDane: '', usuario: '', idUsuario: 0, esAdmin: false };
+    const empty = {
+      sitioGraba: 0, acd: 0, fuerzaId: 0, canalId: 0,
+      codDane: '', homeCodDane: '', usuario: '', idUsuario: 0,
+      esAdmin: false, esSuperAdmin: false, nombreCad: ''
+    };
     if (!token) return empty;
     const p = this.decodeJwtPayload(token);
     if (!p) return empty;
     const nameKey = 'http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name';
+    const codDane = String(p?.cod_dane ?? '');
     return {
-      sitioGraba: Number(p?.sitio_graba ?? 0),
-      acd:        Number(p?.acd         ?? 0),
-      fuerzaId:   Number(p?.fuerza_id   ?? 0),
-      canalId:    Number(p?.canal_id    ?? 0),
-      codDane:    String(p?.cod_dane    ?? ''),
-      idUsuario:  Number(p?.id_usuario  ?? p?.nameid ?? 0),
-      usuario:    String(p?.[nameKey] ?? p?.unique_name ?? p?.name ?? ''),
-      esAdmin:    p?.es_admin === 'true'
+      sitioGraba:   Number(p?.sitio_graba  ?? 0),
+      acd:          Number(p?.acd           ?? 0),
+      fuerzaId:     Number(p?.fuerza_id     ?? 0),
+      canalId:      Number(p?.canal_id      ?? 0),
+      codDane,
+      homeCodDane:  String(p?.home_cod_dane ?? codDane),
+      idUsuario:    Number(p?.id_usuario    ?? p?.nameid ?? 0),
+      usuario:      String(p?.[nameKey] ?? p?.unique_name ?? p?.name ?? ''),
+      esAdmin:      p?.es_admin        === 'true',
+      esSuperAdmin: p?.es_super_admin  === 'true',
+      nombreCad:    String(p?.nombre_cad ?? '')
     };
+  }
+
+  /** Returns true when the current JWT belongs to a SuperAdministrador. */
+  esSuperAdmin(): boolean {
+    return this.getJwtClaims().esSuperAdmin;
+  }
+
+  /** Returns true when the current JWT belongs to an Administrador or SuperAdministrador. */
+  esAdmin(): boolean {
+    return this.getJwtClaims().esAdmin;
+  }
+
+  /** Returns the user's home tenant cod_dane (never changes during context switching). */
+  getHomeCodDane(): string {
+    return this.getJwtClaims().homeCodDane;
+  }
+
+  /** Returns the currently active cod_dane (may differ from home when SuperAdmin is in a context). */
+  getActiveCodDane(): string {
+    return this.getJwtClaims().codDane;
+  }
+
+  /** Returns true when SuperAdmin is operating in a different tenant's context. */
+  isContextSwitched(): boolean {
+    const { esSuperAdmin, codDane, homeCodDane } = this.getJwtClaims();
+    return esSuperAdmin && codDane !== homeCodDane && !!homeCodDane;
+  }
+
+  /** Replaces the stored JWT (used after a context switch returns a new token). */
+  setToken(token: string): void {
+    localStorage.setItem(this.tokenKey, token);
+    const userId = this.extractUserIdFromToken(token);
+    if (userId !== null) localStorage.setItem(this.userIdKey, String(userId));
+  }
+
+  /**
+   * Persiste el JWT y los metadatos de sesión tras completar 2FA.
+   * Llamado por LoginComponent cuando el backend devuelve el token definitivo.
+   */
+  storeLoginData(token: string, usuario: string): void {
+    localStorage.setItem(this.tokenKey, token);
+    const userId = this.extractUserIdFromToken(token);
+    if (userId !== null) localStorage.setItem(this.userIdKey, String(userId));
+    localStorage.setItem(this.authKey, '1');
+    localStorage.setItem(this.userKey, usuario);
+    sessionStorage.removeItem('modales_vistos');
   }
 
   isLoginSuccessful(resp: LoginResponse | null | undefined): boolean {

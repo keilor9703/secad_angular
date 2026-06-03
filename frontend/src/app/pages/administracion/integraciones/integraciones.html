@@ -1,0 +1,954 @@
+<!-- Hub de Integraciones ─ SECAD -->
+
+<div class="integ-page">
+
+  <!-- ── Cabecera ─────────────────────────────────────────────────────────── -->
+  <div class="integ-header">
+    <div class="integ-header__title">
+      <i class="fa-solid fa-plug-circle-bolt"></i>
+      Hub de Integraciones
+    </div>
+    <p class="integ-header__sub">
+      Gestión centralizada de integraciones entrantes y salientes del sistema SECAD.
+    </p>
+  </div>
+
+  <!-- ── Tabs ─────────────────────────────────────────────────────────────── -->
+  <div class="integ-tabs">
+    <button class="integ-tab" [class.integ-tab--active]="tab === 'salientes'"
+            (click)="setTab('salientes')">
+      <i class="fa-solid fa-arrow-up-right-from-square"></i>
+      Integraciones Salientes
+      <span class="integ-tab__badge">{{ salientes.length }}</span>
+    </button>
+    <button class="integ-tab" [class.integ-tab--active]="tab === 'entrantes'"
+            (click)="setTab('entrantes')">
+      <i class="fa-solid fa-arrow-down-to-bracket"></i>
+      Integraciones Entrantes
+      <span class="integ-tab__badge">{{ entrantes.length }}</span>
+    </button>
+    <button class="integ-tab" [class.integ-tab--active]="tab === 'auditoria'"
+            (click)="setTab('auditoria')">
+      <i class="fa-solid fa-clock-rotate-left"></i>
+      Auditoría
+    </button>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════════════
+       TAB: INTEGRACIONES SALIENTES
+       Agencias externas que RECIBEN casos desde SECAD
+       ══════════════════════════════════════════════════════════════════════════ -->
+  @if (tab === 'salientes') {
+    <div class="integ-panel">
+
+      <div class="integ-panel__toolbar">
+        <div class="integ-panel__desc">
+          <i class="fa-solid fa-circle-info"></i>
+          Sistemas externos a los que SECAD envía casos por API REST (Bomberos, Cruz Roja, Tránsito, etc.).
+        </div>
+        <button class="ui-btn primary sm" (click)="openCreateSal()">
+          <i class="fa-solid fa-plus"></i>
+          Nueva agencia
+        </button>
+      </div>
+
+      <!-- ── Ejemplo de configuración ─────────────────────────────────────── -->
+      <div class="integ-ejemplo-sal">
+        <button class="integ-ejemplo-sal__toggle"
+                (click)="mostrarEjemploSal = !mostrarEjemploSal">
+          <i class="fa-solid fa-circle-question"></i>
+          <span>¿Cómo configurar una agencia saliente?</span>
+          <i class="fa-solid integ-ejemplo-sal__chevron"
+             [class.fa-chevron-up]="mostrarEjemploSal"
+             [class.fa-chevron-down]="!mostrarEjemploSal"></i>
+        </button>
+
+        @if (mostrarEjemploSal) {
+          <div class="integ-ejemplo-sal__body">
+
+            <p class="integ-ejemplo-sal__intro">
+              Una <strong>agencia saliente</strong> es un sistema externo (Bomberos, Cruz Roja, Tránsito,
+              Defensa Civil, etc.) al que SECAD <strong>envía automáticamente el caso</strong> vía API
+              REST cuando el despachador decide notificarlo. A continuación se muestra un ejemplo completo.
+            </p>
+
+            <!-- Tabs de modos de autenticación -->
+            <div class="integ-ejemplo-sal__section-title">
+              <i class="fa-solid fa-shield-halved"></i> Modo de autenticación — selecciona el que aplica
+            </div>
+            <div class="integ-auth-tabs">
+              @for (m of authModes; track m.value) {
+                <button class="integ-auth-tab"
+                        [class.integ-auth-tab--active]="formSalAuthExampleTab === m.value"
+                        (click)="formSalAuthExampleTab = m.value">
+                  <i class="fa-solid" [ngClass]="m.icon"></i>
+                  {{ m.label }}
+                </button>
+              }
+            </div>
+
+            <!-- NONE -->
+            @if (formSalAuthExampleTab === 'NONE') {
+              <div class="integ-auth-example">
+                <p class="integ-ejemplo-sal__note">
+                  La agencia <strong>no exige ningún mecanismo de autenticación</strong>. SECAD enviará el caso sin cabecera <code>Authorization</code>.
+                  Adecuado solo para redes internas cerradas o agencias con whitelist de IPs.
+                </p>
+                <pre class="integ-ejemplo-sal__pre">{{ ejNone }}</pre>
+              </div>
+            }
+
+            <!-- BEARER -->
+            @if (formSalAuthExampleTab === 'BEARER') {
+              <div class="integ-auth-example">
+                <p class="integ-ejemplo-sal__note">
+                  La agencia entrega a SECAD un <strong>token JWT o API Key estático</strong> que se envía en cada request como <code>Authorization: Bearer &lt;token&gt;</code>.
+                  Es el modo más común.
+                </p>
+                <pre class="integ-ejemplo-sal__pre">{{ ejBearer }}</pre>
+              </div>
+            }
+
+            <!-- BASIC -->
+            @if (formSalAuthExampleTab === 'BASIC') {
+              <div class="integ-auth-example">
+                <p class="integ-ejemplo-sal__note">
+                  La agencia exige <strong>usuario y contraseña</strong>. SECAD los codifica en Base64 (<code>usuario:contraseña</code>) y los envía como <code>Authorization: Basic &lt;base64&gt;</code> en cada request.
+                </p>
+                <pre class="integ-ejemplo-sal__pre">{{ ejBasic }}</pre>
+              </div>
+            }
+
+            <!-- OAUTH2 -->
+            @if (formSalAuthExampleTab === 'OAUTH2') {
+              <div class="integ-auth-example">
+                <p class="integ-ejemplo-sal__note">
+                  La agencia tiene un <strong>servidor OAuth2</strong>. Antes de enviar el caso, SECAD solicita automáticamente un token con las credenciales (<code>client_credentials</code>) y luego lo usa como <code>Bearer</code>.
+                  Configura la URL del endpoint de token, el usuario (<em>client_id</em>) y la contraseña (<em>client_secret</em>).
+                </p>
+                <pre class="integ-ejemplo-sal__pre">{{ ejOAuth2 }}</pre>
+              </div>
+            }
+
+            <!-- API_KEY -->
+            @if (formSalAuthExampleTab === 'API_KEY') {
+              <div class="integ-auth-example">
+                <p class="integ-ejemplo-sal__note">
+                  La agencia usa una <strong>API Key en una cabecera personalizada</strong> (no Bearer).
+                  Configura el nombre del header (ej. <code>X-Api-Key</code>) y el valor del key que la agencia entrega.
+                </p>
+                <pre class="integ-ejemplo-sal__pre">{{ ejApiKey }}</pre>
+              </div>
+            }
+
+            <!-- CREDS_BODY -->
+            @if (formSalAuthExampleTab === 'CREDS_BODY') {
+              <div class="integ-auth-example">
+                <p class="integ-ejemplo-sal__note">
+                  La agencia <strong>no usa cabecera Authorization</strong> sino que exige recibir el usuario y la contraseña dentro del <em>body JSON</em> del request, junto con los datos del caso.
+                  Configura los nombres de campo que espera la agencia para usuario y contraseña.
+                </p>
+                <pre class="integ-ejemplo-sal__pre">{{ ejCredsBody }}</pre>
+              </div>
+            }
+
+            <!-- PIP_TOKEN -->
+            @if (formSalAuthExampleTab === 'PIP_TOKEN') {
+              <div class="integ-auth-example">
+                <div class="integ-apikey-banner" style="margin-bottom:4px">
+                  <i class="fa-solid fa-shield-halved"></i>
+                  <div>
+                    <strong>Canal institucional PIP (Plataforma de Integración Policía).</strong>
+                    SECAD usa automáticamente el token técnico que ya obtiene del PIP al arrancar.
+                    No necesitas configurar credenciales en esta agencia.
+                    Solo ingresa la URL del endpoint de PIP para esa integración y selecciona este modo.
+                  </div>
+                </div>
+                <pre class="integ-ejemplo-sal__pre">{{ ejPip }}</pre>
+              </div>
+            }
+
+            <!-- Cabeceras y mapeo (comunes a todos los modos) -->
+            <div class="integ-ejemplo-sal__grid" style="margin-top:8px">
+              <div class="integ-ejemplo-sal__section">
+                <div class="integ-ejemplo-sal__section-title">
+                  <i class="fa-solid fa-code"></i> Cabeceras HTTP adicionales
+                </div>
+                <p class="integ-ejemplo-sal__note">
+                  Cabeceras extra que la agencia exige además del <code>Authorization</code>.
+                  Debe ser un JSON válido. Si no se requieren, dejar <code>&#123;&#125;</code>.
+                </p>
+                <pre class="integ-ejemplo-sal__pre">{{ ejemploSalCabeceras }}</pre>
+              </div>
+              <div class="integ-ejemplo-sal__section">
+                <div class="integ-ejemplo-sal__section-title">
+                  <i class="fa-solid fa-shuffle"></i> Mapeo de campos
+                </div>
+                <p class="integ-ejemplo-sal__note">
+                  Traduce los nombres de campo de SECAD a los que espera la agencia.
+                  Formato: <code>"campoSECAD": "campoAgencia"</code>.
+                  Los campos no mapeados se envían con su nombre original.
+                </p>
+                <pre class="integ-ejemplo-sal__pre">{{ ejemploSalMapeo }}</pre>
+              </div>
+            </div>
+
+          </div><!-- /body -->
+        }
+      </div><!-- /integ-ejemplo-sal -->
+
+      @if (loadingSal) {
+        <div class="integ-loading"><i class="fa-solid fa-spinner fa-spin"></i> Cargando…</div>
+      } @else if (salientes.length === 0) {
+        <div class="integ-empty">
+          <i class="fa-solid fa-building-shield"></i>
+          <p>No hay agencias externas configuradas.</p>
+          <button class="ui-btn primary sm" (click)="openCreateSal()">Agregar primera agencia</button>
+        </div>
+      } @else {
+        <div class="ui-table-wrap">
+          <table class="ui-table">
+            <thead>
+              <tr>
+                <th>Agencia</th>
+                <th>Tipo</th>
+                <th>Endpoint</th>
+                <th>Método</th>
+                <th>Autenticación</th>
+                <th>Estado</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (a of salientes; track a.id) {
+                <tr [class.integ-row--inactiva]="!a.activa">
+                  <td>
+                    <strong>{{ a.nombre }}</strong>
+                    @if (a.descripcion) {
+                      <span class="integ-sub">{{ a.descripcion }}</span>
+                    }
+                  </td>
+                  <td>
+                    <span class="integ-tipo-badge">
+                      <i class="fa-solid" [ngClass]="getTipoAgenciaIcon(a.tipoAgencia)"></i>
+                      {{ getTipoAgenciaLabel(a.tipoAgencia) }}
+                    </span>
+                  </td>
+                  <td>
+                    <code class="integ-url">{{ a.apiUrl ?? '—' }}</code>
+                  </td>
+                  <td>
+                    <span class="integ-metodo-badge"
+                          [class.integ-metodo-badge--put]="a.apiMetodo === 'PUT'">
+                      {{ a.apiMetodo }}
+                    </span>
+                  </td>
+                  <td>
+                    <div class="integ-auth-cell">
+                      <span class="integ-auth-mode-badge integ-auth-mode-badge--{{ (a.tipoAuth ?? 'bearer') | lowercase }}">
+                        {{ labelAuthMode(a.tipoAuth ?? 'BEARER') }}
+                      </span>
+                      @if (a.apiUsuario) {
+                        <span class="integ-sub">{{ a.apiUsuario }}</span>
+                      }
+                      @if (a.tieneCredencial && !a.apiUsuario) {
+                        <span class="integ-sub" style="color:var(--ui-success,#16a34a)">
+                          <i class="fa-solid fa-lock"></i> Configurada
+                        </span>
+                      }
+                    </div>
+                  </td>
+                  <td>
+                    <span class="ui-badge" [class.success]="a.activa" [class.error]="!a.activa">
+                      {{ a.activa ? 'Activa' : 'Inactiva' }}
+                    </span>
+                  </td>
+                  <td class="integ-actions">
+                    <!-- Ver payload real con mapeo aplicado -->
+                    <button class="ui-icon-btn integ-btn-payload"
+                            title="Ver payload que SECAD enviaría a esta agencia"
+                            (click)="verPayloadSaliente(a)">
+                      <i class="fa-solid fa-file-code"></i>
+                    </button>
+                    <button class="ui-icon-btn" title="Editar" (click)="openEditSal(a)">
+                      <i class="fa-solid fa-pen"></i>
+                    </button>
+                    <button class="ui-icon-btn"
+                            [title]="a.activa ? 'Desactivar' : 'Activar'"
+                            (click)="toggleSal(a)">
+                      <i class="fa-solid" [class.fa-toggle-on]="a.activa" [class.fa-toggle-off]="!a.activa"></i>
+                    </button>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+
+    </div>
+  }
+
+  <!-- ══════════════════════════════════════════════════════════════════════════
+       TAB: INTEGRACIONES ENTRANTES
+       Canales por los que sistemas externos ENVÍAN casos a SECAD
+       ══════════════════════════════════════════════════════════════════════════ -->
+  @if (tab === 'entrantes') {
+    <div class="integ-panel">
+
+      <div class="integ-panel__toolbar">
+        <div class="integ-panel__desc">
+          <i class="fa-solid fa-circle-info"></i>
+          Endpoints expuestos por SECAD para recibir casos desde sistemas externos (Chat, SMS, apps, etc.).
+          La autenticación usa la cabecera <code>X-Api-Key</code> configurada en el servidor.
+        </div>
+        <button class="ui-btn primary sm" (click)="openCreateEnt()">
+          <i class="fa-solid fa-plus"></i>
+          Nueva integración
+        </button>
+      </div>
+
+      <!-- Banner de configuración de API Key -->
+      <div class="integ-apikey-banner">
+        <i class="fa-solid fa-key"></i>
+        <div>
+          <strong>API Key de autenticación:</strong>
+          Configurada en <code>appsettings.json → RecepcionExterna:ApiKey</code>.
+          Los sistemas externos deben enviarla en la cabecera <code>X-Api-Key</code>
+          junto con <code>X-Cod-Dane</code> (código DANE del CAD destino).
+        </div>
+      </div>
+
+      @if (loadingEnt) {
+        <div class="integ-loading"><i class="fa-solid fa-spinner fa-spin"></i> Cargando…</div>
+      } @else if (entrantes.length === 0) {
+        <div class="integ-empty">
+          <i class="fa-solid fa-arrow-down-to-bracket"></i>
+          <p>No hay integraciones entrantes configuradas.</p>
+          <button class="ui-btn primary sm" (click)="openCreateEnt()">Agregar integración</button>
+        </div>
+      } @else {
+        <div class="integ-entrantes-grid">
+          @for (e of entrantes; track e.id) {
+            <div class="integ-entrante-card" [class.integ-entrante-card--inactiva]="!e.activa">
+
+              <div class="integ-entrante-card__head">
+                <span class="integ-canal-badge integ-canal-badge--{{ e.tipoCanal | lowercase }}">
+                  <i class="fa-solid" [ngClass]="getTipoCanalIcon(e.tipoCanal)"></i>
+                  {{ getTipoCanalLabel(e.tipoCanal) }}
+                </span>
+                <span class="ui-badge" [class.success]="e.activa" [class.error]="!e.activa"
+                      style="margin-left:auto;">
+                  {{ e.activa ? 'Activa' : 'Inactiva' }}
+                </span>
+              </div>
+
+              <div class="integ-entrante-card__body">
+                <strong class="integ-entrante-card__nombre">{{ e.nombre }}</strong>
+                @if (e.descripcion) {
+                  <p class="integ-entrante-card__desc">{{ e.descripcion }}</p>
+                }
+                <div class="integ-entrante-card__endpoint">
+                  <i class="fa-solid fa-link"></i>
+                  <code>{{ e.endpointRelativo }}</code>
+                </div>
+                @if (e.sitioGrabaDefecto > 0) {
+                  <div class="integ-entrante-card__sg">
+                    <i class="fa-solid fa-location-dot"></i>
+                    Sitio de grabación por defecto: <strong>{{ e.sitioGrabaDefecto }}</strong>
+                  </div>
+                }
+                @if (e.notas) {
+                  <p class="integ-entrante-card__notas">
+                    <i class="fa-solid fa-note-sticky"></i>
+                    {{ e.notas }}
+                  </p>
+                }
+              </div>
+
+              <div class="integ-entrante-card__actions">
+                @if (e.ejemploPayload) {
+                  <button class="ui-btn ghost xs" title="Ver ejemplo de payload"
+                          (click)="verEjemplo(e)">
+                    <i class="fa-solid fa-code"></i>
+                    Ejemplo
+                  </button>
+                }
+                <button class="ui-icon-btn" title="Editar" (click)="openEditEnt(e)">
+                  <i class="fa-solid fa-pen"></i>
+                </button>
+                <button class="ui-icon-btn"
+                        [title]="e.activa ? 'Desactivar' : 'Activar'"
+                        (click)="toggleEnt(e)">
+                  <i class="fa-solid" [class.fa-toggle-on]="e.activa" [class.fa-toggle-off]="!e.activa"></i>
+                </button>
+              </div>
+
+            </div>
+          }
+        </div>
+      }
+
+    </div>
+  }
+
+  <!-- ══════════════════════════════════════════════════════════════════════════
+       TAB: AUDITORÍA
+       Log de todos los mensajes enviados y recibidos
+       ══════════════════════════════════════════════════════════════════════════ -->
+  @if (tab === 'auditoria') {
+    <div class="integ-panel">
+
+      <!-- Sub-tabs auditoría -->
+      <div class="integ-aud-subtabs">
+        <button class="integ-aud-subtab" [class.integ-aud-subtab--active]="audTab === 'salientes'"
+                (click)="setAudTab('salientes')">
+          <i class="fa-solid fa-arrow-up-right-from-square"></i>
+          Despachos Salientes
+          <span class="integ-tab__badge">{{ audSalientes.length }}</span>
+        </button>
+        <button class="integ-aud-subtab" [class.integ-aud-subtab--active]="audTab === 'entrantes'"
+                (click)="setAudTab('entrantes')">
+          <i class="fa-solid fa-arrow-down-to-bracket"></i>
+          Recepciones Entrantes
+          <span class="integ-tab__badge">{{ audEntrantes.length }}</span>
+        </button>
+        <div style="flex:1"></div>
+        <button class="ui-btn ghost sm" (click)="loadAuditoria()">
+          <i class="fa-solid fa-arrows-rotate"></i>
+          Actualizar
+        </button>
+      </div>
+
+      @if (loadingAud) {
+        <div class="integ-loading"><i class="fa-solid fa-spinner fa-spin"></i> Cargando…</div>
+      }
+
+      <!-- ── Auditoría Salientes ──────────────────────────────────────────── -->
+      @if (audTab === 'salientes') {
+        @if (!loadingAud && audSalientes.length === 0) {
+          <div class="integ-empty">
+            <i class="fa-solid fa-inbox"></i>
+            <p>No hay despachos registrados aún.</p>
+          </div>
+        } @else {
+          <div class="ui-table-wrap">
+            <table class="ui-table integ-aud-table">
+              <thead>
+                <tr>
+                  <th>Fecha</th>
+                  <th>Agencia</th>
+                  <th>Pedido</th>
+                  <th>HTTP</th>
+                  <th>Resultado</th>
+                  <th class="integ-aud-col-resp">Respuesta API</th>
+                  <th>Despachado por</th>
+                  <th>Detalles</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (d of audSalientes; track d.id) {
+                  <tr [class.integ-row--error]="!d.exitoso">
+
+                    <td class="integ-fecha integ-aud-fecha">{{ d.fechaEnvio }}</td>
+
+                    <td>
+                      <span class="integ-tipo-badge">
+                        <i class="fa-solid" [ngClass]="getTipoAgenciaIcon(d.agenciaTipo)"></i>
+                        {{ d.agenciaNombre }}
+                      </span>
+                    </td>
+
+                    <td><code class="integ-id">{{ d.pedidoId }}</code></td>
+
+                    <td>
+                      @if (d.httpStatus) {
+                        <span class="integ-status-badge integ-status-badge--{{ getStatusClass(d.httpStatus) }}">
+                          {{ d.httpStatus }}
+                        </span>
+                      } @else {
+                        <span class="integ-status-badge integ-status-badge--badge-default">—</span>
+                      }
+                    </td>
+
+                    <td>
+                      <span class="ui-badge" [class.success]="d.exitoso" [class.error]="!d.exitoso">
+                        <i class="fa-solid" [class.fa-circle-check]="d.exitoso" [class.fa-circle-xmark]="!d.exitoso"></i>
+                        {{ d.exitoso ? 'Exitoso' : 'Fallido' }}
+                      </span>
+                    </td>
+
+                    <!-- Respuesta API inline -->
+                    <td class="integ-aud-col-resp">
+                      @if (d.respuestaApi) {
+                        <span class="integ-resp-snippet"
+                              [class.integ-resp-snippet--error]="!d.exitoso"
+                              [class.integ-resp-snippet--ok]="d.exitoso">
+                          {{ snippetRespuesta(d.respuestaApi) }}
+                        </span>
+                      } @else if (!d.exitoso && !d.httpStatus) {
+                        <span class="integ-resp-snippet integ-resp-snippet--error">
+                          Sin respuesta — timeout o error de red
+                        </span>
+                      } @else {
+                        <span class="integ-nd">—</span>
+                      }
+                    </td>
+
+                    <td>{{ d.enviadoPor || '—' }}</td>
+
+                    <!-- Botones de detalle -->
+                    <td class="integ-actions">
+                      @if (d.payloadEnviado) {
+                        <button class="ui-icon-btn integ-btn-payload"
+                                title="Ver payload enviado a la agencia"
+                                (click)="verPayload(d.payloadEnviado)">
+                          <i class="fa-solid fa-paper-plane"></i>
+                        </button>
+                      }
+                      @if (d.respuestaApi) {
+                        <button class="ui-icon-btn"
+                                [class.integ-btn-resp-error]="!d.exitoso"
+                                [class.integ-btn-resp-ok]="d.exitoso"
+                                title="Ver respuesta completa de la API"
+                                (click)="verRespuestaApi(d)">
+                          <i class="fa-solid fa-reply-all"></i>
+                        </button>
+                      }
+                    </td>
+
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+      }
+
+      <!-- ── Auditoría Entrantes ──────────────────────────────────────────── -->
+      @if (audTab === 'entrantes') {
+
+        <!-- Filtro por canal -->
+        <div class="integ-aud-filtros">
+          <label class="ui-label">Filtrar por canal:</label>
+          <select class="ui-control" style="width:180px"
+                  [(ngModel)]="audCanalFiltro"
+                  (change)="loadAudEntrantes()">
+            <option value="">Todos</option>
+            <option value="CHAT">CHAT</option>
+            <option value="SMS">SMS</option>
+          </select>
+        </div>
+
+        @if (!loadingAud && audEntrantes.length === 0) {
+          <div class="integ-empty">
+            <i class="fa-solid fa-inbox"></i>
+            <p>No hay recepciones registradas aún.</p>
+          </div>
+        } @else {
+          <div class="ui-table-wrap">
+            <table class="ui-table">
+              <thead>
+                <tr>
+                  <th>Fecha</th>
+                  <th>Canal</th>
+                  <th>Pedido creado</th>
+                  <th>Estado</th>
+                  <th>IP</th>
+                  <th>Error</th>
+                  <th>Payload</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (r of audEntrantes; track r.id) {
+                  <tr [class.integ-row--error]="!r.procesado && r.error">
+                    <td class="integ-fecha">{{ r.fechaRecepcion }}</td>
+                    <td>
+                      <span class="integ-canal-badge integ-canal-badge--{{ r.canal | lowercase }}">
+                        {{ r.canal }}
+                      </span>
+                    </td>
+                    <td>
+                      @if (r.pedidoId) {
+                        <code class="integ-id">{{ r.pedidoId }}</code>
+                      } @else {
+                        <span class="integ-nd">—</span>
+                      }
+                    </td>
+                    <td>
+                      <span class="ui-badge" [class.success]="r.procesado" [class.error]="!r.procesado && !!r.error" [class.warn]="!r.procesado && !r.error">
+                        {{ r.procesado ? 'Procesado' : (r.error ? 'Error' : 'Pendiente') }}
+                      </span>
+                    </td>
+                    <td>{{ r.ipOrigen || '—' }}</td>
+                    <td>
+                      @if (r.error) {
+                        <span class="integ-error-text" [title]="r.error">{{ r.error | slice:0:40 }}…</span>
+                      } @else {
+                        <span class="integ-nd">—</span>
+                      }
+                    </td>
+                    <td>
+                      <button class="ui-btn ghost xs" (click)="verPayload(r.payloadCrudo)">
+                        <i class="fa-solid fa-eye"></i>
+                      </button>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+      }
+
+    </div>
+  }
+
+</div><!-- /integ-page -->
+
+
+<!-- ══════════════════════════════════════════════════════════════════════════
+     MODAL: Crear / Editar Agencia Saliente
+     ══════════════════════════════════════════════════════════════════════════ -->
+@if (modal === 'saliente-create' || modal === 'saliente-edit') {
+  <div class="ui-modal" (click)="closeModal()">
+    <div class="ui-modal__dialog integ-modal" (click)="$event.stopPropagation()">
+
+      <div class="ui-modal__head">
+        <div class="ui-modal__title">
+          <i class="fa-solid fa-building-shield"></i>
+          {{ modal === 'saliente-create' ? 'Nueva agencia saliente' : 'Editar agencia' }}
+        </div>
+        <button class="ui-icon-btn" (click)="closeModal()"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+
+      <div class="ui-modal__body integ-form">
+
+        <div class="integ-form-row">
+          <div class="ui-field integ-form-field--grow">
+            <label class="ui-label">Nombre <span class="req">*</span></label>
+            <input class="ui-control" [(ngModel)]="formSal.nombre" placeholder="Ej: Bomberos Bogotá">
+          </div>
+          <div class="ui-field integ-form-field--tipo">
+            <label class="ui-label">Tipo</label>
+            <select class="ui-control" [(ngModel)]="formSal.tipoAgencia">
+              @for (t of tiposAgencia; track t.value) {
+                <option [value]="t.value">{{ t.label }}</option>
+              }
+            </select>
+          </div>
+        </div>
+
+        <div class="ui-field">
+          <label class="ui-label">Descripción</label>
+          <input class="ui-control" [(ngModel)]="formSal.descripcion" placeholder="Descripción opcional">
+        </div>
+
+        <div class="integ-form-row">
+          <div class="ui-field integ-form-field--grow">
+            <label class="ui-label">URL del endpoint externo</label>
+            <input class="ui-control" type="url" [(ngModel)]="formSal.apiUrl"
+                   placeholder="https://api.agencia.gov.co/recibir-caso">
+          </div>
+          <div class="ui-field integ-form-field--metodo">
+            <label class="ui-label">Método</label>
+            <select class="ui-control" [(ngModel)]="formSal.apiMetodo">
+              <option value="POST">POST</option>
+              <option value="PUT">PUT</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- ── Modo de autenticación ──────────────────────────────────────── -->
+        <div class="ui-field">
+          <label class="ui-label">Modo de autenticación <span class="req">*</span></label>
+          <select class="ui-control" [(ngModel)]="formSal.tipoAuth">
+            <option value="NONE">Sin autenticación</option>
+            <option value="BEARER">Bearer token estático</option>
+            <option value="BASIC">Basic Auth (usuario + contraseña)</option>
+            <option value="OAUTH2">OAuth2 — Client Credentials (usuario + contraseña → token)</option>
+            <option value="API_KEY">API Key en cabecera</option>
+            <option value="CREDS_BODY">Credenciales en el body del request</option>
+            <option value="PIP_TOKEN">🔗 PIP — Canal institucional Policía Nacional</option>
+          </select>
+        </div>
+
+        <!-- BEARER: token estático -->
+        @if (formSal.tipoAuth === 'BEARER') {
+          <div class="ui-field">
+            <label class="ui-label">
+              Bearer token
+              @if (modal === 'saliente-edit') {
+                <span class="integ-hint"> — Deje vacío para mantener el existente</span>
+              }
+            </label>
+            <input class="ui-control" type="password" [(ngModel)]="formSal.apiToken"
+                   placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9…"
+                   autocomplete="new-password">
+          </div>
+        }
+
+        <!-- BASIC / OAUTH2 / CREDS_BODY: usuario + contraseña -->
+        @if (formSal.tipoAuth === 'BASIC' || formSal.tipoAuth === 'OAUTH2' || formSal.tipoAuth === 'CREDS_BODY') {
+          <div class="integ-form-row">
+            <div class="ui-field integ-form-field--grow">
+              <label class="ui-label">Usuario
+                @if (formSal.tipoAuth === 'OAUTH2') { <span class="integ-hint"> (client_id)</span> }
+              </label>
+              <input class="ui-control" [(ngModel)]="formSal.apiUsuario"
+                     placeholder="usuario_secad" autocomplete="off">
+            </div>
+            <div class="ui-field integ-form-field--grow">
+              <label class="ui-label">
+                Contraseña
+                @if (formSal.tipoAuth === 'OAUTH2') { <span class="integ-hint"> (client_secret)</span> }
+                @if (modal === 'saliente-edit') { <span class="integ-hint"> — Vacío = mantener</span> }
+              </label>
+              <input class="ui-control" type="password" [(ngModel)]="formSal.apiPassword"
+                     placeholder="••••••••" autocomplete="new-password">
+            </div>
+          </div>
+        }
+
+        <!-- OAUTH2: URL del endpoint de token -->
+        @if (formSal.tipoAuth === 'OAUTH2') {
+          <div class="ui-field">
+            <label class="ui-label">URL del endpoint de token <span class="req">*</span></label>
+            <input class="ui-control" type="url" [(ngModel)]="formSalTokenUrl"
+                   placeholder="https://auth.agencia.gov.co/oauth2/token">
+            <p class="integ-hint" style="margin:4px 0 0">
+              SECAD enviará POST con grant_type=client_credentials y recibirá el access_token
+            </p>
+          </div>
+        }
+
+        <!-- API_KEY: nombre del header + valor -->
+        @if (formSal.tipoAuth === 'API_KEY') {
+          <div class="integ-form-row">
+            <div class="ui-field" style="flex:0 0 200px">
+              <label class="ui-label">Nombre del header</label>
+              <input class="ui-control" [(ngModel)]="formSalKeyHeader"
+                     placeholder="X-Api-Key">
+            </div>
+            <div class="ui-field integ-form-field--grow">
+              <label class="ui-label">
+                Valor del API Key
+                @if (modal === 'saliente-edit') { <span class="integ-hint"> — Vacío = mantener</span> }
+              </label>
+              <input class="ui-control" type="password" [(ngModel)]="formSal.apiToken"
+                     placeholder="sk-xxxxxxxxxxxxxxxx" autocomplete="new-password">
+            </div>
+          </div>
+        }
+
+        <!-- CREDS_BODY: nombres de los campos en el body -->
+        @if (formSal.tipoAuth === 'CREDS_BODY') {
+          <div class="integ-form-row">
+            <div class="ui-field integ-form-field--grow">
+              <label class="ui-label">Campo usuario en body</label>
+              <input class="ui-control" [(ngModel)]="formSalBodyUserField"
+                     placeholder="usuario">
+            </div>
+            <div class="ui-field integ-form-field--grow">
+              <label class="ui-label">Campo contraseña en body</label>
+              <input class="ui-control" [(ngModel)]="formSalBodyPassField"
+                     placeholder="contrasena">
+            </div>
+          </div>
+          <p class="integ-hint" style="margin:-8px 0 0">
+            El usuario y la contraseña se añadirán directamente al JSON del caso que se envíe.
+          </p>
+        }
+
+        <div class="ui-field">
+          <label class="ui-label">
+            Cabeceras HTTP adicionales
+            <span class="integ-hint"> — JSON: {{"{ \"X-Header\": \"valor\" }"}}</span>
+          </label>
+          <textarea class="ui-control integ-json-area" rows="3"
+                    [(ngModel)]="formSalCabeceras"
+                    placeholder='{}'></textarea>
+        </div>
+
+        <div class="ui-field">
+          <label class="ui-label">
+            Mapeo de campos
+            <span class="integ-hint"> — JSON: {{"{ \"campoNuestro\": \"campoDeEllos\" }"}}</span>
+          </label>
+          <textarea class="ui-control integ-json-area" rows="4"
+                    [(ngModel)]="formSalMapeo"
+                    placeholder='{ "direCaso": "address", "codiPedido": "incidentType" }'></textarea>
+        </div>
+
+        <div class="ui-field">
+          <label class="ui-label">Formato del payload</label>
+          <select class="ui-control" [(ngModel)]="formSal.formatoPayload">
+            <option value="PLANO">Plano (recomendado) — solo los campos del caso con el mapeo aplicado</option>
+            <option value="ESTRUCTURADO">Estructurado — body jerárquico completo (_secad, caso, ubicacion, reportante…)</option>
+          </select>
+          <p class="integ-hint" style="margin:4px 0 0">
+            @if (formSal.formatoPayload === 'ESTRUCTURADO') {
+              <i class="fa-solid fa-triangle-exclamation"></i>
+              Solo para agencias sofisticadas o integraciones SECAD-a-SECAD.
+            } @else {
+              <i class="fa-solid fa-circle-check"></i>
+              La mayoría de agencias (Bomberos, Cruz Roja, Tránsito) esperan este formato simple.
+            }
+          </p>
+        </div>
+
+        <div class="integ-toggle-row">
+          <label class="ui-label">Estado</label>
+          <label class="integ-toggle-label">
+            <input type="checkbox" [(ngModel)]="formSal.activa">
+            <span>{{ formSal.activa ? 'Activa' : 'Inactiva' }}</span>
+          </label>
+        </div>
+
+      </div>
+
+      <div class="ui-modal__foot">
+        <button class="ui-btn ghost" (click)="closeModal()">Cancelar</button>
+        <button class="ui-btn primary" (click)="saveSal()" [disabled]="saving">
+          @if (saving) { <i class="fa-solid fa-spinner fa-spin"></i> } Guardar
+        </button>
+      </div>
+
+    </div>
+  </div>
+}
+
+
+<!-- ══════════════════════════════════════════════════════════════════════════
+     MODAL: Crear / Editar Integración Entrante
+     ══════════════════════════════════════════════════════════════════════════ -->
+@if (modal === 'entrante-create' || modal === 'entrante-edit') {
+  <div class="ui-modal" (click)="closeModal()">
+    <div class="ui-modal__dialog integ-modal" (click)="$event.stopPropagation()">
+
+      <div class="ui-modal__head">
+        <div class="ui-modal__title">
+          <i class="fa-solid fa-arrow-down-to-bracket"></i>
+          {{ modal === 'entrante-create' ? 'Nueva integración entrante' : 'Editar integración' }}
+        </div>
+        <button class="ui-icon-btn" (click)="closeModal()"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+
+      <div class="ui-modal__body integ-form">
+
+        <div class="integ-form-row">
+          <div class="ui-field integ-form-field--grow">
+            <label class="ui-label">Nombre <span class="req">*</span></label>
+            <input class="ui-control" [(ngModel)]="formEnt.nombre"
+                   placeholder="Ej: WhatsApp Canal Principal">
+          </div>
+          <div class="ui-field integ-form-field--tipo">
+            <label class="ui-label">Tipo de canal</label>
+            <select class="ui-control" [(ngModel)]="formEnt.tipoCanal">
+              @for (t of tiposCanal; track t.value) {
+                <option [value]="t.value">{{ t.label }}</option>
+              }
+            </select>
+          </div>
+        </div>
+
+        <div class="ui-field">
+          <label class="ui-label">Descripción</label>
+          <input class="ui-control" [(ngModel)]="formEnt.descripcion"
+                 placeholder="Descripción del canal de integración">
+        </div>
+
+        <div class="integ-form-row">
+          <div class="ui-field integ-form-field--grow">
+            <label class="ui-label">Endpoint relativo <span class="req">*</span></label>
+            <input class="ui-control" [(ngModel)]="formEnt.endpointRelativo"
+                   placeholder="/api/RecepcionExterna/chat">
+          </div>
+          <div class="ui-field integ-form-field--sg">
+            <label class="ui-label">Sitio grabación defecto</label>
+            <input class="ui-control" type="number" min="0"
+                   [(ngModel)]="formEnt.sitioGrabaDefecto">
+          </div>
+        </div>
+
+        <div class="ui-field">
+          <label class="ui-label">
+            Headers requeridos
+            <span class="integ-hint"> — JSON con los headers que debe enviar el sistema externo</span>
+          </label>
+          <textarea class="ui-control integ-json-area" rows="3"
+                    [(ngModel)]="formEntHeaders"
+                    placeholder='{ "X-Api-Key": "...", "X-Cod-Dane": "11001" }'></textarea>
+        </div>
+
+        <div class="ui-field">
+          <label class="ui-label">
+            Payload de ejemplo
+            <span class="integ-hint"> — JSON de referencia para el sistema externo</span>
+          </label>
+          <textarea class="ui-control integ-json-area" rows="6"
+                    [(ngModel)]="formEntPayload"
+                    placeholder='{ "sitioGraba": 1, "nombreReportante": "...", ... }'></textarea>
+        </div>
+
+        <div class="ui-field">
+          <label class="ui-label">Notas</label>
+          <textarea class="ui-control" rows="2"
+                    [(ngModel)]="formEnt.notas"
+                    placeholder="Notas o instrucciones para el equipo técnico"></textarea>
+        </div>
+
+        <div class="integ-toggle-row">
+          <label class="ui-label">Estado</label>
+          <label class="integ-toggle-label">
+            <input type="checkbox" [(ngModel)]="formEnt.activa">
+            <span>{{ formEnt.activa ? 'Activa' : 'Inactiva' }}</span>
+          </label>
+        </div>
+
+      </div>
+
+      <div class="ui-modal__foot">
+        <button class="ui-btn ghost" (click)="closeModal()">Cancelar</button>
+        <button class="ui-btn primary" (click)="saveEnt()" [disabled]="saving">
+          @if (saving) { <i class="fa-solid fa-spinner fa-spin"></i> } Guardar
+        </button>
+      </div>
+
+    </div>
+  </div>
+}
+
+
+<!-- ══════════════════════════════════════════════════════════════════════════
+     MODAL: Visor de Payload (JSON)
+     ══════════════════════════════════════════════════════════════════════════ -->
+@if (modal === 'payload-viewer') {
+  <div class="ui-modal" (click)="closeModal()">
+    <div class="ui-modal__dialog integ-modal integ-modal--payload" (click)="$event.stopPropagation()">
+
+      <div class="ui-modal__head">
+        <div class="ui-modal__title">
+          <i class="fa-solid fa-file-code"></i>
+          {{ payloadViewerTitle }}
+        </div>
+        <button class="ui-icon-btn" (click)="closeModal()"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+
+      <div class="ui-modal__body" style="padding:0">
+        <pre class="integ-payload-viewer">{{ payloadViewer }}</pre>
+      </div>
+
+      <div class="ui-modal__foot" style="gap:8px">
+        <span class="integ-hint" style="flex:1;font-size:11px">
+          @if (payloadViewerTitle.startsWith('Payload que SECAD')) {
+            Datos de ejemplo con el campo_mapeo real aplicado.
+            Los valores reales se toman del caso en el momento del despacho.
+          }
+        </span>
+        <button class="ui-btn ghost" (click)="closeModal()">Cerrar</button>
+      </div>
+
+    </div>
+  </div>
+}

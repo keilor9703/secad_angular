@@ -11,7 +11,9 @@ export const ORIGEN_EVENTO = {
   INTEGRACION: 'INTEGRACION',
   SIEDCO:      'SIEDCO',
   INTERNO:     'INTERNO',
-  MANUAL:      'MANUAL'
+  MANUAL:      'MANUAL',
+  CHAT:        'CHAT',
+  SMS:         'SMS'
 } as const;
 export type OrigenEvento = typeof ORIGEN_EVENTO[keyof typeof ORIGEN_EVENTO];
 
@@ -39,15 +41,33 @@ export interface DtoLlamadaEntrante {
 }
 
 export interface DtoCasoItem {
-  CODIGO_CASO:      string;
-  DESCRIPCION_CASO: string;
+  CODIGO_CASO:             string;
+  DESCRIPCION_CASO:        string;
+  /** ID (string) de la categoría del Asistente vinculada. Null = sin asistente. */
+  ID_CATEGORIA_ASISTENTE?: string | null;
+  /** Código corto de la categoría (ej: HURTO, RINA). Usado para seleccionar plantilla narrativa. */
+  CATEGORIA_CODIGO?:       string | null;
+  /** Descripción legible de la categoría (JOIN informativo). */
+  CATEGORIA_DESCRIPCION?:  string | null;
 }
 
 export interface DtoCanalRecepcion {
   codigo:        number;
   descripcion:   string;
   fuerza:        string;
+  /** ID numérico de la fuerza. El frontend lo compara con fuerzaId del JWT
+   *  para distinguir canales propios de canales de agencias SECAD externas. */
+  fuerzaId:      number;
   seleccionado?: boolean;   // UI only — no se envía al backend
+}
+
+/**
+ * Llave compuesta de un canal seleccionado para despacho.
+ * El `codigo` solo NO es único: distintas fuerzas pueden tener el mismo número de canal.
+ */
+export interface DtoCanalSeleccionado {
+  codigo:   number;
+  fuerzaId: number;
 }
 
 export interface DtoReferenciaSecad {
@@ -103,7 +123,7 @@ export interface DtoRecepcion {
   /** Origen del evento a registrar. Por defecto 'RECEPCION'; usar 'CTI' si la
    *  llamada llega de la centralita telefónica, 'APP_MOVIL', etc. */
   Origen:               OrigenEvento;
-  CANALES_SELECCIONADOS: number[];
+  CANALES_SELECCIONADOS: DtoCanalSeleccionado[];
   CANAL_FUERZA:         number | null;
   CADPEDI_SITIO_GRABA:  string | null;
   CADPEDI_NUME_LLAMADA: string | null;
@@ -203,6 +223,48 @@ export interface DtoEventoResult {
   pedidoId?: number;
 }
 
+// ─── Duplicado / pedido cercano (§6.8) ───────────────────────────────────────
+/**
+ * Pedido (llamada) activo encontrado en un radio geográfico — alerta de posible duplicado.
+ * Los datos vienen de cad_pedidos, que es donde el formulario de recepción guarda
+ * la georreferenciación y los códigos de caso.
+ */
+export interface DtoPedidoCercano {
+  id:              string;
+  sitioGraba:      number;
+  codiPedido:      string | null;
+  codiPedido2:     string | null;
+  direCaso:        string | null;
+  ciudad:          string | null;
+  barrio:          string | null;
+  estado:          string | null;
+  prioridad:       string | null;
+  nombLlamante:    string | null;
+  horaCaso:        string | null;
+  distanciaMetros: number;
+  minutosAtras:    number;
+}
+
+// ─── Adjuntos (fotos vinculadas a pedidos) ───────────────────────────────────────
+
+export interface DtoAdjunto {
+  /** ID Snowflake como string para preservar precisión JS */
+  id:             string;
+  pedidoId:       string;
+  sitioGraba:     number;
+  tipoAdjunto:    'FOTO' | 'DOCUMENTO' | 'AUDIO' | 'VIDEO';
+  nombreOriginal: string;
+  nombreGuardado: string;
+  rutaRelativa:   string;
+  urlPublica:     string;
+  mimeType:       string;
+  tamanioBytes:   number;
+  descripcion?:   string | null;
+  canalOrigen:    'MANUAL' | 'API_CHAT' | 'API_SMS' | 'API_FOTO';
+  subidoPor:      string;
+  fechaSubida:    string;
+}
+
 // ─── Service ─────────────────────────────────────────────────────────────────────
 
 @Injectable({ providedIn: 'root' })
@@ -262,7 +324,7 @@ export class RecepcionService {
   // ── Save / close ─────────────────────────────────────────────────────────────
 
   /** Guarda la llamada completa. Escribe en cad_pedidos + cad_eventos + cad_pedidos_canales */
-  guardar(datos: DtoRecepcion): Observable<{ success: boolean; message: string }> {
+  guardar(datos: DtoRecepcion): Observable<{ success: boolean; message: string; pedidoId?: string }> {
     return this.http.post<{ success: boolean; message: string }>(
       `${this.base}/guardar`,
       datos
@@ -317,5 +379,82 @@ export class RecepcionService {
       `${this.base}/integracion/evento`,
       req
     );
+  }
+
+  // ── Remisión a canal SECAD (§6.11 / §6.1) ────────────────────────────────────
+
+  /** Remite un pedido/evento a canales SECAD adicionales. */
+  remitirCanal(req: {
+    pedidoId:    string;
+    sitioGraba:  number;
+    eventoId:    string;
+    canales:     DtoCanalSeleccionado[];
+    observacion?: string;
+  }): Observable<{ success: boolean; message: string; canalesAgregados: number }> {
+    return this.http.post<{ success: boolean; message: string; canalesAgregados: number }>(
+      `${this.base}/remitir-canal`, req
+    );
+  }
+
+  // ── Adjuntos (fotos vinculadas a pedidos) ────────────────────────────────────
+
+  /**
+   * Sube una foto (JPG/PNG/WEBP, máx 8 MB) vinculada a un pedido.
+   * Usa multipart/form-data.
+   */
+  subirAdjunto(
+    pedidoId:   number | string,
+    sitioGraba: number,
+    file:       File,
+    descripcion?: string
+  ): Observable<{ success: boolean; data: DtoAdjunto; message: string }> {
+    const form = new FormData();
+    form.append('File',       file);
+    form.append('PedidoId',   String(pedidoId));
+    form.append('SitioGraba', String(sitioGraba));
+    form.append('CanalOrigen', 'MANUAL');
+    if (descripcion) form.append('Descripcion', descripcion);
+    return this.http.post<{ success: boolean; data: DtoAdjunto; message: string }>(
+      `${environment.apiBaseUrl}/Adjunto/subir`, form
+    );
+  }
+
+  /** Lista las fotos de un pedido. */
+  getAdjuntos(pedidoId: number | string): Observable<{ success: boolean; data: DtoAdjunto[] }> {
+    return this.http.get<{ success: boolean; data: DtoAdjunto[] }>(
+      `${environment.apiBaseUrl}/Adjunto/${pedidoId}`
+    );
+  }
+
+  /** Elimina una foto por su ID. */
+  eliminarAdjunto(adjuntoId: string): Observable<{ success: boolean; message: string }> {
+    return this.http.delete<{ success: boolean; message: string }>(
+      `${environment.apiBaseUrl}/Adjunto/${adjuntoId}`
+    );
+  }
+
+  // ── Duplicate / nearby-event detection (§6.8) ────────────────────────────────
+
+  /**
+   * Busca en cad_pedidos llamadas activas en un radio geográfico y ventana temporal
+   * configurables. Usado en Recepción para alertar al operador sobre posibles duplicados.
+   *
+   * @param lat          Latitud del incidente en curso (WGS-84)
+   * @param lng          Longitud del incidente en curso (WGS-84)
+   * @param radioMetros  Radio de búsqueda en metros (default: 300 m)
+   * @param minutosAtras Ventana temporal en minutos hacia atrás (default: 20 min)
+   * @param codCaso      Código de caso para filtrar por tipo similar (opcional)
+   */
+  getPedidosCercanos(
+    lat:          number,
+    lng:          number,
+    radioMetros:  number = 300,
+    minutosAtras: number = 20,
+    codCaso?:     string
+  ): Observable<{ success: boolean; data: DtoPedidoCercano[] }> {
+    let url = `${this.base}/pedidos-cercanos?lat=${lat}&lng=${lng}` +
+              `&radioMetros=${radioMetros}&minutosAtras=${minutosAtras}`;
+    if (codCaso) url += `&codCaso=${encodeURIComponent(codCaso)}`;
+    return this.http.get<{ success: boolean; data: DtoPedidoCercano[] }>(url);
   }
 }

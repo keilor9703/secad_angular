@@ -66,5 +66,16 @@ namespace Negocio.Gestion
         public Task<DtoEventoResult> P_CrearEventoIntegracionAsync(
             DtoEventoIntegracionRequest request, string usuario, CancellationToken ct)
             => _repo.P_CrearEventoIntegracionAsync(request, usuario, ct);
+
+        // ── Remisión a canal SECAD ──────────────────────────────────────────────
+        public Task<(bool success, string message, int canalesAgregados)> RemitirCanalAsync(
+            DtoRemitirCanalRequest req, string usuario, CancellationToken ct)
+            => _repo.RemitirCanalAsync(req, usuario, ct);
+
+        // ── Duplicate detection ─────────────────────────────────────────────────
+        public Task<List<DtoPedidoCercano>> G_GetPedidosCercanosAsync(
+            double lat, double lng, int radioMetros, int minutosAtras,
+            string? codCaso, CancellationToken ct)
+            => _repo.G_GetPedidosCercanosAsync(lat, lng, radioMetros, minutosAtras, codCaso, ct);
     }
 }
