@@ -9,6 +9,10 @@ namespace Datos.Interfaz
         /// <summary>Poll CTI interface for an unregistered incoming call.</summary>
         Task<DtoLlamadaEntrante?> F_GetLlamadasAsync(int sitioGraba, int acd, CancellationToken ct);
 
+        /// <summary>Insert an incoming call event from the PBX into cad_interfaz_cti.</summary>
+        Task<DtoCtiEntradaResult> P_RegistrarLlamadaCtiAsync(
+            int sitioGraba, int acd, long numeTelefono, CancellationToken ct);
+
         /// <summary>Get the next call-sequence Snowflake ID (no DB round-trip).</summary>
         Task<long> F_ConsultarSeqPedidoAsync(CancellationToken ct);
 

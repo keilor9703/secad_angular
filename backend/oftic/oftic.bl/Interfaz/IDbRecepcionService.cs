@@ -6,6 +6,8 @@ namespace Negocio.Interfaz
     public interface IDbRecepcionService
     {
         Task<DtoLlamadaEntrante?> F_GetLlamadasAsync(int sitioGraba, int acd, CancellationToken ct);
+        Task<DtoCtiEntradaResult> P_RegistrarLlamadaCtiAsync(
+            int sitioGraba, int acd, long numeTelefono, CancellationToken ct);
         Task<long>  F_ConsultarSeqPedidoAsync(CancellationToken ct);
         Task<List<DtoCasoItem>> F_GetCasosIntelAsync(string busqueda, CancellationToken ct);
         Task<DtoCasoItem?> F_GetCasoPorCodigoAsync(string codigo, CancellationToken ct);

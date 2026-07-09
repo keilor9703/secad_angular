@@ -29,6 +29,8 @@ backend/oftic/oftic.dl/bin/
 backend/oftic/oftic.dl/obj/
 backend/oftic/oftic.sl/bin/
 backend/oftic/oftic.sl/obj/
+backend/edge-cti-service/bin/
+backend/edge-cti-service/obj/
 backend/**/publish/
 backend/**/uploads/
 backend/**/*.user
