@@ -140,7 +140,8 @@ export class TurnosComponent implements OnInit, OnDestroy, AfterViewChecked {
   guardandoSivicc  = false;
   errorSivicc      = '';
   /** Canal radio a asignar (opcional) */
-  siviccCanalCodigo: number | undefined = undefined;
+  siviccCanalCodigo:   number | undefined = undefined;
+  siviccCanalFuerzaId: number | undefined = undefined;
   formSivicc: DtoImportarSiviccRequest = {
     turnoId: '', fuerzaId: 0, sitioGraba: 0, unidades: []
   };
@@ -607,11 +608,51 @@ export class TurnosComponent implements OnInit, OnDestroy, AfterViewChecked {
     });
   }
 
-  /** Handler del canal en el modal de edición (sincroniza canalFuerzaId). */
-  onCanalChangeEditar(codigo: number | undefined): void {
-    const canal = this.canales.find(c => c.codigo === Number(codigo));
-    this.formEditarMedio.canalCodigo   = canal?.codigo;
-    this.formEditarMedio.canalFuerzaId = canal?.fuerzaId;
+  /**
+   * Clave compuesta código::fuerza para el <select> de canal.
+   * cad_canales.codigo NO es único por sí solo (cada fuerza numera sus
+   * canales desde 1) — usar solo el código para identificar la opción
+   * seleccionada hace que el <select> confunda canales de fuerzas distintas
+   * que comparten el mismo código.
+   */
+  canalKey(codigo: number | undefined, fuerzaId: number | undefined): string | undefined {
+    return codigo != null && fuerzaId != null ? `${codigo}::${fuerzaId}` : undefined;
+  }
+
+  /** Handler del canal en el modal "Agregar medio" (sincroniza canalCodigo + canalFuerzaId). */
+  onCanalChange(key: string | undefined): void {
+    if (!key) {
+      this.formMedio.canalCodigo   = undefined;
+      this.formMedio.canalFuerzaId = undefined;
+      return;
+    }
+    const [codigo, fuerzaId] = key.split('::').map(Number);
+    this.formMedio.canalCodigo   = codigo;
+    this.formMedio.canalFuerzaId = fuerzaId;
+  }
+
+  /** Handler del canal en el modal de edición (sincroniza canalCodigo + canalFuerzaId). */
+  onCanalChangeEditar(key: string | undefined): void {
+    if (!key) {
+      this.formEditarMedio.canalCodigo   = undefined;
+      this.formEditarMedio.canalFuerzaId = undefined;
+      return;
+    }
+    const [codigo, fuerzaId] = key.split('::').map(Number);
+    this.formEditarMedio.canalCodigo   = codigo;
+    this.formEditarMedio.canalFuerzaId = fuerzaId;
+  }
+
+  /** Handler del canal en el wizard de importación SIVICC. */
+  onCanalChangeSivicc(key: string | undefined): void {
+    if (!key) {
+      this.siviccCanalCodigo   = undefined;
+      this.siviccCanalFuerzaId = undefined;
+      return;
+    }
+    const [codigo, fuerzaId] = key.split('::').map(Number);
+    this.siviccCanalCodigo   = codigo;
+    this.siviccCanalFuerzaId = fuerzaId;
   }
 
   guardarMedio(): void {
@@ -671,6 +712,7 @@ export class TurnosComponent implements OnInit, OnDestroy, AfterViewChecked {
       unidades:   []
     };
     this.siviccCanalCodigo        = undefined;
+    this.siviccCanalFuerzaId      = undefined;
     this.errorSivicc              = '';
     this.guardandoSivicc          = false;
     this.unidadesSivicc           = [];
@@ -726,7 +768,8 @@ export class TurnosComponent implements OnInit, OnDestroy, AfterViewChecked {
 
     const req: DtoImportarSiviccRequest = {
       ...this.formSivicc,
-      canalCodigo: this.siviccCanalCodigo,
+      canalCodigo:   this.siviccCanalCodigo,
+      canalFuerzaId: this.siviccCanalFuerzaId,
       unidades
     };
 
@@ -782,13 +825,6 @@ export class TurnosComponent implements OnInit, OnDestroy, AfterViewChecked {
 
   estadoMedioCss(estado: number): string {
     return this.turnosSvc.claseEstadoMedio(estado as EstadoMedio);
-  }
-
-  /** Cuando el usuario elige un canal del select, actualiza canalCodigo y canalFuerzaId. */
-  onCanalChange(codigo: number | undefined): void {
-    const canal = this.canales.find(c => c.codigo === Number(codigo));
-    this.formMedio.canalCodigo   = canal?.codigo;
-    this.formMedio.canalFuerzaId = canal?.fuerzaId;
   }
 
   /** Devuelve las clases FontAwesome para el tipo de medio (reemplaza Material Icons). */
