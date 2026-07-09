@@ -282,11 +282,18 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
     // Priority: JWT claim > sessionStorage > 0
     if (this.canalId > 0) {
       this.canalSeleccionado = this.canalId;
+      // this.fuerzaId ya viene del claim, en pareja consistente con canalId.
     } else {
-      // Restore the canal chosen in a previous navigation within this tab session
-      const stored = Number(sessionStorage.getItem(this.CANAL_KEY) ?? '0');
-      if (stored > 0) {
-        this.canalSeleccionado = stored;
+      // Restore the canal chosen in a previous navigation within this tab session.
+      // Se guarda como "codigo:fuerzaId" — el código solo no es único entre
+      // fuerzas, así que hay que restaurar ambos valores como pareja.
+      const stored = sessionStorage.getItem(this.CANAL_KEY);
+      if (stored) {
+        const [codigo, fuerzaId] = stored.split(':').map(Number);
+        if (codigo > 0) {
+          this.canalSeleccionado = codigo;
+          this.fuerzaId          = fuerzaId || 0;
+        }
       }
     }
 
@@ -416,7 +423,11 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
   }
 
   private actualizarNombreCanal(): void {
-    const found = this.canalesDisponibles.find(c => c.codigo === this.canalSeleccionado);
+    // codigo NO es único por sí solo entre fuerzas — hay que matchear también
+    // por fuerzaId, o se puede resolver el nombre del canal de otra fuerza.
+    const found = this.canalesDisponibles.find(
+      c => c.codigo === this.canalSeleccionado && c.fuerzaId === this.fuerzaId
+    );
     this.canalNombre = found
       ? `${found.fuerzaDesc} – ${found.descripcion}`
       : this.canalSeleccionado > 0
@@ -424,12 +435,14 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
         : 'Sin canal';
   }
 
-  seleccionarCanal(codigo: number): void {
+  seleccionarCanal(codigo: number, fuerzaId: number): void {
     this.canalSeleccionado    = codigo;
+    this.fuerzaId             = fuerzaId;
     this.mostrarSelectorCanal = false;
     this.toggleBodyModalClass(false);
-    // Persist so the selector doesn't reappear on the next navigation within this session
-    sessionStorage.setItem(this.CANAL_KEY, String(codigo));
+    // Persist so the selector doesn't reappear on the next navigation within this session.
+    // "codigo:fuerzaId" — deben restaurarse siempre como pareja (ver ngOnInit).
+    sessionStorage.setItem(this.CANAL_KEY, `${codigo}:${fuerzaId}`);
     this.actualizarNombreCanal();
     // Cerrar cualquier evento abierto: el detalle pertenece al canal anterior.
     // volverLista() detiene el polling de recursos y actuaciones, destruye el
