@@ -702,7 +702,7 @@ SELECT e.id, e.origen, e.estado,
 FROM   cad_eventos e
 LEFT   JOIN cad_pedidos p ON p.nume_llamada = e.pedido_id
 LEFT   JOIN cad_fuerzas f ON f.id = e.fuerza_id
-LEFT   JOIN cad_canales c ON c.codigo = e.canal_codigo
+LEFT   JOIN cad_canales c ON c.codigo = e.canal_codigo AND c.cadfuerz_id = e.fuerza_id
 WHERE  e.pedido_id = @pid
 ORDER  BY e.fecha_creacion DESC";
             cmd.Parameters.AddWithValue("pid", pedidoId);

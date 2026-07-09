@@ -59,7 +59,7 @@ SELECT a.id, a.evento_id,
        a.despachador_usuario   -- col 14: quien despachó el recurso
 FROM   cad_actuaciones a
 LEFT   JOIN cad_fuerzas f ON f.id     = a.fuerza_id
-LEFT   JOIN cad_canales c ON c.codigo = a.canal_codigo
+LEFT   JOIN cad_canales c ON c.codigo = a.canal_codigo AND c.cadfuerz_id = a.fuerza_id
 WHERE  a.pedido_id = @eid
 -- Nota: el frontend SIEMPRE envía cad_pedidos.id como eventoId.
 -- NO usar a.evento_id aquí porque ese campo almacena cad_eventos.id
@@ -131,7 +131,7 @@ SELECT a.id, a.evento_id, a.pedido_id, a.sitio_graba,
        a.usuario_modifica
 FROM   cad_actuaciones a
 LEFT   JOIN cad_fuerzas f ON f.id     = a.fuerza_id
-LEFT   JOIN cad_canales c ON c.codigo = a.canal_codigo
+LEFT   JOIN cad_canales c ON c.codigo = a.canal_codigo AND c.cadfuerz_id = a.fuerza_id
 WHERE  a.id = @id";
                 cmd.Parameters.AddWithValue("id", actuacionId);
 
@@ -683,12 +683,16 @@ WHERE  id = @mid AND actuacion_id IS NOT NULL";
                     var raw = await qF.ExecuteScalarAsync(ct);
                     if (raw is not null and not DBNull) fuerzaDesc = raw.ToString()!;
                 }
-                if (req.CanalCodigo.HasValue)
+                // cad_canales.codigo se numera por fuerza (no es único por sí solo)
+                // — filtrar también por cadfuerz_id o se trae el canal de otra
+                // fuerza que reutiliza el mismo código.
+                if (req.CanalCodigo.HasValue && req.FuerzaId.HasValue)
                 {
                     await using var qC = conn.CreateCommand();
                     qC.Transaction = tx;
-                    qC.CommandText = "SELECT descripcion FROM cad_canales WHERE codigo = @c LIMIT 1";
-                    qC.Parameters.AddWithValue("c", req.CanalCodigo.Value);
+                    qC.CommandText = "SELECT descripcion FROM cad_canales WHERE codigo = @c AND cadfuerz_id = @cf LIMIT 1";
+                    qC.Parameters.AddWithValue("c",  req.CanalCodigo.Value);
+                    qC.Parameters.AddWithValue("cf", req.FuerzaId.Value);
                     var raw = await qC.ExecuteScalarAsync(ct);
                     if (raw is not null and not DBNull) canalDesc = raw.ToString()!;
                 }
