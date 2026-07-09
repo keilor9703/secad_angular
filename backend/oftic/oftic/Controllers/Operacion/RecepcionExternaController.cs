@@ -239,5 +239,46 @@ namespace Api.Controllers.Operacion
                 return StatusCode(500, new { success = false, message = "Error interno procesando el SMS." });
             }
         }
+
+        // ── POST api/RecepcionExterna/cti ─────────────────────────────────────────
+        /// <summary>
+        /// Recibe el evento de una llamada entrante desde la centralita telefónica (PBX)
+        /// y lo registra en cad_interfaz_cti. El operador ya lo recibe vía el polling
+        /// existente (GET api/Recepcion/llamada), sin cambios en ese flujo.
+        /// </summary>
+        [HttpPost("cti")]
+        public async Task<IActionResult> RecibirLlamadaCTI(
+            [FromBody] DtoCtiEntrada dto,
+            CancellationToken ct)
+        {
+            var keyError = ValidarApiKey();
+            if (keyError is not null) return keyError;
+
+            if (dto is null || dto.SitioGraba <= 0)
+                return BadRequest(new { success = false, message = "SitioGraba requerido." });
+
+            if (!int.TryParse(dto.Acd, out var acd) || acd <= 0)
+                return BadRequest(new { success = false, message = "Acd inválido." });
+
+            var telefonoLimpio = (dto.NumTelefono ?? "").Replace("+", "").Replace(" ", "");
+            if (!long.TryParse(telefonoLimpio, out var numeTelefono) || numeTelefono <= 0)
+                return BadRequest(new { success = false, message = "NumTelefono inválido." });
+
+            try
+            {
+                var result = await _recepcionSvc.P_RegistrarLlamadaCtiAsync(
+                    dto.SitioGraba, acd, numeTelefono, ct);
+
+                if (!result.Success)
+                    return UnprocessableEntity(new { success = false, message = result.Message });
+
+                return Ok(new { success = true, message = result.Message, id = result.Id.ToString() });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "RecibirLlamadaCTI error sitioGraba={Sg} acd={Acd}", dto.SitioGraba, dto.Acd);
+                return StatusCode(500, new { success = false, message = "Error interno registrando la llamada CTI." });
+            }
+        }
     }
 }

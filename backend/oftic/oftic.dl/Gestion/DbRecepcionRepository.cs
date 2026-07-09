@@ -83,6 +83,29 @@ namespace Datos.Gestion
             };
         }
 
+        public async Task<DtoCtiEntradaResult> P_RegistrarLlamadaCtiAsync(
+            int sitioGraba, int acd, long numeTelefono, CancellationToken ct)
+        {
+            await using var conn = await _tenant.DataSource.OpenConnectionAsync(ct);
+            await using var cmd  = conn.CreateCommand();
+            cmd.CommandText = @"
+                INSERT INTO cad_interfaz_cti (sitio_graba, acd, nume_telefono, registrada, fecha_registro)
+                VALUES (@sg, @acd, @tel, 'N', NOW())
+                RETURNING id";
+            cmd.Parameters.AddWithValue("sg",  sitioGraba);
+            cmd.Parameters.AddWithValue("acd", acd);
+            cmd.Parameters.AddWithValue("tel", numeTelefono);
+
+            var id = (long)(await cmd.ExecuteScalarAsync(ct))!;
+
+            return new DtoCtiEntradaResult
+            {
+                Success = true,
+                Message = "Llamada CTI registrada.",
+                Id      = id
+            };
+        }
+
         // ════════════════════════════════════════════════════════════════════════
         // ID GENERATION (Snowflake — sin acceso a BD)
         // ════════════════════════════════════════════════════════════════════════
