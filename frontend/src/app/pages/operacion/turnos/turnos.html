@@ -605,17 +605,17 @@
           </div>
           <div class="ui-field ui-col-4">
             <label class="ui-label">Canal radio</label>
-            <!-- [ngModel] + (ngModelChange) en lugar de [(ngModel)] para que
-                 onCanalChange() sincronice también canalFuerzaId -->
+            <!-- Value = código::fuerza (no solo código): cad_canales.codigo se
+                 numera por fuerza y se repite entre fuerzas distintas. -->
             <select class="ui-control"
-                    [ngModel]="formMedio.canalCodigo"
+                    [ngModel]="canalKey(formMedio.canalCodigo, formMedio.canalFuerzaId)"
                     (ngModelChange)="onCanalChange($event)">
               <option [ngValue]="undefined">— Sin canal —</option>
               @if (cargandoCanales) {
                 <option disabled>Cargando canales…</option>
               }
-              @for (c of canales; track c.codigo) {
-                <option [ngValue]="c.codigo">{{ c.descripcion }}</option>
+              @for (c of canales; track c.codigo + '::' + c.fuerzaId) {
+                <option [ngValue]="c.codigo + '::' + c.fuerzaId">{{ c.descripcion }}</option>
               }
             </select>
           </div>
@@ -724,14 +724,14 @@
           <div class="ui-field ui-col-4">
             <label class="ui-label">Canal radio</label>
             <select class="ui-control"
-                    [ngModel]="formEditarMedio.canalCodigo"
+                    [ngModel]="canalKey(formEditarMedio.canalCodigo, formEditarMedio.canalFuerzaId)"
                     (ngModelChange)="onCanalChangeEditar($event)">
               <option [ngValue]="undefined">— Sin canal —</option>
               @if (cargandoCanales) {
                 <option disabled>Cargando canales…</option>
               }
-              @for (c of canales; track c.codigo) {
-                <option [ngValue]="c.codigo">{{ c.descripcion }}</option>
+              @for (c of canales; track c.codigo + '::' + c.fuerzaId) {
+                <option [ngValue]="c.codigo + '::' + c.fuerzaId">{{ c.descripcion }}</option>
               }
             </select>
           </div>
@@ -884,11 +884,13 @@
               Canal radio por defecto
               <span class="tr-optional">(opcional)</span>
             </label>
-            <select class="ui-control" [(ngModel)]="siviccCanalCodigo"
+            <select class="ui-control"
+                    [ngModel]="canalKey(siviccCanalCodigo, siviccCanalFuerzaId)"
+                    (ngModelChange)="onCanalChangeSivicc($event)"
                     style="max-width:280px">
               <option [ngValue]="undefined">— Sin canal —</option>
-              @for (c of canales; track c.codigo) {
-                <option [ngValue]="c.codigo">{{ c.descripcion }}</option>
+              @for (c of canales; track c.codigo + '::' + c.fuerzaId) {
+                <option [ngValue]="c.codigo + '::' + c.fuerzaId">{{ c.descripcion }}</option>
               }
             </select>
           </div>
