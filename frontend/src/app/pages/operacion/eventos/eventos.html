@@ -32,8 +32,8 @@
             </div>
           } @else {
             <div class="ev-canal-grid">
-              @for (c of canalesDisponibles; track c.codigo) {
-                <button class="ev-canal-card" (click)="seleccionarCanal(c.codigo)">
+              @for (c of canalesDisponibles; track c.codigo + '::' + c.fuerzaId) {
+                <button class="ev-canal-card" (click)="seleccionarCanal(c.codigo, c.fuerzaId)">
                   <span class="ev-canal-card__fuerza">{{ c.fuerzaDesc }}</span>
                   <span class="ev-canal-card__nombre">{{ c.descripcion }}</span>
                   <span class="ev-canal-card__codigo">Canal {{ c.codigo }}</span>
