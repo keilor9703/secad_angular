@@ -74,6 +74,13 @@
         <div class="mfa-card__title">Activar doble autenticación (TOTP)</div>
         <div class="mfa-card__sub">Recomendado: Google Authenticator, Microsoft Authenticator, Authy</div>
       </div>
+      <button class="mfa-close-btn" type="button"
+              (click)="cancelMfa()"
+              [disabled]="mfaLoading"
+              title="Cerrar y volver al inicio de sesión"
+              aria-label="Cerrar">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
     </div>
 
     <div class="mfa-card__body mfa-enroll-grid">
@@ -138,6 +145,13 @@
         <div class="mfa-card__title">Verificación de seguridad</div>
         <div class="mfa-card__sub">Use el código de su app de autenticación</div>
       </div>
+      <button class="mfa-close-btn" type="button"
+              (click)="cancelMfa()"
+              [disabled]="mfaLoading"
+              title="Cerrar y volver al inicio de sesión"
+              aria-label="Cerrar">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
     </div>
 
     <div class="mfa-card__body">
@@ -187,6 +201,13 @@
         <div class="mfa-card__title">Restablecer autenticador por correo</div>
         <div class="mfa-card__sub">Enviaremos un código a su correo institucional</div>
       </div>
+      <button class="mfa-close-btn" type="button"
+              (click)="openModal('verify')"
+              [disabled]="mfaLoading"
+              title="Volver a la verificación"
+              aria-label="Cerrar">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
     </div>
 
     <div class="mfa-card__body">
@@ -252,6 +273,12 @@
         <div class="mfa-card__title">Acceso temporalmente bloqueado</div>
         <div class="mfa-card__sub">Se detectaron intentos fallidos</div>
       </div>
+      <button class="mfa-close-btn" type="button"
+              (click)="cancelMfa()"
+              title="Volver al inicio de sesión"
+              aria-label="Cerrar">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
     </div>
 
     <div class="mfa-card__body">
@@ -279,6 +306,12 @@
         <div class="mfa-card__title">Servicio de doble autenticación no disponible</div>
         <div class="mfa-card__sub">No es posible iniciar sesión en este momento</div>
       </div>
+      <button class="mfa-close-btn" type="button"
+              (click)="cancelMfa()"
+              title="Volver al inicio de sesión"
+              aria-label="Cerrar">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
     </div>
 
     <div class="mfa-card__body">

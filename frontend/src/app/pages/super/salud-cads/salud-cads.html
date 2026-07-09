@@ -208,22 +208,38 @@
       </div>
 
       <div class="historial-table-wrap" *ngIf="!loadingHistorial && historial.length > 0">
-        <div class="role-item historial-row" *ngFor="let h of historial">
-          <div class="role-item__content">
-            <strong>{{ h.registradoEn | date:'dd/MM/yyyy HH:mm' }}</strong>
-            <span class="meta">
-              <span class="ui-badge" [ngClass]="nivelClass(h.nivelOperacion)">
-                {{ nivelLabel(h.nivelOperacion) }}
-              </span>
-              <ng-container *ngIf="h.latenciaMs != null">
-                &nbsp;·&nbsp;Latencia: {{ h.latenciaMs }} ms
-              </ng-container>
-            </span>
-            <span class="meta" *ngIf="h.observacion">
-              <i class="fa-regular fa-comment-dots"></i> {{ h.observacion }}
-            </span>
-          </div>
-        </div>
+        <table class="historial-tbl">
+          <thead>
+            <tr>
+              <th class="col-fecha"><i class="fa-regular fa-clock"></i> Fecha / Hora</th>
+              <th class="col-estado">Estado</th>
+              <th class="col-latencia">Latencia</th>
+              <th class="col-obs">Observación</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr class="historial-row" *ngFor="let h of historial">
+              <td class="col-fecha">{{ h.registradoEn | date:'dd/MM/yyyy HH:mm' }}</td>
+              <td class="col-estado">
+                <span class="ui-badge" [ngClass]="nivelClass(h.nivelOperacion)">
+                  {{ nivelLabel(h.nivelOperacion) }}
+                </span>
+              </td>
+              <td class="col-latencia">
+                <span *ngIf="h.latenciaMs != null" [ngClass]="latenciaClass(h.latenciaMs)">
+                  <i class="fa-solid fa-bolt"></i> {{ h.latenciaMs }} ms
+                </span>
+                <span class="text-muted" *ngIf="h.latenciaMs == null">—</span>
+              </td>
+              <td class="col-obs">
+                <span *ngIf="h.observacion">
+                  <i class="fa-regular fa-comment-dots"></i> {{ h.observacion }}
+                </span>
+                <span class="text-muted" *ngIf="!h.observacion">—</span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </div>
 
       <div class="news-state" *ngIf="!loadingHistorial && historial.length === 0">
