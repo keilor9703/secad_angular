@@ -211,7 +211,7 @@ SELECT m.id, m.sitio_graba, m.turno_id, m.turno_unidad_id,
            ''
        ) AS personal_raw
 FROM   cad_medios_disponibles m
-LEFT   JOIN cad_canales c ON c.codigo = m.canal_codigo
+LEFT   JOIN cad_canales c ON c.codigo = m.canal_codigo AND c.cadfuerz_id = m.canal_fuerza_id
 WHERE  m.turno_id = @tid
   AND  (@uid::BIGINT IS NULL OR m.turno_unidad_id = @uid)
 ORDER  BY m.estado ASC, m.patrulla_codigo ASC";
@@ -254,7 +254,7 @@ SELECT m.id, m.sitio_graba, m.turno_id, m.turno_unidad_id,
        ) AS personal_raw
 FROM   cad_medios_disponibles m
 JOIN   cad_turnos t ON t.id = m.turno_id
-LEFT   JOIN cad_canales c ON c.codigo = m.canal_codigo
+LEFT   JOIN cad_canales c ON c.codigo = m.canal_codigo AND c.cadfuerz_id = m.canal_fuerza_id
 WHERE  m.canal_codigo = @canal
   AND  t.estado       = 'A'
   AND  t.hora_inicia  <= (NOW() AT TIME ZONE 'America/Bogota')
@@ -720,6 +720,11 @@ RETURNING id";
             if (string.IsNullOrWhiteSpace(req.PatrullaCodigo))
                 return Fail("El código de patrulla es obligatorio.");
 
+            // Normalizar igual que P_ActualizarMedioAsync, para que el chequeo de
+            // duplicados y el ON CONFLICT (turno_id, patrulla_codigo) comparen
+            // siempre el mismo formato (evita duplicados por mayúsculas/espacios).
+            req.PatrullaCodigo = req.PatrullaCodigo.Trim().ToUpper();
+
             await using var conn = await _tenant.DataSource.OpenConnectionAsync(ct);
             await using var tx   = await conn.BeginTransactionAsync(ct);
 
@@ -758,14 +763,19 @@ WHERE  m.patrulla_codigo = @pat
                     if (rawSg is not null and not DBNull) sitioGrabaT = Convert.ToInt32(rawSg);
                 }
 
-                // Obtener snapshot del canal
+                // Obtener snapshot del canal.
+                // cad_canales.codigo NO es único por sí solo (PK compuesta con
+                // cadfuerz_id: cada fuerza numera sus canales desde 1) — hay que
+                // filtrar también por canal_fuerza_id o se puede traer el canal
+                // de otra fuerza que reutiliza el mismo código.
                 string canalDesc = "";
-                if (req.CanalCodigo.HasValue)
+                if (req.CanalCodigo.HasValue && req.CanalFuerzaId.HasValue)
                 {
                     await using var qCan = conn.CreateCommand();
                     qCan.Transaction = tx;
-                    qCan.CommandText = "SELECT descripcion FROM cad_canales WHERE codigo = @c LIMIT 1";
-                    qCan.Parameters.AddWithValue("c", req.CanalCodigo.Value);
+                    qCan.CommandText = "SELECT descripcion FROM cad_canales WHERE codigo = @c AND cadfuerz_id = @cf LIMIT 1";
+                    qCan.Parameters.AddWithValue("c",  req.CanalCodigo.Value);
+                    qCan.Parameters.AddWithValue("cf", req.CanalFuerzaId.Value);
                     var raw = await qCan.ExecuteScalarAsync(ct);
                     if (raw is not null and not DBNull) canalDesc = raw.ToString()!;
                 }
@@ -1412,14 +1422,18 @@ WHERE  turno_id = @tid AND patrulla_codigo = @pat AND id <> @mid";
                     }
                 }
 
-                // 3. Snapshot de descripción del canal (si aplica)
+                // 3. Snapshot de descripción del canal (si aplica).
+                //    cad_canales.codigo se numera por fuerza (no es único por sí
+                //    solo) — filtrar también por cadfuerz_id o se trae el canal
+                //    de otra fuerza que reutiliza el mismo código.
                 string canalDesc = "";
-                if (req.CanalCodigo.HasValue)
+                if (req.CanalCodigo.HasValue && req.CanalFuerzaId.HasValue)
                 {
                     await using var qCan = conn.CreateCommand();
                     qCan.Transaction = tx;
-                    qCan.CommandText = "SELECT descripcion FROM cad_canales WHERE codigo = @c LIMIT 1";
-                    qCan.Parameters.AddWithValue("c", req.CanalCodigo.Value);
+                    qCan.CommandText = "SELECT descripcion FROM cad_canales WHERE codigo = @c AND cadfuerz_id = @cf LIMIT 1";
+                    qCan.Parameters.AddWithValue("c",  req.CanalCodigo.Value);
+                    qCan.Parameters.AddWithValue("cf", req.CanalFuerzaId.Value);
                     var desc = await qCan.ExecuteScalarAsync(ct);
                     if (desc is not null and not DBNull) canalDesc = desc.ToString()!;
                 }
