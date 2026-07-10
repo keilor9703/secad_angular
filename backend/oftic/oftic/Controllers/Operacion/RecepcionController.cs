@@ -160,8 +160,10 @@ namespace Api.Controllers.Operacion
                 return BadRequest(new { success = false, data = new List<object>(), message = "Datos requeridos" });
             try
             {
+                // Ignorar dto.SitioGraba (controlado por el cliente) — usar siempre el
+                // sitio del operador autenticado, igual que ya se hace con FuerzaId.
                 var data = await _svc.F_BuscarLlamadasAsociarAsync(
-                    dto.SitioGraba, dto.HoraCaso, dto.NumeLlamada, ct);
+                    SitioGraba, dto.HoraCaso, dto.NumeLlamada, ct);
                 return Ok(new { success = true, data, message = "" });
             }
             catch (Exception ex)
@@ -183,6 +185,15 @@ namespace Api.Controllers.Operacion
         {
             if (datos is null)
                 return BadRequest(new { success = false, message = "Datos requeridos" });
+            // El frontend ya valida esto, pero sin la misma regla en el servidor un
+            // caso puede quedar "enviado" sin ningún canal notificado — invisible para
+            // cualquier despachador, sin ningún error visible para el operador.
+            if (datos.CANALES_SELECCIONADOS is null || datos.CANALES_SELECCIONADOS.Count == 0)
+                return BadRequest(new { success = false, message = "Debe seleccionar al menos un canal de despacho." });
+            // Ignorar datos.SITIO_GRABA del body — usar siempre el sitio del operador
+            // autenticado, para que un operador no pueda escribir en un sitio ajeno
+            // con solo alterar el payload.
+            datos.SITIO_GRABA = SitioGraba;
             try
             {
                 var result = await _svc.P_GuardarLlamadaAsync(datos, FuerzaId, UsuarioClaim, EmpleadoId, ct);
@@ -208,6 +219,7 @@ namespace Api.Controllers.Operacion
         {
             if (datos is null)
                 return BadRequest(new { success = false, message = "Datos requeridos" });
+            datos.SITIO_GRABA = SitioGraba;
             try
             {
                 var result = await _svc.P_CerrarLlamadaRapidaAsync(datos, UsuarioClaim, ct);

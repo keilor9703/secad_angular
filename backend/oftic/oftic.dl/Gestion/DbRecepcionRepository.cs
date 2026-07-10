@@ -36,51 +36,83 @@ namespace Datos.Gestion
             int sitioGraba, int acd, CancellationToken ct)
         {
             await using var conn = await _tenant.DataSource.OpenConnectionAsync(ct);
-            long numeTelefono    = 0;
+            await using var tx   = await conn.BeginTransactionAsync(ct);
 
-            await using (var cmd = conn.CreateCommand())
+            try
             {
-                cmd.CommandText = @"
-                    SELECT id, nume_telefono
-                    FROM   cad_interfaz_cti
-                    WHERE  sitio_graba = @sg AND acd = @acd AND registrada = 'N'
-                    ORDER  BY fecha_registro ASC
-                    LIMIT  1";
-                cmd.Parameters.AddWithValue("sg",  sitioGraba);
-                cmd.Parameters.AddWithValue("acd", acd);
+                long id;
+                long numeTelefono;
 
-                await using var rdr = await cmd.ExecuteReaderAsync(ct);
-                if (!await rdr.ReadAsync(ct)) return null;
-                numeTelefono = rdr.IsDBNull(1) ? 0 : rdr.GetInt64(1);
+                // FOR UPDATE SKIP LOCKED: si dos pollers concurrentes llegan a la vez,
+                // el segundo salta esta fila (ya bloqueada por el primero) en vez de
+                // esperar y recibir la misma llamada dos veces.
+                await using (var cmd = conn.CreateCommand())
+                {
+                    cmd.Transaction = tx;
+                    cmd.CommandText = @"
+                        SELECT id, nume_telefono
+                        FROM   cad_interfaz_cti
+                        WHERE  sitio_graba = @sg AND acd = @acd AND registrada = 'N'
+                        ORDER  BY fecha_registro ASC
+                        LIMIT  1
+                        FOR UPDATE SKIP LOCKED";
+                    cmd.Parameters.AddWithValue("sg",  sitioGraba);
+                    cmd.Parameters.AddWithValue("acd", acd);
+
+                    await using var rdr = await cmd.ExecuteReaderAsync(ct);
+                    if (!await rdr.ReadAsync(ct))
+                    {
+                        await tx.RollbackAsync(ct);
+                        return null;
+                    }
+                    id           = rdr.GetInt64(0);
+                    numeTelefono = rdr.IsDBNull(1) ? 0 : rdr.GetInt64(1);
+                }
+
+                if (numeTelefono == 0)
+                {
+                    await tx.RollbackAsync(ct);
+                    return null;
+                }
+
+                // Generar ID Snowflake — sin round-trip a la BD
+                long numeLlamada = _snowflake.NextId();
+
+                // Marcar SOLO la fila leída — antes marcaba TODAS las 'N' del sitio/acd,
+                // perdiendo silenciosamente cualquier llamada adicional encolada en el
+                // mismo instante (nunca se le devolvía a ningún operador y quedaba
+                // marcada 'S' sin haber sido atendida).
+                await using (var upd = conn.CreateCommand())
+                {
+                    upd.Transaction = tx;
+                    upd.CommandText = @"
+                        UPDATE cad_interfaz_cti
+                        SET    registrada = 'S'
+                        WHERE  id = @id";
+                    upd.Parameters.AddWithValue("id", id);
+                    await upd.ExecuteNonQueryAsync(ct);
+                }
+
+                await tx.CommitAsync(ct);
+
+                return new DtoLlamadaEntrante
+                {
+                    NUME_LLAMADA  = numeLlamada,
+                    NUME_TELEFONO = numeTelefono,
+                    CORDX         = "0",
+                    CORDY         = "0",
+                    TIPOSHAPE     = "Nulo",
+                    RADIO         = 0,
+                    FECHAGMLC     = DateTime.Now.ToString(HoraFormat),
+                    OPERADOR      = ""
+                };
             }
-
-            if (numeTelefono == 0) return null;
-
-            // Generar ID Snowflake — sin round-trip a la BD
-            long numeLlamada = _snowflake.NextId();
-
-            await using (var upd = conn.CreateCommand())
+            catch (Exception ex)
             {
-                upd.CommandText = @"
-                    UPDATE cad_interfaz_cti
-                    SET    registrada = 'S'
-                    WHERE  sitio_graba = @sg AND acd = @acd AND registrada = 'N'";
-                upd.Parameters.AddWithValue("sg",  sitioGraba);
-                upd.Parameters.AddWithValue("acd", acd);
-                await upd.ExecuteNonQueryAsync(ct);
+                await tx.RollbackAsync(ct);
+                _logger.LogError(ex, "Error al obtener llamada CTI sitioGraba={Sg} acd={Acd}", sitioGraba, acd);
+                throw;
             }
-
-            return new DtoLlamadaEntrante
-            {
-                NUME_LLAMADA  = numeLlamada,
-                NUME_TELEFONO = numeTelefono,
-                CORDX         = "0",
-                CORDY         = "0",
-                TIPOSHAPE     = "Nulo",
-                RADIO         = 0,
-                FECHAGMLC     = DateTime.Now.ToString(HoraFormat),
-                OPERADOR      = ""
-            };
         }
 
         public async Task<DtoCtiEntradaResult> P_RegistrarLlamadaCtiAsync(
@@ -254,6 +286,7 @@ namespace Datos.Gestion
                 FROM   cad_pedidos a
                 LEFT   JOIN cad_lugares_geograficos l ON l.codigo = a.luge_codigo
                 WHERE  a.sitio_graba = @sg
+                  AND  a.estado NOT IN ('C','V')
                   AND  COALESCE(TRIM(a.codi_pedido),'0') <> '900'
                   AND  a.hora_caso <= @ref
                   AND  a.hora_caso  > @ref - INTERVAL '200 minutes'
@@ -298,6 +331,12 @@ namespace Datos.Gestion
                 var (codiBarrio, lugeBarrio, barrioNoEncontrado) =
                     await BuscarBarrioAsync(conn, tx, d.SITIO_GRABA, d.BARRIO, d.CIUDAD, ct);
 
+                // Si el parseo falla, horaCaso queda en default(DateTime) — se
+                // degrada a DateTime.Now en el binding de abajo en vez de DBNull,
+                // porque hora_caso es NOT NULL: un DBNull explícito en un INSERT
+                // que sí lista la columna revienta la transacción entera por un
+                // simple problema de formato (no aplica el DEFAULT NOW() de la
+                // columna, eso solo pasa si la columna se omite del INSERT).
                 DateTime.TryParseExact(d.HORA_CASO, HoraFormat,
                     System.Globalization.CultureInfo.InvariantCulture,
                     System.Globalization.DateTimeStyles.None, out var horaCaso);
@@ -344,7 +383,7 @@ VALUES
 
                     ins.Parameters.AddWithValue("sg",       d.SITIO_GRABA);
                     ins.Parameters.AddWithValue("nl",       d.NUME_LLAMADA);
-                    ins.Parameters.AddWithValue("hc",       horaCaso == default ? (object)DBNull.Value : horaCaso);
+                    ins.Parameters.AddWithValue("hc",       horaCaso == default ? (object)DateTime.Now : horaCaso);
                     ins.Parameters.AddWithValue("disp",     NullOrString(d.DISP_TELEFONICO));
                     ins.Parameters.AddWithValue("celda",    NullOrString(d.OPERADOR));
                     ins.Parameters.AddWithValue("tel",      d.NUME_TELEFONO);
@@ -368,7 +407,12 @@ VALUES
                     ins.Parameters.AddWithValue("enviar",   NullOrString(d.ENVIAR));
                     ins.Parameters.AddWithValue("usuario",  NullOrString(usuario));
                     ins.Parameters.AddWithValue("empleado", idEmpleado == 0 ? (object)DBNull.Value : idEmpleado);
-                    ins.Parameters.AddWithValue("cadiSitio",NullOrString(d.CADPEDI_SITIO_GRABA));
+                    // cadpedi_sitio_graba es INTEGER — castear, no bindear como texto
+                    // (con AddWithValue(string) Npgsql infiere `text` y Postgres rechaza
+                    // el INSERT con 42804 "column is of type integer but expression is of type text").
+                    ins.Parameters.AddWithValue("cadiSitio", string.IsNullOrWhiteSpace(d.CADPEDI_SITIO_GRABA)
+                                                            ? (object)DBNull.Value
+                                                            : Convert.ToInt32(d.CADPEDI_SITIO_GRABA));
                     ins.Parameters.AddWithValue("cadiNum",  string.IsNullOrWhiteSpace(d.CADPEDI_NUME_LLAMADA)
                                                             ? (object)DBNull.Value
                                                             : Convert.ToInt64(d.CADPEDI_NUME_LLAMADA));
@@ -379,8 +423,16 @@ VALUES
 
                 // ── 2. Generar ID del evento (Snowflake — sin round-trip) ─────
                 long numeEvento   = _snowflake.NextId();
+                // fuerza_id/canal_codigo deben ser los del CANAL elegido, no los del
+                // operador que digita — SECAD es multi-agencia y un operador de la
+                // Fuerza A puede despachar a un canal de la Fuerza B. Usar canalFuerza
+                // (fuerza del operador) aquí corrompía cad_eventos.fuerza_id en despacho
+                // cruzado, afectando reportes por fuerza (DbReporteRepository) y el JOIN
+                // a cad_canales (que exige (codigo, cadfuerz_id) exactos).
                 int  canalPrimario = d.CANALES_SELECCIONADOS.Count > 0
                                    ? d.CANALES_SELECCIONADOS[0].Codigo : 0;
+                int  fuerzaCanal   = d.CANALES_SELECCIONADOS.Count > 0
+                                   ? d.CANALES_SELECCIONADOS[0].FuerzaId : canalFuerza;
                 string origenEvento = string.IsNullOrWhiteSpace(d.Origen)
                                     ? OrigenEvento.Recepcion : d.Origen;
 
@@ -407,8 +459,8 @@ INSERT INTO cad_eventos (
                     insEvt.Parameters.AddWithValue("origen",   origenEvento);
                     insEvt.Parameters.AddWithValue("pedidoId", newPedidoId);   // cad_pedidos.id Snowflake
                     insEvt.Parameters.AddWithValue("pedidoSg", d.SITIO_GRABA);
-                    insEvt.Parameters.AddWithValue("fuerzaId", canalFuerza == 0
-                                                       ? (object)DBNull.Value : canalFuerza);
+                    insEvt.Parameters.AddWithValue("fuerzaId", fuerzaCanal == 0
+                                                       ? (object)DBNull.Value : fuerzaCanal);
                     insEvt.Parameters.AddWithValue("canal",    canalPrimario == 0
                                                        ? (object)DBNull.Value : canalPrimario);
                     // cedu_empleado = VARCHAR(20): guardar solo si cabe.
@@ -499,6 +551,13 @@ DO NOTHING";
                     System.Globalization.DateTimeStyles.None, out var horaCaso);
 
                 // ── 1. INSERT cad_pedidos ─────────────────────────────────────
+                // luge_codigo/luge_barrio/codi_barrio quedan NULL a propósito: son
+                // codespaces de cad_lugares_geograficos (ciudad/municipio, resueltos
+                // vía BuscarBarrioAsync en el flujo completo), un cierre rápido no
+                // tiene ubicación real que resolver. Antes se insertaba d.SITIO_GRABA
+                // (el ID de la consola, un codespace totalmente distinto) ahí, lo que
+                // podía coincidir por casualidad con un código geográfico real y
+                // producir datos de ubicación incorrectos mostrados como válidos.
                 long newPedidoId = _snowflake.NextId();
                 await using (var ins = conn.CreateCommand())
                 {
@@ -517,7 +576,7 @@ VALUES
     (@newPedidoId,
      @sg, @nl, @hc, @hc,
      @tel, @propTel,
-     @sg, NULL, NULL, @sg,
+     NULL, NULL, NULL, NULL,
      NULL, NULL,
      @coment, @codi, '01', '01',
      @estado, @enviar, @usuario,
@@ -525,7 +584,7 @@ VALUES
                     ins.Parameters.AddWithValue("newPedidoId", newPedidoId);
                     ins.Parameters.AddWithValue("sg",      d.SITIO_GRABA);
                     ins.Parameters.AddWithValue("nl",      d.NUME_LLAMADA);
-                    ins.Parameters.AddWithValue("hc",      horaCaso == default ? (object)DBNull.Value : horaCaso);
+                    ins.Parameters.AddWithValue("hc",      horaCaso == default ? (object)DateTime.Now : horaCaso);
                     ins.Parameters.AddWithValue("tel",     d.NUME_TELEFONO);
                     ins.Parameters.AddWithValue("propTel", NullOrString(d.PROP_TELEFONO));
                     ins.Parameters.AddWithValue("coment",  NullOrString(d.COMENTARIO));
@@ -755,18 +814,30 @@ SET    estado               = @estado,
        fecha_modificacion   = NOW(),
        usuario_modifica     = @usuario
 WHERE  id = @id
-  AND  estado NOT IN ('C','V')";    // no se puede reabrir un evento cerrado/anulado
+  AND  estado NOT IN ('C','V')
+RETURNING pedido_id";    // no se puede reabrir un evento cerrado/anulado
 
             cmd.Parameters.AddWithValue("estado",  estado);
             cmd.Parameters.AddWithValue("usuario", usuario);
             cmd.Parameters.AddWithValue("id",      eventoId);
 
-            var rows = await cmd.ExecuteNonQueryAsync(ct);
+            var rawPedidoId = await cmd.ExecuteScalarAsync(ct);
+            var success = rawPedidoId is not null and not DBNull;
+
+            // Red de seguridad: es la única transición de estado de evento que no
+            // pasaba por EstadoPedidoHelper — normalmente ya está en 'E' desde que
+            // se abrió el evento, esto solo actúa si quedó atrás manualmente.
+            if (success)
+            {
+                try { await EstadoPedidoHelper.PromoverPorPedidoIdAsync(conn, null, Convert.ToInt64(rawPedidoId), ct); }
+                catch (Exception ex) { _logger.LogWarning(ex, "Error promoviendo estado tras actualizar ciclo evento={Id}", eventoId); }
+            }
+
             return new DtoEventoResult
             {
-                Success  = rows > 0,
+                Success  = success,
                 EventoId = eventoId,
-                Message  = rows > 0
+                Message  = success
                     ? $"Evento {eventoId} actualizado a estado '{estado}'."
                     : $"Evento {eventoId} no encontrado o ya está cerrado."
             };
@@ -782,6 +853,28 @@ WHERE  id = @id
         {
             if (req.EventoId <= 0)
                 return new DtoEventoResult { Success = false, Message = "EventoId inválido." };
+
+            // Validar dominio/longitud ANTES de tocar la BD — sin esto, un código de
+            // cierre demasiado largo, un tipo fuera del CHECK, un Orden fuera de rango
+            // o dos códigos con el mismo Orden (viola la PK compuesta (evento_id,orden))
+            // revientan el INSERT con una excepción cruda de Postgres a mitad de la
+            // transacción (columnas reales: codigo_cierre VARCHAR(6), tipo_codigo
+            // CHECK IN ('CIERRE','DISPOSICION','NOVEDAD'), orden SMALLINT 1..20).
+            if (req.ClasifCierre is { Length: > 2 })
+                return new DtoEventoResult { Success = false, EventoId = req.EventoId, Message = "Clasificación de cierre inválida (máx. 2 caracteres)." };
+            var ordenesVistos = new HashSet<int>();
+            foreach (var codigo in req.CodigosCierre)
+            {
+                if (string.IsNullOrWhiteSpace(codigo.CodigoCierre) || codigo.CodigoCierre.Length > 6)
+                    return new DtoEventoResult { Success = false, EventoId = req.EventoId, Message = $"Código de cierre inválido: '{codigo.CodigoCierre}' (máx. 6 caracteres)." };
+                if (codigo.Orden is < 1 or > 20)
+                    return new DtoEventoResult { Success = false, EventoId = req.EventoId, Message = $"Orden de código de cierre fuera de rango (1-20): {codigo.Orden}." };
+                if (!ordenesVistos.Add(codigo.Orden))
+                    return new DtoEventoResult { Success = false, EventoId = req.EventoId, Message = $"Orden de código de cierre duplicado: {codigo.Orden}." };
+                var tipo = string.IsNullOrWhiteSpace(codigo.TipoCodigo) ? "CIERRE" : codigo.TipoCodigo;
+                if (tipo is not ("CIERRE" or "DISPOSICION" or "NOVEDAD"))
+                    return new DtoEventoResult { Success = false, EventoId = req.EventoId, Message = $"Tipo de código inválido: '{tipo}'. Valores permitidos: CIERRE, DISPOSICION, NOVEDAD." };
+            }
 
             var estadoFinal = req.Estado is EstadoEvento.Cerrado or EstadoEvento.Anulado
                             ? req.Estado : EstadoEvento.Cerrado;
@@ -932,6 +1025,25 @@ WHERE  id = @pedidoId";
 
             try
             {
+                // cad_integraciones_clientes.vigente existe justamente para poder
+                // revocar el acceso de un sistema externo sin borrar su registro
+                // (preserva el FK histórico) — sin este chequeo, un cliente
+                // desactivado podía seguir creando eventos indefinidamente.
+                if (req.IntegracionClienteId > 0)
+                {
+                    await using var cmdVig = conn.CreateCommand();
+                    cmdVig.Transaction = tx;
+                    cmdVig.CommandText = "SELECT vigente FROM cad_integraciones_clientes WHERE id = @id";
+                    cmdVig.Parameters.AddWithValue("id", req.IntegracionClienteId);
+                    var vigente = await cmdVig.ExecuteScalarAsync(ct) as string;
+                    if (vigente != "S")
+                    {
+                        await tx.RollbackAsync(ct);
+                        return new DtoEventoResult { Success = false,
+                            Message = $"Cliente de integración {req.IntegracionClienteId} no existe o no está vigente." };
+                    }
+                }
+
                 long pedidoId = _snowflake.NextId();
                 long eventoId = _snowflake.NextId();
 
@@ -1150,6 +1262,16 @@ WHERE  UPPER(l.descripcion) LIKE '%' || @c || '%'";
                         numeLlamada = rNl.GetInt64(0);
                         sitioGraba  = rNl.GetInt32(1);
                     }
+                    else
+                    {
+                        // Antes seguía usando req.PedidoId/req.SitioGraba (controlados
+                        // por el cliente) como si fueran nume_llamada/sitio_graba reales,
+                        // insertando filas huérfanas en cad_pedidos_canales que apuntan
+                        // a un pedido inexistente, sin ningún error (success=true).
+                        await rNl.CloseAsync();
+                        await tx.RollbackAsync(ct);
+                        return (false, $"Pedido {req.PedidoId} no encontrado.", 0);
+                    }
                 }
 
                 var comentario = string.IsNullOrWhiteSpace(req.Observacion)
@@ -1240,6 +1362,13 @@ WHERE  UPPER(l.descripcion) LIKE '%' || @c || '%'";
             // Se protege contra valores varchar no numéricos con regex.
             // Solo se incluyen pedidos reales despachados (enviar = 'S'),
             // excluyendo cierres rápidos (estado = 'C') y anulados.
+            // DECISIÓN EXPLÍCITA: a diferencia de F_BuscarLlamadasAsociarAsync/
+            // F_GetCanalesAsync, esta búsqueda NO filtra por sitio_graba — es
+            // intencional. Un mismo incidente real puede ser reportado por
+            // distintos testigos a consolas/líneas diferentes dentro de la misma
+            // ciudad; restringir la detección de duplicados al sitio del operador
+            // que está digitando reduciría su utilidad real (dejaría de detectar
+            // justamente el caso más común de llamada duplicada entre consolas).
             cmd.CommandText = @"
                 SELECT p.id,
                        p.sitio_graba,
