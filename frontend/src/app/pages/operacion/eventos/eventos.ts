@@ -1225,6 +1225,21 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
   }
 
   /**
+   * true si el canal/fuerza de la sesión activa es el mismo que asignó este
+   * recurso — solo ese canal puede gestionarlo en un evento multi-canal (ver
+   * VerificarCanalPropietarioAsync en el backend, que es quien realmente lo
+   * hace cumplir). Aquí solo se usa para no ofrecer botones que van a fallar;
+   * actuaciones legacy sin canal_codigo/fuerza_id, o si por algún motivo la
+   * sesión no tiene su propio canal resuelto, se dejan visibles (mismo criterio
+   * "fail-open" que aplica el backend).
+   */
+  puedeGestionarActuacion(act: DtoActuacionListItem): boolean {
+    if (act.canalCodigo == null || act.fuerzaId == null) return true;
+    if (!this.canalSeleccionado || !this.fuerzaId) return true;
+    return act.canalCodigo === this.canalSeleccionado && act.fuerzaId === this.fuerzaId;
+  }
+
+  /**
    * PASO 2 — Marcar inicio de ruta (En camino).
    * Actuación P → D · registra fecha_despacho · medio → 30 (En ruta).
    */

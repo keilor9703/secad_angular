@@ -1584,6 +1584,21 @@ html.dark-mode {
   margin-left:   4px;
 }
 
+// ── Aviso de solo-lectura: recurso asignado por otro canal ────
+.ev-dispatch-readonly {
+  display:       inline-flex;
+  align-items:   center;
+  gap:           6px;
+  padding:       4px 10px;
+  border-radius: 6px;
+  background:    rgba(100,116,139,.12);
+  color:         rgba(21,27,59,.65);
+  font-size:     calc(10.5px * var(--font-size-scale));
+  font-style:    italic;
+
+  i { color: rgba(100,116,139,.8); }
+}
+
 // ── Badge "Ocupado" en tabla de recursos ──────────────────────
 .ev-rec-ocupado-badge {
   display:       inline-flex;
@@ -2095,6 +2110,12 @@ html.dark-mode {
     &__badge        { background: rgba(8,166,203,.16); color: #67e8f9; }
     &__badge--cerrado { background: rgba(148,163,184,.14); color: rgba(228,231,235,.55); }
     &__badge--info    { background: rgba(167,139,250,.16); color: #c4b5fd; }
+  }
+
+  .ev-dispatch-readonly {
+    background: rgba(148,163,184,.14);
+    color:      rgba(228,231,235,.65);
+    i { color: rgba(148,163,184,.85); }
   }
 
   .ev-radio-label {

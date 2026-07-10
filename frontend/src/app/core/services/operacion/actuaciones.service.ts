@@ -78,6 +78,14 @@ export interface DtoActuacionListItem {
   eventoId:        string;   // Snowflake → string
   fuerzaDesc:      string;
   canalDesc:       string;
+  /**
+   * Canal/fuerza que asignó este recurso. Se compara contra la sesión activa
+   * para habilitar los botones de gestión — solo el canal que lo asignó puede
+   * operarlo (el backend igual lo valida; esto es solo para no ofrecer
+   * acciones que van a fallar).
+   */
+  canalCodigo?:    number;
+  fuerzaId?:       number;
   unidadAsignada?: string;
   estado:          EstadoActuacion;
   fechaCreacion:   string;

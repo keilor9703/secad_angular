@@ -56,7 +56,9 @@ SELECT a.id, a.evento_id,
        (SELECT COUNT(*) FROM cad_actuaciones_unidades u WHERE u.actuacion_id = a.id) AS total_unidades,
        (SELECT COUNT(*) FROM cad_actuaciones_notas    n WHERE n.actuacion_id = a.id) AS total_notas,
        a.placa_unidad,         -- col 13
-       a.despachador_usuario   -- col 14: quien despachó el recurso
+       a.despachador_usuario,  -- col 14: quien despachó el recurso
+       a.canal_codigo,         -- col 15
+       a.fuerza_id             -- col 16
 FROM   cad_actuaciones a
 LEFT   JOIN cad_fuerzas f ON f.id     = a.fuerza_id
 LEFT   JOIN cad_canales c ON c.codigo = a.canal_codigo AND c.cadfuerz_id = a.fuerza_id
@@ -94,7 +96,9 @@ ORDER  BY
                     TotalUnidades       = rdr.IsDBNull(11) ? 0   : (int)rdr.GetInt64(11),
                     TotalNotas          = rdr.IsDBNull(12) ? 0   : (int)rdr.GetInt64(12),
                     PlacaUnidad         = rdr.IsDBNull(13) ? null : rdr.GetString(13),
-                    DespachadorUsuario  = rdr.IsDBNull(14) ? null : rdr.GetString(14)
+                    DespachadorUsuario  = rdr.IsDBNull(14) ? null : rdr.GetString(14),
+                    CanalCodigo         = rdr.IsDBNull(15) ? null : rdr.GetInt32(15),
+                    FuerzaId            = rdr.IsDBNull(16) ? null : rdr.GetInt32(16)
                 });
             return result;
         }

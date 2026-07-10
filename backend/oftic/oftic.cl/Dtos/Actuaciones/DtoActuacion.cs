@@ -82,6 +82,14 @@ public class DtoActuacionListItem
     public long    EventoId        { get; set; }
     public string  FuerzaDesc      { get; set; } = "";
     public string  CanalDesc       { get; set; } = "";
+    /// <summary>
+    /// Canal/fuerza que asignó este recurso (cad_actuaciones.canal_codigo/fuerza_id).
+    /// El frontend los compara contra la sesión activa para habilitar o no los
+    /// botones de gestión — solo el canal que asignó el recurso puede operarlo
+    /// (ver VerificarCanalPropietarioAsync en el backend).
+    /// </summary>
+    public int?    CanalCodigo     { get; set; }
+    public int?    FuerzaId        { get; set; }
     public string? UnidadAsignada  { get; set; }
     public string  Estado          { get; set; } = "";
     public string  FechaCreacion   { get; set; } = "";

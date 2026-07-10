@@ -866,6 +866,14 @@
 
                           <!-- Botones de acción según estado actual -->
                           @if (act.estado !== 'C' && act.estado !== 'V' && detalle!.estado !== 'C') {
+                            @if (!puedeGestionarActuacion(act)) {
+                              <div class="ev-dispatch-row__actions">
+                                <span class="ev-dispatch-readonly">
+                                  <i class="fa-solid fa-lock"></i>
+                                  Asignado por {{ act.fuerzaDesc || 'otro' }} – {{ act.canalDesc || 'otro canal' }}. Solo ese canal puede gestionarlo.
+                                </span>
+                              </div>
+                            } @else {
                             <div class="ev-dispatch-row__actions">
 
                               @if (act.estado === 'P') {
@@ -926,6 +934,7 @@
                               </button>
 
                             </div>
+                            }
                           }
 
                         </div><!-- /ev-dispatch-row -->
