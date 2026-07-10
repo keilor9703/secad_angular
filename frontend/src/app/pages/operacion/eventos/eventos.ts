@@ -1372,6 +1372,11 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
         if (this.cerrarEventoAlAtender && this.detalle) {
           // Cerrar también el evento — solo datos de cierre van a cad_eventos;
           // cad_pedidos.comentario es inmutable y NO se toca aquí.
+          // Nota: si esta era la última actuación abierta, el backend ya cerró
+          // cad_eventos.estado automáticamente (fn_recalcular_estado_evento) antes
+          // de que esta llamada llegue — esta petición sigue siendo necesaria
+          // porque es la que persiste los códigos de cierre y la observación
+          // (el recálculo automático solo cambia el estado, no esos datos).
           this.eventoSvc.cerrar(this.detalle.id, {
             estado:            'C',
             observacionCierre: req.observacionCierre?.trim() || 'Cerrado al atender.',
@@ -1383,10 +1388,25 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
             }))
           }).subscribe({
             next: (r) => {
-              if (r.success) { this.volverLista(); }
-              this.recargarAhora();
+              if (r.success) {
+                this.toast.success('Evento cerrado', r.message || 'El evento se cerró correctamente.');
+                this.volverLista();
+              } else {
+                // Antes este caso ni siquiera se alcanzaba aquí (llegaba como error
+                // HTTP 400 y caía en la rama `error` de abajo, silenciada).
+                this.toast.warning('Cerrar evento', r.message || 'No se pudo cerrar el evento.');
+                this.recargarAhora();
+              }
             },
-            error: () => { this.recargarAhora(); }
+            error: (e) => {
+              // Antes se descartaba en silencio — el despachador nunca se enteraba
+              // de que el evento había quedado cerrado (por la última actuación)
+              // pero SIN los códigos de cierre ni la observación que acababa de
+              // digitar, porque esta petición es la única que los persiste.
+              this.toast.error('Cerrar evento',
+                e.error?.message ?? 'La actuación se cerró, pero no se pudo cerrar el evento. Intente cerrarlo manualmente.');
+              this.recargarAhora();
+            }
           });
         } else {
           this.recargarActuaciones();

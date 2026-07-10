@@ -334,16 +334,18 @@ WHERE  actuacion_id = @actId";
 
             try
             {
-                // ── 1. Obtener evento_id para el recálculo ────────────────────
+                // ── 1. Obtener evento_id + pedido_id para el recálculo ────────
                 long eventoId = 0;
+                long pedidoId = 0;
                 await using (var qEvt = conn.CreateCommand())
                 {
                     qEvt.Transaction = tx;
-                    qEvt.CommandText = "SELECT evento_id FROM cad_actuaciones WHERE id = @id";
+                    qEvt.CommandText = "SELECT evento_id, pedido_id FROM cad_actuaciones WHERE id = @id";
                     qEvt.Parameters.AddWithValue("id", req.ActuacionId);
-                    var raw = await qEvt.ExecuteScalarAsync(ct);
-                    if (raw is null or DBNull)
+                    await using var rEvt = await qEvt.ExecuteReaderAsync(ct);
+                    if (!await rEvt.ReadAsync(ct))
                     {
+                        await rEvt.CloseAsync();
                         await tx.RollbackAsync(ct);
                         return new DtoActuacionResult
                         {
@@ -352,7 +354,8 @@ WHERE  actuacion_id = @actId";
                             Message     = $"Actuación {req.ActuacionId} no encontrada."
                         };
                     }
-                    eventoId = Convert.ToInt64(raw);
+                    eventoId = rEvt.GetInt64(0);
+                    pedidoId = rEvt.GetInt64(1);
                 }
 
                 // ── 2. UPDATE cad_actuaciones ─────────────────────────────────
@@ -453,12 +456,36 @@ ON CONFLICT (actuacion_id) DO UPDATE
 
                 // ── 5. Recalcular estado global del evento ────────────────────
                 // fn_recalcular_estado_evento ya existe en BD (creada en V8).
+                // Si esta era la última actuación pendiente, deja cad_eventos.estado
+                // en 'C' automáticamente vía esta función (y también vía el trigger
+                // trg_actuaciones_estado sobre el UPDATE del paso 2 — es idempotente).
                 await using (var fnEvt = conn.CreateCommand())
                 {
                     fnEvt.Transaction = tx;
                     fnEvt.CommandText = "SELECT fn_recalcular_estado_evento(@eid)";
                     fnEvt.Parameters.AddWithValue("eid", eventoId);
                     await fnEvt.ExecuteNonQueryAsync(ct);
+                }
+
+                // ── 5b. Sincronizar cad_pedidos si el recálculo cerró el evento ──
+                // fn_recalcular_estado_evento SOLO toca cad_eventos — nunca
+                // cad_pedidos. Sin este paso, cerrar la última actuación de un
+                // evento (con o sin elegir "cerrar el evento" en el modal Atendió)
+                // dejaba el pedido fantasma en 'En proceso' para siempre, aunque el
+                // evento ya estuviera cerrado (mismo patrón de bug ya corregido en
+                // los demás flujos de cierre — ver EstadoPedidoHelper).
+                await using (var syncPed = conn.CreateCommand())
+                {
+                    syncPed.Transaction = tx;
+                    syncPed.CommandText = @"
+UPDATE cad_pedidos p
+SET    estado = 'C', fecha_modifica = NOW()
+WHERE  p.id = @pedidoId
+  AND  p.estado <> 'C'
+  AND  EXISTS (SELECT 1 FROM cad_eventos e WHERE e.id = @eventoId AND e.estado = 'C')";
+                    syncPed.Parameters.AddWithValue("pedidoId", pedidoId);
+                    syncPed.Parameters.AddWithValue("eventoId", eventoId);
+                    await syncPed.ExecuteNonQueryAsync(ct);
                 }
 
                 // ── 6. Liberar el medio vinculado (estado=27, limpiar vínculos) ──

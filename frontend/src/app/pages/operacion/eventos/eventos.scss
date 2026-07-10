@@ -1884,7 +1884,45 @@ html.dark-mode {
   gap:      6px;
   align-items: flex-start;
 
-  input { flex: 1; }
+  input { flex: 1; min-width: 0; }
+}
+
+// La lista de sugerencias se copió (markup) desde Recepción pero nunca se
+// trajeron estos estilos — sin position:absolute, el <ul> sin clase entraba
+// al flujo normal como un tercer ítem del flex de .rec-autocomplete, empujando
+// el input y encogiéndolo cada vez que había resultados.
+.rec-suggest-list {
+  position:      absolute;
+  top:           100%;
+  left:          0;
+  right:         0;
+  z-index:       1100;
+  background:    #fff;
+  border:        1px solid rgba(21,27,59,.16);
+  border-top:    none;
+  border-radius: 0 0 var(--ui-radius-sm, 6px) var(--ui-radius-sm, 6px);
+  max-height:    200px;
+  overflow-y:    auto;
+  box-shadow:    0 10px 24px rgba(2,6,23,.14);
+  margin:        0;
+  padding:       0;
+  list-style:    none;
+}
+
+.rec-suggest-item {
+  display:     flex;
+  align-items: baseline;
+  gap:         8px;
+  padding:     8px 12px;
+  cursor:      pointer;
+  transition:  background .1s ease;
+  font-size:   calc(12px * var(--font-size-scale));
+  color:       var(--ui-text, #1f2937);
+
+  strong { font-weight: 900; color: var(--policia-medio, #08a6cb); white-space: nowrap; }
+
+  &:hover { background: rgba(8,166,203,.08); }
+  & + & { border-top: 1px solid rgba(21,27,59,.06); }
 }
 
 // ── Códigos de caso con descripción (Datos del incidente) ─────
@@ -1995,6 +2033,20 @@ html.dark-mode {
 
   .ev-cierre-decision-hint {
     color: rgba(255,255,255,.50);
+  }
+
+  .rec-suggest-list {
+    background:   #1a2036;
+    border-color: rgba(255,255,255,.14);
+    box-shadow:   0 10px 24px rgba(0,0,0,.45);
+  }
+
+  .rec-suggest-item {
+    color: rgba(228,231,235,.85);
+
+    strong { color: #38bdf8; }
+    &:hover { background: rgba(8,166,203,.14); }
+    & + & { border-top-color: rgba(255,255,255,.08); }
   }
 
   // Códigos de caso — dark overrides

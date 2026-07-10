@@ -328,6 +328,21 @@ LIMIT  1";
 
                 // ── 2. Actualizar cad_eventos ─────────────────────────────────
                 // usuario_modifica en cad_eventos es VARCHAR → se usa el username.
+                //
+                // El guard permite escribir también cuando el evento YA está en
+                // 'C' pero sin datos de cierre propios (codigo_cierre_primario /
+                // observacion_cierre ambos NULL): eso indica que se cerró solo por
+                // el recálculo automático de fn_recalcular_estado_evento al cerrarse
+                // su última actuación (trigger trg_actuaciones_estado), NO por un
+                // cierre explícito previo. Sin esta excepción, cerrar la última
+                // actuación desde el modal "Atendió" con la opción "cerrar el
+                // evento" marcada dejaba el evento en 'C' (vía el trigger) pero
+                // ESTA llamada explícita —la que realmente guarda los códigos de
+                // cierre y la observación— fallaba con "ya fue cerrado/anulado",
+                // dejando el evento cerrado a medias (sin códigos/observación) y
+                // sin ninguna confirmación visible para el despachador. Si el
+                // evento YA tiene datos de cierre propios, sigue bloqueado (evita
+                // que un doble clic pise un cierre explícito legítimo).
                 await using (var upd = conn.CreateCommand())
                 {
                     upd.Transaction = tx;
@@ -341,7 +356,8 @@ SET    estado                 = @estado,
        fecha_modificacion     = NOW(),
        usuario_modifica       = @username
 WHERE  id = @eventoId
-  AND  estado NOT IN ('C','V')";
+  AND  estado <> 'V'
+  AND  (estado <> 'C' OR (codigo_cierre_primario IS NULL AND observacion_cierre IS NULL))";
                     upd.Parameters.AddWithValue("estado",      estadoFinal);
                     upd.Parameters.AddWithValue("codPrimario", string.IsNullOrWhiteSpace(codigoPrimario)
                                                                ? DBNull.Value : (object)codigoPrimario);
