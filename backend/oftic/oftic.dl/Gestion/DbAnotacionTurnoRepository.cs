@@ -59,7 +59,10 @@ SELECT a.id,
        TO_CHAR(a.fecha_modifica AT TIME ZONE 'America/Bogota', '{TsFormat}') AS fecha_modifica,
        a.username_modifica
 FROM   cad_anotaciones_turno a
-LEFT   JOIN cad_canales c ON c.codigo = a.canal_codigo
+-- cad_canales tiene PK compuesta (codigo, cadfuerz_id): codigo solo no es único
+-- entre fuerzas. Sin el AND c.cadfuerz_id, este LEFT JOIN produce fan-out (la
+-- misma anotación se duplica una vez por cada fuerza que comparte ese código).
+LEFT   JOIN cad_canales c ON c.codigo = a.canal_codigo AND c.cadfuerz_id = a.fuerza_id
 LEFT   JOIN cad_fuerzas f ON f.id     = a.fuerza_id
 WHERE  (@canal IS NULL OR a.canal_codigo = @canal)
   AND  (@sitio IS NULL OR a.sitio_graba  = @sitio)
@@ -117,7 +120,7 @@ SELECT a.id, a.tipo, a.titulo, a.descripcion, a.canal_codigo,
        TO_CHAR(a.fecha_modifica AT TIME ZONE 'America/Bogota', '{TsFormat}'),
        a.username_modifica
 FROM   cad_anotaciones_turno a
-LEFT   JOIN cad_canales c ON c.codigo = a.canal_codigo
+LEFT   JOIN cad_canales c ON c.codigo = a.canal_codigo AND c.cadfuerz_id = a.fuerza_id
 LEFT   JOIN cad_fuerzas f ON f.id     = a.fuerza_id
 WHERE  a.id = @id";
                 cmd.Parameters.AddWithValue("id", id);

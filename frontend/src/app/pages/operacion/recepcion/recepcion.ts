@@ -8,7 +8,7 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Subject, Subscription } from 'rxjs';
+import { Subject, interval } from 'rxjs';
 import { debounceTime, distinctUntilChanged, takeUntil } from 'rxjs/operators';
 import { AuthService } from '../../../core/auth/auth.service';
 import { ToastService } from '../../../core/services/toast.service';
@@ -40,6 +40,7 @@ declare const L: any;
 
 export interface GrupoCanal {
   fuerza: string;
+  fuerzaId: number;
   canales: DtoCanalRecepcion[];
 }
 
@@ -86,7 +87,6 @@ export class RecepcionComponent implements OnInit, AfterViewInit, OnDestroy {
   txtAsociarLlamada = '';
   tipoPedido        = '';
   caliPedido        = '';
-  txtComentario     = '';
 
   // ── Prioridad / Importancia ───────────────────────────────────────────────
   prioridad   = '03';
@@ -119,12 +119,20 @@ export class RecepcionComponent implements OnInit, AfterViewInit, OnDestroy {
   casosSugeridos2: DtoCasoItem[]     = [];
   llamadasParaAsociar: DtoLlamadaAsociar[] = [];
   showModalAsociar = false;
+  /** Ventana temporal usada por F_BuscarLlamadasAsociarAsync — debe coincidir
+   *  con el INTERVAL '200 minutes' hardcodeado en DbRecepcionRepository.cs. */
+  readonly VENTANA_ASOCIAR_MINUTOS = 200;
 
   // ── Autocomplete subjects ─────────────────────────────────────────────────
   private buscar1$ = new Subject<string>();
   private buscar2$ = new Subject<string>();
   private destroy$ = new Subject<void>();
   private pollTimer: any = null;
+  /** Marca de tiempo del último poll CTI exitoso — indicador de salud de la conexión. */
+  ultimoPollExitoso: Date | null = null;
+  /** true tras ngOnDestroy — guarda contra fetch() nativos (sin takeUntil) que
+   *  resuelven después de navegar fuera del componente. */
+  private destruido = false;
 
   // ── §6.1 Agencias externas ────────────────────────────────────────────────
   agenciasExternas:    DtoAgenciaExterna[] = [];
@@ -216,6 +224,13 @@ export class RecepcionComponent implements OnInit, AfterViewInit, OnDestroy {
     this.duplicadoCheck$
       .pipe(debounceTime(800), takeUntil(this.destroy$))
       .subscribe(() => this.ejecutarBusquedaDuplicados());
+
+    // Indicador de salud CTI: re-renderiza el badge cada 5s para que "hace Xs"
+    // avance visualmente aunque no llegue ninguna llamada nueva. El polling en
+    // sí (iniciarPollLlamada) era completamente invisible para el operador —
+    // no había forma de distinguir "sin llamadas ahora mismo" de "el poll se
+    // rompió y no lo sabe nadie".
+    interval(5000).pipe(takeUntil(this.destroy$)).subscribe(() => this.cdr.detectChanges());
   }
 
   ngAfterViewInit(): void {
@@ -223,6 +238,7 @@ export class RecepcionComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.destruido = true;
     this.destroy$.next();
     this.destroy$.complete();
     if (this.pollTimer) clearTimeout(this.pollTimer);
@@ -241,6 +257,9 @@ export class RecepcionComponent implements OnInit, AfterViewInit, OnDestroy {
   private initMap(): void {
     if (typeof L === 'undefined') {
       console.warn('Leaflet no disponible – verifique index.html');
+      // Antes el operador no tenía forma de saber por qué no podía fijar la
+      // ubicación del incidente salvo mirando la consola del navegador.
+      this.toast.error('Mapa', 'No se pudo cargar el mapa. Recargue la página; si persiste, contacte soporte.');
       return;
     }
 
@@ -305,7 +324,7 @@ export class RecepcionComponent implements OnInit, AfterViewInit, OnDestroy {
     fetch(url)
       .then(r => r.json())
       .then((data: any) => {
-        if (!data?.address) return;
+        if (this.destruido || !data?.address) return;
         const a = data.address;
 
         const calle   = a.road ?? a.pedestrian ?? a.path ?? a.footway ?? '';
@@ -315,8 +334,11 @@ export class RecepcionComponent implements OnInit, AfterViewInit, OnDestroy {
         const ciudad  = a.city ?? a.town ?? a.municipality ?? a.county ?? '';
 
         this.zone.run(() => {
+          // Solo la dirección del INCIDENTE — "Dirección de quien llama" es un
+          // campo distinto y editable por el operador; pisarlo aquí borraba
+          // silenciosamente cualquier valor digitado manualmente cada vez que
+          // el operador tocaba el mapa o buscaba una dirección.
           this.txtDireCaso    = dir;
-          this.txtDireLlamante = dir;
           this.txtBarrioCaso  = barrio;
           this.txtCiudadCaso  = ciudad;
           this.cdr.detectChanges();
@@ -336,6 +358,7 @@ export class RecepcionComponent implements OnInit, AfterViewInit, OnDestroy {
     fetch(url)
       .then(r => r.json())
       .then((data: any[]) => {
+        if (this.destruido) return;
         if (!data?.length) {
           this.toast.warning('Mapa', 'Dirección no encontrada');
           return;
@@ -361,8 +384,8 @@ export class RecepcionComponent implements OnInit, AfterViewInit, OnDestroy {
         const ciudad = a.city ?? a.town ?? a.municipality ?? '';
 
         this.zone.run(() => {
+          // Ver comentario en reverseGeocode(): no tocar txtDireLlamante aquí.
           this.txtDireCaso    = dir;
-          this.txtDireLlamante = dir;
           if (barrio) this.txtBarrioCaso = barrio;
           if (ciudad) this.txtCiudadCaso = ciudad;
           this.cdr.detectChanges();
@@ -448,51 +471,62 @@ export class RecepcionComponent implements OnInit, AfterViewInit, OnDestroy {
       .catch(err => console.warn('[Mapa] Error cargando cuadrantes:', err));
   }
 
-  // ── Centrar mapa en municipio (equivalente a CentrarMapaPorMunicipio) ─────
-
-  centrarMapaPorMunicipio(codDane: string): void {
-    this.cargarCapaMunicipios(codDane);
-  }
-
   // ── Polling CTI ───────────────────────────────────────────────────────────
 
   private iniciarPollLlamada(): void {
     if (this.llamadaEncontrada || this.txtNumeLlamada) return;
-    this.svc.getLlamada().subscribe({
-      next: resp => {
-        if (resp.success && resp.data) {
-          const d = resp.data;
-          this.txtNumeLlamada       = String(d.NUME_LLAMADA);
-          this.txtAbonado           = String(d.NUME_TELEFONO);
-          this.longitudCaso         = d.CORDX;
-          this.latitudCaso          = d.CORDY;
-          this.txtFechaIngreso      = d.FECHAGMLC;
-          this.hdnCeldaMarcacion    = d.OPERADOR;
-          this.detectarDispositivo(d.NUME_TELEFONO);
-          if (d.CORDY && d.CORDX && d.CORDY !== '0' && d.CORDX !== '0') {
-            const lat = parseFloat(d.CORDY);
-            const lng = parseFloat(d.CORDX);
-            this.map?.setView([lat, lng], 16);
-            this.colocarMarcador(lat, lng);
-            // Equivalente a ubicarLlamadaEnMapa(): reverse-geocode → rellena dirección
-            this.reverseGeocode(lat, lng);
-            this.dispararVerificacionDuplicados();  // §6.8
+    // takeUntil corta la suscripción al destruirse el componente — sin esto,
+    // una respuesta que llega después de navegar fuera de Recepción seguía
+    // ejecutando el callback (incl. cdr.detectChanges() sobre vista destruida)
+    // y volvía a programar un setTimeout que ngOnDestroy ya no podía cancelar,
+    // dejando un loop de polling CTI corriendo indefinidamente en background.
+    this.svc.getLlamada()
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: resp => {
+          // Re-chequear: el operador pudo empezar a digitar manualmente
+          // mientras esta petición estaba en vuelo — no pisar su trabajo.
+          if (this.llamadaEncontrada || this.txtNumeLlamada) return;
+          if (resp.success && resp.data) {
+            const d = resp.data;
+            this.txtNumeLlamada       = String(d.NUME_LLAMADA);
+            this.txtAbonado           = String(d.NUME_TELEFONO);
+            this.longitudCaso         = d.CORDX;
+            this.latitudCaso          = d.CORDY;
+            this.txtFechaIngreso      = d.FECHAGMLC;
+            this.hdnCeldaMarcacion    = d.OPERADOR;
+            this.detectarDispositivo(d.NUME_TELEFONO);
+            if (d.CORDY && d.CORDX && d.CORDY !== '0' && d.CORDX !== '0') {
+              const lat = parseFloat(d.CORDY);
+              const lng = parseFloat(d.CORDX);
+              this.map?.setView([lat, lng], 16);
+              this.colocarMarcador(lat, lng);
+              // Equivalente a ubicarLlamadaEnMapa(): reverse-geocode → rellena dirección
+              this.reverseGeocode(lat, lng);
+              this.dispararVerificacionDuplicados();  // §6.8
+            }
+            this.llamadaEncontrada = true;
+            this.canalOrigenUI     = 'TEL_123'; // llamada CTI → origen automático
+            this.ultimoPollExitoso = new Date();
+            this.cdr.detectChanges();
+          } else {
+            this.ultimoPollExitoso = new Date();
+            // Schedule next poll only if no call yet
+            this.pollTimer = setTimeout(() => this.iniciarPollLlamada(), 5000);
           }
-          this.llamadaEncontrada = true;
-          this.canalOrigenUI     = 'TEL_123'; // llamada CTI → origen automático
-          this.cdr.detectChanges();
-        } else {
-          // Schedule next poll only if no call yet
+        },
+        error: () => {
           this.pollTimer = setTimeout(() => this.iniciarPollLlamada(), 5000);
         }
-      },
-      error: () => {
-        this.pollTimer = setTimeout(() => this.iniciarPollLlamada(), 5000);
-      }
-    });
+      });
   }
 
   reiniciarPoll(): void {
+    // Cancelar cualquier timer pendiente antes de reiniciar — sin esto, un
+    // timer previo (todavía vivo si se guardó/cerró un caso en menos de 5s
+    // desde el último "sin llamada") disparaba su propio iniciarPollLlamada(),
+    // generando dos cadenas de polling concurrentes que nunca convergían.
+    if (this.pollTimer) { clearTimeout(this.pollTimer); this.pollTimer = null; }
     this.llamadaEncontrada = false;
     this.iniciarPollLlamada();
   }
@@ -500,7 +534,7 @@ export class RecepcionComponent implements OnInit, AfterViewInit, OnDestroy {
   // ── Consecutivo (manual / quick-close path) ────────────────────────────────
 
   consultarConsecutivo(thenDo?: () => void): void {
-    this.svc.getConsecutivo().subscribe({
+    this.svc.getConsecutivo().pipe(takeUntil(this.destroy$)).subscribe({
       next: resp => {
         if (resp.success) {
           this.txtNumeLlamada  = String(resp.data);
@@ -534,7 +568,9 @@ export class RecepcionComponent implements OnInit, AfterViewInit, OnDestroy {
     if (n.length === 10 && n.startsWith('3'))      { this.txtDispTelefonico = 'Celular';           this.hdnCodDispTelefonico = '02'; }
     else if (n.length === 7)                        { this.txtDispTelefonico = 'Teléfono fijo';     this.hdnCodDispTelefonico = '01'; }
     else if (n.length === 10 && !n.startsWith('3')){ this.txtDispTelefonico = 'Teléfono fijo';     this.hdnCodDispTelefonico = '01'; }
-    else if (n.length === 3 && n.startsWith('1'))  { this.txtDispTelefonico = 'Linea Emergencias'; this.hdnCodDispTelefonico = '01'; }
+    // '03', no '01' — antes colisionaba con "Teléfono fijo", haciendo ambos
+    // tipos indistinguibles server-side pese a mostrar etiquetas distintas en la UI.
+    else if (n.length === 3 && n.startsWith('1'))  { this.txtDispTelefonico = 'Linea Emergencias'; this.hdnCodDispTelefonico = '03'; }
     else                                            { this.txtDispTelefonico = 'Otros';             this.hdnCodDispTelefonico = '00'; }
   }
 
@@ -596,6 +632,7 @@ export class RecepcionComponent implements OnInit, AfterViewInit, OnDestroy {
     this.cerrarAlertaDuplicados();
     this.toast.warning('Duplicado vinculado',
       `Este caso se relacionará con el pedido #${p.id}. Seleccione los canales y envíe.`);
+    this.cargarAdjuntos(p.id);
   }
 
   /** El operador elige continuar con un caso nuevo, ignorando el posible duplicado. */
@@ -621,7 +658,7 @@ export class RecepcionComponent implements OnInit, AfterViewInit, OnDestroy {
   onDescaso2Change(val: string): void { this.buscar2$.next(val); }
 
   private doSearchCasos(q: string, slot: 1 | 2): void {
-    this.svc.buscarCasos(q).subscribe({
+    this.svc.buscarCasos(q).pipe(takeUntil(this.destroy$)).subscribe({
       next: resp => {
         if (slot === 1) this.casosSugeridos1 = resp.data ?? [];
         else            this.casosSugeridos2 = resp.data ?? [];
@@ -658,7 +695,7 @@ export class RecepcionComponent implements OnInit, AfterViewInit, OnDestroy {
 
   buscarCasoPorCodigo(codigo: string, slot: 1 | 2): void {
     if (!codigo.trim()) return;
-    this.svc.getCasoPorCodigo(codigo).subscribe({
+    this.svc.getCasoPorCodigo(codigo).pipe(takeUntil(this.destroy$)).subscribe({
       next: resp => {
         if (resp.success && resp.data) {
           if (slot === 1) {
@@ -678,7 +715,7 @@ export class RecepcionComponent implements OnInit, AfterViewInit, OnDestroy {
   // ── Channels ─────────────────────────────────────────────────────────────
 
   private cargarCanales(): void {
-    this.svc.getCanales(this.sitioGraba).subscribe({
+    this.svc.getCanales(this.sitioGraba).pipe(takeUntil(this.destroy$)).subscribe({
       next: data => {
         this.canales = (data ?? []).map(c => ({ ...c, seleccionado: false }));
         this.construirGruposCanales();
@@ -688,16 +725,21 @@ export class RecepcionComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private construirGruposCanales(): void {
-    const mapa: Record<string, DtoCanalRecepcion[]> = {};
+    // Agrupar por fuerzaId (numérico, único), no por nombre de fuerza (string):
+    // dos fuerzas distintas podrían compartir el mismo texto tras trim() en un
+    // escenario multi-tenant/federado, fusionando visualmente sus canales y
+    // etiquetando algunos como "propios" cuando son de otra agencia, o viceversa.
+    const mapa: Record<number, { fuerza: string; canales: DtoCanalRecepcion[] }> = {};
     for (const c of this.canales) {
-      const k = (c.fuerza || 'SIN FUERZA').trim();
-      (mapa[k] ??= []).push(c);
+      (mapa[c.fuerzaId] ??= { fuerza: (c.fuerza || 'SIN FUERZA').trim(), canales: [] }).canales.push(c);
     }
     this.gruposCanales = Object.keys(mapa)
-      .sort((a, b) => a.localeCompare(b, 'es'))
-      .map(f => ({
-        fuerza: f,
-        canales: mapa[f].sort((a, b) => a.descripcion.localeCompare(b.descripcion, 'es'))
+      .map(Number)
+      .sort((a, b) => mapa[a].fuerza.localeCompare(mapa[b].fuerza, 'es'))
+      .map(fuerzaId => ({
+        fuerza:   mapa[fuerzaId].fuerza,
+        fuerzaId,
+        canales:  mapa[fuerzaId].canales.sort((a, b) => a.descripcion.localeCompare(b.descripcion, 'es'))
       }));
   }
 
@@ -714,10 +756,10 @@ export class RecepcionComponent implements OnInit, AfterViewInit, OnDestroy {
   // ── References ────────────────────────────────────────────────────────────
 
   private cargarReferencias(): void {
-    this.svc.getReferencias('TIPO_PEDIDO').subscribe({
+    this.svc.getReferencias('TIPO_PEDIDO').pipe(takeUntil(this.destroy$)).subscribe({
       next: data => this.refTipoPedido = data ?? []
     });
-    this.svc.getReferencias('CALI_PEDIDO').subscribe({
+    this.svc.getReferencias('CALI_PEDIDO').pipe(takeUntil(this.destroy$)).subscribe({
       next: data => this.refCaliPedido = data ?? []
     });
   }
@@ -745,9 +787,26 @@ export class RecepcionComponent implements OnInit, AfterViewInit, OnDestroy {
       this.toast.warning('Validar', 'Debe ingresar la dirección del caso');
       return;
     }
+    if (!this.latitudCaso || !this.longitudCaso) {
+      // Sin coordenadas, la detección de duplicados (§6.8) y el mapa de
+      // incidentes aguas abajo quedan rotos silenciosamente para este caso.
+      this.toast.warning('Validar', 'Debe ubicar el caso en el mapa o buscar la dirección para georreferenciarlo');
+      return;
+    }
     if (!this.relatoAutomatico.trim() && !this.notasAdicionales.trim()) {
       this.toast.warning('Validar', 'Debe ingresar la descripción del caso o responder las preguntas orientadoras');
       return;
+    }
+    if (this.asistenteAbierto) {
+      // Las preguntas marcadas con * en el panel del asistente eran puramente
+      // decorativas: nunca se verificaba que tuvieran respuesta antes de guardar.
+      const faltante = this.asistentePreguntas.find(
+        p => p.obligatoria && !(this.respuestas[p.id] ?? '').trim()
+      );
+      if (faltante) {
+        this.toast.warning('Validar', `Debe responder la pregunta obligatoria: "${faltante.pregunta}"`);
+        return;
+      }
     }
     const canalesSel = this.canalesSeleccionados();
     if (canalesSel.length < 1) {
@@ -758,7 +817,7 @@ export class RecepcionComponent implements OnInit, AfterViewInit, OnDestroy {
     const dto = this.buildDtoRecepcion('P', 'S', canalesSel);
     this.saving = true;
 
-    this.svc.guardar(dto).subscribe({
+    this.svc.guardar(dto).pipe(takeUntil(this.destroy$)).subscribe({
       next: resp => {
         this.saving = false;
         if (resp.success) {
@@ -789,7 +848,7 @@ export class RecepcionComponent implements OnInit, AfterViewInit, OnDestroy {
 
     const doClose = () => {
       const dto = this.buildDtoRapido(comentarioBoton);
-      this.svc.cerrarRapido(dto).subscribe({
+      this.svc.cerrarRapido(dto).pipe(takeUntil(this.destroy$)).subscribe({
         next: resp => {
           if (resp.success) {
             this.toast.success('Cerrar', resp.message);
@@ -822,7 +881,7 @@ export class RecepcionComponent implements OnInit, AfterViewInit, OnDestroy {
       horaCaso:    this.txtFechaIngreso,
       numeLlamada: Number(this.txtNumeLlamada)
     };
-    this.svc.buscarAsociar(dto).subscribe({
+    this.svc.buscarAsociar(dto).pipe(takeUntil(this.destroy$)).subscribe({
       next: resp => {
         if (resp.success) {
           this.llamadasParaAsociar = resp.data ?? [];
@@ -845,6 +904,9 @@ export class RecepcionComponent implements OnInit, AfterViewInit, OnDestroy {
     this.hdnSitioGrabaAsociada  = String(ll.SITIO_GRABA);
     this.txtAsociarLlamada      = `${ll.NUME_LLAMADA} - ${ll.CODI_PEDIDO} - ${ll.DIRE_CASO}`;
     this.showModalAsociar       = false;
+    // Mostrar las fotos ya adjuntas al caso preexistente que se está vinculando
+    // — antes la galería quedaba vacía aunque el pedido asociado sí tuviera fotos.
+    this.cargarAdjuntos(this.hdnNumeLlamadaAsociada);
   }
 
   // ── UI helpers ─────────────────────────────────────────────────────────────
@@ -852,20 +914,14 @@ export class RecepcionComponent implements OnInit, AfterViewInit, OnDestroy {
   toggleMinimize(): void { this.minimized = !this.minimized; }
   closePanel():    void { this.visible    = false; }
 
-  getEstadoClass(estado: string): string {
-    switch (estado) {
-      case 'A': return 'badge-activo';
-      case 'C': return 'badge-cerrado';
-      case 'P': return 'badge-pendiente';
-      default:  return 'badge-default';
-    }
-  }
-
   getEstadoLabel(estado: string): string {
     switch (estado) {
       case 'A': return 'Activo';
-      case 'C': return 'Cerrado';
       case 'P': return 'Pendiente';
+      case 'E': return 'En proceso';
+      case 'T': return 'Seguimiento';
+      case 'R': return 'Revisión';
+      case 'C': return 'Cerrado';
       default:  return estado;
     }
   }
@@ -873,7 +929,7 @@ export class RecepcionComponent implements OnInit, AfterViewInit, OnDestroy {
   // ── §6.1 Agencias externas ────────────────────────────────────────────────
 
   private cargarAgenciasExternas(): void {
-    this.agenciaSvc.getActivas().subscribe({
+    this.agenciaSvc.getActivas().pipe(takeUntil(this.destroy$)).subscribe({
       next:  data => { this.agenciasExternas = data ?? []; },
       error: ()   => { /* no crítico — si falla, simplemente no se muestran */ }
     });
@@ -929,7 +985,31 @@ export class RecepcionComponent implements OnInit, AfterViewInit, OnDestroy {
 
   /** Determina si un grupo de canales pertenece a otra fuerza (no la del operador). */
   esGrupoExterno(grupo: GrupoCanal): boolean {
-    return grupo.canales.length > 0 && grupo.canales[0].fuerzaId !== this.fuerzaId;
+    return grupo.fuerzaId !== this.fuerzaId;
+  }
+
+  // ── Indicador de salud de conexión CTI ───────────────────────────────────
+  // El polling corre en background cada 5s sin ninguna señal visible para el
+  // operador — si el backend empieza a fallar silenciosamente, nadie lo nota
+  // hasta que una llamada real "no llega". Este indicador da visibilidad real
+  // sobre un mecanismo que hasta ahora era una caja negra.
+
+  get ctiEstado(): 'ok' | 'demorado' | 'inactivo' {
+    if (this.llamadaEncontrada) return 'ok';   // hay una llamada activa en pantalla
+    if (!this.ultimoPollExitoso) return 'inactivo';
+    const segs = (Date.now() - this.ultimoPollExitoso.getTime()) / 1000;
+    if (segs < 15) return 'ok';
+    if (segs < 45) return 'demorado';
+    return 'inactivo';
+  }
+
+  get ctiEstadoLabel(): string {
+    if (this.llamadaEncontrada) return 'Llamada en pantalla';
+    if (!this.ultimoPollExitoso) return 'Conectando…';
+    const segs = Math.floor((Date.now() - this.ultimoPollExitoso.getTime()) / 1000);
+    if (segs < 8)  return 'CTI activo';
+    if (segs < 60) return `Última respuesta hace ${segs}s`;
+    return `Sin respuesta hace ${Math.floor(segs / 60)} min`;
   }
 
   // ── Canal → OrigenEvento mapping ─────────────────────────────────────────
@@ -961,12 +1041,22 @@ export class RecepcionComponent implements OnInit, AfterViewInit, OnDestroy {
     return `${dd}/${mm}/${yy} ${hh}:${mi}:${ss}`;
   }
 
+  /**
+   * Normaliza el abonado a dígitos antes de convertir a número — sin esto,
+   * un formato con separadores ("300 123 4567", "(300)-123-4567") produce
+   * NaN → 0, perdiendo silenciosamente el teléfono real sin ningún aviso.
+   * Mismo criterio que detectarDispositivo() ya usa.
+   */
+  private normalizarTelefono(): number {
+    return Number(this.txtAbonado.replace(/\D/g, '')) || 0;
+  }
+
   private buildDtoRecepcion(estado: string, enviar: string, canalesSel: DtoCanalSeleccionado[]): DtoRecepcion {
     return {
       SITIO_GRABA:           this.sitioGraba,
       NUME_LLAMADA:          Number(this.txtNumeLlamada) || 0,
       HORA_CASO:             this.txtFechaIngreso || this.obtenerFechaActual(),
-      NUME_TELEFONO:         Number(this.txtAbonado) || 0,
+      NUME_TELEFONO:         this.normalizarTelefono(),
       PROP_TELEFONO:         this.txtPropAbonado,
       NOMB_LLAMANTE:         this.txtNombreLlamante,
       DIRE_LLAMANTE:         this.txtDireLlamante,
@@ -999,7 +1089,7 @@ export class RecepcionComponent implements OnInit, AfterViewInit, OnDestroy {
       SITIO_GRABA:           this.sitioGraba,
       NUME_LLAMADA:          Number(this.txtNumeLlamada) || 0,
       HORA_CASO:             this.txtFechaIngreso || this.obtenerFechaActual(),
-      NUME_TELEFONO:         Number(this.txtAbonado) || 0,
+      NUME_TELEFONO:         this.normalizarTelefono(),
       PROP_TELEFONO:         this.txtPropAbonado,
       NOMB_LLAMANTE:         '',
       DIRE_LLAMANTE:         '',
@@ -1014,7 +1104,11 @@ export class RecepcionComponent implements OnInit, AfterViewInit, OnDestroy {
       CODI_PEDIDO:           '900',
       CODI_PEDIDO2:          '',
       IMPORTANCIA:           '01',
-      PRIORIDAD:             '01',
+      // '03' = Rutina (mismo default que el formulario completo, línea ~92).
+      // Antes quedaba en '01' = Flash — la MÁXIMA prioridad posible para casos
+      // triviales por definición (llamada equivocada, niño jugando, etc.),
+      // contaminando estadísticas con prioridades incoherentes.
+      PRIORIDAD:             '03',
       DISP_TELEFONICO:       this.hdnCodDispTelefonico,
       OPERADOR:              this.hdnCeldaMarcacion,
       ESTADO:                'C',
@@ -1046,7 +1140,6 @@ export class RecepcionComponent implements OnInit, AfterViewInit, OnDestroy {
     this.txtDireCaso       = '';
     this.latitudCaso       = '';
     this.longitudCaso      = '';
-    this.txtComentario     = '';
     this.notasAdicionales  = '';
     this.txtAsociarLlamada = '';
     this.hdnNumeLlamadaAsociada = '';
@@ -1075,10 +1168,10 @@ export class RecepcionComponent implements OnInit, AfterViewInit, OnDestroy {
   //  §multicanal — Adjuntos / Fotos
   // ════════════════════════════════════════════════════════════════════════════
 
-  /** Carga adjuntos existentes de un pedido ya guardado. */
-  cargarAdjuntos(): void {
-    if (!this.txtNumeLlamada) return;
-    this.svc.getAdjuntos(this.txtNumeLlamada)
+  /** Carga adjuntos existentes de un pedido ya guardado (por defecto, el actual). */
+  cargarAdjuntos(pedidoId: string = this.txtNumeLlamada): void {
+    if (!pedidoId) return;
+    this.svc.getAdjuntos(pedidoId)
       .pipe(takeUntil(this.destroy$))
       .subscribe({ next: r => { if (r.success) this.adjuntos = r.data; } });
   }
@@ -1180,7 +1273,7 @@ export class RecepcionComponent implements OnInit, AfterViewInit, OnDestroy {
 
   private cargarAsistenteCategorias(): void {
     this.asistenteLoadingCat = true;
-    this.asistenteSvc.getCategorias(true).subscribe({
+    this.asistenteSvc.getCategorias(true).pipe(takeUntil(this.destroy$)).subscribe({
       next: (r) => {
         this.asistenteCategorias = r.data ?? [];
         this.asistenteLoadingCat = false;
@@ -1200,7 +1293,7 @@ export class RecepcionComponent implements OnInit, AfterViewInit, OnDestroy {
     if (!idCategoria) return;
 
     this.asistenteLoadingPreg = true;
-    this.asistenteSvc.getPreguntas(idCategoria, true).subscribe({
+    this.asistenteSvc.getPreguntas(idCategoria, true).pipe(takeUntil(this.destroy$)).subscribe({
       next: (r) => {
         this.asistentePreguntas   = r.data ?? [];
         this.asistenteLoadingPreg = false;
@@ -1451,10 +1544,6 @@ export class RecepcionComponent implements OnInit, AfterViewInit, OnDestroy {
       partes.push(header + this.notasAdicionales.trim());
     }
 
-    // Fallback: si el asistente no estaba activo, usar el campo legacy txtComentario
-    if (partes.length === 0 && this.txtComentario.trim()) {
-      return this.txtComentario.trim();
-    }
 
     return partes.join('\n\n');
   }

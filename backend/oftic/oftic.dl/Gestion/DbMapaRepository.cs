@@ -66,7 +66,7 @@ SELECT
     COALESCE(p.estado,     'P')                                         AS estado,
     COALESCE(p.prioridad,  '03')                                        AS prioridad,
     TO_CHAR(p.hora_caso AT TIME ZONE 'America/Bogota', '{TsFormat}')   AS hora_caso,
-    COALESCE(p.cadusua_usuario, '')                                     AS username_creacion,
+    COALESCE(NULLIF(p.username_creacion,''), p.cadusua_usuario, '')     AS username_creacion,
     COALESCE(e.origen,       'MANUAL')                                  AS origen,
     (
         SELECT COUNT(*)

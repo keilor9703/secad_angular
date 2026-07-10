@@ -3,18 +3,32 @@ using System.Text.Json.Serialization;
 namespace Comun.Dtos.Recepcion
 {
     // ── Incoming telephony event (from CTI interface) ───────────────────────────
+    // IMPORTANTE: todas las propiedades llevan [JsonPropertyName] explícito con su
+    // nombre literal en mayúsculas. Program.cs configura PropertyNamingPolicy =
+    // JsonNamingPolicy.CamelCase globalmente, que SÍ transforma nombres ya en
+    // mayúsculas (p.ej. "NUME_LLAMADA" no sale igual en el JSON de salida) — sin
+    // esta anotación el frontend (que lee las claves literales en mayúsculas)
+    // recibe todo el objeto con valores undefined. Mismo patrón que DtoCasoItem.
     public class DtoLlamadaEntrante
     {
         /// <summary>ID Snowflake (= cad_pedidos.id). Anotado por consistencia con el resto
         /// del código; el conversor JSON global ya protege la precisión en tránsito.</summary>
+        [JsonPropertyName("NUME_LLAMADA")]
         [JsonNumberHandling(JsonNumberHandling.WriteAsString | JsonNumberHandling.AllowReadingFromString)]
         public long   NUME_LLAMADA  { get; set; }
+        [JsonPropertyName("NUME_TELEFONO")]
         public long   NUME_TELEFONO { get; set; }
+        [JsonPropertyName("CORDX")]
         public string CORDX         { get; set; } = "0";
+        [JsonPropertyName("CORDY")]
         public string CORDY         { get; set; } = "0";
+        [JsonPropertyName("TIPOSHAPE")]
         public string TIPOSHAPE     { get; set; } = "";
+        [JsonPropertyName("RADIO")]
         public int    RADIO         { get; set; }
+        [JsonPropertyName("FECHAGMLC")]
         public string FECHAGMLC     { get; set; } = "";
+        [JsonPropertyName("OPERADOR")]
         public string OPERADOR      { get; set; } = "";
     }
 
@@ -77,18 +91,30 @@ namespace Comun.Dtos.Recepcion
     }
 
     // ── Row returned by F_BuscarLlamadasAsociar ─────────────────────────────────
+    // Mismo motivo que DtoLlamadaEntrante: [JsonPropertyName] explícito porque la
+    // policy CamelCase global mangla nombres ya en mayúsculas.
     public class DtoLlamadaAsociar
     {
+        [JsonPropertyName("NUME_LLAMADA")]
         [JsonNumberHandling(JsonNumberHandling.WriteAsString | JsonNumberHandling.AllowReadingFromString)]
         public long   NUME_LLAMADA  { get; set; }
+        [JsonPropertyName("HORA_CASO")]
         public string HORA_CASO     { get; set; } = "";
+        [JsonPropertyName("NUME_TELEFONO")]
         public long   NUME_TELEFONO { get; set; }
+        [JsonPropertyName("CALI_PEDIDO")]
         public string CALI_PEDIDO   { get; set; } = "";
+        [JsonPropertyName("CIUDAD")]
         public string CIUDAD        { get; set; } = "";
+        [JsonPropertyName("NOMB_LLAMANTE")]
         public string NOMB_LLAMANTE { get; set; } = "";
+        [JsonPropertyName("DIRE_CASO")]
         public string DIRE_CASO     { get; set; } = "";
+        [JsonPropertyName("CODI_PEDIDO")]
         public string CODI_PEDIDO   { get; set; } = "";
+        [JsonPropertyName("ESTADO")]
         public string ESTADO        { get; set; } = "";
+        [JsonPropertyName("SITIO_GRABA")]
         public int    SITIO_GRABA   { get; set; }
     }
 
@@ -170,7 +196,11 @@ namespace Comun.Dtos.Recepcion
     /// </summary>
     public class DtoRemitirCanalRequest
     {
-        /// <summary>ID Snowflake de cad_pedidos (= cadpedi_numellamada).</summary>
+        /// <summary>
+        /// ID Snowflake de cad_pedidos.id (servidor) — el que ve el frontend.
+        /// RemitirCanalAsync resuelve internamente nume_llamada (Snowflake generado
+        /// en cliente, usado por cad_pedidos_canales) a partir de este id.
+        /// </summary>
         [JsonNumberHandling(JsonNumberHandling.WriteAsString | JsonNumberHandling.AllowReadingFromString)]
         public long       PedidoId    { get; set; }
         public int        SitioGraba  { get; set; }

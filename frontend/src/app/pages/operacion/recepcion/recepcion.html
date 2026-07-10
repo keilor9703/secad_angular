@@ -16,6 +16,11 @@
       <div class="ui-panel__title">
         <i class="fa-solid fa-phone-volume"></i>
         Recepción de llamadas
+        <span class="rec-cti-badge" [class]="'rec-cti-badge--' + ctiEstado"
+              [title]="ctiEstadoLabel">
+          <i class="fa-solid fa-satellite-dish"></i>
+          {{ ctiEstadoLabel }}
+        </span>
       </div>
 
       <div class="rec-head-right">
@@ -235,7 +240,7 @@
                        [class.rec-invalid]="!txtAbonado.trim()"
                        [class.rec-valid]="txtAbonado.trim()"
                        type="text" inputmode="tel" id="txtAbonado"
-                       [(ngModel)]="txtAbonado"
+                       [ngModel]="txtAbonado"
                        (ngModelChange)="onAbonadoChange($event)"
                        (keydown.enter)="onAbonadoEnter()"
                        placeholder="Ej: 3001234567">
@@ -243,8 +248,8 @@
               <div class="ui-field ui-col-8">
                 <label class="ui-label">Propietario de la línea</label>
                 <input class="ui-control" type="text"
-                       [(ngModel)]="txtPropAbonado" readonly
-                       placeholder="Se consulta automáticamente">
+                       [(ngModel)]="txtPropAbonado"
+                       placeholder="No hay consulta automática de titularidad — digite si el llamante lo indica">
               </div>
               <div class="ui-field ui-col-12">
                 <label class="ui-label">Medio de comunicación</label>
@@ -990,7 +995,7 @@
         @if (llamadasParaAsociar.length === 0) {
           <div class="rec-empty-state">
             <i class="fa-solid fa-inbox"></i>
-            <p>No hay llamadas disponibles para asociar en la ventana de 200 minutos.</p>
+            <p>No hay llamadas disponibles para asociar en la ventana de {{ VENTANA_ASOCIAR_MINUTOS }} minutos.</p>
           </div>
         } @else {
           <div class="ui-table-wrap">

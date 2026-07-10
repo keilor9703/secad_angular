@@ -9,6 +9,27 @@
   width: 100%;
 }
 
+// ── Indicador de salud de conexión CTI ───────────────────────────────────────
+.rec-cti-badge {
+  display:        inline-flex;
+  align-items:    center;
+  gap:            5px;
+  font-size:      calc(10.5px * var(--font-size-scale, 1));
+  font-weight:    700;
+  padding:        3px 9px;
+  border-radius:  999px;
+  text-transform: none;
+  letter-spacing: normal;
+  margin-left:    4px;
+  white-space:    nowrap;
+
+  i { font-size: 0.85em; }
+
+  &--ok       { background: rgba(16,185,129,.14); color: #10b981; }
+  &--demorado { background: rgba(245,158,11,.16); color: #d97706; }
+  &--inactivo { background: rgba(239,68,68,.16);  color: #ef4444; }
+}
+
 // ── Panel head: right-side cluster ───────────────────────────────────────────
 .rec-head-right {
   display:     flex;
@@ -670,13 +691,6 @@ html.dark-mode {
   }
 
   // ── Auto-mode overrides ───────────────────────────────────────────────────
-  .rec-section--asistente-auto > .rec-asistente__head-auto {
-    background:    linear-gradient(90deg, rgba(16,185,129,.10), rgba(8,166,203,.07));
-    border-bottom-color: rgba(16,185,129,.20);
-  }
-
-  .rec-asistente__cat-label { color: var(--ui-text); }
-
   .rec-asistente__collapse-btn {
     color: rgba(228,231,235,.5);
     &:hover { background: rgba(255,255,255,.07); }
@@ -723,37 +737,6 @@ html.dark-mode {
 }
 
 // ── §6.17 Asistente Inteligente — estilos propios dentro de Recepción ────────
-
-// La sección usa rec-section (fondo blanco + borde), pero sin overflow hidden
-// para que los dropdowns salgan del bounding box si fueran necesarios.
-.rec-section--asistente {
-  // hereda todo de .rec-section
-}
-
-// El header del asistente ES un rec-section__head pero es un <button> clickable
-.rec-asistente__toggle {
-  // reset de <button> sin romper el gradiente del rec-section__head
-  width:      100%;
-  border:     none;
-  cursor:     pointer;
-  text-align: left;
-  // Extender flex para colocar el chevron al extremo derecho
-  justify-content: space-between;
-
-  &:hover   { filter: brightness(1.08); }
-
-  &:focus-visible {
-    outline:        2px solid var(--policia-acento);
-    outline-offset: -2px;
-  }
-}
-
-.rec-asistente__chevron {
-  font-size:   0.68rem;
-  color:       var(--policia-acento, #cdff00);
-  margin-left: auto;
-  flex-shrink: 0;
-}
 
 // Cuerpo expandido
 .rec-asistente__body {
@@ -971,17 +954,6 @@ html.dark-mode {
 }
 
 // ── §6.17 Asistente — cabecera modo auto-activado ────────────────────────────
-.rec-section--asistente-auto > .rec-asistente__head-auto {
-  display:        flex;
-  align-items:    center;
-  gap:            0.6rem;
-  padding:        8px 14px;
-  background:     linear-gradient(90deg, rgba(16,185,129,.12), rgba(8,166,203,.08));
-  border-bottom:  1px solid rgba(16,185,129,.25);
-  border-radius:  var(--ui-radius, 6px) var(--ui-radius, 6px) 0 0;
-  flex-wrap:      wrap;
-}
-
 .rec-asistente__auto-badge {
   display:        inline-flex;
   align-items:    center;
@@ -996,19 +968,6 @@ html.dark-mode {
   flex-shrink:    0;
 
   i { font-size: 0.72rem; }
-}
-
-.rec-asistente__cat-label {
-  flex:        1;
-  font-size:   0.85rem;
-  font-weight: 600;
-  color:       var(--ui-text);
-
-  i {
-    font-size:    0.72rem;
-    color:        #08a6cb;
-    margin-right: 4px;
-  }
 }
 
 .rec-asistente__collapse-btn {
