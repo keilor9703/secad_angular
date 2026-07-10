@@ -36,8 +36,8 @@ namespace Datos.Gestion
                         SELECT p.id, p.sitio_graba, p.nume_llamada, p.hora_caso,
                                p.nume_telefono, p.dire_caso, p.estado, p.enviar,
                                p.codi_pedido, p.codi_pedido2, p.comentario,
-                               -- Preferir username_creacion almacenado directamente; fallback al JOIN
-                               COALESCE(NULLIF(p.cadusua_usuario,''), u.username, 'sin usuario') AS username_creacion,
+                               -- Preferir username_creacion almacenado directamente; fallback a cadusua_usuario (Recepción); último recurso, el JOIN
+                               COALESCE(NULLIF(p.username_creacion,''), NULLIF(p.cadusua_usuario,''), u.username, 'sin usuario') AS username_creacion,
                                p.fecha_creacion
                         FROM cad_pedidos p
                         LEFT JOIN ctr_usuarios u ON u.id_usuario = p.usuario_creacion
@@ -77,7 +77,7 @@ SELECT p.id, p.sitio_graba, p.nume_llamada, p.hora_caso,
        p.importancia, p.prioridad, p.disp_telefonico, p.celda_marcacion,
        p.canales, p.canal_fuerza, p.enviar, p.estado,
        p.pedido_padre_sitio, p.pedido_padre_num,
-       u.username             AS username_creacion,    -- col 32
+       COALESCE(NULLIF(p.username_creacion,''), NULLIF(p.cadusua_usuario,''), u.username, '') AS username_creacion, -- col 32
        p.fecha_creacion,                               -- col 33
        c1.descripcion         AS desc_pedido,          -- col 34
        c2.descripcion         AS desc_pedido2,         -- col 35
@@ -90,15 +90,16 @@ SELECT p.id, p.sitio_graba, p.nume_llamada, p.hora_caso,
        COALESCE(e.observacion_cierre, '') AS observacion_cierre, -- col 41
        COALESCE(e.usuario_modifica, '')  AS usuario_cierre,      -- col 42
        ultimo.username       AS ultimo_acceso_username, -- col 43
-       ultimo.fecha_acceso   AS ultimo_acceso_fecha      -- col 44
+       ultimo.fecha_acceso   AS ultimo_acceso_fecha,     -- col 44
+       e.estado               AS evento_estado          -- col 45: P/D/A/C/V (cad_eventos, dominio propio)
 FROM cad_pedidos p
-LEFT JOIN ctr_usuarios u  ON u.username             = p.cadusua_usuario
+LEFT JOIN ctr_usuarios u  ON u.id_usuario           = p.usuario_creacion
 LEFT JOIN cad_casos    c1 ON TRIM(UPPER(c1.codigo)) = TRIM(UPPER(p.codi_pedido))
 LEFT JOIN cad_casos    c2 ON TRIM(UPPER(c2.codigo)) = TRIM(UPPER(p.codi_pedido2))
 -- Evento más reciente del pedido
 LEFT JOIN LATERAL (
     SELECT id, canal_codigo, fuerza_id, fecha_cierre,
-           observacion_cierre, usuario_modifica
+           observacion_cierre, usuario_modifica, estado
     FROM   cad_eventos ev
     WHERE  ev.pedido_id = p.id
     ORDER  BY ev.fecha_creacion DESC
@@ -592,7 +593,7 @@ SELECT p.id, p.sitio_graba, p.nume_llamada, p.hora_caso,
        COALESCE(p.prioridad, '')   AS prioridad,
        COALESCE(p.cali_pedido, '') AS cali_pedido,
        COALESCE(p.ciudad, '')      AS ciudad,
-       COALESCE(NULLIF(p.username_creacion,''), u.username, 'sin usuario') AS username_creacion,
+       COALESCE(NULLIF(p.username_creacion,''), NULLIF(p.cadusua_usuario,''), u.username, 'sin usuario') AS username_creacion,
        p.fecha_creacion,
        COALESCE(c1.descripcion, '') AS desc_pedido,
        p.fecha_primer_acceso,
@@ -613,7 +614,17 @@ WHERE p.enviar = 'S'
           WHERE pc.cadpedi_sitiograba  = p.sitio_graba
             AND pc.cadpedi_numellamada = p.nume_llamada
             AND pc.cadcana_codigo      = @canalCodigo
+            AND pc.cadcana_fuerz_id    = @fuerzaId
       )
+      -- NOTA: esta rama de respaldo (p.canales, poblada solo al crear el pedido)
+      -- es fuerza-agnóstica por diseño de datos — cad_pedidos.canales solo guarda
+      -- códigos de canal (List<int>), sin fuerza, a diferencia de
+      -- cad_pedidos_canales que sí es (codigo, fuerza). Igual que el código de
+      -- canal se numera por fuerza, dos fuerzas con el mismo código de canal aquí
+      -- SÍ pueden verse cruzadas. No se corrige en este cambio porque requiere
+      -- migrar el formato de esa columna o dejar de depender de ella (ver
+      -- auditoría del módulo Pedidos — cad_pedidos_canales sigue siendo la única
+      -- vía fuerza-consciente para canales remitidos después de creado el pedido).
       OR @canalCodigoStr = ANY(string_to_array(COALESCE(p.canales, ''), ','))
   )";
 
@@ -649,6 +660,7 @@ LIMIT 300";
             cmd.CommandText = sql;
             cmd.Parameters.AddWithValue("canalCodigo",    canalCodigo);
             cmd.Parameters.AddWithValue("canalCodigoStr", canalCodigo.ToString());
+            cmd.Parameters.AddWithValue("fuerzaId",       fuerzaId);
 
             await using var reader = await cmd.ExecuteReaderAsync(ct);
             while (await reader.ReadAsync(ct))
@@ -686,12 +698,23 @@ WHERE p.enviar = 'S'
           WHERE pc.cadpedi_sitiograba  = p.sitio_graba
             AND pc.cadpedi_numellamada = p.nume_llamada
             AND pc.cadcana_codigo      = @canalCodigo
+            AND pc.cadcana_fuerz_id    = @fuerzaId
       )
+      -- NOTA: esta rama de respaldo (p.canales, poblada solo al crear el pedido)
+      -- es fuerza-agnóstica por diseño de datos — cad_pedidos.canales solo guarda
+      -- códigos de canal (List<int>), sin fuerza, a diferencia de
+      -- cad_pedidos_canales que sí es (codigo, fuerza). Igual que el código de
+      -- canal se numera por fuerza, dos fuerzas con el mismo código de canal aquí
+      -- SÍ pueden verse cruzadas. No se corrige en este cambio porque requiere
+      -- migrar el formato de esa columna o dejar de depender de ella (ver
+      -- auditoría del módulo Pedidos — cad_pedidos_canales sigue siendo la única
+      -- vía fuerza-consciente para canales remitidos después de creado el pedido).
       OR @canalCodigoStr = ANY(string_to_array(COALESCE(p.canales, ''), ','))
   )";
 
             cmd.Parameters.AddWithValue("canalCodigo",    canalCodigo);
             cmd.Parameters.AddWithValue("canalCodigoStr", canalCodigo.ToString());
+            cmd.Parameters.AddWithValue("fuerzaId",       fuerzaId);
             // Npgsql strict mode rechaza DateTimeOffset con offset != 0 para timestamptz.
             // Convertir a UTC (DateTimeKind.Utc) antes de pasar el parámetro.
             cmd.Parameters.AddWithValue("turnoDesde",     turnoDesde.UtcDateTime);
@@ -1023,7 +1046,9 @@ ORDER BY f.descripcion, c.codigo";
             UsuarioCierre    = r.IsDBNull(42) ? ""    : r.GetString(42),
             // ── Trazabilidad: último acceso registrado ─────────────────────────
             UltimoAccesoUsername = r.IsDBNull(43) ? null : r.GetString(43),
-            UltimoAccesoFecha    = r.IsDBNull(44) ? null : r.GetDateTime(44)
+            UltimoAccesoFecha    = r.IsDBNull(44) ? null : r.GetDateTime(44),
+            // Estado propio de cad_eventos (P/D/A/C/V) — dominio distinto al de cad_pedidos.estado.
+            EventoEstado         = r.IsDBNull(45) ? null : r.GetString(45)
         };
 
         private static async Task<List<DtoCodigoCierrePedido>> GetCodigosCierreAsync(

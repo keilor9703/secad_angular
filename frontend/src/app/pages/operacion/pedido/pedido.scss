@@ -650,10 +650,13 @@
 
   &--lg { font-size: calc(11.5px * var(--font-size-scale, 1)); padding: 3px 10px; }
 
-  &--activo    { background: #dcfce7; color: #166534; }
-  &--cerrado   { background: #fee2e2; color: #991b1b; }
-  &--pendiente { background: #fef9c3; color: #92400e; }
-  &--default   { background: #e5e7eb; color: #374151; }
+  &--activo      { background: #dcfce7; color: #166534; }
+  &--cerrado     { background: #fee2e2; color: #991b1b; }
+  &--pendiente   { background: #fef9c3; color: #92400e; }
+  &--proceso     { background: #dbeafe; color: #1e40af; }
+  &--seguimiento { background: #ede9fe; color: #5b21b6; }
+  &--revision    { background: #ffedd5; color: #9a3412; }
+  &--default     { background: #e5e7eb; color: #374151; }
 }
 
 .seg-prio-badge {
@@ -1790,10 +1793,76 @@
 }
 
 
+// ── Fotos adjuntas del caso ─────────────────────────────────────────────────────
+.ev-adjuntos-grid {
+  display:   flex;
+  flex-wrap: wrap;
+  gap:       10px;
+  padding:   12px 14px;
+}
+
+.ev-adjunto-card {
+  display:        flex;
+  flex-direction: column;
+  gap:            4px;
+  width:          110px;
+  text-decoration: none;
+  cursor:          pointer;
+  transition:      transform .12s;
+
+  &:hover { transform: scale(1.04); }
+
+  &__img {
+    position:       relative;
+    width:          110px;
+    height:         80px;
+    border-radius:  6px;
+    overflow:       hidden;
+    background:     rgba(21,27,59,.08);
+    display:        flex;
+    align-items:    center;
+    justify-content: center;
+    border:         1px solid var(--ui-border, #e5e9f0);
+
+    img {
+      width:      100%;
+      height:     100%;
+      object-fit: cover;
+    }
+  }
+
+  &__fallback {
+    position:  absolute;
+    font-size: 1.4rem;
+    color:     rgba(21,27,59,.25);
+  }
+
+  &__nombre {
+    font-size:     0.72rem;
+    color:         var(--ui-text);
+    white-space:   nowrap;
+    overflow:      hidden;
+    text-overflow: ellipsis;
+    max-width:     110px;
+  }
+
+  &__canal {
+    font-size:  0.65rem;
+    color:      var(--ui-text-muted, #6b7280);
+    font-style: italic;
+  }
+}
+
 // ════════════════════════════════════════════════════════════════════════════════
 //  Dark mode
 // ════════════════════════════════════════════════════════════════════════════════
 html.dark-mode {
+
+  .ev-adjunto-card__img {
+    background:   rgba(255,255,255,.06);
+    border-color: rgba(255,255,255,.12);
+  }
+  .ev-adjunto-card__nombre { color: rgba(228,231,235,.9); }
 
   // Banda turno
   .seg-turno-strip {

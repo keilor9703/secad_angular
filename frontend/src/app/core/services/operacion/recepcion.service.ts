@@ -145,13 +145,15 @@ export interface DtoCodigoCierreEvento {
 }
 
 export interface DtoEvento {
-  id:                   number;
+  /** Snowflake ID, serializado como string desde el backend para preservar precisión. */
+  id:                   string;
   sitioGraba:           number;
   origen:               OrigenEvento;
   origenReferenciaExt?: string;
   integracionClienteId?: number;
   integracionNombre?:   string;
-  pedidoId?:            number;
+  /** Snowflake ID (cad_pedidos.id), serializado como string. */
+  pedidoId?:            string;
   pedidoSitioGraba?:    number;
   horaCasoPedido:       string;
   direccionCaso:        string;
@@ -176,10 +178,12 @@ export interface DtoEvento {
 }
 
 export interface DtoEventoListItem {
-  id:            number;
+  /** Snowflake ID, serializado como string desde el backend para preservar precisión. */
+  id:            string;
   origen:        OrigenEvento;
   estado:        EstadoEvento;
-  pedidoId?:     number;
+  /** Snowflake ID (cad_pedidos.id), serializado como string. */
+  pedidoId?:     string;
   direccionCaso: string;
   codiPedido:    string;
   caliPedido:    string;
@@ -191,7 +195,8 @@ export interface DtoEventoListItem {
 }
 
 export interface DtoCierreEventoRequest {
-  eventoId:          number;
+  /** Snowflake ID (cad_eventos.id), enviado como string. */
+  eventoId:          string;
   estado:            'C' | 'V';
   clasifCierre?:     string;
   observacionCierre?: string;
@@ -219,8 +224,10 @@ export interface DtoEventoIntegracionRequest {
 export interface DtoEventoResult {
   success:  boolean;
   message:  string;
-  eventoId: number;
-  pedidoId?: number;
+  /** Snowflake ID, serializado como string desde el backend para preservar precisión. */
+  eventoId: string;
+  /** Snowflake ID (cad_pedidos.id), serializado como string. */
+  pedidoId?: string;
 }
 
 // ─── Duplicado / pedido cercano (§6.8) ───────────────────────────────────────
@@ -342,21 +349,21 @@ export class RecepcionService {
   // ── Event lifecycle (usado desde módulo Eventos — despachador) ────────────────
 
   /** Detalle completo de un evento con sus códigos de cierre */
-  getEvento(id: number): Observable<{ success: boolean; data: DtoEvento }> {
+  getEvento(id: string): Observable<{ success: boolean; data: DtoEvento }> {
     return this.http.get<{ success: boolean; data: DtoEvento }>(
       `${this.base}/evento/${id}`
     );
   }
 
   /** Eventos asociados a un pedido (llamada) */
-  getEventosPorPedido(pedidoId: number): Observable<{ success: boolean; data: DtoEventoListItem[] }> {
+  getEventosPorPedido(pedidoId: string): Observable<{ success: boolean; data: DtoEventoListItem[] }> {
     return this.http.get<{ success: boolean; data: DtoEventoListItem[] }>(
       `${this.base}/evento/pedido/${pedidoId}`
     );
   }
 
   /** Marca el evento como Despachado (D) o Atendido (A) */
-  actualizarEstadoEvento(id: number, estado: 'D' | 'A'): Observable<{ success: boolean; message: string }> {
+  actualizarEstadoEvento(id: string, estado: 'D' | 'A'): Observable<{ success: boolean; message: string }> {
     return this.http.put<{ success: boolean; message: string }>(
       `${this.base}/evento/${id}/estado`,
       { Estado: estado }

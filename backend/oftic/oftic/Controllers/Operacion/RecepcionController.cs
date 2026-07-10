@@ -30,6 +30,16 @@ namespace Api.Controllers.Operacion
         // Cédula del empleado: viene del claim "identificacion" que JwtService emite
         // desde ctr_usuarios.identificacion — es la cédula real, NO el Snowflake id_usuario.
         private long   EmpleadoId   => long.TryParse(User.FindFirstValue("identificacion"), out var v) ? v : 0;
+        // ID numérico de usuario (para columnas usuario_modifica BIGINT, p.ej. cad_pedidos).
+        // Mismo criterio que EventoController.ObtenerAuditoria().
+        private long   UsuarioIdClaim =>
+            long.TryParse(
+                User.FindFirstValue("id_usuario")
+                    ?? User.FindFirstValue(ClaimTypes.NameIdentifier)
+                    ?? User.FindFirstValue("nameid"),
+                out var uid) && uid > 0 ? uid : 1;
+        private string MaquinaClaim =>
+            HttpContext.Connection.RemoteIpAddress?.ToString() ?? Environment.MachineName ?? "N/A";
 
         // ════════════════════════════════════════════════════════════════════════
         // CTI / INCOMING CALL
@@ -279,7 +289,7 @@ namespace Api.Controllers.Operacion
                 return BadRequest(new { success = false, message = "Debe proporcionar al menos un código de cierre." });
             try
             {
-                var result = await _svc.P_CerrarEventoAsync(req, UsuarioClaim, ct);
+                var result = await _svc.P_CerrarEventoAsync(req, UsuarioClaim, UsuarioIdClaim, MaquinaClaim, ct);
                 return Ok(new { success = result.Success, message = result.Message, eventoId = result.EventoId });
             }
             catch (Exception ex)

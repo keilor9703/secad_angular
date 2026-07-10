@@ -62,10 +62,13 @@ namespace Datos.Interfaz
 
         /// <summary>
         /// Close an event: set estado=C|V, record timestamp, insert all closing codes
-        /// into cad_eventos_codigos_cierre. All in one transaction.
+        /// into cad_eventos_codigos_cierre, and mark the owning cad_pedidos.estado='C'
+        /// (mismo criterio que DbPedidoRepository.CerrarEventoDesdeDespachoAsync — sin
+        /// esto, el pedido queda "abierto" en la cola del despachador aunque el evento
+        /// ya esté cerrado/anulado). All in one transaction.
         /// </summary>
         Task<DtoEventoResult> P_CerrarEventoAsync(
-            DtoCierreEventoRequest request, string usuario, CancellationToken ct);
+            DtoCierreEventoRequest request, string usuario, long usuarioId, string maquina, CancellationToken ct);
 
         // ── External integrations ───────────────────────────────────────────────
         /// <summary>

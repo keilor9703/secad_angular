@@ -26,7 +26,7 @@ namespace Negocio.Interfaz
         Task<DtoEventoResult> P_ActualizarEstadoEventoAsync(
             long eventoId, string estado, string usuario, CancellationToken ct);
         Task<DtoEventoResult> P_CerrarEventoAsync(
-            DtoCierreEventoRequest request, string usuario, CancellationToken ct);
+            DtoCierreEventoRequest request, string usuario, long usuarioId, string maquina, CancellationToken ct);
         Task<DtoEventoResult> P_CrearEventoIntegracionAsync(
             DtoEventoIntegracionRequest request, string usuario, CancellationToken ct);
 

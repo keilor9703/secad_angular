@@ -1,6 +1,7 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { ActivatedRoute } from '@angular/router';
 import { Subject, interval, forkJoin, of } from 'rxjs';
 import { takeUntil, catchError } from 'rxjs/operators';
 import { ToastService } from '../../../core/services/toast.service';
@@ -162,6 +163,9 @@ export class PedidoComponent implements OnInit, OnDestroy {
   equipoDetalle:   Record<string, DtoActuacionUnidad[]> = {};
   equipoCargando:  Record<string, boolean>             = {};
 
+  /** ID de incidente pendiente por abrir vía deep link (?id=...), a la espera de que cargue la lista. */
+  private deepLinkPendienteId: string | null = null;
+
   private destroy$ = new Subject<void>();
 
   constructor(
@@ -169,7 +173,8 @@ export class PedidoComponent implements OnInit, OnDestroy {
     private readonly eventoService:      EventoService,
     private readonly actuacionesService: ActuacionesService,
     private readonly recepcionSvc:       RecepcionService,
-    private readonly toast:              ToastService
+    private readonly toast:              ToastService,
+    private readonly route:              ActivatedRoute
   ) {}
 
   // ──────────────────────────────────────────────────────────────────────────
@@ -177,6 +182,14 @@ export class PedidoComponent implements OnInit, OnDestroy {
   // ──────────────────────────────────────────────────────────────────────────
 
   ngOnInit(): void {
+    // Deep link desde otros módulos (ej. Mapa de incidentes: /operacion/pedido?id=...)
+    this.route.queryParamMap
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(params => {
+        const id = params.get('id');
+        if (id) this.deepLinkPendienteId = id;
+      });
+
     this.cargarLista();
 
     // Auto-refresh lista cada 30 s
@@ -231,6 +244,15 @@ export class PedidoComponent implements OnInit, OnDestroy {
         this.lastRefresh  = new Date();
         this.computarStats();
         this.computarKpis();
+
+        // Deep link pendiente (?id=...): abrir el incidente indicado apenas esté en la lista.
+        if (this.deepLinkPendienteId) {
+          const item = this.listaPedidos.find(p => p.id === this.deepLinkPendienteId);
+          if (item) {
+            this.deepLinkPendienteId = null;
+            this.seleccionarIncidente(item);
+          }
+        }
       },
       error: () => {
         this.loading = false;
@@ -254,6 +276,9 @@ export class PedidoComponent implements OnInit, OnDestroy {
     this.actuaciones    = [];
     this.adjuntos       = [];
     this.showAnotForm   = false;
+    this.equipoExpandido = {};
+    this.equipoDetalle   = {};
+    this.equipoCargando  = {};
 
     // El backend filtra cad_actuaciones por pedido_id (= cad_pedidos.id),
     // NO por evento_id (cad_eventos.id). Por eso se pasa item.id, no numeEvento.
@@ -283,11 +308,14 @@ export class PedidoComponent implements OnInit, OnDestroy {
   }
 
   volverALista(): void {
-    this.selectedId   = null;
-    this.detalle      = null;
-    this.timeline     = [];
-    this.actuaciones  = [];
-    this.showAnotForm = false;
+    this.selectedId      = null;
+    this.detalle         = null;
+    this.timeline        = [];
+    this.actuaciones     = [];
+    this.showAnotForm    = false;
+    this.equipoExpandido = {};
+    this.equipoDetalle   = {};
+    this.equipoCargando  = {};
   }
 
   // ──────────────────────────────────────────────────────────────────────────
@@ -415,7 +443,9 @@ export class PedidoComponent implements OnInit, OnDestroy {
     }
 
     // ── 4. Evento de cierre (si el incidente está cerrado) ───────────────
-    if ((d.estado === 'C' || d.estado === 'V') && d.fechaCierre) {
+    // d.estado es cad_pedidos.estado (dominio A/P/E/T/R/C, sin 'V'); la anulación
+    // real vive en cad_eventos.estado (d.eventoEstado), dominio independiente.
+    if (d.estado === 'C' && d.fechaCierre) {
       const codigosStr = d.codigosCierre?.length
         ? d.codigosCierre
             .map(c => c.descripcionLibre
@@ -435,10 +465,10 @@ export class PedidoComponent implements OnInit, OnDestroy {
       items.push({
         timestamp:   d.fechaCierre,
         tipo:        'CIERRE',
-        titulo:      d.estado === 'V' ? 'Evento anulado' : 'Evento cerrado',
+        titulo:      d.eventoEstado === 'V' ? 'Evento anulado' : 'Evento cerrado',
         descripcion: partesCierre.join(' · '),
         actor:       d.usuarioCierre || d.usernameCreacion || '—',
-        icono:       d.estado === 'V' ? 'fa-solid fa-circle-xmark' : 'fa-solid fa-flag-checkered',
+        icono:       d.eventoEstado === 'V' ? 'fa-solid fa-circle-xmark' : 'fa-solid fa-flag-checkered',
         colorClass:  'tl-cierre',
       });
     }
@@ -592,7 +622,7 @@ export class PedidoComponent implements OnInit, OnDestroy {
         icon:   'fa-circle-dot',
       },
       {
-        label:  'Tasa de resolución del turno',
+        label:  'Tasa de resolución (cola CAD completa)',
         valor:  tasaRes,
         unidad: '%',
         meta:   80,
@@ -734,12 +764,17 @@ export class PedidoComponent implements OnInit, OnDestroy {
   // ──────────────────────────────────────────────────────────────────────────
 
   getEstadoLabel(e: string): string {
-    return ({ A: 'Activo', C: 'Cerrado', P: 'Pendiente' } as any)[e] ?? e;
+    return ({
+      A: 'Activo', P: 'Pendiente', E: 'En proceso',
+      T: 'Seguimiento', R: 'Para revisión', C: 'Cerrado',
+    } as any)[e] ?? e;
   }
 
   getEstadoClass(e: string): string {
-    return ({ A: 'seg-badge--activo', C: 'seg-badge--cerrado', P: 'seg-badge--pendiente' } as any)[e]
-           ?? 'seg-badge--default';
+    return ({
+      A: 'seg-badge--activo', P: 'seg-badge--pendiente', E: 'seg-badge--proceso',
+      T: 'seg-badge--seguimiento', R: 'seg-badge--revision', C: 'seg-badge--cerrado',
+    } as any)[e] ?? 'seg-badge--default';
   }
 
   getPrioridadLabel(p: string): string {
@@ -793,12 +828,6 @@ export class PedidoComponent implements OnInit, OnDestroy {
       ? new Date(this.conteos.turnoDesde).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })
       : '';
     return `${this.conteos.turnoActual} turno${desde ? ' · desde ' + desde : ''}`;
-  }
-
-  /** Construye la cadena "CÓDIGO — Descripción" para cualquier código de caso. */
-  codiConDesc(codigo: string | undefined, desc: string | undefined): string {
-    if (!codigo) return '—';
-    return desc ? `${codigo} — ${desc}` : codigo;
   }
 
   // ──────────────────────────────────────────────────────────────────────────
@@ -980,6 +1009,7 @@ export class PedidoComponent implements OnInit, OnDestroy {
       // ── Trazabilidad ─────────────────────────────────────────────────
       ultimoAccesoUsername: item?.ultimoAccesoUsername ?? item?.ultimo_acceso_username ?? null,
       ultimoAccesoFecha:    item?.ultimoAccesoFecha     ?? item?.ultimo_acceso_fecha    ?? null,
+      eventoEstado:         item?.eventoEstado          ?? item?.evento_estado          ?? null,
       codigosCierre: (item?.codigosCierre ?? item?.codigos_cierre ?? []).map((c: any) => ({
         orden:            Number(c?.orden ?? 0),
         codigoCierre:     String(c?.codigoCierre     ?? c?.codigo_cierre     ?? ''),

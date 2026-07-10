@@ -132,6 +132,13 @@ namespace Comun.Dtos.Incidentes
         /// <summary>Usuario que cerró el evento (cad_eventos.usuario_modifica).</summary>
         public string UsuarioCierre { get; set; } = string.Empty;
 
+        /// <summary>
+        /// Estado propio de cad_eventos (P/D/A/C/V), dominio independiente de <see cref="Estado"/>
+        /// (que refleja cad_pedidos.estado, sin valor 'V'). Permite distinguir cierre normal
+        /// de anulación en el timeline sin confundir los dos dominios de estado.
+        /// </summary>
+        public string? EventoEstado { get; set; }
+
         /// <summary>Códigos de cierre registrados en cad_eventos_codigos_cierre.</summary>
         public List<DtoCodigoCierrePedido> CodigosCierre { get; set; } = new();
 

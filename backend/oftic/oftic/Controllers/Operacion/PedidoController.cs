@@ -22,6 +22,9 @@ namespace Api.Controllers.Operacion
             _logger = logger;
         }
 
+        private static readonly HashSet<string> EstadosValidos = new(StringComparer.Ordinal)
+            { "A", "P", "E", "T", "R", "C" };
+
         /// <summary>
         /// Lista casos con filtros opcionales: estado (A/C/P) y sitio_graba.
         /// </summary>
@@ -31,8 +34,16 @@ namespace Api.Controllers.Operacion
             [FromQuery] int? sitioGraba,
             CancellationToken ct)
         {
-            var result = await _service.GetListAsync(estado, sitioGraba, ct);
-            return Ok(result);
+            try
+            {
+                var result = await _service.GetListAsync(estado, sitioGraba, ct);
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al listar pedidos");
+                return StatusCode(500, new { success = false, message = $"Error: {ex.Message}" });
+            }
         }
 
         /// <summary>
@@ -41,10 +52,18 @@ namespace Api.Controllers.Operacion
         [HttpGet("{id:long}")]
         public async Task<ActionResult> GetById(long id, CancellationToken ct)
         {
-            var result = await _service.GetByIdAsync(id, ct);
-            if (result == null)
-                return NotFound(new { success = false, message = "Caso no encontrado." });
-            return Ok(result);
+            try
+            {
+                var result = await _service.GetByIdAsync(id, ct);
+                if (result == null)
+                    return NotFound(new { success = false, message = "Caso no encontrado." });
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al obtener pedido id={Id}", id);
+                return StatusCode(500, new { success = false, message = $"Error: {ex.Message}" });
+            }
         }
 
         /// <summary>
@@ -53,6 +72,9 @@ namespace Api.Controllers.Operacion
         [HttpPost]
         public async Task<ActionResult> Create([FromBody] DtoPedidoRequest request, CancellationToken ct)
         {
+            if (!string.IsNullOrWhiteSpace(request.Estado) && !EstadosValidos.Contains(request.Estado))
+                return BadRequest(new { success = false, message = $"Estado inválido: '{request.Estado}'. Valores permitidos: A, P, E, T, R, C." });
+
             try
             {
                 var (usuario, username, maquina) = ObtenerAuditoria();
@@ -74,11 +96,22 @@ namespace Api.Controllers.Operacion
         [HttpPut("{id:long}")]
         public async Task<ActionResult> Update(long id, [FromBody] DtoPedidoRequest request, CancellationToken ct)
         {
-            var (usuario, username, maquina) = ObtenerAuditoria();
-            var result = await _service.UpdateAsync(id, request, usuario, username, maquina, ct);
-            if (!result.Success)
-                return BadRequest(new { success = false, message = result.Message });
-            return Ok(new { success = true, id = result.Id, message = result.Message });
+            if (!string.IsNullOrWhiteSpace(request.Estado) && !EstadosValidos.Contains(request.Estado))
+                return BadRequest(new { success = false, message = $"Estado inválido: '{request.Estado}'. Valores permitidos: A, P, E, T, R, C." });
+
+            try
+            {
+                var (usuario, username, maquina) = ObtenerAuditoria();
+                var result = await _service.UpdateAsync(id, request, usuario, username, maquina, ct);
+                if (!result.Success)
+                    return BadRequest(new { success = false, message = result.Message });
+                return Ok(new { success = true, id = result.Id, message = result.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al actualizar pedido id={Id}", id);
+                return StatusCode(500, new { success = false, message = $"Error: {ex.Message}" });
+            }
         }
 
         /// <summary>
@@ -87,24 +120,45 @@ namespace Api.Controllers.Operacion
         [HttpPost("{id:long}/cerrar-rapido")]
         public async Task<ActionResult> CerrarRapido(long id, [FromBody] DtoCerrarRapidoRequest request, CancellationToken ct)
         {
-            var (usuario, _, maquina) = ObtenerAuditoria();
-            var result = await _service.CerrarRapidoAsync(id, request, usuario, maquina, ct);
-            if (!result.Success)
-                return BadRequest(new { success = false, message = result.Message });
-            return Ok(new { success = true, message = result.Message });
+            try
+            {
+                var (usuario, _, maquina) = ObtenerAuditoria();
+                var result = await _service.CerrarRapidoAsync(id, request, usuario, maquina, ct);
+                if (!result.Success)
+                    return BadRequest(new { success = false, message = result.Message });
+                return Ok(new { success = true, message = result.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al cerrar rápido pedido id={Id}", id);
+                return StatusCode(500, new { success = false, message = $"Error: {ex.Message}" });
+            }
         }
 
         /// <summary>
-        /// Cambia el estado de un caso (A=Activo, C=Cerrado, P=Pendiente).
+        /// Cambia el estado de un caso.
+        /// Valores permitidos: A=Activo, P=Pendiente, E=En proceso, T=Seguimiento, R=Revisión, C=Cerrado
+        /// (mismo dominio que PUT api/Evento/{id}/estado).
         /// </summary>
         [HttpPut("{id:long}/estado")]
         public async Task<ActionResult> SetEstado(long id, [FromBody] DtoEstadoPedidoRequest request, CancellationToken ct)
         {
-            var (usuario, _, maquina) = ObtenerAuditoria();
-            var result = await _service.SetEstadoAsync(id, request.Estado, usuario, maquina, ct);
-            if (!result.Success)
-                return BadRequest(new { success = false, message = result.Message });
-            return Ok(new { success = true, message = result.Message });
+            if (!EstadosValidos.Contains(request.Estado))
+                return BadRequest(new { success = false, message = $"Estado inválido: '{request.Estado}'. Valores permitidos: A, P, E, T, R, C." });
+
+            try
+            {
+                var (usuario, _, maquina) = ObtenerAuditoria();
+                var result = await _service.SetEstadoAsync(id, request.Estado, usuario, maquina, ct);
+                if (!result.Success)
+                    return BadRequest(new { success = false, message = result.Message });
+                return Ok(new { success = true, message = result.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al cambiar estado pedido id={Id}", id);
+                return StatusCode(500, new { success = false, message = $"Error: {ex.Message}" });
+            }
         }
 
         /// <summary>
@@ -113,8 +167,16 @@ namespace Api.Controllers.Operacion
         [HttpGet("{id:long}/anotaciones")]
         public async Task<ActionResult> GetAnotaciones(long id, CancellationToken ct)
         {
-            var result = await _service.GetAnotacionesAsync(id, ct);
-            return Ok(result);
+            try
+            {
+                var result = await _service.GetAnotacionesAsync(id, ct);
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al listar anotaciones pedido id={Id}", id);
+                return StatusCode(500, new { success = false, message = $"Error: {ex.Message}" });
+            }
         }
 
         /// <summary>
@@ -123,11 +185,19 @@ namespace Api.Controllers.Operacion
         [HttpPost("{id:long}/anotaciones")]
         public async Task<ActionResult> CreateAnotacion(long id, [FromBody] DtoAnotacionRequest request, CancellationToken ct)
         {
-            var (usuario, username, maquina) = ObtenerAuditoria();
-            var result = await _service.CreateAnotacionAsync(id, request, usuario, username, maquina, ct);
-            if (!result.Success)
-                return BadRequest(new { success = false, message = result.Message });
-            return Ok(new { success = true, id = result.Id, message = result.Message });
+            try
+            {
+                var (usuario, username, maquina) = ObtenerAuditoria();
+                var result = await _service.CreateAnotacionAsync(id, request, usuario, username, maquina, ct);
+                if (!result.Success)
+                    return BadRequest(new { success = false, message = result.Message });
+                return Ok(new { success = true, id = result.Id, message = result.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al crear anotación pedido id={Id}", id);
+                return StatusCode(500, new { success = false, message = $"Error: {ex.Message}" });
+            }
         }
 
         /// <summary>
@@ -136,8 +206,16 @@ namespace Api.Controllers.Operacion
         [HttpGet("buscar-asociar")]
         public async Task<ActionResult> BuscarAsociar([FromQuery] int sitioGraba, CancellationToken ct)
         {
-            var result = await _service.BuscarParaAsociarAsync(sitioGraba, ct);
-            return Ok(result);
+            try
+            {
+                var result = await _service.BuscarParaAsociarAsync(sitioGraba, ct);
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al buscar pedidos para asociar sitioGraba={Sg}", sitioGraba);
+                return StatusCode(500, new { success = false, message = $"Error: {ex.Message}" });
+            }
         }
 
         // ─── Helpers ──────────────────────────────────────────────────────────
