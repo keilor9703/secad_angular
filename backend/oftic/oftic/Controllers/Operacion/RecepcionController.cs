@@ -93,15 +93,29 @@ namespace Api.Controllers.Operacion
         [HttpGet("canales")]
         public async Task<IActionResult> GetCanales([FromQuery] int? sitioGraba, CancellationToken ct)
         {
-            try   { return Ok(await _svc.F_GetCanalesAsync(sitioGraba ?? SitioGraba, ct)); }
-            catch { return StatusCode(500, new List<object>()); }
+            try
+            {
+                return Ok(await _svc.F_GetCanalesAsync(sitioGraba ?? SitioGraba, ct));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al listar canales sitioGraba={Sg}", sitioGraba ?? SitioGraba);
+                return StatusCode(500, new List<object>());
+            }
         }
 
         [HttpGet("referencias")]
         public async Task<IActionResult> GetReferencias([FromQuery] string nombre, CancellationToken ct)
         {
-            try   { return Ok(await _svc.F_GetReferenciasAsync(nombre, ct)); }
-            catch { return StatusCode(500, new List<object>()); }
+            try
+            {
+                return Ok(await _svc.F_GetReferenciasAsync(nombre, ct));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al listar referencias nombre={Nombre}", nombre);
+                return StatusCode(500, new List<object>());
+            }
         }
 
         [HttpPost("casos-intel")]

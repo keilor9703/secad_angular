@@ -1,7 +1,16 @@
 // ══════════════════════════════════════════════════════════════════════════════
 //  Seguimiento de Incidentes CAD — SECAD
 //  Módulo del Jefe de Turno: Dashboard · Trazabilidad · KPIs
-//  Usa el sistema de diseño ui-*. Sin Bootstrap.
+//  Sin Bootstrap. Usa las variables/utilidades globales del sistema ui-*
+//  (--ui-border, --ui-text, --ui-surface, etc.), pero los componentes propios
+//  de este módulo (tarjetas, badges, timeline, KPIs) están namespaced bajo el
+//  prefijo local `seg-` (de "SEGuimiento"), scoped a este archivo — es un
+//  tercer prefijo además de `ui-*` (sistema global), `ev-*` (Eventos) y
+//  `rec-*` (Recepción). No hay relación entre ellos ni se comparten reglas:
+//  es deliberado (cada módulo evolucionó su propio look por separado), no un
+//  descuido. Las clases `ev-adjunto-*` de la sección Fotos adjuntas son la
+//  única excepción — se reutilizan tal cual desde eventos.scss por consistencia
+//  visual entre los dos lugares donde se muestran fotos de un caso.
 // ══════════════════════════════════════════════════════════════════════════════
 
 .seg-page { width: 100%; }

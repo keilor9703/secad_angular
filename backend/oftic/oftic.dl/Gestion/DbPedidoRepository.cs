@@ -522,20 +522,9 @@ RETURNING id";
                 result.Success = true;
                 result.Message = "Anotación registrada.";
 
-                // Red de seguridad: si el evento seguía en 'P'/'A' (p.ej. el despachador lo
-                // devolvió manualmente a Pendiente sin volver a abrirlo), agregar una nota
-                // es una gestión real — promoverlo a 'En proceso'. En el caso normal ya
-                // estará en 'E' desde que se abrió el evento (RegistrarAccesoAsync), así que
-                // este UPDATE no hace nada.
-                await using var cmdEstado = conn.CreateCommand();
-                cmdEstado.Transaction = tx;
-                cmdEstado.CommandText = @"
-UPDATE cad_pedidos SET estado = 'E', fecha_modifica = NOW()
-WHERE id = @idPedido AND estado IN ('P','A')
-RETURNING estado";
-                cmdEstado.Parameters.AddWithValue("idPedido", idPedido);
-                var rawEstado = await cmdEstado.ExecuteScalarAsync(ct);
-                if (rawEstado is not null and not DBNull) result.EstadoActual = rawEstado.ToString();
+                // Red de seguridad: agregar una nota es una gestión real — promover a
+                // 'En proceso' si el pedido seguía en 'P'/'A' (ver EstadoPedidoHelper).
+                result.EstadoActual = await EstadoPedidoHelper.PromoverPorPedidoIdAsync(conn, tx, idPedido, ct);
 
                 await tx.CommitAsync(ct);
             }
@@ -826,17 +815,7 @@ UPDATE cad_pedidos
             try
             {
                 // 3. Promover a 'En proceso' porque alguien ya está viendo el evento.
-                await using var cmdEstado = conn.CreateCommand();
-                cmdEstado.CommandText = @"
-UPDATE cad_pedidos
-   SET estado         = 'E',
-       fecha_modifica = NOW()
- WHERE id = @pedidoId
-   AND estado IN ('P','A')
-RETURNING estado";
-                cmdEstado.Parameters.AddWithValue("pedidoId", pedidoId);
-                var raw = await cmdEstado.ExecuteScalarAsync(ct);
-                if (raw is not null and not DBNull) nuevoEstado = raw.ToString();
+                nuevoEstado = await EstadoPedidoHelper.PromoverPorPedidoIdAsync(conn, null, pedidoId, ct);
             }
             catch (Exception ex)
             {

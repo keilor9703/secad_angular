@@ -536,7 +536,7 @@ RETURNING id";
 
             var newId = await cmd.ExecuteScalarAsync(ct);
 
-            var estadoEventoActual = await PromoverEstadoPorActuacionAsync(conn, tx, actuacionId, ct);
+            var estadoEventoActual = await EstadoPedidoHelper.PromoverPorActuacionIdAsync(conn, tx, actuacionId, ct);
             await tx.CommitAsync(ct);
 
             return new DtoActuacionResult
@@ -587,7 +587,7 @@ RETURNING id";
 
             var newId = await cmd.ExecuteScalarAsync(ct);
 
-            var estadoEventoActual = await PromoverEstadoPorActuacionAsync(conn, tx, actuacionId, ct);
+            var estadoEventoActual = await EstadoPedidoHelper.PromoverPorActuacionIdAsync(conn, tx, actuacionId, ct);
             await tx.CommitAsync(ct);
 
             return new DtoActuacionResult
@@ -598,33 +598,6 @@ RETURNING id";
                 Message            = $"Unidad '{req.UnidadCodigo}' despachada.",
                 EstadoEventoActual = estadoEventoActual
             };
-        }
-
-        /// <summary>
-        /// Red de seguridad: promueve cad_pedidos.estado a 'E' (En proceso) si seguía
-        /// en 'P'/'A', resolviendo el pedido dueño de una actuación
-        /// (cad_actuaciones.evento_id → cad_eventos.pedido_id). Normalmente no hace
-        /// nada porque el pedido ya está en 'E' desde que se abrió el evento
-        /// (ver DbPedidoRepository.RegistrarAccesoAsync). Devuelve el nuevo estado,
-        /// o null si no cambió.
-        /// </summary>
-        private static async Task<string?> PromoverEstadoPorActuacionAsync(
-            NpgsqlConnection conn, NpgsqlTransaction tx, long actuacionId, CancellationToken ct)
-        {
-            await using var cmd = conn.CreateCommand();
-            cmd.Transaction = tx;
-            cmd.CommandText = @"
-UPDATE cad_pedidos SET estado = 'E', fecha_modifica = NOW()
-WHERE estado IN ('P','A')
-  AND id = (
-      SELECT ev.pedido_id FROM cad_actuaciones a
-      JOIN   cad_eventos ev ON ev.id = a.evento_id
-      WHERE  a.id = @actuacionId
-  )
-RETURNING estado";
-            cmd.Parameters.AddWithValue("actuacionId", actuacionId);
-            var raw = await cmd.ExecuteScalarAsync(ct);
-            return raw is null or DBNull ? null : raw.ToString();
         }
 
         // ════════════════════════════════════════════════════════════════════════
@@ -794,20 +767,8 @@ WHERE  id = @medioId";
                 }
 
                 // Red de seguridad: asignar un recurso es una gestión real — promover el
-                // pedido a 'En proceso' si por algún motivo seguía en 'P'/'A' (normalmente
-                // ya está en 'E' desde que se abrió el evento).
-                string? estadoEventoActual = null;
-                await using (var cmdEstado = conn.CreateCommand())
-                {
-                    cmdEstado.Transaction = tx;
-                    cmdEstado.CommandText = @"
-UPDATE cad_pedidos SET estado = 'E', fecha_modifica = NOW()
-WHERE id = @pedidoId AND estado IN ('P','A')
-RETURNING estado";
-                    cmdEstado.Parameters.AddWithValue("pedidoId", req.EventoId);
-                    var rawEstado = await cmdEstado.ExecuteScalarAsync(ct);
-                    if (rawEstado is not null and not DBNull) estadoEventoActual = rawEstado.ToString();
-                }
+                // pedido a 'En proceso' si por algún motivo seguía en 'P'/'A' (ver EstadoPedidoHelper).
+                var estadoEventoActual = await EstadoPedidoHelper.PromoverPorPedidoIdAsync(conn, tx, req.EventoId, ct);
 
                 await tx.CommitAsync(ct);
                 _logger.LogInformation(

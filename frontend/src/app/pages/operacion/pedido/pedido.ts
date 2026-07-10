@@ -192,10 +192,12 @@ export class PedidoComponent implements OnInit, OnDestroy {
 
     this.cargarLista();
 
-    // Auto-refresh lista cada 30 s
+    // Auto-refresh lista cada 30 s — se salta el fetch mientras la pestaña del
+    // navegador está oculta (usuario en otra ventana/pestaña), para no gastar
+    // ancho de banda ni carga en el backend en un fetch completo sin paginar.
     interval(30_000)
       .pipe(takeUntil(this.destroy$))
-      .subscribe(() => this.cargarLista(true));
+      .subscribe(() => { if (!document.hidden) this.cargarLista(true); });
 
     // Tick semáforo cada 60 s → recalcula stats y KPIs
     interval(60_000)

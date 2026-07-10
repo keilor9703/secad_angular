@@ -5,6 +5,9 @@ namespace Comun.Dtos.Recepcion
     // ── Incoming telephony event (from CTI interface) ───────────────────────────
     public class DtoLlamadaEntrante
     {
+        /// <summary>ID Snowflake (= cad_pedidos.id). Anotado por consistencia con el resto
+        /// del código; el conversor JSON global ya protege la precisión en tránsito.</summary>
+        [JsonNumberHandling(JsonNumberHandling.WriteAsString | JsonNumberHandling.AllowReadingFromString)]
         public long   NUME_LLAMADA  { get; set; }
         public long   NUME_TELEFONO { get; set; }
         public string CORDX         { get; set; } = "0";
@@ -69,12 +72,14 @@ namespace Comun.Dtos.Recepcion
     {
         public int    SitioGraba  { get; set; }
         public string HoraCaso    { get; set; } = "";
+        [JsonNumberHandling(JsonNumberHandling.WriteAsString | JsonNumberHandling.AllowReadingFromString)]
         public long   NumeLlamada { get; set; }
     }
 
     // ── Row returned by F_BuscarLlamadasAsociar ─────────────────────────────────
     public class DtoLlamadaAsociar
     {
+        [JsonNumberHandling(JsonNumberHandling.WriteAsString | JsonNumberHandling.AllowReadingFromString)]
         public long   NUME_LLAMADA  { get; set; }
         public string HORA_CASO     { get; set; } = "";
         public long   NUME_TELEFONO { get; set; }
@@ -102,6 +107,7 @@ namespace Comun.Dtos.Recepcion
     public class DtoRecepcion
     {
         public int    SITIO_GRABA    { get; set; }
+        [JsonNumberHandling(JsonNumberHandling.WriteAsString | JsonNumberHandling.AllowReadingFromString)]
         public long   NUME_LLAMADA   { get; set; }
         /// <summary>Format: dd/MM/yyyy HH:mm:ss</summary>
         public string HORA_CASO      { get; set; } = "";
@@ -149,8 +155,10 @@ namespace Comun.Dtos.Recepcion
         public bool   Success  { get; set; }
         public string Message  { get; set; } = "";
         /// <summary>ID Snowflake del evento creado. Disponible tras P_GuardarLlamadaAsync.</summary>
+        [JsonNumberHandling(JsonNumberHandling.WriteAsString | JsonNumberHandling.AllowReadingFromString)]
         public long?  EventoId { get; set; }
         /// <summary>ID Snowflake del pedido (igual a NUME_LLAMADA). Cómodo para APIs externas.</summary>
+        [JsonNumberHandling(JsonNumberHandling.WriteAsString | JsonNumberHandling.AllowReadingFromString)]
         public long?  PedidoId { get; set; }
     }
 
@@ -163,9 +171,11 @@ namespace Comun.Dtos.Recepcion
     public class DtoRemitirCanalRequest
     {
         /// <summary>ID Snowflake de cad_pedidos (= cadpedi_numellamada).</summary>
+        [JsonNumberHandling(JsonNumberHandling.WriteAsString | JsonNumberHandling.AllowReadingFromString)]
         public long       PedidoId    { get; set; }
         public int        SitioGraba  { get; set; }
         /// <summary>ID de cad_eventos (= cadeven_nume_evento).</summary>
+        [JsonNumberHandling(JsonNumberHandling.WriteAsString | JsonNumberHandling.AllowReadingFromString)]
         public long       EventoId    { get; set; }
         /// <summary>
         /// Canales destino con llave compuesta (Codigo + FuerzaId).
