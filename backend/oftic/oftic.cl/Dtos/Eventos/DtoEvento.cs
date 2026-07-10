@@ -222,3 +222,38 @@ public class DtoEventoResult
     [JsonNumberHandling(JsonNumberHandling.WriteAsString | JsonNumberHandling.AllowReadingFromString)]
     public long?  PedidoId  { get; set; }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Visibilidad multi-canal (§ gestión conjunta): qué canales SECAD y qué
+// agencias externas tienen conocimiento/participación en un evento.
+// ─────────────────────────────────────────────────────────────────────────────
+public class DtoCanalAsignadoEvento
+{
+    public int     Codigo              { get; set; }
+    public int     FuerzaId            { get; set; }
+    public string  FuerzaDescripcion   { get; set; } = "";
+    public string  CanalDescripcion    { get; set; } = "";
+    /// <summary>'A' = activo en la cola de ese canal. 'C' = ese canal ya cerró su participación.</summary>
+    public string  Estado              { get; set; } = "A";
+    /// <summary>Actuaciones (recursos) actualmente abiertas para ESTE canal.</summary>
+    public int     ActuacionesActivas  { get; set; }
+    public string? FechaModificacion   { get; set; }
+    public string? UsuarioModifica     { get; set; }
+}
+
+public class DtoAgenciaDespachadaEvento
+{
+    [JsonNumberHandling(JsonNumberHandling.WriteAsString | JsonNumberHandling.AllowReadingFromString)]
+    public long    AgenciaId    { get; set; }
+    public string  Nombre       { get; set; } = "";
+    public string  TipoAgencia  { get; set; } = "";
+    public string  FechaEnvio   { get; set; } = "";
+    public bool    Exitoso      { get; set; }
+    public string? EnviadoPor   { get; set; }
+}
+
+public class DtoCanalesAsignadosResult
+{
+    public List<DtoCanalAsignadoEvento>     Canales          { get; set; } = new();
+    public List<DtoAgenciaDespachadaEvento> AgenciasExternas { get; set; } = new();
+}

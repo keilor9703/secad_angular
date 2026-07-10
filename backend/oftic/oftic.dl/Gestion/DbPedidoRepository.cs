@@ -290,6 +290,7 @@ WHERE id = @id";
 
         public async Task<DtoPedidoResult> CerrarEventoDesdeDespachoAsync(
             long pedidoId, Ev.DtoCerrarEventoDespachoRequest req,
+            int canalCodigo, int fuerzaId,
             long usuarioId, string username, string maquina, CancellationToken ct)
         {
             var result = new DtoPedidoResult();
@@ -298,26 +299,173 @@ WHERE id = @id";
 
             try
             {
-                // ── 1. Obtener el ID del evento vinculado al pedido ───────────
-                long eventoId = 0;
+                // ── 1. Obtener el ID del evento + identificadores del pedido ──
+                long eventoId    = 0;
+                long numeLlamada = 0;
+                int  sitioGraba  = 0;
                 await using (var sel = conn.CreateCommand())
                 {
                     sel.Transaction = tx;
                     sel.CommandText = @"
-SELECT id FROM cad_eventos
-WHERE  pedido_id = @pedidoId
-ORDER  BY fecha_creacion DESC
+SELECT e.id, p.nume_llamada, p.sitio_graba
+FROM   cad_pedidos p
+JOIN   cad_eventos  e ON e.pedido_id = p.id
+WHERE  p.id = @pedidoId
+ORDER  BY e.fecha_creacion DESC
 LIMIT  1";
                     sel.Parameters.AddWithValue("pedidoId", pedidoId);
-                    var raw = await sel.ExecuteScalarAsync(ct);
-                    if (raw == null || raw == DBNull.Value)
+                    await using var rSel = await sel.ExecuteReaderAsync(ct);
+                    if (!await rSel.ReadAsync(ct))
                     {
+                        await rSel.CloseAsync();
                         await tx.RollbackAsync(ct);
                         result.Success = false;
                         result.Message = $"No se encontró ningún evento asociado al pedido {pedidoId}.";
                         return result;
                     }
-                    eventoId = Convert.ToInt64(raw);
+                    eventoId    = rSel.GetInt64(0);
+                    numeLlamada = rSel.IsDBNull(1) ? pedidoId : rSel.GetInt64(1);
+                    sitioGraba  = rSel.IsDBNull(2) ? 0 : rSel.GetInt32(2);
+                }
+
+                // ── 1b. Multi-canal: ¿hay más de un canal asignado a este pedido? ──
+                // Si solo hay uno (o ninguno registrado — casos legacy vía p.canales),
+                // "cerrar" equivale al cierre global inmediato de siempre: no tiene
+                // sentido ni riesgo aplicar el gate por-canal cuando no hay nadie más
+                // gestionando el caso en paralelo.
+                int totalCanales = 0;
+                await using (var cnt = conn.CreateCommand())
+                {
+                    cnt.Transaction = tx;
+                    cnt.CommandText = @"
+SELECT COUNT(*) FROM cad_pedidos_canales
+WHERE  cadpedi_sitiograba  = @sg
+  AND  cadpedi_numellamada = @nl";
+                    cnt.Parameters.AddWithValue("sg", sitioGraba);
+                    cnt.Parameters.AddWithValue("nl", numeLlamada);
+                    totalCanales = Convert.ToInt32(await cnt.ExecuteScalarAsync(ct) ?? 0);
+                }
+
+                if (totalCanales > 1)
+                {
+                    if (canalCodigo <= 0 || fuerzaId <= 0)
+                    {
+                        await tx.RollbackAsync(ct);
+                        result.Success = false;
+                        result.Message = "Este evento tiene varios canales asignados y no se pudo determinar su canal actual. Intente de nuevo.";
+                        return result;
+                    }
+
+                    // No se puede cerrar la participación de este canal si todavía
+                    // tiene recursos propios en campo — evita abandonar actuaciones
+                    // activas sin que nadie las esté viendo en su bandeja.
+                    long actuacionesCanal;
+                    await using (var actCnt = conn.CreateCommand())
+                    {
+                        actCnt.Transaction = tx;
+                        actCnt.CommandText = @"
+SELECT COUNT(*) FROM cad_actuaciones
+WHERE  pedido_id    = @pedidoId
+  AND  canal_codigo = @canalCodigo
+  AND  fuerza_id    = @fuerzaId
+  AND  estado NOT IN ('C','V')";
+                        actCnt.Parameters.AddWithValue("pedidoId",    pedidoId);
+                        actCnt.Parameters.AddWithValue("canalCodigo", canalCodigo);
+                        actCnt.Parameters.AddWithValue("fuerzaId",    fuerzaId);
+                        actuacionesCanal = Convert.ToInt64(await actCnt.ExecuteScalarAsync(ct) ?? 0);
+                    }
+                    if (actuacionesCanal > 0)
+                    {
+                        await tx.RollbackAsync(ct);
+                        result.Success = false;
+                        result.Message = $"Su canal aún tiene {actuacionesCanal} recurso(s) activo(s). Cierre esas actuaciones antes de cerrar el evento.";
+                        return result;
+                    }
+
+                    // Cerrar SOLO la fila de este canal — no toca cad_eventos/cad_pedidos.
+                    await using (var updCanal = conn.CreateCommand())
+                    {
+                        updCanal.Transaction = tx;
+                        updCanal.CommandText = @"
+UPDATE cad_pedidos_canales
+SET    estado             = 'C',
+       fecha_modificacion = NOW(),
+       usua_modifica      = @usuario
+WHERE  cadpedi_sitiograba  = @sg
+  AND  cadpedi_numellamada = @nl
+  AND  cadcana_codigo      = @canal
+  AND  cadcana_fuerz_id    = @fuerza
+  AND  estado             <> 'C'";
+                        updCanal.Parameters.AddWithValue("usuario", NullOrString(username));
+                        updCanal.Parameters.AddWithValue("sg",      sitioGraba);
+                        updCanal.Parameters.AddWithValue("nl",      numeLlamada);
+                        updCanal.Parameters.AddWithValue("canal",   canalCodigo);
+                        updCanal.Parameters.AddWithValue("fuerza",  fuerzaId);
+                        await updCanal.ExecuteNonQueryAsync(ct);
+                    }
+
+                    // ¿Quedan otros canales activos o actuaciones abiertas en cualquiera?
+                    // Si alguno de los dos es cierto, este NO es el cierre definitivo —
+                    // se deja el evento/pedido tal cual, visible para el canal que sigue.
+                    long canalesActivos, actuacionesGlobales;
+                    await using (var restCnt = conn.CreateCommand())
+                    {
+                        restCnt.Transaction = tx;
+                        restCnt.CommandText = @"
+SELECT COUNT(*) FROM cad_pedidos_canales
+WHERE  cadpedi_sitiograba  = @sg
+  AND  cadpedi_numellamada = @nl
+  AND  estado             <> 'C'";
+                        restCnt.Parameters.AddWithValue("sg", sitioGraba);
+                        restCnt.Parameters.AddWithValue("nl", numeLlamada);
+                        canalesActivos = Convert.ToInt64(await restCnt.ExecuteScalarAsync(ct) ?? 0);
+                    }
+                    await using (var actGlobalCnt = conn.CreateCommand())
+                    {
+                        actGlobalCnt.Transaction = tx;
+                        actGlobalCnt.CommandText = "SELECT COUNT(*) FROM cad_actuaciones WHERE pedido_id = @pedidoId AND estado NOT IN ('C','V')";
+                        actGlobalCnt.Parameters.AddWithValue("pedidoId", pedidoId);
+                        actuacionesGlobales = Convert.ToInt64(await actGlobalCnt.ExecuteScalarAsync(ct) ?? 0);
+                    }
+
+                    // Trazabilidad — visible en la línea de tiempo del caso para
+                    // cualquier funcionario, sin importar desde qué canal lo mire.
+                    await using (var anot = conn.CreateCommand())
+                    {
+                        anot.Transaction = tx;
+                        anot.CommandText = @"
+INSERT INTO cad_anotaciones
+    (id_pedido, titulo, anotacion, tipo_anotacion,
+     usuario_creacion, username_creacion, fecha_creacion, maquina_creacion)
+VALUES
+    (@idPedido, @titulo, @anotacion, 'CIERRE', @usuario, @username, NOW(), @maquina)";
+                        var titulo = canalesActivos == 0 && actuacionesGlobales == 0
+                            ? "Cierre definitivo del evento"
+                            : "Canal cerró su participación";
+                        var detalle = canalesActivos == 0 && actuacionesGlobales == 0
+                            ? "Todos los canales asignados cerraron su participación — el evento queda cerrado definitivamente."
+                            : $"El canal (código {canalCodigo}, fuerza {fuerzaId}) cerró su participación en el evento. Sigue activo en otro(s) canal(es) o con recursos en campo.";
+                        anot.Parameters.AddWithValue("idPedido",  pedidoId);
+                        anot.Parameters.AddWithValue("titulo",    titulo);
+                        anot.Parameters.AddWithValue("anotacion", detalle);
+                        anot.Parameters.AddWithValue("usuario",   usuarioId);
+                        anot.Parameters.AddWithValue("username",  Truncate(username, 100));
+                        anot.Parameters.AddWithValue("maquina",   Truncate(maquina, 100));
+                        await anot.ExecuteNonQueryAsync(ct);
+                    }
+
+                    if (canalesActivos > 0 || actuacionesGlobales > 0)
+                    {
+                        // No es el cierre definitivo — el evento/pedido permanecen
+                        // como están, activos para el/los canal(es) restante(s).
+                        await tx.CommitAsync(ct);
+                        result.Success = true;
+                        result.Id      = pedidoId;
+                        result.Message = "Su canal cerró su participación en el evento. El caso sigue activo en otro(s) canal(es) o con recursos en campo.";
+                        return result;
+                    }
+                    // Todos los canales ya cerraron y no quedan actuaciones abiertas
+                    // en ninguno — continúa abajo con el cierre GLOBAL definitivo.
                 }
 
                 var estadoFinal    = req.Estado is Ev.EstadoEvento.Cerrado or Ev.EstadoEvento.Anulado
@@ -612,15 +760,21 @@ FROM cad_pedidos p
 LEFT JOIN ctr_usuarios u  ON u.id_usuario         = p.usuario_creacion
 LEFT JOIN cad_casos    c1 ON TRIM(UPPER(c1.codigo)) = TRIM(UPPER(p.codi_pedido))
 LEFT JOIN cad_eventos  e  ON e.pedido_id          = p.id
+-- Fila de cad_pedidos_canales específica de ESTE canal (si existe). pc.estado
+-- indica si YO (este canal) ya cerré mi participación en el caso — distinto
+-- de p.estado, que es el cierre GLOBAL (solo ocurre cuando todos los canales
+-- asignados cerraron su parte y no quedan actuaciones abiertas en ninguno).
+LEFT JOIN LATERAL (
+    SELECT estado FROM cad_pedidos_canales pc2
+    WHERE pc2.cadpedi_sitiograba  = p.sitio_graba
+      AND pc2.cadpedi_numellamada = p.nume_llamada
+      AND pc2.cadcana_codigo      = @canalCodigo
+      AND pc2.cadcana_fuerz_id    = @fuerzaId
+    LIMIT 1
+) pc ON TRUE
 WHERE p.enviar = 'S'
   AND (
-      EXISTS (
-          SELECT 1 FROM cad_pedidos_canales pc
-          WHERE pc.cadpedi_sitiograba  = p.sitio_graba
-            AND pc.cadpedi_numellamada = p.nume_llamada
-            AND pc.cadcana_codigo      = @canalCodigo
-            AND pc.cadcana_fuerz_id    = @fuerzaId
-      )
+      pc.estado IS NOT NULL
       -- NOTA: esta rama de respaldo (p.canales, poblada solo al crear el pedido)
       -- es fuerza-agnóstica por diseño de datos — cad_pedidos.canales solo guarda
       -- códigos de canal (List<int>), sin fuerza, a diferencia de
@@ -630,26 +784,32 @@ WHERE p.enviar = 'S'
       -- migrar el formato de esa columna o dejar de depender de ella (ver
       -- auditoría del módulo Pedidos — cad_pedidos_canales sigue siendo la única
       -- vía fuerza-consciente para canales remitidos después de creado el pedido).
+      -- Tampoco tiene granularidad por-canal para el cierre parcial: un caso
+      -- visible solo por esta rama nunca se oculta por cierre-de-mi-canal.
       OR @canalCodigoStr = ANY(string_to_array(COALESCE(p.canales, ''), ','))
   )";
 
             if (estado == "C")
             {
-                // Filtro Cerrados: solo los del turno vigente para no sobrecargar.
+                // Filtro Cerrados: vista histórica — no importa si YO cerré mi canal
+                // antes que el resto; se muestra igual una vez el evento cierra
+                // globalmente. Solo los del turno vigente para no sobrecargar.
                 // Npgsql strict mode requiere UTC para timestamptz — convertir explícitamente.
                 sql += " AND p.estado = 'C' AND p.fecha_modifica >= @turnoDesde";
                 cmd.Parameters.AddWithValue("turnoDesde", turnoDesde.UtcDateTime);
             }
             else if (!string.IsNullOrWhiteSpace(estado))
             {
-                // Filtro activo específico (A, P, E, T, R): excluir cerrados explícitamente
-                sql += " AND p.estado = @estado AND p.estado != 'C'";
+                // Filtro activo específico (A, P, E, T, R): excluir cerrados globalmente
+                // Y excluir los que YO ya cerré desde mi canal (aunque sigan abiertos
+                // globalmente porque otro canal sigue gestionándolos).
+                sql += " AND p.estado = @estado AND p.estado != 'C' AND COALESCE(pc.estado,'') <> 'C'";
                 cmd.Parameters.AddWithValue("estado", estado);
             }
             else
             {
-                // Vista "Todos": excluir cerrados — no se mezclan activos con histórico
-                sql += " AND p.estado != 'C'";
+                // Vista "Todos": excluir cerrados globalmente y los cerrados desde mi canal.
+                sql += " AND p.estado != 'C' AND COALESCE(pc.estado,'') <> 'C'";
             }
 
             sql += @"
@@ -685,26 +845,31 @@ LIMIT 300";
             await using var cmd  = conn.CreateCommand();
 
             // Una sola consulta con COUNT … FILTER — muy eficiente
+            // pc.estado = cierre parcial de ESTE canal (ver GetEventosByCanalAsync).
+            // Los buckets "activos" excluyen lo que ya cerré desde mi canal; el
+            // bucket "cerrados_turno" no se ve afectado — es una vista histórica.
             cmd.CommandText = @"
 SELECT
-    COUNT(*) FILTER (WHERE p.estado != 'C')                                  AS total,
-    COUNT(*) FILTER (WHERE p.estado = 'A')                                   AS activos,
-    COUNT(*) FILTER (WHERE p.estado = 'P')                                   AS pendientes,
-    COUNT(*) FILTER (WHERE p.estado = 'E')                                   AS en_proceso,
-    COUNT(*) FILTER (WHERE p.estado = 'T')                                   AS seguimiento,
-    COUNT(*) FILTER (WHERE p.estado = 'R')                                   AS revision,
+    COUNT(*) FILTER (WHERE p.estado != 'C' AND COALESCE(pc.estado,'') <> 'C') AS total,
+    COUNT(*) FILTER (WHERE p.estado = 'A' AND COALESCE(pc.estado,'') <> 'C')  AS activos,
+    COUNT(*) FILTER (WHERE p.estado = 'P' AND COALESCE(pc.estado,'') <> 'C')  AS pendientes,
+    COUNT(*) FILTER (WHERE p.estado = 'E' AND COALESCE(pc.estado,'') <> 'C')  AS en_proceso,
+    COUNT(*) FILTER (WHERE p.estado = 'T' AND COALESCE(pc.estado,'') <> 'C')  AS seguimiento,
+    COUNT(*) FILTER (WHERE p.estado = 'R' AND COALESCE(pc.estado,'') <> 'C')  AS revision,
     COUNT(*) FILTER (WHERE p.estado = 'C'
                        AND p.fecha_modifica >= @turnoDesde)                  AS cerrados_turno
 FROM cad_pedidos p
+LEFT JOIN LATERAL (
+    SELECT estado FROM cad_pedidos_canales pc2
+    WHERE pc2.cadpedi_sitiograba  = p.sitio_graba
+      AND pc2.cadpedi_numellamada = p.nume_llamada
+      AND pc2.cadcana_codigo      = @canalCodigo
+      AND pc2.cadcana_fuerz_id    = @fuerzaId
+    LIMIT 1
+) pc ON TRUE
 WHERE p.enviar = 'S'
   AND (
-      EXISTS (
-          SELECT 1 FROM cad_pedidos_canales pc
-          WHERE pc.cadpedi_sitiograba  = p.sitio_graba
-            AND pc.cadpedi_numellamada = p.nume_llamada
-            AND pc.cadcana_codigo      = @canalCodigo
-            AND pc.cadcana_fuerz_id    = @fuerzaId
-      )
+      pc.estado IS NOT NULL
       -- NOTA: esta rama de respaldo (p.canales, poblada solo al crear el pedido)
       -- es fuerza-agnóstica por diseño de datos — cad_pedidos.canales solo guarda
       -- códigos de canal (List<int>), sin fuerza, a diferencia de
@@ -740,6 +905,86 @@ WHERE p.enviar = 'S'
                 TurnoActual   = turnoNombre,
                 TurnoDesde    = turnoDesde.ToString("o")
             };
+        }
+
+        // ─── Visibilidad multi-canal: qué canales/agencias tienen el evento ──────
+        // Da a cualquier funcionario, sin importar desde qué canal mire el caso,
+        // conocimiento de que un evento está siendo gestionado en paralelo por
+        // otro(s) canal(es) o agencia(s) — antes esta información no era visible
+        // en ningún lugar de la UI.
+        public async Task<Ev.DtoCanalesAsignadosResult> G_GetCanalesAsignadosAsync(long pedidoId, CancellationToken ct)
+        {
+            var result = new Ev.DtoCanalesAsignadosResult();
+            await using var conn = await _tenant.DataSource.OpenConnectionAsync(ct);
+
+            await using (var cmd = conn.CreateCommand())
+            {
+                cmd.CommandText = @"
+SELECT pc.cadcana_codigo, pc.cadcana_fuerz_id,
+       COALESCE(f.descripcion, '') AS fuerza_desc,
+       COALESCE(c.descripcion, '') AS canal_desc,
+       pc.estado,
+       (SELECT COUNT(*) FROM cad_actuaciones a
+        WHERE  a.pedido_id    = p.id
+          AND  a.canal_codigo = pc.cadcana_codigo
+          AND  a.fuerza_id    = pc.cadcana_fuerz_id
+          AND  a.estado NOT IN ('C','V'))::int AS actuaciones_activas,
+       pc.fecha_modificacion,
+       pc.usua_modifica
+FROM   cad_pedidos p
+JOIN   cad_pedidos_canales pc
+       ON pc.cadpedi_sitiograba  = p.sitio_graba
+      AND pc.cadpedi_numellamada = p.nume_llamada
+LEFT   JOIN cad_canales c ON c.codigo = pc.cadcana_codigo AND c.cadfuerz_id = pc.cadcana_fuerz_id
+LEFT   JOIN cad_fuerzas f ON f.id     = pc.cadcana_fuerz_id
+WHERE  p.id = @pedidoId
+ORDER  BY pc.estado, f.descripcion, c.descripcion";
+                cmd.Parameters.AddWithValue("pedidoId", pedidoId);
+
+                await using var reader = await cmd.ExecuteReaderAsync(ct);
+                while (await reader.ReadAsync(ct))
+                {
+                    result.Canales.Add(new Ev.DtoCanalAsignadoEvento
+                    {
+                        Codigo             = reader.GetInt32(0),
+                        FuerzaId           = reader.GetInt32(1),
+                        FuerzaDescripcion  = reader.GetString(2),
+                        CanalDescripcion   = reader.GetString(3),
+                        Estado             = reader.IsDBNull(4) ? "A" : reader.GetString(4),
+                        ActuacionesActivas = reader.IsDBNull(5) ? 0 : reader.GetInt32(5),
+                        FechaModificacion  = reader.IsDBNull(6) ? null : reader.GetDateTime(6).ToString("o"),
+                        UsuarioModifica    = reader.IsDBNull(7) ? null : reader.GetString(7)
+                    });
+                }
+            }
+
+            await using (var cmdAg = conn.CreateCommand())
+            {
+                cmdAg.CommandText = @"
+SELECT d.agencia_id, COALESCE(a.nombre, ''), COALESCE(a.tipo_agencia, ''),
+       d.fecha_envio, d.exitoso, d.enviado_por
+FROM   cad_despachos_externos d
+LEFT   JOIN cad_agencias_externas a ON a.id = d.agencia_id
+WHERE  d.pedido_id = @pedidoId
+ORDER  BY d.fecha_envio DESC";
+                cmdAg.Parameters.AddWithValue("pedidoId", pedidoId);
+
+                await using var readerAg = await cmdAg.ExecuteReaderAsync(ct);
+                while (await readerAg.ReadAsync(ct))
+                {
+                    result.AgenciasExternas.Add(new Ev.DtoAgenciaDespachadaEvento
+                    {
+                        AgenciaId   = readerAg.GetInt64(0),
+                        Nombre      = readerAg.GetString(1),
+                        TipoAgencia = readerAg.GetString(2),
+                        FechaEnvio  = readerAg.GetDateTime(3).ToString("o"),
+                        Exitoso     = readerAg.GetBoolean(4),
+                        EnviadoPor  = readerAg.IsDBNull(5) ? null : readerAg.GetString(5)
+                    });
+                }
+            }
+
+            return result;
         }
 
         // ─── Helper: turno de vigilancia (Colombia UTC-5, sin horario de verano) ──
@@ -1104,5 +1349,8 @@ ORDER  BY orden";
             var s = (value ?? string.Empty).Trim();
             return s.Length > maxLen ? s[..maxLen] : s;
         }
+
+        private static object NullOrString(string? value) =>
+            string.IsNullOrWhiteSpace(value) ? DBNull.Value : value;
     }
 }

@@ -12,12 +12,18 @@ namespace Datos.Interfaz
         Task<DtoPedidoResult> CerrarRapidoAsync(long id, DtoCerrarRapidoRequest request, long usuarioAuditoria, string maquinaAuditoria, CancellationToken ct);
 
         /// <summary>
-        /// Cierra un evento desde el módulo Despachador.
-        /// Actualiza cad_eventos + cad_eventos_codigos_cierre con los datos de cierre;
-        /// en cad_pedidos SOLO actualiza estado='C' — NUNCA toca comentario ni codi_pedido.
+        /// Cierra la participación de un canal en un evento multi-agencia. Si el
+        /// pedido solo tiene un canal asignado (caso común), equivale a un cierre
+        /// global inmediato. Si tiene varios, solo cierra la fila de
+        /// cad_pedidos_canales de (canalCodigo, fuerzaId); el cierre GLOBAL
+        /// (cad_eventos + cad_eventos_codigos_cierre; en cad_pedidos SOLO
+        /// estado='C' — NUNCA comentario ni codi_pedido) ocurre automáticamente
+        /// solo cuando todos los canales asignados ya cerraron su parte y no
+        /// quedan actuaciones abiertas en ninguno.
         /// </summary>
         Task<DtoPedidoResult> CerrarEventoDesdeDespachoAsync(
             long pedidoId, Ev.DtoCerrarEventoDespachoRequest request,
+            int canalCodigo, int fuerzaId,
             long usuarioId, string username, string maquina, CancellationToken ct);
 
         Task<DtoPedidoResult> SetEstadoAsync(long id, string estado, long usuarioAuditoria, string maquinaAuditoria, CancellationToken ct);
@@ -36,6 +42,12 @@ namespace Datos.Interfaz
         /// Returns the dispatch channels available for a given recording site.
         /// </summary>
         Task<List<DtoCanalItem>> GetCanalesPorSitioAsync(int sitioGraba, CancellationToken ct);
+
+        /// <summary>
+        /// Canales SECAD y agencias externas que tienen (o tuvieron) conocimiento
+        /// de un evento — visibilidad multi-canal para cualquier funcionario.
+        /// </summary>
+        Task<Ev.DtoCanalesAsignadosResult> G_GetCanalesAsignadosAsync(long pedidoId, CancellationToken ct);
 
         // ─── Conteos para badges de filtro ───────────────────────────────────
         /// <summary>

@@ -512,6 +512,57 @@
                 
               </app-panel-colapsable><!-- /DATOS -->
 
+              <!-- CANALES Y AGENCIAS ASIGNADOS (visibilidad multi-canal) -->
+              @if (canalesAsignados && (canalesAsignados.canales.length > 1 || canalesAsignados.agenciasExternas.length > 0)) {
+                <app-panel-colapsable titulo="Canales y agencias asignados" icono="fa-solid fa-diagram-project"
+                                      [(abierto)]="canalesAsignadosAbierto">
+                  <div class="ev-canales-panel">
+                    <p class="ev-canales-hint">
+                      <i class="fa-solid fa-circle-info"></i>
+                      Este evento se está gestionando en paralelo por varios canales o agencias.
+                      No se cierra definitivamente hasta que todos terminen su participación.
+                    </p>
+                    <div class="ev-canales-lista">
+                      @for (c of canalesAsignados.canales; track c.codigo + '-' + c.fuerzaId) {
+                        <div class="ev-canal-item" [class.ev-canal-item--cerrado]="c.estado === 'C'">
+                          <i class="fa-solid ev-canal-item__ico"
+                             [class.fa-tower-broadcast]="c.estado !== 'C'"
+                             [class.fa-circle-check]="c.estado === 'C'"></i>
+                          <div class="ev-canal-item__info">
+                            <strong>{{ c.fuerzaDescripcion || 'Fuerza ' + c.fuerzaId }} — {{ c.canalDescripcion || ('Canal ' + c.codigo) }}</strong>
+                            <span class="ev-canal-item__meta">
+                              @if (c.estado === 'C') {
+                                Cerró su participación{{ c.usuarioModifica ? ' — ' + c.usuarioModifica : '' }}
+                              } @else if (c.actuacionesActivas > 0) {
+                                {{ c.actuacionesActivas }} recurso(s) activo(s)
+                              } @else {
+                                Sin recursos asignados aún
+                              }
+                            </span>
+                          </div>
+                          <span class="ev-canal-item__badge" [class.ev-canal-item__badge--cerrado]="c.estado === 'C'">
+                            {{ c.estado === 'C' ? 'Cerrado' : 'Activo' }}
+                          </span>
+                        </div>
+                      }
+                      @for (a of canalesAsignados.agenciasExternas; track a.agenciaId) {
+                        <div class="ev-canal-item ev-canal-item--externa">
+                          <i class="fa-solid fa-building-shield ev-canal-item__ico"></i>
+                          <div class="ev-canal-item__info">
+                            <strong>{{ a.nombre || 'Agencia externa' }}</strong>
+                            <span class="ev-canal-item__meta">
+                              Despachado {{ formatHora(a.fechaEnvio) }}
+                              @if (!a.exitoso) { · <span class="ev-canal-item__error">envío falló</span> }
+                            </span>
+                          </div>
+                          <span class="ev-canal-item__badge ev-canal-item__badge--info">Informativo</span>
+                        </div>
+                      }
+                    </div>
+                  </div>
+                </app-panel-colapsable>
+              }
+
               <!-- MAPA DE UBICACIÓN -->
               @if (detalle.latitudCaso || detalle.longitudCaso) {
                 <app-panel-colapsable titulo="Ubicación del incidente" icono="fa-solid fa-map-location-dot"
@@ -1708,6 +1759,36 @@
                       }
                     </button>
                   }
+                </div>
+              </div>
+            }
+
+            @if (remitirCanalesSelec.size > 0) {
+              <div class="ev-cierre-section ev-cierre-section--decision">
+                <div class="ev-cierre-section__title">
+                  <i class="fa-solid fa-question-circle"></i>
+                  ¿Qué desea hacer con su canal actual? <span class="ev-req">*</span>
+                </div>
+                <p class="ev-cierre-decision-hint">
+                  <strong>Mantener</strong> = el caso requiere gestión conjunta y sigue visible
+                  también en su canal. <strong>Remover</strong> = el caso llegó al canal
+                  incorrecto y debe desaparecer de aquí, quedando únicamente en el canal remitido.
+                </p>
+                <div class="ev-clasif-radio-row">
+                  <label class="ev-radio-label"
+                         [class.ev-radio-label--on]="remitirMantenerCanalOrigen === true">
+                    <input type="radio" name="remitirMantenerCanal" [value]="true"
+                           [checked]="remitirMantenerCanalOrigen === true"
+                           (change)="remitirMantenerCanalOrigen = true">
+                    <i class="fa-solid fa-people-arrows"></i> Mantener también en mi canal (gestión conjunta)
+                  </label>
+                  <label class="ev-radio-label"
+                         [class.ev-radio-label--on]="remitirMantenerCanalOrigen === false">
+                    <input type="radio" name="remitirMantenerCanal" [value]="false"
+                           [checked]="remitirMantenerCanalOrigen === false"
+                           (change)="remitirMantenerCanalOrigen = false">
+                    <i class="fa-solid fa-right-from-bracket"></i> Remover de mi canal (remitido al canal correcto)
+                  </label>
                 </div>
               </div>
             }

@@ -53,6 +53,7 @@ namespace Negocio.Gestion
 
         public Task<DtoPedidoResult> CerrarEventoDesdeDespachoAsync(
             long pedidoId, Ev.DtoCerrarEventoDespachoRequest request,
+            int canalCodigo, int fuerzaId,
             long usuarioId, string username, string maquina, CancellationToken ct)
         {
             if (pedidoId <= 0)
@@ -60,7 +61,7 @@ namespace Negocio.Gestion
             if (request.CodigosCierre.Count == 0)
                 return Task.FromResult(new DtoPedidoResult { Success = false, Message = "Se requiere al menos un código de cierre." });
 
-            return _repository.CerrarEventoDesdeDespachoAsync(pedidoId, request, usuarioId, username, maquina, ct);
+            return _repository.CerrarEventoDesdeDespachoAsync(pedidoId, request, canalCodigo, fuerzaId, usuarioId, username, maquina, ct);
         }
 
         public Task<DtoPedidoResult> SetEstadoAsync(long id, string estado, long usuario, string maquina, CancellationToken ct)
@@ -103,6 +104,9 @@ namespace Negocio.Gestion
 
         public Task<List<DtoCanalItem>> GetCanalesPorSitioAsync(int sitioGraba, CancellationToken ct)
             => _repository.GetCanalesPorSitioAsync(sitioGraba, ct);
+
+        public Task<Ev.DtoCanalesAsignadosResult> G_GetCanalesAsignadosAsync(long pedidoId, CancellationToken ct)
+            => _repository.G_GetCanalesAsignadosAsync(pedidoId, ct);
 
         public Task<DtoEventoConteos> GetConteosByCanalAsync(int canalCodigo, int fuerzaId, CancellationToken ct)
         {

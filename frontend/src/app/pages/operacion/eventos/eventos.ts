@@ -11,7 +11,7 @@ import { FormsModule } from '@angular/forms';
 import { Subscription, Subject, interval } from 'rxjs';
 import { switchMap, startWith, debounceTime, distinctUntilChanged } from 'rxjs/operators';
 
-import { EventoService, DtoEventoListItem, DtoCanalItem, DtoSlaConfig, DtoEventoConteos } from '../../../core/services/operacion/evento.service';
+import { EventoService, DtoEventoListItem, DtoCanalItem, DtoSlaConfig, DtoEventoConteos, DtoCanalesAsignadosResult } from '../../../core/services/operacion/evento.service';
 import { DtoAnotacionRequest, DtoPedidoDetalle, DtoAnotacion } from '../../../core/services/operacion/pedido.service';
 import { ToastService } from '../../../core/services/toast.service';
 import { AuthService } from '../../../core/auth/auth.service';
@@ -91,12 +91,16 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
   private readonly CANAL_KEY = 'ev_canal_sel';
 
   // ─── Paneles colapsables del detalle (todos abiertos por defecto) ────────────
-  datosAbierto       = true;
-  ubicacionAbierto   = true;
-  recursosAbierto    = true;
-  despachoAbierto    = true;
-  fotosAbierto       = true;
-  anotacionesAbierto = true;
+  datosAbierto            = true;
+  ubicacionAbierto        = true;
+  recursosAbierto         = true;
+  despachoAbierto         = true;
+  fotosAbierto            = true;
+  anotacionesAbierto      = true;
+  canalesAsignadosAbierto = true;
+
+  /** Visibilidad multi-canal: qué canales SECAD y agencias externas tienen este evento. */
+  canalesAsignados: DtoCanalesAsignadosResult | null = null;
 
   // ─── List state ──────────────────────────────────────────────────────────────
   eventos: DtoEventoListItem[] = [];
@@ -252,6 +256,12 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
   remitirAgenciasSelec  = new Set<string>();        // IDs de agencia seleccionadas
   remitirEnviando       = false;
   remitirError          = '';
+  /**
+   * true (default) = gestión conjunta: el caso permanece también en mi canal.
+   * false = remisión exclusiva: se remueve de mi canal (llegó al canal
+   * incorrecto y solo debe gestionarse en el destino).
+   */
+  remitirMantenerCanalOrigen = true;
 
   // ─── Adjuntos (fotos del pedido) ──────────────────────────────────────────────
   adjuntos: DtoAdjunto[] = [];
@@ -585,7 +595,8 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
     this.detenerPollingActuaciones();  // detener polling del evento anterior AHORA
     this.resetAsistente();
 
-    this.adjuntos = [];
+    this.adjuntos         = [];
+    this.canalesAsignados = null;
     this.eventoSvc.getById(evento.id).subscribe({
       next: (d) => {
         this.detalle         = d;
@@ -600,11 +611,26 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
         }
         this.iniciarPollingRecursos();
         this.iniciarPollingActuaciones(evento.id);
+        this.cargarCanalesAsignados();
       },
       error: () => {
         this.cargandoDetalle = false;
         this.errorCarga = 'No se pudo cargar el detalle del evento.';
       }
+    });
+  }
+
+  /**
+   * Carga qué canales SECAD y agencias externas tienen conocimiento de este
+   * evento — visibilidad multi-canal para cualquier funcionario, sin importar
+   * desde qué canal lo mire. Se vuelve a llamar tras cerrar/remitir para
+   * reflejar el estado más reciente sin tener que reabrir el detalle.
+   */
+  cargarCanalesAsignados(): void {
+    if (!this.detalle) return;
+    this.eventoSvc.getCanalesAsignados(this.detalle.id).subscribe({
+      next: (r) => { this.canalesAsignados = r; },
+      error: () => { /* no crítico — el panel simplemente no se muestra */ }
     });
   }
 
@@ -617,6 +643,7 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
     this.eventoSeleccionado = null;
     this.actuaciones        = [];
     this.adjuntos           = [];
+    this.canalesAsignados   = null;
     this.resetAsistente();
   }
 
@@ -818,17 +845,26 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
         tipoCodigo:        'CIERRE',
         descripcionLibre:  c.descripcion || undefined
       }))
-    }).subscribe({
+    }, this.canalSeleccionado, this.fuerzaId).subscribe({
       next: (r) => {
         this.cerrandoEvento     = false;
         this.modalCerrarVisible = false;
         this.toggleBodyModalClass(false);
         if (r.success) {
+          // Si el evento tiene varios canales, esto puede ser un cierre parcial
+          // (solo mi canal) o el cierre definitivo — el mensaje del backend
+          // distingue cuál de los dos ocurrió.
+          this.toast.success('Evento', r.message || 'Evento cerrado.');
           this.volverLista();
           this.recargarAhora();
+        } else {
+          this.toast.warning('Cerrar evento', r.message || 'No se pudo cerrar el evento.');
         }
       },
-      error: () => { this.cerrandoEvento = false; }
+      error: (e) => {
+        this.cerrandoEvento = false;
+        this.toast.error('Cerrar evento', e.error?.message ?? 'Error al cerrar el evento.');
+      }
     });
   }
 
@@ -1386,7 +1422,7 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
               tipoCodigo:       c.tipoCodigo ?? 'CIERRE',
               descripcionLibre: c.descripcionLibre || undefined
             }))
-          }).subscribe({
+          }, this.canalSeleccionado, this.fuerzaId).subscribe({
             next: (r) => {
               if (r.success) {
                 this.toast.success('Evento cerrado', r.message || 'El evento se cerró correctamente.');
@@ -1634,9 +1670,10 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
   abrirModalRemitir(): void {
     this.remitirCanalesSelec.clear();
     this.remitirAgenciasSelec.clear();
-    this.remitirError    = '';
-    this.remitirEnviando = false;
-    this.remitirTab      = 'secad';
+    this.remitirError               = '';
+    this.remitirEnviando            = false;
+    this.remitirTab                 = 'secad';
+    this.remitirMantenerCanalOrigen = true;
 
     // Cargar canales SECAD (agrupados por fuerza)
     this.recepcionSvc.getCanales(this.sitioGraba).subscribe({
@@ -1716,11 +1753,16 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
         return { codigo, fuerzaId };
       });
 
+      const removerCanalOrigen = !this.remitirMantenerCanalOrigen;
+
       this.recepcionSvc.remitirCanal({
         pedidoId,
         sitioGraba,
         eventoId,
         canales: canalesDto,
+        removerCanalOrigen,
+        canalOrigenCodigo:   this.canalSeleccionado || undefined,
+        canalOrigenFuerzaId: this.fuerzaId || undefined,
       }).subscribe({
         next: r => {
           this.remitirEnviando = false;
@@ -1734,12 +1776,24 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
                     if (this.canalKey(c) === key) return `${g.fuerza} – ${c.descripcion}`;
                 return key;
               }).join(', ');
+            const modoTexto = removerCanalOrigen
+              ? ' (remisión exclusiva — removido de mi canal)'
+              : ' (gestión conjunta — permanece también en mi canal)';
             this.eventoSvc.createAnotacion(this.detalle!.id, {
               titulo:        'Caso remitido a canal SECAD',
-              anotacion:     `Remitido a: ${canalesNombres}`,
+              anotacion:     `Remitido a: ${canalesNombres}${modoTexto}`,
               tipoAnotacion: 'REMISION'
             }).subscribe({ next: _ => {}, error: () => {} });
             this.cancelarRemitir();
+            if (removerCanalOrigen) {
+              // El caso ya no pertenece a mi canal — no tiene sentido seguir
+              // mirando su detalle desde aquí.
+              this.volverLista();
+            } else {
+              // Sigue siendo mío también — refrescar el panel de canales
+              // asignados para reflejar el nuevo canal destino de inmediato.
+              this.cargarCanalesAsignados();
+            }
           } else {
             this.remitirError = r.message;
           }

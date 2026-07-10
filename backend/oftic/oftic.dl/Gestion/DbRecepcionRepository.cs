@@ -1405,11 +1405,63 @@ WHERE  UPPER(l.descripcion) LIKE '%' || @c || '%'";
                     if (rows > 0) agregados++;
                 }
 
+                // ── Remover el canal origen (gestión EXCLUSIVA en el/los destino) ──
+                // Caso típico: el evento llegó al canal incorrecto y se corrige el
+                // destino, sin necesidad de gestión conjunta.
+                var removidoOrigen = false;
+                if (req.RemoverCanalOrigen && req.CanalOrigenCodigo is > 0 && req.CanalOrigenFuerzaId is > 0)
+                {
+                    long actuacionesOrigen;
+                    await using (var actCnt = conn.CreateCommand())
+                    {
+                        actCnt.Transaction = tx;
+                        actCnt.CommandText = @"
+SELECT COUNT(*) FROM cad_actuaciones
+WHERE  pedido_id    = @pedidoId
+  AND  canal_codigo = @canal
+  AND  fuerza_id    = @fuerza
+  AND  estado NOT IN ('C','V')";
+                        actCnt.Parameters.AddWithValue("pedidoId", req.PedidoId);
+                        actCnt.Parameters.AddWithValue("canal",    req.CanalOrigenCodigo.Value);
+                        actCnt.Parameters.AddWithValue("fuerza",   req.CanalOrigenFuerzaId.Value);
+                        actuacionesOrigen = Convert.ToInt64(await actCnt.ExecuteScalarAsync(ct) ?? 0);
+                    }
+                    if (actuacionesOrigen > 0)
+                    {
+                        await tx.RollbackAsync(ct);
+                        return (false,
+                            $"No se puede remover el caso de su canal: tiene {actuacionesOrigen} recurso(s) activo(s). " +
+                            "Cierre esas actuaciones antes de remitir en exclusiva.", 0);
+                    }
+
+                    await using var updOrig = conn.CreateCommand();
+                    updOrig.Transaction = tx;
+                    updOrig.CommandText = @"
+UPDATE cad_pedidos_canales
+SET    estado             = 'C',
+       fecha_modificacion = NOW(),
+       usua_modifica      = @usuario
+WHERE  cadpedi_sitiograba  = @sg
+  AND  cadpedi_numellamada = @nl
+  AND  cadcana_codigo      = @canal
+  AND  cadcana_fuerz_id    = @fuerza
+  AND  estado             <> 'C'";
+                    updOrig.Parameters.AddWithValue("usuario", NullOrString(usuario));
+                    updOrig.Parameters.AddWithValue("sg",      sitioGraba);
+                    updOrig.Parameters.AddWithValue("nl",      numeLlamada);
+                    updOrig.Parameters.AddWithValue("canal",   req.CanalOrigenCodigo.Value);
+                    updOrig.Parameters.AddWithValue("fuerza",  req.CanalOrigenFuerzaId.Value);
+                    var rowsOrig = await updOrig.ExecuteNonQueryAsync(ct);
+                    removidoOrigen = rowsOrig > 0;
+                }
+
                 await tx.CommitAsync(ct);
 
                 var msg = agregados > 0
                     ? $"Caso remitido a {agregados} canal(es) correctamente."
                     : "El caso ya estaba asignado a todos los canales seleccionados.";
+                if (removidoOrigen)
+                    msg += " Se removió de su canal — ahora se gestiona solo en el/los canal(es) destino.";
 
                 return (true, msg, agregados);
             }

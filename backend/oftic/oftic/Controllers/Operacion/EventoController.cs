@@ -224,12 +224,17 @@ namespace Api.Controllers.Operacion
         /// only cad_pedidos.estado is updated to 'C'.
         /// </summary>
         [HttpPost("{id:long}/cerrar")]
-        public async Task<ActionResult> Cerrar(long id, [FromBody] Ev.DtoCerrarEventoDespachoRequest request, CancellationToken ct)
+        public async Task<ActionResult> Cerrar(
+            long id, [FromBody] Ev.DtoCerrarEventoDespachoRequest request,
+            [FromQuery] int? canalId, [FromQuery] int? fuerzaId, CancellationToken ct)
         {
             try
             {
+                var resolvedCanal  = canalId  ?? GetIntClaim("canal_id");
+                var resolvedFuerza = fuerzaId ?? GetIntClaim("fuerza_id");
                 var (usuarioId, username, maquina) = ObtenerAuditoria();
-                var result = await _service.CerrarEventoDesdeDespachoAsync(id, request, usuarioId, username, maquina, ct);
+                var result = await _service.CerrarEventoDesdeDespachoAsync(
+                    id, request, resolvedCanal, resolvedFuerza, usuarioId, username, maquina, ct);
                 if (!result.Success)
                     return BadRequest(new { success = false, message = result.Message });
                 return Ok(new { success = true, message = result.Message });
@@ -257,6 +262,25 @@ namespace Api.Controllers.Operacion
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error al listar canales sitioGraba={Sg}", sitio);
+                return StatusCode(500, new { success = false, message = $"Error: {ex.Message}" });
+            }
+        }
+
+        /// <summary>
+        /// Canales SECAD y agencias externas que tienen (o tuvieron) conocimiento
+        /// de este evento — visibilidad multi-canal para cualquier funcionario.
+        /// </summary>
+        [HttpGet("{id:long}/canales-asignados")]
+        public async Task<ActionResult> GetCanalesAsignados(long id, CancellationToken ct)
+        {
+            try
+            {
+                var result = await _service.G_GetCanalesAsignadosAsync(id, ct);
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al obtener canales asignados evento id={Id}", id);
                 return StatusCode(500, new { success = false, message = $"Error: {ex.Message}" });
             }
         }

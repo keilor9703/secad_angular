@@ -397,6 +397,10 @@ export class RecepcionService {
     eventoId:    string;
     canales:     DtoCanalSeleccionado[];
     observacion?: string;
+    /** true = remover del canal origen (gestión exclusiva en el destino). */
+    removerCanalOrigen?:  boolean;
+    canalOrigenCodigo?:   number;
+    canalOrigenFuerzaId?: number;
   }): Observable<{ success: boolean; message: string; canalesAgregados: number }> {
     return this.http.post<{ success: boolean; message: string; canalesAgregados: number }>(
       `${this.base}/remitir-canal`, req

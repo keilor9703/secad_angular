@@ -213,6 +213,18 @@ namespace Comun.Dtos.Recepcion
         /// </summary>
         public List<DtoCanalSeleccionado> Canales { get; set; } = new();
         public string?    Observacion { get; set; }
+
+        /// <summary>
+        /// Si es true, el caso se REMUEVE del canal desde el que se remite (gestión
+        /// exclusiva en el/los canal(es) destino — típico cuando llegó al canal
+        /// incorrecto). Si es false (default), el caso permanece también en el
+        /// canal origen (gestión conjunta — un motivo que requiere varias agencias
+        /// a la vez). Requiere CanalOrigenCodigo/CanalOrigenFuerzaId.
+        /// </summary>
+        public bool       RemoverCanalOrigen  { get; set; }
+        /// <summary>Canal desde el que se remite — solo se usa si RemoverCanalOrigen=true.</summary>
+        public int?       CanalOrigenCodigo   { get; set; }
+        public int?       CanalOrigenFuerzaId { get; set; }
     }
 
     // ── Duplicate / nearby-call detection (§6.8) ─────────────────────────────────

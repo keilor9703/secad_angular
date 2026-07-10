@@ -108,6 +108,34 @@ export interface DtoCerrarRequest {
   codigosCierre:       DtoCodigoCierreDespacho[];
 }
 
+/** Visibilidad multi-canal: un canal SECAD asignado al evento. */
+export interface DtoCanalAsignadoEvento {
+  codigo:              number;
+  fuerzaId:            number;
+  fuerzaDescripcion:   string;
+  canalDescripcion:    string;
+  /** 'A' = activo en la cola de ese canal. 'C' = ese canal ya cerró su participación. */
+  estado:              string;
+  actuacionesActivas:  number;
+  fechaModificacion:   string | null;
+  usuarioModifica:     string | null;
+}
+
+/** Visibilidad multi-canal: una agencia externa a la que se despachó el caso. */
+export interface DtoAgenciaDespachadaEvento {
+  agenciaId:   string;
+  nombre:      string;
+  tipoAgencia: string;
+  fechaEnvio:  string;
+  exitoso:     boolean;
+  enviadoPor:  string | null;
+}
+
+export interface DtoCanalesAsignadosResult {
+  canales:          DtoCanalAsignadoEvento[];
+  agenciasExternas: DtoAgenciaDespachadaEvento[];
+}
+
 // ─── Service ──────────────────────────────────────────────────────────────────
 
 @Injectable({ providedIn: 'root' })
@@ -148,9 +176,22 @@ export class EventoService {
     return this.http.get<DtoAnotacion[]>(`${this.baseUrl}/${id}/anotaciones`);
   }
 
-  /** Quick-close an event. */
-  cerrar(id: string, request: DtoCerrarRequest): Observable<DtoPedidoResult> {
-    return this.http.post<DtoPedidoResult>(`${this.baseUrl}/${id}/cerrar`, request);
+  /**
+   * Cierra el evento — o, si tiene varios canales asignados (multi-agencia),
+   * solo la participación del canal indicado (canalId/fuerzaId). El cierre
+   * global ocurre automáticamente cuando todos los canales asignados ya
+   * cerraron su parte y no quedan actuaciones abiertas en ninguno.
+   */
+  cerrar(id: string, request: DtoCerrarRequest, canalId?: number, fuerzaId?: number): Observable<DtoPedidoResult> {
+    let params = new HttpParams();
+    if (canalId  != null && canalId  > 0) params = params.set('canalId', canalId.toString());
+    if (fuerzaId != null && fuerzaId > 0) params = params.set('fuerzaId', fuerzaId.toString());
+    return this.http.post<DtoPedidoResult>(`${this.baseUrl}/${id}/cerrar`, request, { params });
+  }
+
+  /** Canales SECAD + agencias externas que tienen conocimiento del evento. */
+  getCanalesAsignados(id: string): Observable<DtoCanalesAsignadosResult> {
+    return this.http.get<DtoCanalesAsignadosResult>(`${this.baseUrl}/${id}/canales-asignados`);
   }
 
   /** Available channels for a site (used by the canal selector). */

@@ -1978,10 +1978,125 @@ html.dark-mode {
   padding:   4px 2px;
 }
 
+// ── Visibilidad multi-canal: panel "Canales y agencias asignados" ────────────
+.ev-canales-panel {
+  padding: 12px 14px;
+}
+
+.ev-canales-hint {
+  display:       flex;
+  align-items:   flex-start;
+  gap:           6px;
+  font-size:     calc(11.5px * var(--font-size-scale));
+  color:         rgba(21,27,59,.60);
+  background:    rgba(59,130,246,.06);
+  border:        1px solid rgba(59,130,246,.18);
+  border-radius: 8px;
+  padding:       8px 10px;
+  margin:        0 0 10px;
+  line-height:   1.45;
+
+  i { color: #2563eb; margin-top: 1px; flex-shrink: 0; }
+}
+
+.ev-canales-lista {
+  display:        flex;
+  flex-direction: column;
+  gap:            6px;
+}
+
+.ev-canal-item {
+  display:       flex;
+  align-items:   center;
+  gap:           10px;
+  padding:       8px 10px;
+  background:    var(--ui-surface, #f4f6f8);
+  border:        1px solid var(--ui-border, #dde1e7);
+  border-left:   3px solid #0891b2;
+  border-radius: 6px;
+
+  &--cerrado {
+    border-left-color: #94a3b8;
+    opacity:           .72;
+  }
+
+  &--externa {
+    border-left-color: #7c3aed;
+    border-left-style: dashed;
+  }
+
+  &__ico {
+    font-size:   14px;
+    color:       #0891b2;
+    width:       18px;
+    text-align:  center;
+    flex-shrink: 0;
+  }
+
+  &--cerrado &__ico { color: #64748b; }
+  &--externa &__ico { color: #7c3aed; }
+
+  &__info {
+    flex:           1;
+    min-width:      0;
+    display:        flex;
+    flex-direction: column;
+    gap:            1px;
+
+    strong {
+      font-size:     calc(12.5px * var(--font-size-scale));
+      color:         var(--ui-text, #1f2937);
+      white-space:   nowrap;
+      overflow:      hidden;
+      text-overflow: ellipsis;
+    }
+  }
+
+  &__meta {
+    font-size: calc(10.5px * var(--font-size-scale));
+    color:     var(--ui-text-muted, #6b7280);
+  }
+
+  &__error { color: #dc2626; font-weight: 700; }
+
+  &__badge {
+    flex-shrink:    0;
+    font-size:      calc(9.5px * var(--font-size-scale));
+    font-weight:    800;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    padding:        3px 8px;
+    border-radius:  999px;
+    background:     rgba(8,145,178,.12);
+    color:          #0e7490;
+
+    &--cerrado { background: rgba(100,116,139,.15); color: #475569; }
+    &--info    { background: rgba(124,58,237,.12);  color: #6d28d9; }
+  }
+}
+
 // ══════════════════════════════════════════════════════════════
 //  DARK MODE — nuevos elementos (html.dark-mode, igual que el bloque principal)
 // ══════════════════════════════════════════════════════════════
 html.dark-mode {
+  .ev-canales-hint {
+    color:        rgba(228,231,235,.75);
+    background:   rgba(59,130,246,.10);
+    border-color: rgba(59,130,246,.28);
+    i { color: #60a5fa; }
+  }
+
+  .ev-canal-item {
+    background:   rgba(255,255,255,.03);
+    border-color: rgba(255,255,255,.10);
+
+    &__info strong { color: rgba(228,231,235,.92); }
+    &__meta         { color: rgba(228,231,235,.55); }
+    &__badge        { background: rgba(8,166,203,.16); color: #67e8f9; }
+    &__badge--cerrado { background: rgba(148,163,184,.14); color: rgba(228,231,235,.55); }
+    &__badge--info    { background: rgba(167,139,250,.16); color: #c4b5fd; }
+  }
+
   .ev-radio-label {
     border-color: rgba(255,255,255,.15);
     color:        rgba(255,255,255,.60);

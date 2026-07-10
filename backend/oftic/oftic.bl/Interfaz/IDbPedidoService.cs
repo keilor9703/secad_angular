@@ -12,11 +12,16 @@ namespace Negocio.Interfaz
         Task<DtoPedidoResult> CerrarRapidoAsync(long id, DtoCerrarRapidoRequest request, long usuarioAuditoria, string maquinaAuditoria, CancellationToken ct);
 
         /// <summary>
-        /// Cierra un evento desde el módulo Despachador.
-        /// Persiste datos en cad_eventos; NUNCA modifica cad_pedidos.comentario.
+        /// Cierra la participación de UN canal en un evento desde el módulo
+        /// Despachador. Si el pedido está asignado a varios canales (multi-agencia),
+        /// solo cierra la fila de cad_pedidos_canales de este canal — el cierre
+        /// GLOBAL (cad_eventos/cad_pedidos) solo ocurre cuando todos los canales
+        /// asignados ya cerraron su parte y no quedan actuaciones abiertas en
+        /// ninguno. Persiste datos en cad_eventos; NUNCA modifica cad_pedidos.comentario.
         /// </summary>
         Task<DtoPedidoResult> CerrarEventoDesdeDespachoAsync(
             long pedidoId, Ev.DtoCerrarEventoDespachoRequest request,
+            int canalCodigo, int fuerzaId,
             long usuarioId, string username, string maquina, CancellationToken ct);
 
         Task<DtoPedidoResult> SetEstadoAsync(long id, string estado, long usuarioAuditoria, string maquinaAuditoria, CancellationToken ct);
@@ -27,6 +32,7 @@ namespace Negocio.Interfaz
         // ─── Eventos (dispatcher queue) ──────────────────────────────────────
         Task<List<DtoEventoListItem>> GetEventosByCanalAsync(int canalCodigo, int fuerzaId, string? estado, CancellationToken ct);
         Task<List<DtoCanalItem>> GetCanalesPorSitioAsync(int sitioGraba, CancellationToken ct);
+        Task<Ev.DtoCanalesAsignadosResult> G_GetCanalesAsignadosAsync(long pedidoId, CancellationToken ct);
 
         // ─── Conteos y turno ──────────────────────────────────────────────────
         Task<DtoEventoConteos> GetConteosByCanalAsync(int canalCodigo, int fuerzaId, CancellationToken ct);
