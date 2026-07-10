@@ -78,6 +78,7 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
   canalId    = 0;
   fuerzaId   = 0;
   sitioGraba = 0;
+  idUsuario  = 0;
   /** true si el usuario tiene rol Superadmin (id_rol=1) o está en SuperUserIds. */
   esAdmin    = false;
 
@@ -87,8 +88,18 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
   canalNombre        = '';
   mostrarSelectorCanal = false;
 
-  /** sessionStorage key – persists canal choice across navigations within the same tab */
+  /**
+   * sessionStorage key prefix – persists canal choice across navigations within
+   * the same tab. Se escribe/lee SIEMPRE junto con idUsuario (ver canalStorageKey())
+   * para que un usuario nunca herede en silencio la selección manual que otro
+   * usuario haya hecho antes en esa misma pestaña (p. ej. estación compartida
+   * entre turnos) cuando su propio JWT no trae canal_id.
+   */
   private readonly CANAL_KEY = 'ev_canal_sel';
+
+  private canalStorageKey(idUsuario: number): string {
+    return `${this.CANAL_KEY}:${idUsuario}`;
+  }
 
   // ─── Paneles colapsables del detalle (todos abiertos por defecto) ────────────
   datosAbierto            = true;
@@ -300,16 +311,21 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
     this.sitioGraba = claims.sitioGraba;
     this.canalId    = claims.canalId;
     this.esAdmin    = claims.esAdmin;
+    this.idUsuario  = claims.idUsuario;
 
-    // Priority: JWT claim > sessionStorage > 0
+    // Priority: JWT claim > sessionStorage (del MISMO usuario) > 0
     if (this.canalId > 0) {
       this.canalSeleccionado = this.canalId;
       // this.fuerzaId ya viene del claim, en pareja consistente con canalId.
     } else {
-      // Restore the canal chosen in a previous navigation within this tab session.
+      // Restore the canal chosen in a previous navigation within this tab session
+      // — SOLO si fue este mismo usuario quien lo eligió. La clave incluye
+      // idUsuario para que, en una estación compartida entre turnos, un usuario
+      // sin canal_id en su JWT nunca herede en silencio la selección manual que
+      // dejó otro usuario antes en la misma pestaña.
       // Se guarda como "codigo:fuerzaId" — el código solo no es único entre
       // fuerzas, así que hay que restaurar ambos valores como pareja.
-      const stored = sessionStorage.getItem(this.CANAL_KEY);
+      const stored = sessionStorage.getItem(this.canalStorageKey(this.idUsuario));
       if (stored) {
         const [codigo, fuerzaId] = stored.split(':').map(Number);
         if (codigo > 0) {
@@ -485,7 +501,8 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
     this.toggleBodyModalClass(false);
     // Persist so the selector doesn't reappear on the next navigation within this session.
     // "codigo:fuerzaId" — deben restaurarse siempre como pareja (ver ngOnInit).
-    sessionStorage.setItem(this.CANAL_KEY, `${codigo}:${fuerzaId}`);
+    // Escrito bajo la clave de ESTE usuario — ver canalStorageKey().
+    sessionStorage.setItem(this.canalStorageKey(this.idUsuario), `${codigo}:${fuerzaId}`);
     this.actualizarNombreCanal();
     // Cerrar cualquier evento abierto: el detalle pertenece al canal anterior.
     // volverLista() detiene el polling de recursos y actuaciones, destruye el
