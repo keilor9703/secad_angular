@@ -70,9 +70,13 @@ namespace Api.Controllers.Operacion
             if (result == null)
                 return NotFound(new { success = false, message = "Evento no encontrado." });
 
-            // ── Épica 1 & 5: Auditoría + primer acceso ────────────────────────
+            // ── Épica 1 & 5: Auditoría + primer acceso + promoción a "En proceso" ──
+            // Se espera (no fire-and-forget) porque puede cambiar result.Estado y la
+            // respuesta debe reflejarlo de inmediato, sin esperar el próximo poll.
             var (usuario, username, ip) = ObtenerAuditoria();
-            _ = _service.RegistrarAccesoAsync(id, usuario, username, ip, "VIEW", ct);
+            var estadoPromovido = await _service.RegistrarAccesoAsync(id, usuario, username, ip, "VIEW", ct);
+            if (estadoPromovido is not null)
+                result.Estado = estadoPromovido;
 
             return Ok(result);
         }
@@ -110,6 +114,9 @@ namespace Api.Controllers.Operacion
             return Ok(result);
         }
 
+        private static readonly HashSet<string> EstadosValidos = new(StringComparer.Ordinal)
+            { "A", "P", "E", "T", "R", "C" };
+
         /// <summary>
         /// Changes the management state of an event.
         /// Valid states: A=Activo, P=Pendiente, E=En proceso, T=Seguimiento, R=Revisión, C=Cerrado
@@ -117,6 +124,9 @@ namespace Api.Controllers.Operacion
         [HttpPut("{id:long}/estado")]
         public async Task<ActionResult> SetEstado(long id, [FromBody] DtoEstadoPedidoRequest request, CancellationToken ct)
         {
+            if (!EstadosValidos.Contains(request.Estado))
+                return BadRequest(new { success = false, message = $"Estado inválido: '{request.Estado}'. Valores permitidos: A, P, E, T, R, C." });
+
             var (usuario, _, maquina) = ObtenerAuditoria();
             var result = await _service.SetEstadoAsync(id, request.Estado, usuario, maquina, ct);
             if (!result.Success)

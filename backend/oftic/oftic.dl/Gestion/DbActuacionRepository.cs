@@ -520,7 +520,10 @@ WHERE  actuacion_id = @actId";
                          ? req.TipoNota : "GENERAL";
 
             await using var conn = await _tenant.DataSource.OpenConnectionAsync(ct);
+            await using var tx   = await conn.BeginTransactionAsync(ct);
+
             await using var cmd  = conn.CreateCommand();
+            cmd.Transaction = tx;
             cmd.CommandText = @"
 INSERT INTO cad_actuaciones_notas
     (actuacion_id, nota, tipo_nota, usuario_registra, fecha_registra)
@@ -532,12 +535,17 @@ RETURNING id";
             cmd.Parameters.AddWithValue("usuario", usuario);
 
             var newId = await cmd.ExecuteScalarAsync(ct);
+
+            var estadoEventoActual = await PromoverEstadoPorActuacionAsync(conn, tx, actuacionId, ct);
+            await tx.CommitAsync(ct);
+
             return new DtoActuacionResult
             {
-                Success     = true,
-                ActuacionId = actuacionId,
-                SubId       = newId is null ? null : Convert.ToInt64(newId),
-                Message     = "Nota registrada."
+                Success            = true,
+                ActuacionId        = actuacionId,
+                SubId              = newId is null ? null : Convert.ToInt64(newId),
+                Message            = "Nota registrada.",
+                EstadoEventoActual = estadoEventoActual
             };
         }
 
@@ -560,7 +568,10 @@ RETURNING id";
                 };
 
             await using var conn = await _tenant.DataSource.OpenConnectionAsync(ct);
+            await using var tx   = await conn.BeginTransactionAsync(ct);
+
             await using var cmd  = conn.CreateCommand();
+            cmd.Transaction = tx;
             cmd.CommandText = @"
 INSERT INTO cad_actuaciones_unidades
     (actuacion_id, unidad_codigo, placa, tipo_unidad,
@@ -575,13 +586,45 @@ RETURNING id";
             cmd.Parameters.AddWithValue("obs",    NullOrString(req.Observacion));
 
             var newId = await cmd.ExecuteScalarAsync(ct);
+
+            var estadoEventoActual = await PromoverEstadoPorActuacionAsync(conn, tx, actuacionId, ct);
+            await tx.CommitAsync(ct);
+
             return new DtoActuacionResult
             {
-                Success     = true,
-                ActuacionId = actuacionId,
-                SubId       = newId is null ? null : Convert.ToInt64(newId),
-                Message     = $"Unidad '{req.UnidadCodigo}' despachada."
+                Success            = true,
+                ActuacionId        = actuacionId,
+                SubId              = newId is null ? null : Convert.ToInt64(newId),
+                Message            = $"Unidad '{req.UnidadCodigo}' despachada.",
+                EstadoEventoActual = estadoEventoActual
             };
+        }
+
+        /// <summary>
+        /// Red de seguridad: promueve cad_pedidos.estado a 'E' (En proceso) si seguía
+        /// en 'P'/'A', resolviendo el pedido dueño de una actuación
+        /// (cad_actuaciones.evento_id → cad_eventos.pedido_id). Normalmente no hace
+        /// nada porque el pedido ya está en 'E' desde que se abrió el evento
+        /// (ver DbPedidoRepository.RegistrarAccesoAsync). Devuelve el nuevo estado,
+        /// o null si no cambió.
+        /// </summary>
+        private static async Task<string?> PromoverEstadoPorActuacionAsync(
+            NpgsqlConnection conn, NpgsqlTransaction tx, long actuacionId, CancellationToken ct)
+        {
+            await using var cmd = conn.CreateCommand();
+            cmd.Transaction = tx;
+            cmd.CommandText = @"
+UPDATE cad_pedidos SET estado = 'E', fecha_modifica = NOW()
+WHERE estado IN ('P','A')
+  AND id = (
+      SELECT ev.pedido_id FROM cad_actuaciones a
+      JOIN   cad_eventos ev ON ev.id = a.evento_id
+      WHERE  a.id = @actuacionId
+  )
+RETURNING estado";
+            cmd.Parameters.AddWithValue("actuacionId", actuacionId);
+            var raw = await cmd.ExecuteScalarAsync(ct);
+            return raw is null or DBNull ? null : raw.ToString();
         }
 
         // ════════════════════════════════════════════════════════════════════════
@@ -750,16 +793,33 @@ WHERE  id = @medioId";
                     await updM.ExecuteNonQueryAsync(ct);
                 }
 
+                // Red de seguridad: asignar un recurso es una gestión real — promover el
+                // pedido a 'En proceso' si por algún motivo seguía en 'P'/'A' (normalmente
+                // ya está en 'E' desde que se abrió el evento).
+                string? estadoEventoActual = null;
+                await using (var cmdEstado = conn.CreateCommand())
+                {
+                    cmdEstado.Transaction = tx;
+                    cmdEstado.CommandText = @"
+UPDATE cad_pedidos SET estado = 'E', fecha_modifica = NOW()
+WHERE id = @pedidoId AND estado IN ('P','A')
+RETURNING estado";
+                    cmdEstado.Parameters.AddWithValue("pedidoId", req.EventoId);
+                    var rawEstado = await cmdEstado.ExecuteScalarAsync(ct);
+                    if (rawEstado is not null and not DBNull) estadoEventoActual = rawEstado.ToString();
+                }
+
                 await tx.CommitAsync(ct);
                 _logger.LogInformation(
                     "Actuación {Id} creada por {U} (evento={E}, unidad={Un})",
                     actuacionId, usuario, req.EventoId, req.UnidadAsignada);
                 return new DtoActuacionResult
                 {
-                    Success     = true,
-                    ActuacionId = actuacionId,
-                    Message     = $"Recurso '{req.UnidadAsignada}' asignado al evento. " +
-                                  $"Presione 'En ruta' cuando salga hacia el lugar."
+                    Success             = true,
+                    ActuacionId         = actuacionId,
+                    Message             = $"Recurso '{req.UnidadAsignada}' asignado al evento. " +
+                                          $"Presione 'En ruta' cuando salga hacia el lugar.",
+                    EstadoEventoActual  = estadoEventoActual
                 };
             }
             catch (Exception ex)

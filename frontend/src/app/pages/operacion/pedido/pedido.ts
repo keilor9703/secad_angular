@@ -977,6 +977,9 @@ export class PedidoComponent implements OnInit, OnDestroy {
       fechaCierre:       item?.fechaCierre      ?? item?.fecha_cierre      ?? null,
       observacionCierre: String(item?.observacionCierre  ?? item?.observacion_cierre  ?? ''),
       usuarioCierre:     String(item?.usuarioCierre      ?? item?.usuario_cierre      ?? ''),
+      // ── Trazabilidad ─────────────────────────────────────────────────
+      ultimoAccesoUsername: item?.ultimoAccesoUsername ?? item?.ultimo_acceso_username ?? null,
+      ultimoAccesoFecha:    item?.ultimoAccesoFecha     ?? item?.ultimo_acceso_fecha    ?? null,
       codigosCierre: (item?.codigosCierre ?? item?.codigos_cierre ?? []).map((c: any) => ({
         orden:            Number(c?.orden ?? 0),
         codigoCierre:     String(c?.codigoCierre     ?? c?.codigo_cierre     ?? ''),

@@ -113,7 +113,7 @@ namespace Negocio.Gestion
 
         // ─── Auditoría y SLA ──────────────────────────────────────────────────
 
-        public Task RegistrarAccesoAsync(long pedidoId, long usuarioId, string username,
+        public Task<string?> RegistrarAccesoAsync(long pedidoId, long usuarioId, string username,
                                          string ip, string accion, CancellationToken ct)
             => _repository.RegistrarAccesoAsync(pedidoId, usuarioId, username, ip, accion, ct);
 

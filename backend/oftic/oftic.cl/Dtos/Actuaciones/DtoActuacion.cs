@@ -276,4 +276,9 @@ public class DtoActuacionResult
     public long   ActuacionId { get; set; }
     /// <summary>ID del sub-registro creado (nota, unidad, etc.).</summary>
     public long?  SubId       { get; set; }
+    /// <summary>
+    /// Nuevo estado del pedido (cad_pedidos.estado) si esta operación lo promovió
+    /// automáticamente a 'E' (En proceso); null si no cambió.
+    /// </summary>
+    public string? EstadoEventoActual { get; set; }
 }

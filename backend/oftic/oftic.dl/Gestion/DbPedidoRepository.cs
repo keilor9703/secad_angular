@@ -88,7 +88,9 @@ SELECT p.id, p.sitio_graba, p.nume_llamada, p.hora_caso,
        COALESCE(f.descripcion,  '') AS fuerza_descripcion, -- col 39
        e.fecha_cierre,                                  -- col 40
        COALESCE(e.observacion_cierre, '') AS observacion_cierre, -- col 41
-       COALESCE(e.usuario_modifica, '')  AS usuario_cierre       -- col 42
+       COALESCE(e.usuario_modifica, '')  AS usuario_cierre,      -- col 42
+       ultimo.username       AS ultimo_acceso_username, -- col 43
+       ultimo.fecha_acceso   AS ultimo_acceso_fecha      -- col 44
 FROM cad_pedidos p
 LEFT JOIN ctr_usuarios u  ON u.username             = p.cadusua_usuario
 LEFT JOIN cad_casos    c1 ON TRIM(UPPER(c1.codigo)) = TRIM(UPPER(p.codi_pedido))
@@ -105,6 +107,14 @@ LEFT JOIN LATERAL (
 LEFT JOIN cad_canales cn ON cn.codigo      = e.canal_codigo
                          AND cn.cadfuerz_id = e.fuerza_id
 LEFT JOIN cad_fuerzas f  ON f.id           = e.fuerza_id
+-- Último registro de acceso (trazabilidad — quién y cuándo abrió el evento)
+LEFT JOIN LATERAL (
+    SELECT username, fecha_acceso
+    FROM   cad_auditoria_acceso_evento a
+    WHERE  a.pedido_id = p.id
+    ORDER  BY a.fecha_acceso DESC
+    LIMIT  1
+) ultimo ON TRUE
 WHERE p.id = @id";
             cmd.Parameters.AddWithValue("id", id);
 
@@ -510,6 +520,22 @@ RETURNING id";
                 result.Id = Convert.ToInt64(await cmd.ExecuteScalarAsync(ct));
                 result.Success = true;
                 result.Message = "Anotación registrada.";
+
+                // Red de seguridad: si el evento seguía en 'P'/'A' (p.ej. el despachador lo
+                // devolvió manualmente a Pendiente sin volver a abrirlo), agregar una nota
+                // es una gestión real — promoverlo a 'En proceso'. En el caso normal ya
+                // estará en 'E' desde que se abrió el evento (RegistrarAccesoAsync), así que
+                // este UPDATE no hace nada.
+                await using var cmdEstado = conn.CreateCommand();
+                cmdEstado.Transaction = tx;
+                cmdEstado.CommandText = @"
+UPDATE cad_pedidos SET estado = 'E', fecha_modifica = NOW()
+WHERE id = @idPedido AND estado IN ('P','A')
+RETURNING estado";
+                cmdEstado.Parameters.AddWithValue("idPedido", idPedido);
+                var rawEstado = await cmdEstado.ExecuteScalarAsync(ct);
+                if (rawEstado is not null and not DBNull) result.EstadoActual = rawEstado.ToString();
+
                 await tx.CommitAsync(ct);
             }
             catch (Exception ex)
@@ -723,18 +749,27 @@ WHERE p.enviar = 'S'
         // ─── Auditoría y primer acceso ────────────────────────────────────────────
 
         /// <summary>
-        /// Registra el acceso de un despachador a un evento y, si es la primera vez,
-        /// actualiza fecha_primer_acceso en cad_pedidos (para la semaforización SLA).
-        /// Fire-and-forget aceptable: si falla, el evento igual se muestra.
+        /// Registra el acceso de un despachador a un evento, marca fecha_primer_acceso
+        /// la primera vez (para la semaforización SLA) y — a diferencia de antes —
+        /// promueve el evento a estado 'E' (En proceso) de inmediato, porque un
+        /// despachador ya lo tiene abierto. El guard WHERE estado IN ('P','A') evita
+        /// pisar un estado más avanzado (T/R/C) que el despachador haya elegido a mano.
+        /// Devuelve el nuevo estado si se promovió, o null si no cambió (ya estaba en
+        /// 'E' o más adelante). El caller debe reflejar este valor en la respuesta que
+        /// ya se armó con el estado "viejo", para no pagar una segunda consulta.
+        /// Errores de auditoría no deben romper la respuesta principal — se atrapan y
+        /// se loguean, pero si falla el UPDATE de estado sí se logea por separado
+        /// (no debería fallar salvo problema de conexión, mismo criterio que el resto).
         /// </summary>
-        public async Task RegistrarAccesoAsync(
+        public async Task<string?> RegistrarAccesoAsync(
             long pedidoId, long usuarioId, string username, string ip,
             string accion, CancellationToken ct)
         {
+            string? nuevoEstado = null;
+            await using var conn = await _tenant.DataSource.OpenConnectionAsync(ct);
+
             try
             {
-                await using var conn = await _tenant.DataSource.OpenConnectionAsync(ct);
-
                 // 1. Insertar en auditoría
                 await using var cmdAudit = conn.CreateCommand();
                 cmdAudit.CommandText = @"
@@ -764,6 +799,29 @@ UPDATE cad_pedidos
                 _logger.LogWarning(ex,
                     "Error registrando auditoría para pedido={PedidoId}", pedidoId);
             }
+
+            try
+            {
+                // 3. Promover a 'En proceso' porque alguien ya está viendo el evento.
+                await using var cmdEstado = conn.CreateCommand();
+                cmdEstado.CommandText = @"
+UPDATE cad_pedidos
+   SET estado         = 'E',
+       fecha_modifica = NOW()
+ WHERE id = @pedidoId
+   AND estado IN ('P','A')
+RETURNING estado";
+                cmdEstado.Parameters.AddWithValue("pedidoId", pedidoId);
+                var raw = await cmdEstado.ExecuteScalarAsync(ct);
+                if (raw is not null and not DBNull) nuevoEstado = raw.ToString();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex,
+                    "Error promoviendo estado a 'En proceso' para pedido={PedidoId}", pedidoId);
+            }
+
+            return nuevoEstado;
         }
 
         // ─── SLA configuration ────────────────────────────────────────────────────
@@ -962,7 +1020,10 @@ ORDER BY f.descripcion, c.codigo";
             FuerzaDescripcion= r.IsDBNull(39) ? ""    : r.GetString(39),
             FechaCierre      = r.IsDBNull(40) ? null  : r.GetDateTime(40),
             ObservacionCierre= r.IsDBNull(41) ? ""    : r.GetString(41),
-            UsuarioCierre    = r.IsDBNull(42) ? ""    : r.GetString(42)
+            UsuarioCierre    = r.IsDBNull(42) ? ""    : r.GetString(42),
+            // ── Trazabilidad: último acceso registrado ─────────────────────────
+            UltimoAccesoUsername = r.IsDBNull(43) ? null : r.GetString(43),
+            UltimoAccesoFecha    = r.IsDBNull(44) ? null : r.GetDateTime(44)
         };
 
         private static async Task<List<DtoCodigoCierrePedido>> GetCodigosCierreAsync(

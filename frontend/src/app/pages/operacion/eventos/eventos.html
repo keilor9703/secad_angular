@@ -230,10 +230,12 @@
                 <div
                   class="ev-item"
                   [ngClass]="{
-                    'semaforo-verde':    getSemaforoClass(ev) === 'semaforo-verde',
-                    'semaforo-amarillo': getSemaforoClass(ev) === 'semaforo-amarillo',
-                    'semaforo-rojo':     getSemaforoClass(ev) === 'semaforo-rojo',
-                    'ev-item--sel':      detalle?.id === ev.id
+                    'semaforo-verde':      getSemaforoClass(ev) === 'semaforo-verde',
+                    'semaforo-amarillo':   getSemaforoClass(ev) === 'semaforo-amarillo',
+                    'semaforo-rojo':       getSemaforoClass(ev) === 'semaforo-rojo',
+                    'ev-item--sel':        detalle?.id === ev.id,
+                    'ev-item--nuevo':      esEventoNuevo(ev),
+                    'ev-item--en-gestion': esEventoEnGestion(ev)
                   }"
                   (click)="abrirDetalle(ev)"
                 >
@@ -347,6 +349,12 @@
                   &nbsp;·&nbsp;
                   <i class="fa-regular fa-clock"></i>
                   {{ getElapsedLabel(detalle) }}
+                  @if (detalle.ultimoAccesoUsername) {
+                    &nbsp;·&nbsp;
+                    <i class="fa-regular fa-eye"></i>
+                    Abierto por {{ detalle.ultimoAccesoUsername }}
+                    @if (detalle.ultimoAccesoFecha) { a las {{ detalle.ultimoAccesoFecha | date:'HH:mm' }} }
+                  }
                 </span>
               </div>
               <div class="ev-detail-head__badges">
@@ -403,11 +411,8 @@
             <div class="ev-sections">
 
               <!-- DATOS DEL INCIDENTE -->
-              <div class="ev-section">
-                <div class="ev-section__head">
-                  <i class="fa-solid fa-file-shield"></i>
-                  Datos del incidente
-                </div>
+              <app-panel-colapsable titulo="Datos del incidente" icono="fa-solid fa-file-shield"
+                                    [(abierto)]="datosAbierto">
                 <div class="ui-grid" style="padding:12px 14px; gap:10px;">
 
                   <div class="ui-field ui-col-4">
@@ -505,15 +510,12 @@
 
 
                 
-              </div><!-- /DATOS -->
+              </app-panel-colapsable><!-- /DATOS -->
 
               <!-- MAPA DE UBICACIÓN -->
               @if (detalle.latitudCaso || detalle.longitudCaso) {
-                <div class="ev-section">
-                  <div class="ev-section__head">
-                    <i class="fa-solid fa-map-location-dot"></i>
-                    Ubicación del incidente
-                  </div>
+                <app-panel-colapsable titulo="Ubicación del incidente" icono="fa-solid fa-map-location-dot"
+                                      [(abierto)]="ubicacionAbierto">
                   <div style="padding:12px 14px;">
                     <div id="mapaEvento" class="ev-map"></div>
                     <div class="ui-grid" style="padding:8px 0 0; gap:10px;">
@@ -529,20 +531,17 @@
                       </div>
                     </div>
                   </div>
-                </div>
+                </app-panel-colapsable>
               }
 
               <!-- RECURSOS EN TURNO (panel de despacho) -->
               @if (canalSeleccionado > 0) {
-                <div class="ev-section ev-section--recursos">
-                  <div class="ev-section__head">
-                    <i class="fa-solid fa-car-side"></i>
-                    Recursos disponibles en turno
-                    <span class="ev-rec-live">
-                      <span class="ev-live-dot"></span>
-                      c/8s
-                    </span>
-                  </div>
+                <app-panel-colapsable titulo="Recursos disponibles en turno" icono="fa-solid fa-car-side"
+                                      [(abierto)]="recursosAbierto" [sticky]="true">
+                  <span extra class="ev-rec-live">
+                    <span class="ev-live-dot"></span>
+                    c/8s
+                  </span>
 
                   <div style="padding:10px 14px">
 
@@ -607,10 +606,8 @@
                               <tr [class.ev-rec-row--ocupado]="r.estado === 28 || r.estado === 30">
                                 <!-- Tipo -->
                                 <td>
-                                  <span class="material-icons-outlined ev-rec-tipo-icon"
-                                        [title]="etiquetaTipoMedio(r.tipoMedio)">
-                                    {{ iconoTipo(r.tipoMedio) }}
-                                  </span>
+                                  <i [class]="iconoTipo(r.tipoMedio) + ' ev-rec-tipo-icon'"
+                                     [title]="etiquetaTipoMedio(r.tipoMedio)"></i>
                                 </td>
                                 <!-- Patrulla -->
                                 <td>
@@ -692,29 +689,26 @@
 
                     }
                   </div>
-                </div>
+                </app-panel-colapsable>
               }
 
               <!-- ════════════ TIMELINE DE DESPACHO ════════════ -->
-              <div class="ev-section ev-section--dispatch">
-                <div class="ev-section__head">
-                  <i class="fa-solid fa-route"></i>
-                  Despacho activo
-                  <span class="ev-rec-live">
-                    <span class="ev-live-dot"></span>
-                    c/8s
+              <app-panel-colapsable titulo="Despacho activo" icono="fa-solid fa-route"
+                                    [(abierto)]="despachoAbierto">
+                <span extra class="ev-rec-live">
+                  <span class="ev-live-dot"></span>
+                  c/8s
+                </span>
+                <!-- Solo cuenta P/D/A (recursos realmente desplegados o en camino) -->
+                <span extra class="ev-dispatch-count">
+                  {{ actuacionesActivas.length }} activa(s)
+                  @if (actuaciones.length > actuacionesActivas.length) {
+                    <span class="ev-dispatch-count__hist"
+                          title="Incluye cerradas y/o anuladas">
+                      · {{ actuaciones.length }} total
+                    </span>
+                  }
                   </span>
-                  <!-- Solo cuenta P/D/A (recursos realmente desplegados o en camino) -->
-                  <span class="ev-dispatch-count">
-                    {{ actuacionesActivas.length }} activa(s)
-                    @if (actuaciones.length > actuacionesActivas.length) {
-                      <span class="ev-dispatch-count__hist"
-                            title="Incluye cerradas y/o anuladas">
-                        · {{ actuaciones.length }} total
-                      </span>
-                    }
-                  </span>
-                </div>
 
                 <div style="padding:10px 14px">
 
@@ -889,23 +883,11 @@
 
                   }
                 </div>
-              </div><!-- /DESPACHO ACTIVO -->
+              </app-panel-colapsable><!-- /DESPACHO ACTIVO -->
 
               <!-- ── §6.17 ASISTENTE INTELIGENTE ──────────────────────────── -->
-              <div class="ev-section ev-asistente">
-                <!-- Cabecera colapsable — hereda ev-section__head + agrega toggle -->
-                <button class="ev-section__head ev-asistente__toggle"
-                        type="button"
-                        [attr.aria-expanded]="asistenteAbierto"
-                        (click)="toggleAsistente()">
-                  <i class="fa-solid fa-robot"></i>
-                  Asistente — Preguntas orientadoras
-                  <i class="fa-solid ev-asistente__chevron"
-                     [class.fa-chevron-down]="!asistenteAbierto"
-                     [class.fa-chevron-up]="asistenteAbierto"></i>
-                </button>
-
-                @if (asistenteAbierto) {
+              <app-panel-colapsable titulo="Asistente — Preguntas orientadoras" icono="fa-solid fa-robot"
+                                    [abierto]="asistenteAbierto" (abiertoChange)="toggleAsistente()">
                   <div class="ev-asistente__body">
 
                     <!-- Selector de categoría -->
@@ -987,17 +969,13 @@
                     }
 
                   </div>
-                }
-              </div><!-- /ASISTENTE -->
+              </app-panel-colapsable><!-- /ASISTENTE -->
 
               <!-- FOTOS ADJUNTAS DEL CASO -->
               @if (adjuntos.length > 0) {
-                <div class="ev-section">
-                  <div class="ev-section__head">
-                    <i class="fa-solid fa-camera"></i>
-                    Fotos del caso
-                    <span class="ev-badge" style="margin-left:auto;">{{ adjuntos.length }}</span>
-                  </div>
+                <app-panel-colapsable titulo="Fotos del caso" icono="fa-solid fa-camera"
+                                      [(abierto)]="fotosAbierto">
+                  <span extra class="ev-badge" style="margin-left:auto;">{{ adjuntos.length }}</span>
                   <div class="ev-adjuntos-grid">
                     @for (adj of adjuntos; track adj.id) {
                       <a [href]="adj.urlPublica" target="_blank"
@@ -1015,15 +993,13 @@
                       </a>
                     }
                   </div>
-                </div>
+                </app-panel-colapsable>
               }
 
               <!-- ANOTACIONES -->
-              <div class="ev-section">
-                <div class="ev-section__head">
-                  <i class="fa-solid fa-notes-medical"></i>
-                  Anotaciones ({{ detalle.anotaciones.length }})
-                </div>
+              <app-panel-colapsable [titulo]="'Anotaciones (' + detalle.anotaciones.length + ')'"
+                                    icono="fa-solid fa-notes-medical"
+                                    [(abierto)]="anotacionesAbierto">
                 <div style="padding:12px 14px;">
 
                   <!-- Formulario nueva anotación -->
@@ -1059,8 +1035,14 @@
                                     (change)="onAnotActividadChange($event)">
                               <option value="">— Seleccione —</option>
                               @for (a of actividadesPoliciales; track a.codigo) {
+                                <!-- <option> no soporta íconos (FontAwesome ni Material) — un
+                                     <select> nativo solo renderiza texto plano dentro de las
+                                     opciones, a diferencia de los emoji Unicode que sí se veían
+                                     bien mostrando el glifo del sistema operativo. Se reemplaza
+                                     por una etiqueta de texto legible, consistente con el resto
+                                     del formulario (Operativa/Preventiva). -->
                                 <option [value]="a.codigo">
-                                  {{ a.tipo === 'O' ? '⚡' : '🛡' }} {{ a.descripcion }}
+                                  {{ a.tipo === 'O' ? 'Operativa' : 'Preventiva' }} — {{ a.descripcion }}
                                 </option>
                               }
                             </select>
@@ -1138,7 +1120,7 @@
                   }
 
                 </div>
-              </div><!-- /ANOTACIONES -->
+              </app-panel-colapsable><!-- /ANOTACIONES -->
 
             </div><!-- /ev-sections -->
 

@@ -23,9 +23,7 @@ import {
 } from '../../../core/services/operacion/asistente.service';
 import {
   TurnosService,
-  DtoMedioDisponibleResumen,
-  DtoCambiarEstadoMedioRequest,
-  ESTADO_MEDIO
+  DtoMedioDisponibleResumen
 } from '../../../core/services/operacion/turnos.service';
 import {
   ActuacionesService,
@@ -35,8 +33,7 @@ import {
   DtoActividadPolicial,
   DtoDelitoItem,
   DtoCodigoCasoItem,
-  DtoCodigoCierreActuacion,
-  ESTADO_ACTUACION
+  DtoCodigoCierreActuacion
 } from '../../../core/services/operacion/actuaciones.service';
 import {
   AgenciaExternaService,
@@ -48,6 +45,7 @@ import {
   DtoCanalSeleccionado,
   DtoAdjunto
 } from '../../../core/services/operacion/recepcion.service';
+import { PanelColapsableComponent } from '../../../components/panel-colapsable/panel-colapsable';
 
 // Leaflet is loaded via CDN (index.html) – type-only reference
 declare const L: any;
@@ -59,7 +57,7 @@ type EstadoEvento = 'A' | 'P' | 'E' | 'T' | 'R' | 'C';
 @Component({
   selector: 'app-eventos',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, PanelColapsableComponent],
   templateUrl: './eventos.html',
   styleUrls: ['./eventos.scss']
 })
@@ -92,12 +90,28 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
   /** sessionStorage key – persists canal choice across navigations within the same tab */
   private readonly CANAL_KEY = 'ev_canal_sel';
 
+  // ─── Paneles colapsables del detalle (todos abiertos por defecto) ────────────
+  datosAbierto       = true;
+  ubicacionAbierto   = true;
+  recursosAbierto    = true;
+  despachoAbierto    = true;
+  fotosAbierto       = true;
+  anotacionesAbierto = true;
+
   // ─── List state ──────────────────────────────────────────────────────────────
   eventos: DtoEventoListItem[] = [];
   filtroTexto   = '';
   filtroEstado  = '';        // '' = todos | 'A'=Activos | 'P'=Pendientes | 'C'=Cerrados turno
   cargando      = false;
   errorCarga    = '';
+
+  /** ids vistos en el poll anterior — para detectar cuáles son nuevos en este tick. */
+  private idsConocidos    = new Set<string>();
+  /** ids que acaban de aparecer en este tick — reciben el destello ".ev-item--nuevo". */
+  private idsRecienLlegados = new Set<string>();
+  private limpiarRecienLlegadosTimer?: ReturnType<typeof setTimeout>;
+  /** false en la primera carga — evita que TODA la bandeja destelle al abrir la página. */
+  private primerPollCompletado = false;
 
   /** Contadores por estado — alimentan los badges de los filtros. */
   conteos: DtoEventoConteos = {
@@ -225,8 +239,6 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
 
   // ─── Error de asignación (para mostrar feedback en tabla de recursos) ────────
   errorAsignacion           = '';
-
-  readonly ESTADO_ACT = ESTADO_ACTUACION;
 
   // ─── §6.1 Modal Remitir a agencia / canal ────────────────────────────────────
   modalRemitirVisible   = false;
@@ -375,6 +387,26 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
         )
         .subscribe({
           next: (items) => {
+            // Diffing contra el poll anterior: solo destellan los ids que aparecieron
+            // en ESTE tick. En la primera carga (página recién abierta) no se destella
+            // nada — todo lo que ya estaba en la bandeja no es "nuevo".
+            if (this.primerPollCompletado) {
+              const idsNuevos = items
+                .filter(i => !this.idsConocidos.has(i.id))
+                .map(i => i.id);
+              if (idsNuevos.length) {
+                this.idsRecienLlegados = new Set(idsNuevos);
+                clearTimeout(this.limpiarRecienLlegadosTimer);
+                this.limpiarRecienLlegadosTimer = setTimeout(() => {
+                  this.idsRecienLlegados = new Set();
+                  this.cdr.markForCheck();
+                }, 6000);
+              }
+            } else {
+              this.primerPollCompletado = true;
+            }
+            this.idsConocidos = new Set(items.map(i => i.id));
+
             this.eventos    = items;
             this.cargando   = false;
             this.errorCarga = '';
@@ -393,6 +425,7 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
     this.destroyMapaDetalle();
     this.detenerPollingRecursos();
     this.detenerPollingActuaciones();
+    clearTimeout(this.limpiarRecienLlegadosTimer);
   }
 
   ngAfterViewChecked(): void {
@@ -557,6 +590,9 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
       next: (d) => {
         this.detalle         = d;
         this.cargandoDetalle = false;
+        // El backend promueve el estado a 'E' al abrir (RegistrarAccesoAsync) — reflejarlo
+        // de inmediato en la tarjeta de la bandeja, sin esperar el próximo poll de 15s.
+        if (d) this.aplicarEstadoActualizado(d.id, d.estado);
         // Cargar fotos adjuntas del pedido (cad_adjuntos) si existe pedidoId
         if (d?.id) {
           this.recepcionSvc.getAdjuntos(d.id)
@@ -588,18 +624,33 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
 
   cambiarEstado(nuevoEstado: string): void {
     if (!this.detalle || this.cambiandoEstado) return;
+    if (!confirm(`¿Cambiar el estado del evento a "${this.getEstadoLabel(nuevoEstado)}"?`)) return;
     this.cambiandoEstado = true;
 
     this.eventoSvc.setEstado(this.detalle.id, nuevoEstado).subscribe({
       next: (r) => {
         this.cambiandoEstado = false;
         if (r.success && this.detalle) {
-          this.detalle.estado = nuevoEstado;
+          this.aplicarEstadoActualizado(this.detalle.id, nuevoEstado);
           this.recargarAhora();
         }
       },
       error: () => { this.cambiandoEstado = false; }
     });
+  }
+
+  /**
+   * Refleja de inmediato un cambio de estado (manual o automático) tanto en el
+   * panel de detalle abierto como en la tarjeta correspondiente de la bandeja,
+   * sin esperar el próximo poll de 15s. `nuevoEstado` puede venir null/undefined
+   * cuando el backend indica que no hubo cambio (p.ej. el evento ya estaba en
+   * 'E' o más adelante) — en ese caso no se hace nada.
+   */
+  private aplicarEstadoActualizado(pedidoId: string, nuevoEstado: string | null | undefined): void {
+    if (!nuevoEstado) return;
+    if (this.detalle && this.detalle.id === pedidoId) this.detalle.estado = nuevoEstado;
+    const item = this.eventos.find(ev => ev.id === pedidoId);
+    if (item) item.estado = nuevoEstado;
   }
 
   getEstadoLabel(estado: string): string {
@@ -635,6 +686,7 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
         this.guardandoAnotacion = false;
         if (r.success) {
           this.mensajeAnotacion = '✔ Anotación registrada.';
+          this.aplicarEstadoActualizado(this.detalle!.id, r.estadoActual);
           this.nuevaAnotacion   = { titulo: '', anotacion: '', tipoAnotacion: 'GENERAL' };
           // Resetear sub-campos OPERATIVA
           this.anotActividadCodigo = '';
@@ -686,18 +738,6 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
     }
   }
 
-  getTipoAnotacionIcon(tipo: string): string {
-    const map: Record<string, string> = {
-      GENERAL:          '📝',
-      OPERATIVA:        '🔧',
-      PREVENTIVA:       '⚠️',
-      DESPACHO:         '📡',
-      NOVEDAD_PERSONAL: '👤',
-      CIERRE:           '🔒'
-    };
-    return map[tipo] ?? '📝';
-  }
-
   getTipoAnotacionLabel(tipo: string): string {
     const map: Record<string, string> = {
       GENERAL:          'General',
@@ -705,7 +745,9 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
       PREVENTIVA:       'Preventiva',
       DESPACHO:         'Despacho',
       NOVEDAD_PERSONAL: 'Novedad personal',
-      CIERRE:           'Cierre'
+      CIERRE:           'Cierre',
+      // Generada automáticamente por confirmarRemitir() al remitir el evento a otra agencia.
+      REMISION:         'Remisión'
     };
     return map[tipo] ?? tipo;
   }
@@ -798,6 +840,26 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
     } else {
       document.body.classList.remove('ui-modal-open');
     }
+  }
+
+  // ─── Indicadores "nuevo" / "en gestión" en la tarjeta de la bandeja ────────
+
+  /**
+   * true durante ~6s tras el poll en el que este evento apareció por primera
+   * vez en la bandeja — dispara el destello ".ev-item--nuevo". Nunca se marca
+   * en la carga inicial de la página (ver primerPollCompletado).
+   */
+  esEventoNuevo(ev: DtoEventoListItem): boolean {
+    return this.idsRecienLlegados.has(ev.id);
+  }
+
+  /**
+   * Indicador fijo (no animado) de que el evento ya está siendo trabajado.
+   * 'E' = En proceso, que ahora se asigna automáticamente en cuanto un
+   * despachador abre el evento (ver RegistrarAccesoAsync en el backend).
+   */
+  esEventoEnGestion(ev: DtoEventoListItem): boolean {
+    return ev.estado === 'E';
   }
 
   // ─── Semáforo dinámico con SLAs (Épica 4 + Épica 5) ────────────────────────
@@ -975,35 +1037,6 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
     this.recursos = [];
   }
 
-  /** Cambia estado de un medio a En ruta (30) vinculado al evento activo. */
-  asignarMedioAlEvento(medioId: string): void {
-    if (!this.detalle || this.asignandoMedioId) return;
-    this.asignandoMedioId = medioId;
-    const req: DtoCambiarEstadoMedioRequest = {
-      nuevoEstado:  ESTADO_MEDIO.EN_RUTA,
-      eventoId:     this.detalle.id,   // ya es string (Snowflake)
-      observacion:  `Asignado desde evento ${this.detalle.codiPedido ?? this.detalle.id}`
-    };
-    this.turnosSvc.cambiarEstadoMedio(medioId, req).subscribe({
-      next: () => { this.asignandoMedioId = null; },
-      error: ()=> { this.asignandoMedioId = null; }
-    });
-  }
-
-  /** Libera un medio manualmente (Libre = 27). */
-  liberarMedio(medioId: string): void {
-    if (this.asignandoMedioId) return;
-    this.asignandoMedioId = medioId;
-    const req: DtoCambiarEstadoMedioRequest = { nuevoEstado: ESTADO_MEDIO.LIBRE };
-    this.turnosSvc.cambiarEstadoMedio(medioId, req).subscribe({
-      next: () => {
-        this.asignandoMedioId = null;
-        this.recargarRecursos();   // refleja inmediatamente la liberación del medio
-      },
-      error: () => { this.asignandoMedioId = null; }
-    });
-  }
-
   // ─── Flujo de despacho 4 pasos ────────────────────────────────────────────────
 
   /**
@@ -1029,6 +1062,7 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
         this.asignandoMedioId = null;
         if (res.success) {
           this.errorAsignacion = '';
+          this.aplicarEstadoActualizado(this.detalle!.id, res.estadoEventoActual);
           this.recargarActuaciones();
           this.recargarRecursos();   // refleja inmediatamente el nuevo estado del medio
         } else {

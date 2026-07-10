@@ -82,6 +82,11 @@ export interface DtoPedidoDetalle extends DtoPedidoListItem {
   observacionCierre: string;
   usuarioCierre:     string;
   codigosCierre:     DtoCodigoCierrePedido[];
+  // ── Trazabilidad (cad_auditoria_acceso_evento) ───────────────────────────
+  /** Username del último despachador que abrió este evento. */
+  ultimoAccesoUsername: string | null;
+  /** Fecha/hora del último acceso registrado. */
+  ultimoAccesoFecha:    string | null;
 }
 
 export interface DtoCodigoCierrePedido {
@@ -142,6 +147,11 @@ export interface DtoPedidoResult {
   /** Snowflake ID como string. */
   id: string;
   message: string;
+  /**
+   * Nuevo estado del pedido si esta operación lo promovió automáticamente a
+   * 'E' (En proceso); ausente/null si no cambió.
+   */
+  estadoActual?: string | null;
 }
 
 export interface DtoPedidoAsociar {
