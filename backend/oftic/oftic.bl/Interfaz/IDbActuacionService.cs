@@ -44,23 +44,27 @@ namespace Negocio.Interfaz
         Task<DtoActuacionResult> P_ActualizarEstadoActuacionAsync(
             long actuacionId,
             DtoActualizarEstadoActuacionRequest req,
+            int canalCodigo, int fuerzaId,
             string usuario,
             CancellationToken ct);
 
         Task<DtoActuacionResult> P_CerrarActuacionAsync(
             DtoCierreActuacionRequest req,
+            int canalCodigo, int fuerzaId,
             string usuario,
             CancellationToken ct);
 
         Task<DtoActuacionResult> P_AgregarNotaActuacionAsync(
             long actuacionId,
             DtoAgregarNotaActuacionRequest req,
+            int canalCodigo, int fuerzaId,
             string usuario,
             CancellationToken ct);
 
         Task<DtoActuacionResult> P_AgregarUnidadActuacionAsync(
             long actuacionId,
             DtoAgregarUnidadActuacionRequest req,
+            int canalCodigo, int fuerzaId,
             string usuario,
             CancellationToken ct);
 
@@ -71,6 +75,7 @@ namespace Negocio.Interfaz
         Task<DtoActuacionResult> P_DesasignarActuacionAsync(
             long actuacionId,
             string motivo,
+            int canalCodigo, int fuerzaId,
             string usuario,
             CancellationToken ct);
 

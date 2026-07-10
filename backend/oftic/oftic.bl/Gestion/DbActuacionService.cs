@@ -31,36 +31,41 @@ namespace Negocio.Gestion
         public Task<DtoActuacionResult> P_ActualizarEstadoActuacionAsync(
             long actuacionId,
             DtoActualizarEstadoActuacionRequest req,
+            int canalCodigo, int fuerzaId,
             string usuario,
             CancellationToken ct)
-            => _repo.P_ActualizarEstadoActuacionAsync(actuacionId, req, usuario, ct);
+            => _repo.P_ActualizarEstadoActuacionAsync(actuacionId, req, canalCodigo, fuerzaId, usuario, ct);
 
         public Task<DtoActuacionResult> P_CerrarActuacionAsync(
             DtoCierreActuacionRequest req,
+            int canalCodigo, int fuerzaId,
             string usuario,
             CancellationToken ct)
-            => _repo.P_CerrarActuacionAsync(req, usuario, ct);
+            => _repo.P_CerrarActuacionAsync(req, canalCodigo, fuerzaId, usuario, ct);
 
         public Task<DtoActuacionResult> P_AgregarNotaActuacionAsync(
             long actuacionId,
             DtoAgregarNotaActuacionRequest req,
+            int canalCodigo, int fuerzaId,
             string usuario,
             CancellationToken ct)
-            => _repo.P_AgregarNotaActuacionAsync(actuacionId, req, usuario, ct);
+            => _repo.P_AgregarNotaActuacionAsync(actuacionId, req, canalCodigo, fuerzaId, usuario, ct);
 
         public Task<DtoActuacionResult> P_AgregarUnidadActuacionAsync(
             long actuacionId,
             DtoAgregarUnidadActuacionRequest req,
+            int canalCodigo, int fuerzaId,
             string usuario,
             CancellationToken ct)
-            => _repo.P_AgregarUnidadActuacionAsync(actuacionId, req, usuario, ct);
+            => _repo.P_AgregarUnidadActuacionAsync(actuacionId, req, canalCodigo, fuerzaId, usuario, ct);
 
         public Task<DtoActuacionResult> P_DesasignarActuacionAsync(
             long actuacionId,
             string motivo,
+            int canalCodigo, int fuerzaId,
             string usuario,
             CancellationToken ct)
-            => _repo.P_DesasignarActuacionAsync(actuacionId, motivo, usuario, ct);
+            => _repo.P_DesasignarActuacionAsync(actuacionId, motivo, canalCodigo, fuerzaId, usuario, ct);
 
         public Task<List<DtoActividadPolicial>> G_GetActividadesPolicialesAsync(
             string? tipo, CancellationToken ct)

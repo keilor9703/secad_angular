@@ -1220,7 +1220,10 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
         this.recargarActuaciones();
         this.recargarRecursos();   // refleja medio → En ruta (30)
       },
-      error: () => { this.operandoActuacionId = null; }
+      error: (e) => {
+        this.operandoActuacionId = null;
+        this.toast.error('Actuación', e.error?.message ?? 'No se pudo actualizar el recurso.');
+      }
     });
   }
 
@@ -1237,7 +1240,10 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
         this.recargarActuaciones();
         this.recargarRecursos();   // refleja medio → En sitio (28)
       },
-      error: () => { this.operandoActuacionId = null; }
+      error: (e) => {
+        this.operandoActuacionId = null;
+        this.toast.error('Actuación', e.error?.message ?? 'No se pudo actualizar el recurso.');
+      }
     });
   }
 

@@ -36,6 +36,18 @@ namespace Api.Controllers.Operacion
         private string UsuarioClaim => User.FindFirstValue(ClaimTypes.Name)
                                     ?? User.FindFirstValue("unique_name") ?? "sistema";
 
+        // Canal/fuerza de la sesión (JWT) — identifica QUÉ canal está gestionando.
+        // En un evento multi-canal, cada canal solo puede tocar los recursos que
+        // él mismo despachó; ver VerificarCanalPropietarioAsync en el repositorio.
+        private int CanalIdClaim  => GetIntClaim("canal_id");
+        private int FuerzaIdClaim => GetIntClaim("fuerza_id");
+
+        private int GetIntClaim(string claimType)
+        {
+            var raw = User.FindFirstValue(claimType);
+            return int.TryParse(raw, out var val) ? val : 0;
+        }
+
         // ════════════════════════════════════════════════════════════════════════
         // CONSULTAS
         // ════════════════════════════════════════════════════════════════════════
@@ -150,7 +162,7 @@ namespace Api.Controllers.Operacion
                 return BadRequest(new { success = false, message = "Estado requerido (D o A)." });
             try
             {
-                var result = await _svc.P_ActualizarEstadoActuacionAsync(id, req, UsuarioClaim, ct);
+                var result = await _svc.P_ActualizarEstadoActuacionAsync(id, req, CanalIdClaim, FuerzaIdClaim, UsuarioClaim, ct);
                 return result.Success
                     ? Ok(new { success = true, message = result.Message })
                     : BadRequest(new { success = false, message = result.Message });
@@ -188,7 +200,7 @@ namespace Api.Controllers.Operacion
             req.ActuacionId = id;  // asegurar que el id del route prevalece
             try
             {
-                var result = await _svc.P_CerrarActuacionAsync(req, UsuarioClaim, ct);
+                var result = await _svc.P_CerrarActuacionAsync(req, CanalIdClaim, FuerzaIdClaim, UsuarioClaim, ct);
                 return result.Success
                     ? Ok(new { success = true, message = result.Message, actuacionId = id })
                     : BadRequest(new { success = false, message = result.Message });
@@ -224,7 +236,7 @@ namespace Api.Controllers.Operacion
                 return BadRequest(new { success = false, message = "El texto de la nota es obligatorio." });
             try
             {
-                var result = await _svc.P_AgregarNotaActuacionAsync(id, req, UsuarioClaim, ct);
+                var result = await _svc.P_AgregarNotaActuacionAsync(id, req, CanalIdClaim, FuerzaIdClaim, UsuarioClaim, ct);
                 return result.Success
                     ? Ok(new { success = true, message = result.Message, id = result.SubId })
                     : BadRequest(new { success = false, message = result.Message });
@@ -256,7 +268,7 @@ namespace Api.Controllers.Operacion
             try
             {
                 var motivo = req?.Motivo?.Trim() is { Length: > 0 } m ? m : "Desasignado por operador";
-                var result = await _svc.P_DesasignarActuacionAsync(id, motivo, UsuarioClaim, ct);
+                var result = await _svc.P_DesasignarActuacionAsync(id, motivo, CanalIdClaim, FuerzaIdClaim, UsuarioClaim, ct);
                 return result.Success
                     ? Ok(new { success = true, message = result.Message, actuacionId = id })
                     : BadRequest(new { success = false, message = result.Message });
@@ -366,7 +378,7 @@ namespace Api.Controllers.Operacion
                 return BadRequest(new { success = false, message = "El código de unidad es obligatorio." });
             try
             {
-                var result = await _svc.P_AgregarUnidadActuacionAsync(id, req, UsuarioClaim, ct);
+                var result = await _svc.P_AgregarUnidadActuacionAsync(id, req, CanalIdClaim, FuerzaIdClaim, UsuarioClaim, ct);
                 return result.Success
                     ? Ok(new { success = true, message = result.Message, id = result.SubId })
                     : BadRequest(new { success = false, message = result.Message });

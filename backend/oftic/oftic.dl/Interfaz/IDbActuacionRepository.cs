@@ -63,10 +63,14 @@ namespace Datos.Interfaz
         /// actualiza la unidad/placa asignada.
         /// También actualiza el estado operativo del medio vinculado:
         ///   D → medio 30 (En ruta) | A → medio 28 (En sitio/Ocupado).
+        /// canalCodigo/fuerzaId identifican la sesión que gestiona: si la actuación
+        /// fue asignada por OTRO canal (evento multi-canal), se rechaza — cada canal
+        /// solo gestiona los recursos que él mismo despachó.
         /// </summary>
         Task<DtoActuacionResult> P_ActualizarEstadoActuacionAsync(
             long actuacionId,
             DtoActualizarEstadoActuacionRequest req,
+            int canalCodigo, int fuerzaId,
             string usuario,
             CancellationToken ct);
 
@@ -74,10 +78,12 @@ namespace Datos.Interfaz
         /// Cierra la actuación (estado C o V) con sus códigos de cierre.
         /// Inserta los códigos en cad_actuaciones_codigos y llama a
         /// fn_recalcular_estado_evento para actualizar el estado global del evento.
-        /// Todo en una sola transacción.
+        /// Todo en una sola transacción. Rechaza si canalCodigo/fuerzaId no coincide
+        /// con el canal que asignó la actuación (ver P_ActualizarEstadoActuacionAsync).
         /// </summary>
         Task<DtoActuacionResult> P_CerrarActuacionAsync(
             DtoCierreActuacionRequest req,
+            int canalCodigo, int fuerzaId,
             string usuario,
             CancellationToken ct);
 
@@ -85,20 +91,26 @@ namespace Datos.Interfaz
 
         /// <summary>
         /// Agrega una nota de campo a la actuación (novedad, alerta, cierre, etc.).
+        /// Rechaza si canalCodigo/fuerzaId no coincide con el canal que asignó la
+        /// actuación (ver P_ActualizarEstadoActuacionAsync).
         /// </summary>
         Task<DtoActuacionResult> P_AgregarNotaActuacionAsync(
             long actuacionId,
             DtoAgregarNotaActuacionRequest req,
+            int canalCodigo, int fuerzaId,
             string usuario,
             CancellationToken ct);
 
         /// <summary>
         /// Registra una unidad adicional despachada dentro de la misma actuación.
-        /// Usar cuando la agencia envía más de un recurso al incidente.
+        /// Usar cuando la agencia envía más de un recurso al incidente. Rechaza si
+        /// canalCodigo/fuerzaId no coincide con el canal que asignó la actuación
+        /// (ver P_ActualizarEstadoActuacionAsync).
         /// </summary>
         Task<DtoActuacionResult> P_AgregarUnidadActuacionAsync(
             long actuacionId,
             DtoAgregarUnidadActuacionRequest req,
+            int canalCodigo, int fuerzaId,
             string usuario,
             CancellationToken ct);
 
@@ -107,10 +119,13 @@ namespace Datos.Interfaz
         /// Pasa la actuación a estado V (Anulada), libera el medio (estado=27, evento_id=NULL)
         /// y recalcula el estado global del evento.
         /// Solo funciona si la actuación está en estado P; si ya salió en ruta, rechaza.
+        /// Rechaza también si canalCodigo/fuerzaId no coincide con el canal que
+        /// asignó la actuación (ver P_ActualizarEstadoActuacionAsync).
         /// </summary>
         Task<DtoActuacionResult> P_DesasignarActuacionAsync(
             long actuacionId,
             string motivo,
+            int canalCodigo, int fuerzaId,
             string usuario,
             CancellationToken ct);
 

@@ -247,6 +247,7 @@ ORDER  BY fecha_registra ASC";
         public async Task<DtoActuacionResult> P_ActualizarEstadoActuacionAsync(
             long actuacionId,
             DtoActualizarEstadoActuacionRequest req,
+            int canalCodigo, int fuerzaId,
             string usuario,
             CancellationToken ct)
         {
@@ -261,6 +262,11 @@ ORDER  BY fecha_registra ASC";
             var tsCol = req.Estado == EstadoActuacion.Despachada ? "fecha_despacho" : "fecha_llegada";
 
             await using var conn = await _tenant.DataSource.OpenConnectionAsync(ct);
+
+            var errorCanal = await VerificarCanalPropietarioAsync(conn, null, actuacionId, canalCodigo, fuerzaId, ct);
+            if (errorCanal is not null)
+                return new DtoActuacionResult { Success = false, ActuacionId = actuacionId, Message = errorCanal };
+
             await using var cmd  = conn.CreateCommand();
             cmd.CommandText = $@"
 UPDATE cad_actuaciones
@@ -312,6 +318,7 @@ WHERE  actuacion_id = @actId";
 
         public async Task<DtoActuacionResult> P_CerrarActuacionAsync(
             DtoCierreActuacionRequest req,
+            int canalCodigo, int fuerzaId,
             string usuario,
             CancellationToken ct)
         {
@@ -334,6 +341,13 @@ WHERE  actuacion_id = @actId";
 
             try
             {
+                var errorCanal = await VerificarCanalPropietarioAsync(conn, tx, req.ActuacionId, canalCodigo, fuerzaId, ct);
+                if (errorCanal is not null)
+                {
+                    await tx.RollbackAsync(ct);
+                    return new DtoActuacionResult { Success = false, ActuacionId = req.ActuacionId, Message = errorCanal };
+                }
+
                 // ── 1. Obtener evento_id + pedido_id para el recálculo ────────
                 long eventoId = 0;
                 long pedidoId = 0;
@@ -532,6 +546,7 @@ WHERE  actuacion_id = @actId";
         public async Task<DtoActuacionResult> P_AgregarNotaActuacionAsync(
             long actuacionId,
             DtoAgregarNotaActuacionRequest req,
+            int canalCodigo, int fuerzaId,
             string usuario,
             CancellationToken ct)
         {
@@ -548,6 +563,10 @@ WHERE  actuacion_id = @actId";
 
             await using var conn = await _tenant.DataSource.OpenConnectionAsync(ct);
             await using var tx   = await conn.BeginTransactionAsync(ct);
+
+            var errorCanal = await VerificarCanalPropietarioAsync(conn, tx, actuacionId, canalCodigo, fuerzaId, ct);
+            if (errorCanal is not null)
+                return new DtoActuacionResult { Success = false, ActuacionId = actuacionId, Message = errorCanal };
 
             await using var cmd  = conn.CreateCommand();
             cmd.Transaction = tx;
@@ -583,6 +602,7 @@ RETURNING id";
         public async Task<DtoActuacionResult> P_AgregarUnidadActuacionAsync(
             long actuacionId,
             DtoAgregarUnidadActuacionRequest req,
+            int canalCodigo, int fuerzaId,
             string usuario,
             CancellationToken ct)
         {
@@ -596,6 +616,10 @@ RETURNING id";
 
             await using var conn = await _tenant.DataSource.OpenConnectionAsync(ct);
             await using var tx   = await conn.BeginTransactionAsync(ct);
+
+            var errorCanal = await VerificarCanalPropietarioAsync(conn, tx, actuacionId, canalCodigo, fuerzaId, ct);
+            if (errorCanal is not null)
+                return new DtoActuacionResult { Success = false, ActuacionId = actuacionId, Message = errorCanal };
 
             await using var cmd  = conn.CreateCommand();
             cmd.Transaction = tx;
@@ -826,6 +850,7 @@ WHERE  id = @medioId";
         public async Task<DtoActuacionResult> P_DesasignarActuacionAsync(
             long actuacionId,
             string motivo,
+            int canalCodigo, int fuerzaId,
             string usuario,
             CancellationToken ct)
         {
@@ -834,6 +859,13 @@ WHERE  id = @medioId";
 
             try
             {
+                var errorCanal = await VerificarCanalPropietarioAsync(conn, tx, actuacionId, canalCodigo, fuerzaId, ct);
+                if (errorCanal is not null)
+                {
+                    await tx.RollbackAsync(ct);
+                    return new DtoActuacionResult { Success = false, ActuacionId = actuacionId, Message = errorCanal };
+                }
+
                 // ── 1. Verificar que existe y está en estado P ────────────────
                 long eventoId = 0;
                 await using (var qChk = conn.CreateCommand())
@@ -1044,6 +1076,39 @@ LIMIT  @lim";
 
         private static object NullOrString(string? value) =>
             string.IsNullOrWhiteSpace(value) ? DBNull.Value : value;
+
+        /// <summary>
+        /// Valida que el canal/fuerza de la sesión (claims del JWT) coincida con el
+        /// canal/fuerza que ASIGNÓ la actuación. En un evento multi-canal, cada canal
+        /// solo puede gestionar (cambiar estado, cerrar, agregar notas/unidades,
+        /// desasignar) los recursos que él mismo despachó — nunca los de otro canal
+        /// que también esté gestionando el mismo evento.
+        /// canalCodigo/fuerzaId &lt;= 0 (JWT sin esos claims) deshabilita el chequeo,
+        /// igual que una actuación legacy sin canal_codigo/fuerza_id registrado.
+        /// Devuelve null si el chequeo pasa (o no aplica); el mensaje de error si no.
+        /// </summary>
+        private static async Task<string?> VerificarCanalPropietarioAsync(
+            NpgsqlConnection conn, NpgsqlTransaction? tx, long actuacionId,
+            int canalCodigo, int fuerzaId, CancellationToken ct)
+        {
+            if (canalCodigo <= 0 || fuerzaId <= 0) return null;
+
+            await using var cmd = conn.CreateCommand();
+            cmd.Transaction = tx;
+            cmd.CommandText = "SELECT canal_codigo, fuerza_id FROM cad_actuaciones WHERE id = @id";
+            cmd.Parameters.AddWithValue("id", actuacionId);
+            await using var r = await cmd.ExecuteReaderAsync(ct);
+            if (!await r.ReadAsync(ct)) return null; // no existe — que lo reporte la operación principal
+
+            var actCanal  = r.IsDBNull(0) ? (int?)null : r.GetInt32(0);
+            var actFuerza = r.IsDBNull(1) ? (int?)null : r.GetInt32(1);
+            if (!actCanal.HasValue || !actFuerza.HasValue) return null;
+
+            if (actCanal.Value != canalCodigo || actFuerza.Value != fuerzaId)
+                return "Este recurso fue asignado por otro canal. Solo el canal que lo asignó puede gestionarlo.";
+
+            return null;
+        }
 
         // ════════════════════════════════════════════════════════════════════════
         // RETROALIMENTACIÓN EXTERNA (via PIP)
