@@ -32,44 +32,127 @@ namespace Datos.Gestion
         // CTI / INCOMING CALL
         // ════════════════════════════════════════════════════════════════════════
 
+        //public async Task<DtoLlamadaEntrante?> F_GetLlamadasAsync(
+        //    int sitioGraba, int acd, CancellationToken ct)
+        //{
+        //    await using var conn = await _tenant.DataSource.OpenConnectionAsync(ct);
+        //    await using var tx   = await conn.BeginTransactionAsync(ct);
+
+        //    try
+        //    {
+        //        long id;
+        //        long numeTelefono;
+
+        //        // FOR UPDATE SKIP LOCKED: si dos pollers concurrentes llegan a la vez,
+        //        // el segundo salta esta fila (ya bloqueada por el primero) en vez de
+        //        // esperar y recibir la misma llamada dos veces.
+        //        await using (var cmd = conn.CreateCommand())
+        //        {
+        //            cmd.Transaction = tx;
+        //            cmd.CommandText = @"
+        //                SELECT id, nume_telefono
+        //                FROM   cad_interfaz_cti
+        //                WHERE  sitio_graba = @sg AND acd = @acd AND registrada = 'N'
+        //                ORDER  BY fecha_registro ASC
+        //                LIMIT  1
+        //                FOR UPDATE SKIP LOCKED";
+        //            cmd.Parameters.AddWithValue("sg",  sitioGraba);
+        //            cmd.Parameters.AddWithValue("acd", acd);
+
+        //            await using var rdr = await cmd.ExecuteReaderAsync(ct);
+        //            if (!await rdr.ReadAsync(ct))
+        //            {
+        //                await tx.RollbackAsync(ct);
+        //                return null;
+        //            }
+        //            id           = rdr.GetInt64(0);
+        //            numeTelefono = rdr.IsDBNull(1) ? 0 : rdr.GetInt64(1);
+        //        }
+
+        //        if (numeTelefono == 0)
+        //        {
+        //            await tx.RollbackAsync(ct);
+        //            return null;
+        //        }
+
+        //        // Generar ID Snowflake — sin round-trip a la BD
+        //        long numeLlamada = _snowflake.NextId();
+
+        //        // Marcar SOLO la fila leída — antes marcaba TODAS las 'N' del sitio/acd,
+        //        // perdiendo silenciosamente cualquier llamada adicional encolada en el
+        //        // mismo instante (nunca se le devolvía a ningún operador y quedaba
+        //        // marcada 'S' sin haber sido atendida).
+        //        await using (var upd = conn.CreateCommand())
+        //        {
+        //            upd.Transaction = tx;
+        //            upd.CommandText = @"
+        //                UPDATE cad_interfaz_cti
+        //                SET    registrada = 'S'
+        //                WHERE  id = @id";
+        //            upd.Parameters.AddWithValue("id", id);
+        //            await upd.ExecuteNonQueryAsync(ct);
+        //        }
+
+        //        await tx.CommitAsync(ct);
+
+        //        return new DtoLlamadaEntrante
+        //        {
+        //            NUME_LLAMADA  = numeLlamada,
+        //            NUME_TELEFONO = numeTelefono,
+        //            CORDX         = "0",
+        //            CORDY         = "0",
+        //            TIPOSHAPE     = "Nulo",
+        //            RADIO         = 0,
+        //            FECHAGMLC     = DateTime.Now.ToString(HoraFormat),
+        //            OPERADOR      = ""
+        //        };
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        await tx.RollbackAsync(ct);
+        //        _logger.LogError(ex, "Error al obtener llamada CTI sitioGraba={Sg} acd={Acd}", sitioGraba, acd);
+        //        throw;
+        //    }
+        //}
+
         public async Task<DtoLlamadaEntrante?> F_GetLlamadasAsync(
-            int sitioGraba, int acd, CancellationToken ct)
+    int sitioGraba, int acd, CancellationToken ct)
         {
             await using var conn = await _tenant.DataSource.OpenConnectionAsync(ct);
-            await using var tx   = await conn.BeginTransactionAsync(ct);
+            await using var tx = await conn.BeginTransactionAsync(ct);
 
             try
             {
-                long id;
-                long numeTelefono;
+                long id = 0;
+                long numeTelefono = 0;
+                bool found;
 
                 // FOR UPDATE SKIP LOCKED: si dos pollers concurrentes llegan a la vez,
-                // el segundo salta esta fila (ya bloqueada por el primero) en vez de
-                // esperar y recibir la misma llamada dos veces.
+                // el segundo salta esta fila (ya bloqueada por el primero).
                 await using (var cmd = conn.CreateCommand())
                 {
                     cmd.Transaction = tx;
                     cmd.CommandText = @"
-                        SELECT id, nume_telefono
-                        FROM   cad_interfaz_cti
-                        WHERE  sitio_graba = @sg AND acd = @acd AND registrada = 'N'
-                        ORDER  BY fecha_registro ASC
-                        LIMIT  1
-                        FOR UPDATE SKIP LOCKED";
-                    cmd.Parameters.AddWithValue("sg",  sitioGraba);
+                SELECT id, nume_telefono
+                FROM   cad_interfaz_cti
+                WHERE  sitio_graba = @sg AND acd = @acd AND registrada = 'N'
+                ORDER  BY fecha_registro ASC
+                LIMIT  1
+                FOR UPDATE SKIP LOCKED";
+                    cmd.Parameters.AddWithValue("sg", sitioGraba);
                     cmd.Parameters.AddWithValue("acd", acd);
 
                     await using var rdr = await cmd.ExecuteReaderAsync(ct);
-                    if (!await rdr.ReadAsync(ct))
+                    found = await rdr.ReadAsync(ct);
+                    if (found)
                     {
-                        await tx.RollbackAsync(ct);
-                        return null;
+                        id = rdr.GetInt64(0);
+                        numeTelefono = rdr.IsDBNull(1) ? 0 : rdr.GetInt64(1);
                     }
-                    id           = rdr.GetInt64(0);
-                    numeTelefono = rdr.IsDBNull(1) ? 0 : rdr.GetInt64(1);
-                }
+                } // 👈 AQUÍ se liberan rdr y cmd → la conexión queda libre
 
-                if (numeTelefono == 0)
+                // Ahora sí es seguro operar sobre la transacción
+                if (!found || numeTelefono == 0)
                 {
                     await tx.RollbackAsync(ct);
                     return null;
@@ -78,17 +161,14 @@ namespace Datos.Gestion
                 // Generar ID Snowflake — sin round-trip a la BD
                 long numeLlamada = _snowflake.NextId();
 
-                // Marcar SOLO la fila leída — antes marcaba TODAS las 'N' del sitio/acd,
-                // perdiendo silenciosamente cualquier llamada adicional encolada en el
-                // mismo instante (nunca se le devolvía a ningún operador y quedaba
-                // marcada 'S' sin haber sido atendida).
+                // Marcar SOLO la fila leída
                 await using (var upd = conn.CreateCommand())
                 {
                     upd.Transaction = tx;
                     upd.CommandText = @"
-                        UPDATE cad_interfaz_cti
-                        SET    registrada = 'S'
-                        WHERE  id = @id";
+                UPDATE cad_interfaz_cti
+                SET    registrada = 'S'
+                WHERE  id = @id";
                     upd.Parameters.AddWithValue("id", id);
                     await upd.ExecuteNonQueryAsync(ct);
                 }
@@ -97,24 +177,25 @@ namespace Datos.Gestion
 
                 return new DtoLlamadaEntrante
                 {
-                    NUME_LLAMADA  = numeLlamada,
+                    NUME_LLAMADA = numeLlamada,
                     NUME_TELEFONO = numeTelefono,
-                    CORDX         = "0",
-                    CORDY         = "0",
-                    TIPOSHAPE     = "Nulo",
-                    RADIO         = 0,
-                    FECHAGMLC     = DateTime.Now.ToString(HoraFormat),
-                    OPERADOR      = ""
+                    CORDX = "0",
+                    CORDY = "0",
+                    TIPOSHAPE = "Nulo",
+                    RADIO = 0,
+                    FECHAGMLC = DateTime.Now.ToString(HoraFormat),
+                    OPERADOR = ""
                 };
             }
             catch (Exception ex)
             {
+                // Aquí el reader ya fue liberado (el 'using' lo dispone al propagarse
+                // la excepción), así que el rollback es seguro.
                 await tx.RollbackAsync(ct);
                 _logger.LogError(ex, "Error al obtener llamada CTI sitioGraba={Sg} acd={Acd}", sitioGraba, acd);
                 throw;
             }
         }
-
         public async Task<DtoCtiEntradaResult> P_RegistrarLlamadaCtiAsync(
             int sitioGraba, int acd, long numeTelefono, CancellationToken ct)
         {

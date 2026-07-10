@@ -987,7 +987,18 @@ export class RecepcionComponent implements OnInit, AfterViewInit, OnDestroy {
   esGrupoExterno(grupo: GrupoCanal): boolean {
     return grupo.fuerzaId !== this.fuerzaId;
   }
+  /** Devuelve los grupos de canales con los PROPIOS arriba y los EXTERNOS ("Otra agencia") abajo. */
+get gruposCanalesOrdenados() {
+  // [...] crea una copia para NO mutar el arreglo original
+  return [...this.gruposCanales].sort((a, b) => {
+    const aExt = this.esGrupoExterno(a) ? 1 : 0;
+    const bExt = this.esGrupoExterno(b) ? 1 : 0;
+    return aExt - bExt;   // 0 (propios) van antes que 1 (externos)
+  });
+}
 
+
+  
   // ── Indicador de salud de conexión CTI ───────────────────────────────────
   // El polling corre en background cada 5s sin ninguna señal visible para el
   // operador — si el backend empieza a fallar silenciosamente, nadie lo nota

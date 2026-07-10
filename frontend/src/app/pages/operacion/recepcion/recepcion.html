@@ -709,7 +709,7 @@
           </div>
 
           <!-- ── Canales de atención SECAD ──────────────────────────────────── -->
-          @if (gruposCanales.length > 0) {
+          <!-- @if (gruposCanales.length > 0) {
             <div class="rec-section">
               <div class="rec-section__head">
                 <i class="fa-solid fa-tower-broadcast"></i>
@@ -720,6 +720,44 @@
                 @for (grupo of gruposCanales; track grupo.fuerza) {
                   <div class="rec-canal-grupo"
                        [class.rec-canal-grupo--externo]="esGrupoExterno(grupo)">
+                    <div class="rec-canal-grupo__head">
+                      <span class="rec-canal-grupo__nombre">{{ grupo.fuerza }}</span>
+                      @if (esGrupoExterno(grupo)) {
+                        <span class="rec-canal-grupo__ext-badge">
+                          <i class="fa-solid fa-building-shield"></i> Otra agencia
+                        </span>
+                      }
+                      <span class="rec-canal-grupo__badge">{{ grupo.canales.length }}</span>
+                    </div>
+                    <div class="rec-canal-grid">
+                      @for (c of grupo.canales; track c.codigo) {
+                        <button type="button"
+                                class="rec-canal-card"
+                                [class.rec-canal-card--sel]="c.seleccionado"
+                                [class.rec-canal-card--externo]="esGrupoExterno(grupo)"
+                                (click)="toggleCanal(c)">
+                          {{ c.descripcion }}
+                        </button>
+                      }
+                    </div>
+                  </div>
+                }
+              </div>
+            </div>
+          } -->
+
+          <!-- ── Canales de atención SECAD ──────────────────────────────────── -->
+          @if (gruposCanalesOrdenados.length > 0) {                                    <!-- 👈 cambio -->
+            <div class="rec-section">
+              <div class="rec-section__head">
+                <i class="fa-solid fa-tower-broadcast"></i>
+                Canales de atención — SECAD
+              </div>
+
+              <div class="rec-canales-wrap">
+                @for (grupo of gruposCanalesOrdenados; track grupo.fuerza) {           <!-- 👈 cambio -->
+                  <div class="rec-canal-grupo"
+                      [class.rec-canal-grupo--externo]="esGrupoExterno(grupo)">
                     <div class="rec-canal-grupo__head">
                       <span class="rec-canal-grupo__nombre">{{ grupo.fuerza }}</span>
                       @if (esGrupoExterno(grupo)) {
