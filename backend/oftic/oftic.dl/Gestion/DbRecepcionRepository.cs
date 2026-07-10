@@ -613,10 +613,11 @@ SELECT e.id, e.sitio_graba, e.origen,
        e.codigo_cierre_primario, e.clasif_cierre, e.observacion_cierre
 FROM   cad_eventos e
 LEFT   JOIN cad_integraciones_clientes ic ON ic.id  = e.integracion_cliente_id
-LEFT   JOIN cad_pedidos p  ON p.sitio_graba  = e.pedido_sitio_graba
-                           AND p.nume_llamada = e.pedido_id
+LEFT   JOIN cad_pedidos p  ON p.sitio_graba = e.pedido_sitio_graba
+                           AND p.id         = e.pedido_id
 LEFT   JOIN cad_fuerzas f  ON f.id           = e.fuerza_id
-LEFT   JOIN cad_canales c  ON c.codigo        = e.canal_codigo
+LEFT   JOIN cad_canales c  ON c.codigo       = e.canal_codigo
+                           AND c.cadfuerz_id = e.fuerza_id
 WHERE  e.id = @id";
                 cmd.Parameters.AddWithValue("id", eventoId);
 
@@ -700,7 +701,7 @@ SELECT e.id, e.origen, e.estado,
        TO_CHAR(e.fecha_despacho AT TIME ZONE 'America/Bogota','DD/MM/YYYY HH24:MI:SS'),
        TO_CHAR(e.fecha_cierre   AT TIME ZONE 'America/Bogota','DD/MM/YYYY HH24:MI:SS')
 FROM   cad_eventos e
-LEFT   JOIN cad_pedidos p ON p.nume_llamada = e.pedido_id
+LEFT   JOIN cad_pedidos p ON p.id = e.pedido_id
 LEFT   JOIN cad_fuerzas f ON f.id = e.fuerza_id
 LEFT   JOIN cad_canales c ON c.codigo = e.canal_codigo AND c.cadfuerz_id = e.fuerza_id
 WHERE  e.pedido_id = @pid
@@ -777,7 +778,7 @@ WHERE  id = @id
         // ════════════════════════════════════════════════════════════════════════
 
         public async Task<DtoEventoResult> P_CerrarEventoAsync(
-            DtoCierreEventoRequest req, string usuario, CancellationToken ct)
+            DtoCierreEventoRequest req, string usuario, long usuarioId, string maquina, CancellationToken ct)
         {
             if (req.EventoId <= 0)
                 return new DtoEventoResult { Success = false, Message = "EventoId inválido." };
@@ -792,9 +793,13 @@ WHERE  id = @id
             await using var conn = await _tenant.DataSource.OpenConnectionAsync(ct);
             await using var tx   = await conn.BeginTransactionAsync(ct);
 
+            long pedidoId;
+
             try
             {
                 // ── UPDATE cad_eventos ────────────────────────────────────────
+                // RETURNING pedido_id: lo necesitamos para el paso 4 (cerrar el
+                // pedido dueño) y este request no trae pedidoId, solo eventoId.
                 await using (var upd = conn.CreateCommand())
                 {
                     upd.Transaction = tx;
@@ -808,15 +813,16 @@ SET    estado                = @estado,
        fecha_modificacion    = NOW(),
        usuario_modifica      = @usuario
 WHERE  id = @id
-  AND  estado NOT IN ('C','V')";
+  AND  estado NOT IN ('C','V')
+RETURNING pedido_id";
                     upd.Parameters.AddWithValue("estado",      estadoFinal);
                     upd.Parameters.AddWithValue("codPrimario", NullOrString(codigoPrimario));
                     upd.Parameters.AddWithValue("clasif",      NullOrString(req.ClasifCierre));
                     upd.Parameters.AddWithValue("obs",         NullOrString(req.ObservacionCierre));
                     upd.Parameters.AddWithValue("usuario",     usuario);
                     upd.Parameters.AddWithValue("id",          req.EventoId);
-                    var rows = await upd.ExecuteNonQueryAsync(ct);
-                    if (rows == 0)
+                    var rawPedidoId = await upd.ExecuteScalarAsync(ct);
+                    if (rawPedidoId is null or DBNull)
                     {
                         await tx.RollbackAsync(ct);
                         return new DtoEventoResult
@@ -826,6 +832,7 @@ WHERE  id = @id
                             Message  = $"Evento {req.EventoId} no encontrado o ya está cerrado/anulado."
                         };
                     }
+                    pedidoId = Convert.ToInt64(rawPedidoId);
                 }
 
                 // ── Limpiar códigos previos (si se re-cierra por corrección) ──
@@ -856,6 +863,28 @@ VALUES
                     insCod.Parameters.AddWithValue("desc",     NullOrString(codigo.DescripcionLibre));
                     insCod.Parameters.AddWithValue("usuario",  usuario);
                     await insCod.ExecuteNonQueryAsync(ct);
+                }
+
+                // ── Actualizar cad_pedidos — SOLO estado a 'C' ──────────────────
+                // Mismo criterio que DbPedidoRepository.CerrarEventoDesdeDespachoAsync:
+                // comentario y codi_pedido son inmutables, no se tocan aquí. Se marca
+                // 'C' sin importar si el evento terminó Cerrado o Anulado. Sin este
+                // paso el pedido queda "abierto" en la cola/badges del despachador
+                // aunque cad_eventos ya esté cerrado — era el bug real.
+                await using (var updPed = conn.CreateCommand())
+                {
+                    updPed.Transaction = tx;
+                    updPed.CommandText = @"
+UPDATE cad_pedidos
+SET    estado           = 'C',
+       usuario_modifica = @usuarioId,
+       fecha_modifica   = NOW(),
+       maquina_modifica = @maquina
+WHERE  id = @pedidoId";
+                    updPed.Parameters.AddWithValue("usuarioId", usuarioId);
+                    updPed.Parameters.AddWithValue("maquina",   maquina);
+                    updPed.Parameters.AddWithValue("pedidoId",  pedidoId);
+                    await updPed.ExecuteNonQueryAsync(ct);
                 }
 
                 await tx.CommitAsync(ct);

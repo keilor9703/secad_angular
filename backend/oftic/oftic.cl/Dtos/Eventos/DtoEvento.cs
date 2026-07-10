@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace Comun.Dtos.Eventos;
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -50,6 +52,7 @@ public class DtoCodigoCierreEvento
 // ─────────────────────────────────────────────────────────────────────────────
 public class DtoEvento
 {
+    [JsonNumberHandling(JsonNumberHandling.WriteAsString | JsonNumberHandling.AllowReadingFromString)]
     public long    Id                    { get; set; }
     public int     SitioGraba            { get; set; }
     public string  Origen                { get; set; } = "";
@@ -58,6 +61,7 @@ public class DtoEvento
     public string? IntegracionNombre     { get; set; }
 
     // Pedido de origen
+    [JsonNumberHandling(JsonNumberHandling.WriteAsString | JsonNumberHandling.AllowReadingFromString)]
     public long?   PedidoId             { get; set; }
     public int?    PedidoSitioGraba     { get; set; }
     public string  HoraCasoPedido       { get; set; } = "";  // formateado dd/MM/yyyy HH:mm:ss
@@ -99,9 +103,11 @@ public class DtoEvento
 // ─────────────────────────────────────────────────────────────────────────────
 public class DtoEventoListItem
 {
+    [JsonNumberHandling(JsonNumberHandling.WriteAsString | JsonNumberHandling.AllowReadingFromString)]
     public long    Id               { get; set; }
     public string  Origen           { get; set; } = "";
     public string  Estado           { get; set; } = "";
+    [JsonNumberHandling(JsonNumberHandling.WriteAsString | JsonNumberHandling.AllowReadingFromString)]
     public long?   PedidoId         { get; set; }
     public string  DireccionCaso    { get; set; } = "";
     public string  CodiPedido       { get; set; } = "";
@@ -119,6 +125,7 @@ public class DtoEventoListItem
 public class DtoCierreEventoRequest
 {
     /// <summary>ID Snowflake del evento a cerrar.</summary>
+    [JsonNumberHandling(JsonNumberHandling.WriteAsString | JsonNumberHandling.AllowReadingFromString)]
     public long   EventoId           { get; set; }
 
     /// <summary>Estado final: C=Cerrado, V=Anulado.</summary>
@@ -210,6 +217,8 @@ public class DtoEventoResult
 {
     public bool   Success   { get; set; }
     public string Message   { get; set; } = "";
+    [JsonNumberHandling(JsonNumberHandling.WriteAsString | JsonNumberHandling.AllowReadingFromString)]
     public long   EventoId  { get; set; }
+    [JsonNumberHandling(JsonNumberHandling.WriteAsString | JsonNumberHandling.AllowReadingFromString)]
     public long?  PedidoId  { get; set; }
 }

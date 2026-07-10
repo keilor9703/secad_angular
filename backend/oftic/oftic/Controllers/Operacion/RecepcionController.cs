@@ -30,6 +30,16 @@ namespace Api.Controllers.Operacion
         // Cédula del empleado: viene del claim "identificacion" que JwtService emite
         // desde ctr_usuarios.identificacion — es la cédula real, NO el Snowflake id_usuario.
         private long   EmpleadoId   => long.TryParse(User.FindFirstValue("identificacion"), out var v) ? v : 0;
+        // ID numérico de usuario (para columnas usuario_modifica BIGINT, p.ej. cad_pedidos).
+        // Mismo criterio que EventoController.ObtenerAuditoria().
+        private long   UsuarioIdClaim =>
+            long.TryParse(
+                User.FindFirstValue("id_usuario")
+                    ?? User.FindFirstValue(ClaimTypes.NameIdentifier)
+                    ?? User.FindFirstValue("nameid"),
+                out var uid) && uid > 0 ? uid : 1;
+        private string MaquinaClaim =>
+            HttpContext.Connection.RemoteIpAddress?.ToString() ?? Environment.MachineName ?? "N/A";
 
         // ════════════════════════════════════════════════════════════════════════
         // CTI / INCOMING CALL
@@ -83,15 +93,29 @@ namespace Api.Controllers.Operacion
         [HttpGet("canales")]
         public async Task<IActionResult> GetCanales([FromQuery] int? sitioGraba, CancellationToken ct)
         {
-            try   { return Ok(await _svc.F_GetCanalesAsync(sitioGraba ?? SitioGraba, ct)); }
-            catch { return StatusCode(500, new List<object>()); }
+            try
+            {
+                return Ok(await _svc.F_GetCanalesAsync(sitioGraba ?? SitioGraba, ct));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al listar canales sitioGraba={Sg}", sitioGraba ?? SitioGraba);
+                return StatusCode(500, new List<object>());
+            }
         }
 
         [HttpGet("referencias")]
         public async Task<IActionResult> GetReferencias([FromQuery] string nombre, CancellationToken ct)
         {
-            try   { return Ok(await _svc.F_GetReferenciasAsync(nombre, ct)); }
-            catch { return StatusCode(500, new List<object>()); }
+            try
+            {
+                return Ok(await _svc.F_GetReferenciasAsync(nombre, ct));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al listar referencias nombre={Nombre}", nombre);
+                return StatusCode(500, new List<object>());
+            }
         }
 
         [HttpPost("casos-intel")]
@@ -279,7 +303,7 @@ namespace Api.Controllers.Operacion
                 return BadRequest(new { success = false, message = "Debe proporcionar al menos un código de cierre." });
             try
             {
-                var result = await _svc.P_CerrarEventoAsync(req, UsuarioClaim, ct);
+                var result = await _svc.P_CerrarEventoAsync(req, UsuarioClaim, UsuarioIdClaim, MaquinaClaim, ct);
                 return Ok(new { success = result.Success, message = result.Message, eventoId = result.EventoId });
             }
             catch (Exception ex)

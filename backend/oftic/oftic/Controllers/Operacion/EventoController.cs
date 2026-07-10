@@ -12,7 +12,11 @@ namespace Api.Controllers.Operacion
     /// Dispatcher queue module (Módulo de Eventos).
     /// Events are incidents that have been validated and sent from Recepción
     /// (enviar='S'). The dispatcher sees only those assigned to their canal.
-    /// This controller does NOT expose Create/Update — those belong to Recepción.
+    /// This controller does NOT expose Create/Update — those are created via
+    /// RecepcionController (P_GuardarLlamadaAsync) and, separately, via
+    /// PedidoController (api/Pedido), which also has its own Create/Update/
+    /// SetEstado over the same cad_pedidos table for the Jefe de Turno dashboard.
+    /// Both write paths must be considered when auditing cad_pedidos writers.
     /// </summary>
     [ApiController]
     [Route("api/[controller]")]
@@ -55,8 +59,16 @@ namespace Api.Controllers.Operacion
                 });
             }
 
-            var result = await _service.GetEventosByCanalAsync(resolvedCanal, resolvedFuerza, estado, ct);
-            return Ok(result);
+            try
+            {
+                var result = await _service.GetEventosByCanalAsync(resolvedCanal, resolvedFuerza, estado, ct);
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al listar eventos canal={Canal} fuerza={Fuerza}", resolvedCanal, resolvedFuerza);
+                return StatusCode(500, new { success = false, message = $"Error: {ex.Message}" });
+            }
         }
 
         /// <summary>
@@ -66,19 +78,27 @@ namespace Api.Controllers.Operacion
         [HttpGet("{id:long}")]
         public async Task<ActionResult> GetById(long id, CancellationToken ct)
         {
-            var result = await _service.GetByIdAsync(id, ct);
-            if (result == null)
-                return NotFound(new { success = false, message = "Evento no encontrado." });
+            try
+            {
+                var result = await _service.GetByIdAsync(id, ct);
+                if (result == null)
+                    return NotFound(new { success = false, message = "Evento no encontrado." });
 
-            // ── Épica 1 & 5: Auditoría + primer acceso + promoción a "En proceso" ──
-            // Se espera (no fire-and-forget) porque puede cambiar result.Estado y la
-            // respuesta debe reflejarlo de inmediato, sin esperar el próximo poll.
-            var (usuario, username, ip) = ObtenerAuditoria();
-            var estadoPromovido = await _service.RegistrarAccesoAsync(id, usuario, username, ip, "VIEW", ct);
-            if (estadoPromovido is not null)
-                result.Estado = estadoPromovido;
+                // ── Épica 1 & 5: Auditoría + primer acceso + promoción a "En proceso" ──
+                // Se espera (no fire-and-forget) porque puede cambiar result.Estado y la
+                // respuesta debe reflejarlo de inmediato, sin esperar el próximo poll.
+                var (usuario, username, ip) = ObtenerAuditoria();
+                var estadoPromovido = await _service.RegistrarAccesoAsync(id, usuario, username, ip, "VIEW", ct);
+                if (estadoPromovido is not null)
+                    result.Estado = estadoPromovido;
 
-            return Ok(result);
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al obtener evento id={Id}", id);
+                return StatusCode(500, new { success = false, message = $"Error: {ex.Message}" });
+            }
         }
 
         /// <summary>
@@ -98,8 +118,16 @@ namespace Api.Controllers.Operacion
             if (resolvedCanal <= 0)
                 return Ok(new DtoEventoConteos());
 
-            var result = await _service.GetConteosByCanalAsync(resolvedCanal, resolvedFuerza, ct);
-            return Ok(result);
+            try
+            {
+                var result = await _service.GetConteosByCanalAsync(resolvedCanal, resolvedFuerza, ct);
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al obtener conteos canal={Canal} fuerza={Fuerza}", resolvedCanal, resolvedFuerza);
+                return StatusCode(500, new { success = false, message = $"Error: {ex.Message}" });
+            }
         }
 
         /// <summary>
@@ -110,8 +138,16 @@ namespace Api.Controllers.Operacion
         [HttpGet("sla-config")]
         public async Task<ActionResult> GetSlaConfig(CancellationToken ct)
         {
-            var result = await _service.GetSlaConfigAsync(ct);
-            return Ok(result);
+            try
+            {
+                var result = await _service.GetSlaConfigAsync(ct);
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al obtener configuración SLA");
+                return StatusCode(500, new { success = false, message = $"Error: {ex.Message}" });
+            }
         }
 
         private static readonly HashSet<string> EstadosValidos = new(StringComparer.Ordinal)
@@ -127,11 +163,19 @@ namespace Api.Controllers.Operacion
             if (!EstadosValidos.Contains(request.Estado))
                 return BadRequest(new { success = false, message = $"Estado inválido: '{request.Estado}'. Valores permitidos: A, P, E, T, R, C." });
 
-            var (usuario, _, maquina) = ObtenerAuditoria();
-            var result = await _service.SetEstadoAsync(id, request.Estado, usuario, maquina, ct);
-            if (!result.Success)
-                return BadRequest(new { success = false, message = result.Message });
-            return Ok(new { success = true, message = result.Message });
+            try
+            {
+                var (usuario, _, maquina) = ObtenerAuditoria();
+                var result = await _service.SetEstadoAsync(id, request.Estado, usuario, maquina, ct);
+                if (!result.Success)
+                    return BadRequest(new { success = false, message = result.Message });
+                return Ok(new { success = true, message = result.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al cambiar estado evento id={Id}", id);
+                return StatusCode(500, new { success = false, message = $"Error: {ex.Message}" });
+            }
         }
 
         /// <summary>
@@ -140,11 +184,19 @@ namespace Api.Controllers.Operacion
         [HttpPost("{id:long}/anotaciones")]
         public async Task<ActionResult> CreateAnotacion(long id, [FromBody] DtoAnotacionRequest request, CancellationToken ct)
         {
-            var (usuario, username, maquina) = ObtenerAuditoria();
-            var result = await _service.CreateAnotacionAsync(id, request, usuario, username, maquina, ct);
-            if (!result.Success)
-                return BadRequest(new { success = false, message = result.Message });
-            return Ok(new { success = true, id = result.Id, message = result.Message });
+            try
+            {
+                var (usuario, username, maquina) = ObtenerAuditoria();
+                var result = await _service.CreateAnotacionAsync(id, request, usuario, username, maquina, ct);
+                if (!result.Success)
+                    return BadRequest(new { success = false, message = result.Message });
+                return Ok(new { success = true, id = result.Id, message = result.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al crear anotación evento id={Id}", id);
+                return StatusCode(500, new { success = false, message = $"Error: {ex.Message}" });
+            }
         }
 
         /// <summary>
@@ -153,8 +205,16 @@ namespace Api.Controllers.Operacion
         [HttpGet("{id:long}/anotaciones")]
         public async Task<ActionResult> GetAnotaciones(long id, CancellationToken ct)
         {
-            var result = await _service.GetAnotacionesAsync(id, ct);
-            return Ok(result);
+            try
+            {
+                var result = await _service.GetAnotacionesAsync(id, ct);
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al listar anotaciones evento id={Id}", id);
+                return StatusCode(500, new { success = false, message = $"Error: {ex.Message}" });
+            }
         }
 
         /// <summary>
@@ -166,11 +226,19 @@ namespace Api.Controllers.Operacion
         [HttpPost("{id:long}/cerrar")]
         public async Task<ActionResult> Cerrar(long id, [FromBody] Ev.DtoCerrarEventoDespachoRequest request, CancellationToken ct)
         {
-            var (usuarioId, username, maquina) = ObtenerAuditoria();
-            var result = await _service.CerrarEventoDesdeDespachoAsync(id, request, usuarioId, username, maquina, ct);
-            if (!result.Success)
-                return BadRequest(new { success = false, message = result.Message });
-            return Ok(new { success = true, message = result.Message });
+            try
+            {
+                var (usuarioId, username, maquina) = ObtenerAuditoria();
+                var result = await _service.CerrarEventoDesdeDespachoAsync(id, request, usuarioId, username, maquina, ct);
+                if (!result.Success)
+                    return BadRequest(new { success = false, message = result.Message });
+                return Ok(new { success = true, message = result.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al cerrar evento id={Id}", id);
+                return StatusCode(500, new { success = false, message = $"Error: {ex.Message}" });
+            }
         }
 
         /// <summary>
@@ -181,8 +249,16 @@ namespace Api.Controllers.Operacion
         public async Task<ActionResult> GetCanales([FromQuery] int? sitioGraba, CancellationToken ct)
         {
             var sitio = sitioGraba ?? GetIntClaim("sitio_graba");
-            var result = await _service.GetCanalesPorSitioAsync(sitio, ct);
-            return Ok(result);
+            try
+            {
+                var result = await _service.GetCanalesPorSitioAsync(sitio, ct);
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al listar canales sitioGraba={Sg}", sitio);
+                return StatusCode(500, new { success = false, message = $"Error: {ex.Message}" });
+            }
         }
 
         // ─── Helpers ──────────────────────────────────────────────────────────

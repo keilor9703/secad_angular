@@ -63,8 +63,8 @@ namespace Negocio.Gestion
             => _repo.P_ActualizarEstadoEventoAsync(eventoId, estado, usuario, ct);
 
         public Task<DtoEventoResult> P_CerrarEventoAsync(
-            DtoCierreEventoRequest request, string usuario, CancellationToken ct)
-            => _repo.P_CerrarEventoAsync(request, usuario, ct);
+            DtoCierreEventoRequest request, string usuario, long usuarioId, string maquina, CancellationToken ct)
+            => _repo.P_CerrarEventoAsync(request, usuario, usuarioId, maquina, ct);
 
         // ── External integrations ───────────────────────────────────────────────
         public Task<DtoEventoResult> P_CrearEventoIntegracionAsync(

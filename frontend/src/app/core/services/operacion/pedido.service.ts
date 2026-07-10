@@ -87,6 +87,8 @@ export interface DtoPedidoDetalle extends DtoPedidoListItem {
   ultimoAccesoUsername: string | null;
   /** Fecha/hora del último acceso registrado. */
   ultimoAccesoFecha:    string | null;
+  /** Estado propio de cad_eventos (P/D/A/C/V) — dominio distinto de `estado` (cad_pedidos, sin 'V'). */
+  eventoEstado: string | null;
 }
 
 export interface DtoCodigoCierrePedido {

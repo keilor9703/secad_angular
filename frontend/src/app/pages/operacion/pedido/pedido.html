@@ -289,6 +289,9 @@
                   <option value="">Todos los estados</option>
                   <option value="A">Activos</option>
                   <option value="P">Pendientes</option>
+                  <option value="E">En proceso</option>
+                  <option value="T">Seguimiento</option>
+                  <option value="R">Para revisión</option>
                   <option value="C">Cerrados</option>
                 </select>
                 <select class="ui-control seg-filter-sel" [(ngModel)]="filtroPrioridad">
@@ -1036,7 +1039,7 @@
                       Fotos adjuntas
                       <span class="seg-badge">{{ adjuntos.length }}</span>
                     </div>
-                    <div class="ev-adjuntos-grid" style="padding:12px 14px;">
+                    <div class="ev-adjuntos-grid">
                       @for (adj of adjuntos; track adj.id) {
                         <a [href]="adj.urlPublica" target="_blank"
                            class="ev-adjunto-card" [title]="adj.nombreOriginal">
@@ -1075,7 +1078,7 @@
           <div class="seg-kpis-header">
             <div class="seg-kpis-header__title">
               <i class="fa-solid fa-chart-bar"></i>
-              Indicadores de eficiencia — Turno actual
+              Indicadores de eficiencia — Cola CAD completa
             </div>
             <div class="seg-kpis-header__meta">
               {{ stats.total }} incidentes · Actualizado: {{ lastRefresh | date:'HH:mm:ss' }}
