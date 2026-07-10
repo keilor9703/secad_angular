@@ -555,18 +555,18 @@ export class TurnosService {
     return map[estado] ?? '';
   }
 
-  /** Icono Material para el tipo de medio */
+  /** Clase FontAwesome para el tipo de medio (la app no carga la fuente Material Icons). */
   iconoTipoMedio(tipo: TipoMedio): string {
     const map: Record<TipoMedio, string> = {
-      20: 'two_wheeler',         // Motocicleta
-      21: 'pedal_bike',          // Bicicleta
-      22: 'local_police',        // Patrulla
-      23: 'local_hospital',      // Ambulancia
-      24: 'fire_truck',          // Camión Bomberos
-      25: 'flight',              // Helicóptero
-      26: 'directions_boat'      // Lancha
+      20: 'fa-solid fa-motorcycle',         // Motocicleta
+      21: 'fa-solid fa-bicycle',            // Bicicleta
+      22: 'fa-solid fa-car-side',           // Patrulla
+      23: 'fa-solid fa-truck-medical',      // Ambulancia
+      24: 'fa-solid fa-fire-flame-curved',  // Camión Bomberos
+      25: 'fa-solid fa-helicopter',         // Helicóptero
+      26: 'fa-solid fa-sailboat'            // Lancha
     };
-    return map[tipo] ?? 'directions_car';
+    return map[tipo] ?? 'fa-solid fa-car';
   }
 
   /**

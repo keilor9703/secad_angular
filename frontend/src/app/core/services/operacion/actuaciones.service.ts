@@ -172,6 +172,11 @@ export interface DtoActuacionResult {
   message:     string;
   actuacionId: number;
   subId?:      number;  // ID del sub-registro creado (nota, unidad)
+  /**
+   * Nuevo estado del pedido (cad_pedidos.estado) si esta operación lo
+   * promovió automáticamente a 'E' (En proceso); ausente/null si no cambió.
+   */
+  estadoEventoActual?: string | null;
 }
 
 // ─── Service ───────────────────────────────────────────────────────────────────
@@ -211,8 +216,8 @@ export class ActuacionesService {
    */
   crearActuacion(
     req: DtoCrearActuacionRequest
-  ): Observable<{ success: boolean; message: string; actuacionId: string }> {
-    return this.http.post<{ success: boolean; message: string; actuacionId: string }>(
+  ): Observable<{ success: boolean; message: string; actuacionId: string; estadoEventoActual?: string | null }> {
+    return this.http.post<{ success: boolean; message: string; actuacionId: string; estadoEventoActual?: string | null }>(
       this.base, req
     );
   }

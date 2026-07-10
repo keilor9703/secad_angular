@@ -32,7 +32,7 @@ namespace Negocio.Interfaz
         Task<DtoEventoConteos> GetConteosByCanalAsync(int canalCodigo, int fuerzaId, CancellationToken ct);
 
         // ─── Auditoría y SLA ──────────────────────────────────────────────────
-        Task RegistrarAccesoAsync(long pedidoId, long usuarioId, string username,
+        Task<string?> RegistrarAccesoAsync(long pedidoId, long usuarioId, string username,
                                   string ip, string accion, CancellationToken ct);
         Task<List<DtoSlaConfig>> GetSlaConfigAsync(CancellationToken ct);
     }

@@ -47,10 +47,12 @@ namespace Datos.Interfaz
 
         // ─── Auditoría de acceso ──────────────────────────────────────────────
         /// <summary>
-        /// Logs a dispatcher's access to an event and marks fecha_primer_acceso
-        /// on cad_pedidos if this is the first view. Non-throwing.
+        /// Logs a dispatcher's access to an event, marks fecha_primer_acceso on
+        /// cad_pedidos if this is the first view, and promotes estado to 'E' (En
+        /// proceso) if it was 'P'/'A'. Non-throwing. Returns the new estado if it
+        /// was promoted, or null if unchanged.
         /// </summary>
-        Task RegistrarAccesoAsync(long pedidoId, long usuarioId, string username,
+        Task<string?> RegistrarAccesoAsync(long pedidoId, long usuarioId, string username,
                                   string ip, string accion, CancellationToken ct);
 
         // ─── SLA configuration ────────────────────────────────────────────────

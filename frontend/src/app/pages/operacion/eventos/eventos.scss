@@ -85,6 +85,13 @@ $sem-rojo:     #ef4444;
   50%      { transform: scale(1.3); opacity: .7; }
 }
 
+// Destello finito para tarjetas de evento recién llegadas (.ev-item--nuevo).
+// A diferencia de ev-pulse (infinite), este corre un número fijo de veces.
+@keyframes ev-item-flash {
+  0%, 100% { box-shadow: none; }
+  50%      { box-shadow: inset 0 0 0 2px rgba(239,68,68,.6); }
+}
+
 // Buttons inside the dark panel-head – mirrors .rec-qbtn
 .ev-head-btn {
   font-size:    calc(11px * var(--font-size-scale)) !important;
@@ -353,6 +360,14 @@ html.dark-mode .ev-no-canal-banner {
 
   // Selected item
   &--sel { background: rgba(8,166,203,.08) !important; }
+
+  // Evento recién llegado a la bandeja: destello llamativo pero finito (no
+  // "infinite" — deja de destellar solo tras ~5s, no se vuelve ruido visual).
+  &--nuevo { animation: ev-item-flash 1.2s ease-in-out 4; }
+
+  // Evento ya abierto/en gestión (estado='E'): acento fijo, no animado —
+  // deliberadamente distinto del destello de "nuevo".
+  &--en-gestion:not(&--nuevo) { border-left: 3px solid #08a6cb; }
 
   // Left semáforo strip colour
   &.semaforo-verde    .ev-item__strip { background: $sem-verde; }
@@ -807,6 +822,7 @@ html.dark-mode .ev-no-canal-banner {
   &[data-tipo="DESPACHO"]         { border-left-color: #8b5cf6; background: #f5f3ff; }
   &[data-tipo="NOVEDAD_PERSONAL"] { border-left-color: #ec4899; background: #fdf2f8; }
   &[data-tipo="CIERRE"]           { border-left-color: #22c55e; background: #f0fdf4; }
+  &[data-tipo="REMISION"]         { border-left-color: #06b6d4; background: #ecfeff; }
 
   &__head {
     display:       flex;

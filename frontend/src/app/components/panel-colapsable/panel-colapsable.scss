@@ -1,0 +1,66 @@
+// Mismo lenguaje visual que .ev-section / .ev-section__head (Eventos,
+// Recepción, Integraciones) — reproducido aquí porque los estilos de esos
+// módulos están encapsulados a su propio componente y no llegan hasta acá.
+// Las variables (--policia-*, --ui-*) sí son globales (definidas en
+// src/styles.scss), por eso se pueden reutilizar directamente.
+
+:host {
+  display:       block;
+  background:    #fff;
+  border:        1px solid var(--ui-border, rgba(21, 27, 59, .14));
+  border-radius: var(--ui-radius-sm, 10px);
+}
+
+.pnl-colapsable__head {
+  display:        flex;
+  align-items:    center;
+  gap:            8px;
+  width:          100%;
+  padding:        10px 14px;
+  background:     var(--policia-gradiente-deep);
+  color:          #fff;
+  font-size:      calc(12px * var(--font-size-scale, 1));
+  font-weight:    900;
+  letter-spacing: .25px;
+  text-transform: uppercase;
+  border:         none;
+  cursor:         pointer;
+  text-align:     left;
+  border-radius:  calc(var(--ui-radius-sm, 10px) - 1px)
+                  calc(var(--ui-radius-sm, 10px) - 1px)
+                  0 0;
+
+  &:hover { filter: brightness(1.08); }
+
+  &:focus-visible {
+    outline:        2px solid var(--policia-acento);
+    outline-offset: -2px;
+  }
+
+  > i:first-child {
+    color:     var(--policia-acento);
+    font-size: calc(13px * var(--font-size-scale, 1));
+  }
+
+  &--sticky {
+    position: sticky;
+    top:      0;
+    z-index:  2;
+  }
+}
+
+.pnl-colapsable__titulo {
+  flex-shrink: 0;
+}
+
+.pnl-colapsable__chevron {
+  font-size:   .7rem;
+  color:       var(--policia-acento, #cdff00);
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+.pnl-colapsable__body {
+  // Sin padding propio: cada sección trae su propio padding en el
+  // contenido proyectado (mismo patrón que .ev-section original).
+}

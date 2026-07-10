@@ -134,6 +134,14 @@ namespace Comun.Dtos.Incidentes
 
         /// <summary>Códigos de cierre registrados en cad_eventos_codigos_cierre.</summary>
         public List<DtoCodigoCierrePedido> CodigosCierre { get; set; } = new();
+
+        // ── Trazabilidad (cad_auditoria_acceso_evento) ────────────────────────
+
+        /// <summary>Username del último despachador que abrió este evento.</summary>
+        public string? UltimoAccesoUsername { get; set; }
+
+        /// <summary>Fecha/hora del último acceso registrado.</summary>
+        public DateTime? UltimoAccesoFecha { get; set; }
     }
 
     /// <summary>Código de cierre asociado a un evento, para mostrar en la trazabilidad.</summary>
@@ -151,6 +159,12 @@ namespace Comun.Dtos.Incidentes
         public string Message { get; set; } = string.Empty;
         [JsonNumberHandling(JsonNumberHandling.WriteAsString | JsonNumberHandling.AllowReadingFromString)]
         public long   Id      { get; set; }
+        /// <summary>
+        /// Nuevo estado del pedido si esta operación lo promovió automáticamente a
+        /// 'E' (En proceso); null si no cambió. Permite al frontend reflejar el
+        /// cambio sin esperar el próximo poll.
+        /// </summary>
+        public string? EstadoActual { get; set; }
     }
 
     public class DtoAnotacion
