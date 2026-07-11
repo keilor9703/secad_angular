@@ -44,6 +44,14 @@ namespace Api.Controllers.Operacion
         private string UsuarioClaim => User.FindFirstValue(ClaimTypes.Name)
                                     ?? User.FindFirstValue("unique_name") ?? "sistema";
 
+        private int GetIntClaim(string claimType)
+        {
+            var raw = User.FindFirstValue(claimType);
+            return int.TryParse(raw, out var val) ? val : 0;
+        }
+
+        private int FuerzaIdClaim => GetIntClaim("fuerza_id");
+
         // ════════════════════════════════════════════════════════════════════════
         // CONSULTAS — TURNOS
         // ════════════════════════════════════════════════════════════════════════
@@ -167,17 +175,23 @@ namespace Api.Controllers.Operacion
         /// los recursos disponibles del canal correspondiente al evento.
         /// </summary>
         /// <remarks>
-        /// GET api/Turnos/canal/{canalCodigo}/recursos?sitioGraba=1
+        /// GET api/Turnos/canal/{canalCodigo}/recursos?canalFuerzaId=1&amp;sitioGraba=1
+        ///
+        /// canalFuerzaId es obligatorio para evitar mezclar canales homónimos de otra
+        /// fuerza (cad_canales.codigo no es único por sí solo). Si se omite, se resuelve
+        /// desde el claim "fuerza_id" del JWT del usuario autenticado.
         /// </remarks>
         [HttpGet("canal/{canalCodigo:int}/recursos")]
         public async Task<IActionResult> GetRecursosCanal(
             int               canalCodigo,
-            [FromQuery] int   sitioGraba = 1,
-            CancellationToken ct         = default)
+            [FromQuery] int?  canalFuerzaId = null,
+            [FromQuery] int   sitioGraba    = 1,
+            CancellationToken ct            = default)
         {
             try
             {
-                var data = await _svc.G_GetMediosActivosPorCanalAsync(canalCodigo, sitioGraba, ct);
+                var resolvedFuerza = canalFuerzaId ?? GetIntClaim("fuerza_id");
+                var data = await _svc.G_GetMediosActivosPorCanalAsync(canalCodigo, resolvedFuerza, sitioGraba, ct);
                 return Ok(new { success = true, data });
             }
             catch (Exception ex)
@@ -194,49 +208,28 @@ namespace Api.Controllers.Operacion
         /// Recomendado para polling cada 5-10 segundos desde Angular.
         /// </summary>
         /// <remarks>
-        /// GET api/Turnos/canal/{canalCodigo}/recursos/resumen?sitioGraba=1
+        /// GET api/Turnos/canal/{canalCodigo}/recursos/resumen?canalFuerzaId=1&amp;sitioGraba=1
+        ///
+        /// canalFuerzaId es obligatorio para evitar mezclar canales homónimos de otra
+        /// fuerza (cad_canales.codigo no es único por sí solo). Si se omite, se resuelve
+        /// desde el claim "fuerza_id" del JWT del usuario autenticado.
         /// </remarks>
         [HttpGet("canal/{canalCodigo:int}/recursos/resumen")]
         public async Task<IActionResult> GetResumenRecursosCanal(
             int               canalCodigo,
-            [FromQuery] int   sitioGraba = 1,
-            CancellationToken ct         = default)
+            [FromQuery] int?  canalFuerzaId = null,
+            [FromQuery] int   sitioGraba    = 1,
+            CancellationToken ct            = default)
         {
             try
             {
-                var data = await _svc.G_GetResumenMediosCanalAsync(canalCodigo, sitioGraba, ct);
+                var resolvedFuerza = canalFuerzaId ?? GetIntClaim("fuerza_id");
+                var data = await _svc.G_GetResumenMediosCanalAsync(canalCodigo, resolvedFuerza, sitioGraba, ct);
                 return Ok(new { success = true, data });
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "GetResumenRecursosCanal error canal={C}", canalCodigo);
-                return StatusCode(500, new { success = false, message = ex.Message });
-            }
-        }
-
-        /// <summary>
-        /// DIAGNÓSTICO: devuelve todos los medios con el estado de cada condición
-        /// del filtro (canal, estado turno, ventana horaria, sitio_graba).
-        /// Usar desde Swagger para identificar exactamente qué condición falla.
-        /// SOLO DESARROLLO — remover antes de pasar a producción.
-        /// </summary>
-        /// <remarks>
-        /// GET api/Turnos/canal/{canalCodigo}/recursos/diagnostico?sitioGraba=1
-        /// </remarks>
-        [HttpGet("canal/{canalCodigo:int}/recursos/diagnostico")]
-        public async Task<IActionResult> DiagnosticoRecursosCanal(
-            int               canalCodigo,
-            [FromQuery] int   sitioGraba = 1,
-            CancellationToken ct         = default)
-        {
-            try
-            {
-                var data = await _svc.G_DiagnosticoCanalAsync(canalCodigo, sitioGraba, ct);
-                return Ok(new { success = true, canal = canalCodigo, sitioGraba, totalRegistros = data.Count, data });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "DiagnosticoRecursosCanal error canal={C}", canalCodigo);
                 return StatusCode(500, new { success = false, message = ex.Message });
             }
         }
@@ -267,6 +260,9 @@ namespace Api.Controllers.Operacion
                 return BadRequest(new { success = false, message = "Datos requeridos." });
             if (req.FuerzaId <= 0 || string.IsNullOrWhiteSpace(req.HoraInicia))
                 return BadRequest(new { success = false, message = "FuerzaId y HoraInicia son obligatorios." });
+            // El cliente no puede crear turnos para una fuerza distinta a la de su propia sesión.
+            if (FuerzaIdClaim > 0 && req.FuerzaId != FuerzaIdClaim)
+                return Forbid();
             try
             {
                 var result = await _svc.P_CrearTurnoAsync(req, UsuarioClaim, ct);
@@ -302,7 +298,7 @@ namespace Api.Controllers.Operacion
                 return BadRequest(new { success = false, message = "TurnoOrigenId requerido." });
             try
             {
-                var result = await _svc.P_CopiarTurnoAsync(req, UsuarioClaim, ct);
+                var result = await _svc.P_CopiarTurnoAsync(req, FuerzaIdClaim, UsuarioClaim, ct);
                 return result.Success
                     ? Ok(new { success = true, message = result.Message, id = result.Id })
                     : BadRequest(new { success = false, message = result.Message });
@@ -337,7 +333,7 @@ namespace Api.Controllers.Operacion
             req.TurnoId = id;
             try
             {
-                var result = await _svc.P_AgregarUnidadAsync(req, UsuarioClaim, ct);
+                var result = await _svc.P_AgregarUnidadAsync(req, FuerzaIdClaim, UsuarioClaim, ct);
                 return result.Success
                     ? Ok(new { success = true, message = result.Message, id = result.Id })
                     : BadRequest(new { success = false, message = result.Message });
@@ -375,7 +371,7 @@ namespace Api.Controllers.Operacion
             req.TurnoId = id;
             try
             {
-                var result = await _svc.P_AgregarMedioAsync(req, UsuarioClaim, ct);
+                var result = await _svc.P_AgregarMedioAsync(req, FuerzaIdClaim, UsuarioClaim, ct);
                 return result.Success
                     ? Ok(new { success = true, message = result.Message, id = result.Id })
                     : BadRequest(new { success = false, message = result.Message });
@@ -456,7 +452,7 @@ namespace Api.Controllers.Operacion
             req.TurnoId = id;
             try
             {
-                var result = await _svc.P_ImportarDesdeSiviccAsync(req, UsuarioClaim, ct);
+                var result = await _svc.P_ImportarDesdeSiviccAsync(req, FuerzaIdClaim, UsuarioClaim, ct);
                 return result.Success
                     ? Ok(new { success = true, message = result.Message, id = result.Id })
                     : BadRequest(new { success = false, message = result.Message });
@@ -496,7 +492,7 @@ namespace Api.Controllers.Operacion
                 return BadRequest(new { success = false, message = "PatrullaCodigo es obligatorio." });
             try
             {
-                var result = await _svc.P_ActualizarMedioAsync(medioId, req, UsuarioClaim, ct);
+                var result = await _svc.P_ActualizarMedioAsync(medioId, req, FuerzaIdClaim, UsuarioClaim, ct);
                 return result.Success
                     ? Ok(new { success = true, message = result.Message, id = result.Id })
                     : BadRequest(new { success = false, message = result.Message });
@@ -544,7 +540,7 @@ namespace Api.Controllers.Operacion
                 });
             try
             {
-                var result = await _svc.P_CambiarEstadoMedioAsync(medioId, req, UsuarioClaim, ct);
+                var result = await _svc.P_CambiarEstadoMedioAsync(medioId, req, FuerzaIdClaim, UsuarioClaim, ct);
                 return result.Success
                     ? Ok(new { success = true, message = result.Message })
                     : BadRequest(new { success = false, message = result.Message });

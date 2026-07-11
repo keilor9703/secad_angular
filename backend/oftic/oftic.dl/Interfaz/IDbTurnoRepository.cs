@@ -26,21 +26,17 @@ namespace Datos.Interfaz
         /// Recursos activos en turno para un canal de radio.
         /// Solo devuelve turnos vigentes (hora_inicia ≤ NOW ≤ hora_termina).
         /// Incluye posición GPS y personal.
+        /// canalFuerzaId es obligatorio para el filtrado: cad_canales.codigo NO es
+        /// único por sí solo (cada fuerza numera sus canales desde 1), así que
+        /// filtrar solo por canalCodigo devuelve patrullas, GPS y personal de
+        /// CUALQUIER fuerza que tenga un canal con ese mismo número.
         /// </summary>
         Task<List<DtoMedioDisponible>> G_GetMediosActivosPorCanalAsync(
-            int canalCodigo, int sitioGraba, CancellationToken ct);
+            int canalCodigo, int canalFuerzaId, int sitioGraba, CancellationToken ct);
 
         /// <summary>Versión compacta para polling rápido desde el frontend.</summary>
         Task<List<DtoMedioDisponibleResumen>> G_GetResumenMediosCanalAsync(
-            int canalCodigo, int sitioGraba, CancellationToken ct);
-
-        /// <summary>
-        /// Diagnóstico: devuelve TODOS los medios de la BD con el estado de cada
-        /// condición del filtro, para identificar cuál está fallando.
-        /// Solo para uso en desarrollo/depuración.
-        /// </summary>
-        Task<List<Dictionary<string, object?>>> G_DiagnosticoCanalAsync(
-            int canalCodigo, int sitioGraba, CancellationToken ct);
+            int canalCodigo, int canalFuerzaId, int sitioGraba, CancellationToken ct);
 
         // ── Creación / edición de turnos ────────────────────────────────────────
 
@@ -54,19 +50,20 @@ namespace Datos.Interfaz
         /// <summary>
         /// Copia un turno existente a una nueva franja horaria,
         /// duplicando todas sus unidades y medios.
+        /// fuerzaId (0 = sin verificar) debe coincidir con la fuerza del turno origen.
         /// </summary>
         Task<DtoTurnoResult> P_CopiarTurnoAsync(
-            DtoCopiarTurnoRequest req, string usuario, CancellationToken ct);
+            DtoCopiarTurnoRequest req, int fuerzaId, string usuario, CancellationToken ct);
 
         // ── Unidades ────────────────────────────────────────────────────────────
 
         Task<DtoTurnoResult> P_AgregarUnidadAsync(
-            DtoAgregarUnidadRequest req, string usuario, CancellationToken ct);
+            DtoAgregarUnidadRequest req, int fuerzaId, string usuario, CancellationToken ct);
 
         // ── Medios disponibles ──────────────────────────────────────────────────
 
         Task<DtoTurnoResult> P_AgregarMedioAsync(
-            DtoAgregarMedioRequest req, string usuario, CancellationToken ct);
+            DtoAgregarMedioRequest req, int fuerzaId, string usuario, CancellationToken ct);
 
         /// <summary>
         /// Actualiza los datos editables de un medio existente (código, descripción, tipo,
@@ -74,7 +71,7 @@ namespace Datos.Interfaz
         /// No modifica turnoId, unidadId, fuerza ni estado operativo.
         /// </summary>
         Task<DtoTurnoResult> P_ActualizarMedioAsync(
-            long medioId, DtoActualizarMedioRequest req, string usuario, CancellationToken ct);
+            long medioId, DtoActualizarMedioRequest req, int fuerzaId, string usuario, CancellationToken ct);
 
         /// <summary>
         /// Consulta las unidades disponibles en la minuta SIVICC para el turno indicado.
@@ -90,7 +87,7 @@ namespace Datos.Interfaz
         /// nunca introduce MinutaId ni Consecutivo manualmente.
         /// </summary>
         Task<DtoTurnoResult> P_ImportarDesdeSiviccAsync(
-            DtoImportarSiviccRequest req, string usuario, CancellationToken ct);
+            DtoImportarSiviccRequest req, int fuerzaId, string usuario, CancellationToken ct);
 
         // ── Estado de medios (tiempo real) ──────────────────────────────────────
 
@@ -99,7 +96,7 @@ namespace Datos.Interfaz
         /// y escribe el log de cambio.
         /// </summary>
         Task<DtoTurnoResult> P_CambiarEstadoMedioAsync(
-            long medioId, DtoCambiarEstadoMedioRequest req, string usuario, CancellationToken ct);
+            long medioId, DtoCambiarEstadoMedioRequest req, int fuerzaId, string usuario, CancellationToken ct);
 
         /// <summary>
         /// Actualiza las posiciones GPS de múltiples medios en lote.

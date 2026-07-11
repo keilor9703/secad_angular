@@ -35,7 +35,6 @@ namespace Datos.Gestion
             int fuerzaId, string fechaTurno, int sitioGraba, CancellationToken ct)
         {
             var result = new List<DtoTurnoListItem>();
-            // Agregamos explícitamente el formato que estás viendo en el debug
             string[] formatosValidos = { DateFormat, "dd/MM/yyyy", "yyyy-MM-dd" };
 
             if (!DateTime.TryParseExact(fechaTurno, formatosValidos,
@@ -65,10 +64,8 @@ WHERE  t.fuerza_id  = @fuerza
   AND  (t.sitio_graba = @sg OR @sg = 0)
 ORDER  BY t.hora_inicia ASC";
             cmd.Parameters.AddWithValue("fuerza", fuerzaId);
-            // Reemplaza tu AddWithValue por esto:
             var pFecha = cmd.CreateParameter();
             pFecha.ParameterName = "fecha";
-            // NpgsqlDbType.Date asume que usas Npgsql
             pFecha.NpgsqlDbType = NpgsqlTypes.NpgsqlDbType.Date;
             pFecha.Value = fecha.Date;
             cmd.Parameters.Add(pFecha);
@@ -209,7 +206,14 @@ SELECT m.id, m.sitio_graba, m.turno_id, m.turno_unidad_id,
                               COALESCE(p.desc_cargo,''), '~')
             FROM cad_personal_disponible p WHERE p.medio_id = m.id),
            ''
-       ) AS personal_raw
+       ) AS personal_raw,
+       -- Calculado en SQL comparando timestamptz contra timestamptz (instante
+       -- absoluto, no depende de la zona horaria del servidor .NET) — antes se
+       -- recalculaba en C# comparando la hora ya convertida a Bogotá contra
+       -- DateTime.Now del servidor, que en un contenedor típico corre en UTC,
+       -- dejando el indicador de GPS prácticamente siempre en falso.
+       (m.fecha_ubicacion IS NOT NULL
+        AND NOW() - m.fecha_ubicacion < INTERVAL '10 minutes')  AS gps_activo
 FROM   cad_medios_disponibles m
 LEFT   JOIN cad_canales c ON c.codigo = m.canal_codigo AND c.cadfuerz_id = m.canal_fuerza_id
 WHERE  m.turno_id = @tid
@@ -230,7 +234,7 @@ ORDER  BY m.estado ASC, m.patrulla_codigo ASC";
         // ════════════════════════════════════════════════════════════════════════
 
         public async Task<List<DtoMedioDisponible>> G_GetMediosActivosPorCanalAsync(
-            int canalCodigo, int sitioGraba, CancellationToken ct)
+            int canalCodigo, int canalFuerzaId, int sitioGraba, CancellationToken ct)
         {
             var result = new List<DtoMedioDisponible>();
             await using var conn = await _tenant.DataSource.OpenConnectionAsync(ct);
@@ -251,18 +255,25 @@ SELECT m.id, m.sitio_graba, m.turno_id, m.turno_unidad_id,
                               COALESCE(p.desc_cargo,''), '~')
             FROM cad_personal_disponible p WHERE p.medio_id = m.id),
            ''
-       ) AS personal_raw
+       ) AS personal_raw,
+       (m.fecha_ubicacion IS NOT NULL
+        AND NOW() - m.fecha_ubicacion < INTERVAL '10 minutes')  AS gps_activo
 FROM   cad_medios_disponibles m
 JOIN   cad_turnos t ON t.id = m.turno_id
 LEFT   JOIN cad_canales c ON c.codigo = m.canal_codigo AND c.cadfuerz_id = m.canal_fuerza_id
-WHERE  m.canal_codigo = @canal
+WHERE  m.canal_codigo     = @canal
+  -- cad_canales.codigo no es único por sí solo — cada fuerza numera sus canales
+  -- desde 1, así que sin esta condición un canal "5" de una fuerza traía también
+  -- las patrullas, GPS y personal del canal "5" de OTRA fuerza.
+  AND  (m.canal_fuerza_id = @canalFuerza OR @canalFuerza = 0)
   AND  t.estado       = 'A'
   AND  t.hora_inicia  <= (NOW() AT TIME ZONE 'America/Bogota')
   AND  t.hora_termina >= (NOW() AT TIME ZONE 'America/Bogota')
   AND  (m.sitio_graba = @sg OR m.sitio_graba = 0 OR @sg = 0)
 ORDER  BY m.estado ASC, m.patrulla_codigo ASC";
-            cmd.Parameters.AddWithValue("canal", canalCodigo);
-            cmd.Parameters.AddWithValue("sg",    sitioGraba);
+            cmd.Parameters.AddWithValue("canal",       canalCodigo);
+            cmd.Parameters.AddWithValue("canalFuerza", canalFuerzaId);
+            cmd.Parameters.AddWithValue("sg",          sitioGraba);
 
             await using var rdr = await cmd.ExecuteReaderAsync(ct);
             while (await rdr.ReadAsync(ct))
@@ -271,9 +282,9 @@ ORDER  BY m.estado ASC, m.patrulla_codigo ASC";
         }
 
         public async Task<List<DtoMedioDisponibleResumen>> G_GetResumenMediosCanalAsync(
-            int canalCodigo, int sitioGraba, CancellationToken ct)
+            int canalCodigo, int canalFuerzaId, int sitioGraba, CancellationToken ct)
         {
-            var full = await G_GetMediosActivosPorCanalAsync(canalCodigo, sitioGraba, ct);
+            var full = await G_GetMediosActivosPorCanalAsync(canalCodigo, canalFuerzaId, sitioGraba, ct);
             return full.Select(m => new DtoMedioDisponibleResumen
             {
                 Id             = m.Id,
@@ -290,51 +301,6 @@ ORDER  BY m.estado ASC, m.patrulla_codigo ASC";
                 PersonalResumen = string.Join(" / ",
                     m.Personal.Select(p => p.CeduEmpleado))
             }).ToList();
-        }
-
-        // ════════════════════════════════════════════════════════════════════════
-        // DIAGNÓSTICO — solo para depuración en desarrollo
-        // ════════════════════════════════════════════════════════════════════════
-
-        public async Task<List<Dictionary<string, object?>>> G_DiagnosticoCanalAsync(
-            int canalCodigo, int sitioGraba, CancellationToken ct)
-        {
-            var result = new List<Dictionary<string, object?>>();
-            await using var conn = await _tenant.DataSource.OpenConnectionAsync(ct);
-            await using var cmd  = conn.CreateCommand();
-            cmd.CommandText = $@"
-SELECT
-    m.id::text                                                         AS medio_id,
-    COALESCE(m.canal_codigo::text,  'NULL')                           AS canal_codigo,
-    COALESCE(m.sitio_graba::text,   'NULL')                           AS sitio_graba,
-    m.patrulla_codigo,
-    t.id::text                                                         AS turno_id,
-    t.estado                                                           AS turno_estado,
-    TO_CHAR(t.hora_inicia  AT TIME ZONE 'America/Bogota','{TsFormat}') AS hora_inicia,
-    TO_CHAR(t.hora_termina AT TIME ZONE 'America/Bogota','{TsFormat}') AS hora_termina,
-    (m.canal_codigo = @canal)::text                                    AS ok_canal,
-    (t.estado = 'A')::text                                             AS ok_estado,
-    (m.sitio_graba = @sg OR m.sitio_graba = 0 OR @sg = 0)::text      AS ok_sitio,
-    CASE WHEN (m.canal_codigo = @canal)
-          AND (t.estado = 'A')
-          AND (m.sitio_graba = @sg OR m.sitio_graba = 0 OR @sg = 0)
-         THEN 'PASA TODOS LOS FILTROS' ELSE 'FALLA' END               AS resultado
-FROM   cad_medios_disponibles m
-JOIN   cad_turnos t ON t.id = m.turno_id
-ORDER  BY t.estado, m.canal_codigo, m.patrulla_codigo
-LIMIT  100";
-            cmd.Parameters.AddWithValue("canal", canalCodigo);
-            cmd.Parameters.AddWithValue("sg",    sitioGraba);
-
-            await using var rdr = await cmd.ExecuteReaderAsync(ct);
-            while (await rdr.ReadAsync(ct))
-            {
-                var row = new Dictionary<string, object?>();
-                for (int i = 0; i < rdr.FieldCount; i++)
-                    row[rdr.GetName(i)] = rdr.IsDBNull(i) ? null : rdr.GetValue(i);
-                result.Add(row);
-            }
-            return result;
         }
 
         // ════════════════════════════════════════════════════════════════════════
@@ -394,6 +360,12 @@ WHERE  fuerza_id    = @fuerza
                 }
 
                 // ── Verificar solapamiento de franja horaria ──────────────────
+                // Comparación de intervalos semi-abiertos [ini,fin): dos franjas se
+                // solapan solo si @ini es antes de hora_termina Y @fin es después de
+                // hora_inicia. El BETWEEN inclusivo anterior rechazaba turnos
+                // consecutivos que comparten el límite (06-14h seguido de 14-22h se
+                // marcaba como solapado porque 14:00 BETWEEN 06:00 AND 14:00 es
+                // verdadero) — hacía imposible armar un día completo de 3 turnos.
                 await using (var chkSol = conn.CreateCommand())
                 {
                     chkSol.Transaction = tx;
@@ -402,9 +374,8 @@ SELECT COUNT(*) FROM cad_turnos
 WHERE  fuerza_id   = @fuerza
   AND  sitio_graba = @sg
   AND  estado      <> 'V'
-  AND ((@ini BETWEEN hora_inicia AND hora_termina)
-    OR (@fin BETWEEN hora_inicia AND hora_termina)
-    OR (hora_inicia BETWEEN @ini AND @fin))";
+  AND  @ini < hora_termina
+  AND  @fin > hora_inicia";
                     chkSol.Parameters.AddWithValue("fuerza", req.FuerzaId);
                     chkSol.Parameters.AddWithValue("sg",     req.SitioGraba);
                     chkSol.Parameters.AddWithValue("ini",    inicia);
@@ -465,7 +436,7 @@ VALUES
         // ════════════════════════════════════════════════════════════════════════
 
         public async Task<DtoTurnoResult> P_CopiarTurnoAsync(
-            DtoCopiarTurnoRequest req, string usuario, CancellationToken ct)
+            DtoCopiarTurnoRequest req, int fuerzaId, string usuario, CancellationToken ct)
         {
             if (!DateTime.TryParseExact(req.HoraInicia, TsParse,
                     System.Globalization.CultureInfo.InvariantCulture,
@@ -506,6 +477,13 @@ FROM   cad_turnos WHERE id = @id";
                     consignasOrigen = rdr.IsDBNull(2) ? null : rdr.GetString(2);
                 }
 
+                // El turno origen debe pertenecer a la fuerza del usuario autenticado.
+                if (fuerzaId != 0 && fuerzaOrigen != fuerzaId)
+                {
+                    await tx.RollbackAsync(ct);
+                    return Fail($"Turno origen {req.TurnoOrigenId} no encontrado.");
+                }
+
                 // Crear el nuevo turno
                 long nuevoTurnoId = _snowflake.NextId();
                 await using (var insT = conn.CreateCommand())
@@ -533,8 +511,15 @@ VALUES
                     await insT.ExecuteNonQueryAsync(ct);
                 }
 
-                // Copiar unidades del turno origen
-                var mapUnidades = new Dictionary<long, long>();  // origId → newId
+                // Copiar unidades del turno origen.
+                // IMPORTANTE: se lee TODO el reader primero (buffer en memoria) y se
+                // cierra ese bloque antes de ejecutar cualquier INSERT sobre la misma
+                // conexión — Npgsql no soporta MARS, así que intercalar un segundo
+                // comando mientras el reader sigue abierto lanza
+                // "An operation is already in progress" y aborta la transacción
+                // (esto dejaba "Copiar turno" roto para cualquier turno con contenido).
+                var unidadesOrigen = new List<(long id, string cod, string? desc, int? fuerza,
+                                                string? cons, string origen, int? min, int? sivicc)>();
                 await using (var qUni = conn.CreateCommand())
                 {
                     qUni.Transaction = tx;
@@ -546,30 +531,45 @@ FROM   cad_turnos_unidades WHERE turno_id = @tid";
                     await using var rdr = await qUni.ExecuteReaderAsync(ct);
                     while (await rdr.ReadAsync(ct))
                     {
-                        long origId = rdr.GetInt64(0);
-                        await using var insU = conn.CreateCommand();
-                        insU.Transaction = tx;
-                        insU.CommandText = @"
+                        unidadesOrigen.Add((
+                            rdr.GetInt64(0),
+                            rdr.IsDBNull(1) ? "" : rdr.GetString(1),
+                            rdr.IsDBNull(2) ? null : rdr.GetString(2),
+                            rdr.IsDBNull(3) ? null : rdr.GetInt32(3),
+                            rdr.IsDBNull(4) ? null : rdr.GetString(4),
+                            rdr.IsDBNull(5) ? "MANUAL" : rdr.GetString(5),
+                            rdr.IsDBNull(6) ? null : rdr.GetInt32(6),
+                            rdr.IsDBNull(7) ? null : rdr.GetInt32(7)));
+                    }
+                }
+
+                var mapUnidades = new Dictionary<long, long>();  // origId → newId
+                foreach (var u in unidadesOrigen)
+                {
+                    await using var insU = conn.CreateCommand();
+                    insU.Transaction = tx;
+                    insU.CommandText = @"
 INSERT INTO cad_turnos_unidades
     (turno_id, unidad_codigo, unidad_desc, fuerza_id, consignas, origen,
      sivicc_minuta_id, sivicc_consecutivo, fecha_creacion)
 VALUES (@tid, @cod, @desc, @fuerza, @cons, @origen, @min, @sivicc, NOW())
 RETURNING id";
-                        insU.Parameters.AddWithValue("tid",    nuevoTurnoId);
-                        insU.Parameters.AddWithValue("cod",    rdr.IsDBNull(1) ? "" : rdr.GetString(1));
-                        insU.Parameters.AddWithValue("desc",   NullOrString(rdr.IsDBNull(2) ? null : rdr.GetString(2)));
-                        insU.Parameters.AddWithValue("fuerza", rdr.IsDBNull(3) ? (object)DBNull.Value : rdr.GetInt32(3));
-                        insU.Parameters.AddWithValue("cons",   NullOrString(rdr.IsDBNull(4) ? null : rdr.GetString(4)));
-                        insU.Parameters.AddWithValue("origen", rdr.IsDBNull(5) ? "MANUAL" : rdr.GetString(5));
-                        insU.Parameters.AddWithValue("min",    rdr.IsDBNull(6) ? (object)DBNull.Value : rdr.GetInt32(6));
-                        insU.Parameters.AddWithValue("sivicc", rdr.IsDBNull(7) ? (object)DBNull.Value : rdr.GetInt32(7));
-                        var newUniId = Convert.ToInt64(await insU.ExecuteScalarAsync(ct));
-                        mapUnidades[origId] = newUniId;
-                    }
+                    insU.Parameters.AddWithValue("tid",    nuevoTurnoId);
+                    insU.Parameters.AddWithValue("cod",    u.cod);
+                    insU.Parameters.AddWithValue("desc",   NullOrString(u.desc));
+                    insU.Parameters.AddWithValue("fuerza", u.fuerza.HasValue ? (object)u.fuerza.Value : DBNull.Value);
+                    insU.Parameters.AddWithValue("cons",   NullOrString(u.cons));
+                    insU.Parameters.AddWithValue("origen", u.origen);
+                    insU.Parameters.AddWithValue("min",    u.min.HasValue    ? (object)u.min.Value    : DBNull.Value);
+                    insU.Parameters.AddWithValue("sivicc", u.sivicc.HasValue ? (object)u.sivicc.Value : DBNull.Value);
+                    var newUniId = Convert.ToInt64(await insU.ExecuteScalarAsync(ct));
+                    mapUnidades[u.id] = newUniId;
                 }
 
                 // Copiar medios del turno origen (sin estado/ubicación/evento — arrancan limpios)
-                var mapMedios = new Dictionary<long, long>();
+                var mediosOrigen = new List<(long id, long? uniId, string? ucod, int? fuerza,
+                                              int? cfuerza, int? canal, string? canalDesc,
+                                              string patcod, string? patdesc, short tipo)>();
                 await using (var qMed = conn.CreateCommand())
                 {
                     qMed.Transaction = tx;
@@ -582,15 +582,30 @@ FROM   cad_medios_disponibles WHERE turno_id = @tid";
                     await using var rdr = await qMed.ExecuteReaderAsync(ct);
                     while (await rdr.ReadAsync(ct))
                     {
-                        long origMedId = rdr.GetInt64(0);
-                        long? origUniId = rdr.IsDBNull(1) ? null : rdr.GetInt64(1);
-                        long? newUniId = origUniId.HasValue && mapUnidades.TryGetValue(origUniId.Value, out var nu)
-                                        ? nu : null;
+                        mediosOrigen.Add((
+                            rdr.GetInt64(0),
+                            rdr.IsDBNull(1) ? null : rdr.GetInt64(1),
+                            rdr.IsDBNull(2) ? null : rdr.GetString(2),
+                            rdr.IsDBNull(3) ? null : rdr.GetInt32(3),
+                            rdr.IsDBNull(4) ? null : rdr.GetInt32(4),
+                            rdr.IsDBNull(5) ? null : rdr.GetInt32(5),
+                            rdr.IsDBNull(6) ? null : rdr.GetString(6),
+                            rdr.IsDBNull(7) ? "" : rdr.GetString(7),
+                            rdr.IsDBNull(8) ? null : rdr.GetString(8),
+                            rdr.IsDBNull(9) ? TipoMedio.Patrulla : rdr.GetInt16(9)));
+                    }
+                }
 
-                        long newMedId = _snowflake.NextId();
-                        await using var insM = conn.CreateCommand();
-                        insM.Transaction = tx;
-                        insM.CommandText = @"
+                var mapMedios = new Dictionary<long, long>();
+                foreach (var m in mediosOrigen)
+                {
+                    long? newUniId = m.uniId.HasValue && mapUnidades.TryGetValue(m.uniId.Value, out var nu)
+                                    ? nu : null;
+
+                    long newMedId = _snowflake.NextId();
+                    await using var insM = conn.CreateCommand();
+                    insM.Transaction = tx;
+                    insM.CommandText = @"
 INSERT INTO cad_medios_disponibles
     (id, sitio_graba, turno_id, turno_unidad_id,
      unidad_codigo, fuerza_id,
@@ -603,34 +618,46 @@ VALUES
      @cfuerza, @canal, @canalDesc,
      @patcod, @patdesc, @tipo,
      27, NOW())";
-                        insM.Parameters.AddWithValue("id",        newMedId);
-                        insM.Parameters.AddWithValue("sg",        sitioOrigen);
-                        insM.Parameters.AddWithValue("tid",       nuevoTurnoId);
-                        insM.Parameters.AddWithValue("uid",       newUniId.HasValue ? (object)newUniId.Value : DBNull.Value);
-                        insM.Parameters.AddWithValue("ucod",      NullOrString(rdr.IsDBNull(2) ? null : rdr.GetString(2)));
-                        insM.Parameters.AddWithValue("fuerza",    rdr.IsDBNull(3) ? (object)DBNull.Value : rdr.GetInt32(3));
-                        insM.Parameters.AddWithValue("cfuerza",   rdr.IsDBNull(4) ? (object)DBNull.Value : rdr.GetInt32(4));
-                        insM.Parameters.AddWithValue("canal",     rdr.IsDBNull(5) ? (object)DBNull.Value : rdr.GetInt32(5));
-                        insM.Parameters.AddWithValue("canalDesc", NullOrString(rdr.IsDBNull(6) ? null : rdr.GetString(6)));
-                        insM.Parameters.AddWithValue("patcod",    rdr.IsDBNull(7) ? "" : rdr.GetString(7));
-                        insM.Parameters.AddWithValue("patdesc",   NullOrString(rdr.IsDBNull(8) ? null : rdr.GetString(8)));
-                        insM.Parameters.AddWithValue("tipo",      rdr.IsDBNull(9) ? TipoMedio.Patrulla : rdr.GetInt16(9));
-                        await insM.ExecuteNonQueryAsync(ct);
-                        mapMedios[origMedId] = newMedId;
-                    }
+                    insM.Parameters.AddWithValue("id",        newMedId);
+                    insM.Parameters.AddWithValue("sg",        sitioOrigen);
+                    insM.Parameters.AddWithValue("tid",       nuevoTurnoId);
+                    insM.Parameters.AddWithValue("uid",       newUniId.HasValue ? (object)newUniId.Value : DBNull.Value);
+                    insM.Parameters.AddWithValue("ucod",      NullOrString(m.ucod));
+                    insM.Parameters.AddWithValue("fuerza",    m.fuerza.HasValue  ? (object)m.fuerza.Value  : DBNull.Value);
+                    insM.Parameters.AddWithValue("cfuerza",   m.cfuerza.HasValue ? (object)m.cfuerza.Value : DBNull.Value);
+                    insM.Parameters.AddWithValue("canal",     m.canal.HasValue   ? (object)m.canal.Value   : DBNull.Value);
+                    insM.Parameters.AddWithValue("canalDesc", NullOrString(m.canalDesc));
+                    insM.Parameters.AddWithValue("patcod",    m.patcod);
+                    insM.Parameters.AddWithValue("patdesc",   NullOrString(m.patdesc));
+                    insM.Parameters.AddWithValue("tipo",      m.tipo);
+                    await insM.ExecuteNonQueryAsync(ct);
+                    mapMedios[m.id] = newMedId;
                 }
 
-                // Copiar personal de cada medio
+                // Copiar personal de cada medio — misma precaución: bufferear antes de insertar.
                 foreach (var (origMedId, newMedId) in mapMedios)
                 {
-                    await using var qPer = conn.CreateCommand();
-                    qPer.Transaction = tx;
-                    qPer.CommandText = @"
+                    var personalOrigen = new List<(int? sg, string cedu, string? nomb, string? cargo, string? obs)>();
+                    await using (var qPer = conn.CreateCommand())
+                    {
+                        qPer.Transaction = tx;
+                        qPer.CommandText = @"
 SELECT sitio_graba, cedu_empleado, nombre_policial, desc_cargo, observacion
 FROM   cad_personal_disponible WHERE medio_id = @mid";
-                    qPer.Parameters.AddWithValue("mid", origMedId);
-                    await using var rdr = await qPer.ExecuteReaderAsync(ct);
-                    while (await rdr.ReadAsync(ct))
+                        qPer.Parameters.AddWithValue("mid", origMedId);
+                        await using var rdr = await qPer.ExecuteReaderAsync(ct);
+                        while (await rdr.ReadAsync(ct))
+                        {
+                            personalOrigen.Add((
+                                rdr.IsDBNull(0) ? null : rdr.GetInt32(0),
+                                rdr.IsDBNull(1) ? "" : rdr.GetString(1),
+                                rdr.IsDBNull(2) ? null : rdr.GetString(2),
+                                rdr.IsDBNull(3) ? null : rdr.GetString(3),
+                                rdr.IsDBNull(4) ? null : rdr.GetString(4)));
+                        }
+                    }
+
+                    foreach (var p in personalOrigen)
                     {
                         await using var insPer = conn.CreateCommand();
                         insPer.Transaction = tx;
@@ -639,13 +666,13 @@ INSERT INTO cad_personal_disponible
     (sitio_graba, turno_id, medio_id, cedu_empleado,
      nombre_policial, desc_cargo, observacion, fecha_creacion)
 VALUES (@sg, @tid, @mid, @cedu, @nomb, @cargo, @obs, NOW())";
-                        insPer.Parameters.AddWithValue("sg",    rdr.IsDBNull(0) ? sitioOrigen : rdr.GetInt32(0));
+                        insPer.Parameters.AddWithValue("sg",    p.sg ?? sitioOrigen);
                         insPer.Parameters.AddWithValue("tid",   nuevoTurnoId);
                         insPer.Parameters.AddWithValue("mid",   newMedId);
-                        insPer.Parameters.AddWithValue("cedu",  rdr.IsDBNull(1) ? "" : rdr.GetString(1));
-                        insPer.Parameters.AddWithValue("nomb",  NullOrString(rdr.IsDBNull(2) ? null : rdr.GetString(2)));
-                        insPer.Parameters.AddWithValue("cargo", NullOrString(rdr.IsDBNull(3) ? null : rdr.GetString(3)));
-                        insPer.Parameters.AddWithValue("obs",   NullOrString(rdr.IsDBNull(4) ? null : rdr.GetString(4)));
+                        insPer.Parameters.AddWithValue("cedu",  p.cedu);
+                        insPer.Parameters.AddWithValue("nomb",  NullOrString(p.nomb));
+                        insPer.Parameters.AddWithValue("cargo", NullOrString(p.cargo));
+                        insPer.Parameters.AddWithValue("obs",   NullOrString(p.obs));
                         await insPer.ExecuteNonQueryAsync(ct);
                     }
                 }
@@ -672,12 +699,16 @@ VALUES (@sg, @tid, @mid, @cedu, @nomb, @cargo, @obs, NOW())";
         // ════════════════════════════════════════════════════════════════════════
 
         public async Task<DtoTurnoResult> P_AgregarUnidadAsync(
-            DtoAgregarUnidadRequest req, string usuario, CancellationToken ct)
+            DtoAgregarUnidadRequest req, int fuerzaId, string usuario, CancellationToken ct)
         {
             if (string.IsNullOrWhiteSpace(req.UnidadCodigo))
                 return Fail("El código de unidad es obligatorio.");
 
             await using var conn = await _tenant.DataSource.OpenConnectionAsync(ct);
+
+            if (!await VerificarTurnoFuerzaAsync(conn, req.TurnoId, fuerzaId, null, ct))
+                return Fail($"Turno {req.TurnoId} no encontrado.");
+
             await using var cmd  = conn.CreateCommand();
             cmd.CommandText = @"
 INSERT INTO cad_turnos_unidades
@@ -715,7 +746,7 @@ RETURNING id";
         // ════════════════════════════════════════════════════════════════════════
 
         public async Task<DtoTurnoResult> P_AgregarMedioAsync(
-            DtoAgregarMedioRequest req, string usuario, CancellationToken ct)
+            DtoAgregarMedioRequest req, int fuerzaId, string usuario, CancellationToken ct)
         {
             if (string.IsNullOrWhiteSpace(req.PatrullaCodigo))
                 return Fail("El código de patrulla es obligatorio.");
@@ -730,6 +761,12 @@ RETURNING id";
 
             try
             {
+                if (!await VerificarTurnoFuerzaAsync(conn, req.TurnoId, fuerzaId, tx, ct))
+                {
+                    await tx.RollbackAsync(ct);
+                    return Fail($"Turno {req.TurnoId} no encontrado.");
+                }
+
                 // Verificar que la patrulla no esté en otro turno activo
                 await using (var chk = conn.CreateCommand())
                 {
@@ -954,6 +991,14 @@ WHERE  UPPER(vu.sigla_fisica) = UPPER(@sigla)
 ORDER  BY vu.consec_siath";
                 qU.Parameters.AddWithValue("tid",   turnoId);
                 qU.Parameters.AddWithValue("sigla", siglaFisica);
+                // ⚠️ claseTurno se envía tal cual como vu.turno_num. Este valor ahora
+                // sigue el esquema canónico 1=22-05h/2=06-13h/3=14-21h (alineado con
+                // GetTurnoActual() en DbPedidoRepository.cs); antes de este cambio
+                // Turnos usaba 1=06-14h/2=14-22h/3=22-06h. Si la vista FDW
+                // v_unidades_minuta (Oracle SIVICC) numera sus turnos con el esquema
+                // VIEJO, esta consulta ahora traerá la minuta del turno equivocado —
+                // verificar con el equipo de SIVICC qué numeración usa turno_num
+                // antes de desplegar este cambio a producción.
                 qU.Parameters.AddWithValue("turno", claseTurno);
                 qU.Parameters.AddWithValue("fecha", diaInicia.Date);
 
@@ -988,7 +1033,7 @@ ORDER  BY vu.consec_siath";
         // ════════════════════════════════════════════════════════════════════════
 
         public async Task<DtoTurnoResult> P_ImportarDesdeSiviccAsync(
-            DtoImportarSiviccRequest req, string usuario, CancellationToken ct)
+            DtoImportarSiviccRequest req, int fuerzaId, string usuario, CancellationToken ct)
         {
             // v_personal_minuta: vista FDW (PostgreSQL) que expone la info de personal
             // de la minuta SIVICC por unidad/cuadrante. Debe estar accesible en el tenant.
@@ -997,6 +1042,12 @@ ORDER  BY vu.consec_siath";
 
             try
             {
+                if (!await VerificarTurnoFuerzaAsync(conn, req.TurnoId, fuerzaId, tx, ct))
+                {
+                    await tx.RollbackAsync(ct);
+                    return Fail($"Turno {req.TurnoId} no encontrado.");
+                }
+
                 int insertados   = 0;
                 int actualizados = 0;
 
@@ -1202,10 +1253,15 @@ WHERE  id = @tid";
         public async Task<DtoTurnoResult> P_CambiarEstadoMedioAsync(
             long medioId,
             DtoCambiarEstadoMedioRequest req,
+            int fuerzaId,
             string usuario,
             CancellationToken ct)
         {
             await using var conn = await _tenant.DataSource.OpenConnectionAsync(ct);
+
+            if (!await VerificarMedioFuerzaAsync(conn, medioId, fuerzaId, null, ct))
+                return Fail($"Medio {medioId} no encontrado.");
+
             await using var cmd  = conn.CreateCommand();
             // Usamos la función PostgreSQL que ya creamos en V9
             cmd.CommandText = @"
@@ -1249,51 +1305,104 @@ SELECT fn_cambiar_estado_medio(
         public async Task<int> P_ActualizarUbicacionesGespoAsync(
             IEnumerable<DtoGespoUbicacion> ubicaciones, CancellationToken ct)
         {
-            int actualizados = 0;
-            await using var conn = await _tenant.DataSource.OpenConnectionAsync(ct);
+            var lista = ubicaciones.Where(u => !string.IsNullOrWhiteSpace(u.PatrullaCodigo)).ToList();
+            if (lista.Count == 0) return 0;
 
-            foreach (var u in ubicaciones)
+            // Antes: un UPDATE por posición GPS (N round-trips por lote de GESPO).
+            // Ahora: un solo UPDATE con unnest() de los N valores.
+            var patcods = new string[lista.Count];
+            var lats    = new double[lista.Count];
+            var lngs    = new double[lista.Count];
+            var vels    = new double?[lista.Count];
+            var rums    = new double?[lista.Count];
+            var fechas  = new DateTimeOffset[lista.Count];
+            for (int i = 0; i < lista.Count; i++)
             {
-                if (string.IsNullOrWhiteSpace(u.PatrullaCodigo)) continue;
+                var u = lista[i];
+                patcods[i] = u.PatrullaCodigo;
+                lats[i]    = u.Latitud;
+                lngs[i]    = u.Longitud;
+                vels[i]    = u.VelocidadKmh;
+                rums[i]    = u.RumboGrados;
+                fechas[i]  = DateTime.TryParse(u.FechaGps, null,
+                                 System.Globalization.DateTimeStyles.RoundtripKind, out var dt)
+                             ? dt : DateTimeOffset.UtcNow;
+            }
 
-                DateTimeOffset? fechaGps = null;
-                if (DateTime.TryParse(u.FechaGps, null,
-                        System.Globalization.DateTimeStyles.RoundtripKind, out var dt))
-                    fechaGps = dt;
-
-                await using var cmd = conn.CreateCommand();
-                cmd.CommandText = @"
-UPDATE cad_medios_disponibles
-SET    latitud         = @lat,
-       longitud        = @lng,
-       velocidad_kmh   = @vel,
-       rumbo_grados    = @rum,
-       fecha_ubicacion = @fecha
-WHERE  patrulla_codigo = @patcod
-  AND  turno_id IN (
+            await using var conn = await _tenant.DataSource.OpenConnectionAsync(ct);
+            await using var cmd  = conn.CreateCommand();
+            // ⚠️ El emparejamiento sigue siendo solo por patrulla_codigo — el payload
+            // de GESPO (DtoGespoUbicacion) no trae fuerza_id ni sitio_graba, y
+            // patrulla_codigo NO es único globalmente (solo lo es dentro de un mismo
+            // turno: UNIQUE(turno_id, patrulla_codigo)). Si dos fuerzas activas al
+            // mismo tiempo reutilizan el mismo código de patrulla, esta actualización
+            // escribe la posición en AMBAS filas — no se puede resolver sin que GESPO
+            // incluya un identificador de fuerza/sitio en cada posición del lote;
+            // coordinar con el equipo de integración de GESPO antes de asumir que
+            // esto no puede ocurrir en producción.
+            cmd.CommandText = @"
+UPDATE cad_medios_disponibles m
+SET    latitud         = v.lat,
+       longitud        = v.lng,
+       velocidad_kmh   = v.vel,
+       rumbo_grados    = v.rum,
+       fecha_ubicacion = v.fecha
+FROM   unnest(@patcods, @lats, @lngs, @vels, @rums, @fechas)
+       AS v(patcod, lat, lng, vel, rum, fecha)
+WHERE  m.patrulla_codigo = v.patcod
+  AND  m.turno_id IN (
       SELECT id FROM cad_turnos
       WHERE  estado = 'A'
         AND  hora_inicia  <= NOW()
         AND  hora_termina >= NOW()
   )";
-                cmd.Parameters.AddWithValue("lat",    u.Latitud);
-                cmd.Parameters.AddWithValue("lng",    u.Longitud);
-                cmd.Parameters.AddWithValue("vel",    u.VelocidadKmh.HasValue
-                                                      ? (object)u.VelocidadKmh.Value : DBNull.Value);
-                cmd.Parameters.AddWithValue("rum",    u.RumboGrados.HasValue
-                                                      ? (object)u.RumboGrados.Value : DBNull.Value);
-                cmd.Parameters.AddWithValue("fecha",  fechaGps.HasValue
-                                                      ? (object)fechaGps.Value : (object)DateTimeOffset.UtcNow);
-                cmd.Parameters.AddWithValue("patcod", u.PatrullaCodigo);
-                actualizados += await cmd.ExecuteNonQueryAsync(ct);
-            }
+            cmd.Parameters.AddWithValue("patcods", patcods);
+            cmd.Parameters.AddWithValue("lats",    lats);
+            cmd.Parameters.AddWithValue("lngs",    lngs);
+            cmd.Parameters.AddWithValue("vels",    vels);
+            cmd.Parameters.AddWithValue("rums",    rums);
+            cmd.Parameters.AddWithValue("fechas",  fechas);
 
-            return actualizados;
+            return await cmd.ExecuteNonQueryAsync(ct);
         }
 
         // ════════════════════════════════════════════════════════════════════════
         // PRIVATE HELPERS
         // ════════════════════════════════════════════════════════════════════════
+
+        /// <summary>
+        /// Verifica que el turno exista y pertenezca a la fuerza del usuario autenticado.
+        /// fuerzaId = 0 (claim ausente) omite la verificación, igual que el patrón ya
+        /// usado en G_GetMediosActivosPorCanalAsync (@canalFuerza = 0).
+        /// </summary>
+        private static async Task<bool> VerificarTurnoFuerzaAsync(
+            NpgsqlConnection conn, long turnoId, int fuerzaId, NpgsqlTransaction? tx, CancellationToken ct)
+        {
+            await using var cmd = conn.CreateCommand();
+            if (tx is not null) cmd.Transaction = tx;
+            cmd.CommandText = "SELECT fuerza_id FROM cad_turnos WHERE id = @tid";
+            cmd.Parameters.AddWithValue("tid", turnoId);
+            var raw = await cmd.ExecuteScalarAsync(ct);
+            if (raw is null or DBNull) return false;
+            return fuerzaId == 0 || Convert.ToInt32(raw) == fuerzaId;
+        }
+
+        /// <summary>Igual que VerificarTurnoFuerzaAsync, pero resuelve el turno a partir del medio.</summary>
+        private static async Task<bool> VerificarMedioFuerzaAsync(
+            NpgsqlConnection conn, long medioId, int fuerzaId, NpgsqlTransaction? tx, CancellationToken ct)
+        {
+            await using var cmd = conn.CreateCommand();
+            if (tx is not null) cmd.Transaction = tx;
+            cmd.CommandText = @"
+SELECT t.fuerza_id
+FROM   cad_medios_disponibles m
+JOIN   cad_turnos t ON t.id = m.turno_id
+WHERE  m.id = @mid";
+            cmd.Parameters.AddWithValue("mid", medioId);
+            var raw = await cmd.ExecuteScalarAsync(ct);
+            if (raw is null or DBNull) return false;
+            return fuerzaId == 0 || Convert.ToInt32(raw) == fuerzaId;
+        }
 
         private static DtoMedioDisponible MapMedioFromReader(NpgsqlDataReader rdr)
         {
@@ -1317,14 +1426,10 @@ WHERE  patrulla_codigo = @patcod
                 }
             }
 
-            // GPS activo = hay posición y tiene menos de 10 minutos
+            // GPS activo: calculado en SQL comparando timestamptz contra timestamptz
+            // (instante absoluto, columna gps_activo en índice 21 de ambas consultas).
             string? fechaUbi = rdr.IsDBNull(17) ? null : rdr.GetString(17);
-            bool gpsActivo   = false;
-            if (!string.IsNullOrWhiteSpace(fechaUbi) &&
-                DateTime.TryParseExact(fechaUbi, "dd/MM/yyyy HH:mm",
-                    System.Globalization.CultureInfo.InvariantCulture,
-                    System.Globalization.DateTimeStyles.None, out var dtUbi))
-                gpsActivo = (DateTime.Now - dtUbi).TotalMinutes < 10;
+            bool gpsActivo   = !rdr.IsDBNull(21) && rdr.GetBoolean(21);
 
             return new DtoMedioDisponible
             {
@@ -1372,7 +1477,7 @@ WHERE  patrulla_codigo = @patcod
         // ════════════════════════════════════════════════════════════════════════
 
         public async Task<DtoTurnoResult> P_ActualizarMedioAsync(
-            long medioId, DtoActualizarMedioRequest req, string usuario, CancellationToken ct)
+            long medioId, DtoActualizarMedioRequest req, int fuerzaId, string usuario, CancellationToken ct)
         {
             if (string.IsNullOrWhiteSpace(req.PatrullaCodigo))
                 return Fail("El código de patrulla es obligatorio.");
@@ -1382,14 +1487,15 @@ WHERE  patrulla_codigo = @patcod
 
             try
             {
-                // 1. Verificar existencia y obtener turnoId + sitio_graba del turno padre
+                // 1. Verificar existencia, pertenencia a la fuerza del usuario y obtener
+                //    turnoId + sitio_graba del turno padre.
                 long turnoId;
                 int  sitioGrabaT;
                 await using (var qMed = conn.CreateCommand())
                 {
                     qMed.Transaction = tx;
                     qMed.CommandText = @"
-SELECT m.turno_id, COALESCE(t.sitio_graba, 0)
+SELECT m.turno_id, COALESCE(t.sitio_graba, 0), t.fuerza_id
 FROM   cad_medios_disponibles m
 JOIN   cad_turnos t ON t.id = m.turno_id
 WHERE  m.id = @mid";
@@ -1402,6 +1508,12 @@ WHERE  m.id = @mid";
                     }
                     turnoId     = rMed.GetInt64(0);
                     sitioGrabaT = rMed.GetInt32(1);
+                    var turnoFuerza = rMed.GetInt32(2);
+                    if (fuerzaId != 0 && turnoFuerza != fuerzaId)
+                    {
+                        await tx.RollbackAsync(ct);
+                        return Fail($"Medio {medioId} no encontrado.");
+                    }
                 }
 
                 // 2. Verificar que el código de patrulla no colisione con OTRO medio del mismo turno

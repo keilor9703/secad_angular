@@ -4,11 +4,18 @@ namespace Comun.Dtos.Turnos;
 // Constantes de dominio — deben coincidir con cad_referencias_secad
 // ─────────────────────────────────────────────────────────────────────────────
 
+/// <summary>
+/// Numeración alineada con el esquema canónico de turno de vigilancia usado en
+/// todo el sistema (ver GetTurnoActual() en DbPedidoRepository.cs):
+/// 1=22:00-05:59, 2=06:00-13:59, 3=14:00-21:59. Antes de este cambio Turnos
+/// tenía su propia numeración rotada (1=06-14h) que nunca coincidía con la del
+/// resto de módulos ni con las horas que el propio frontend autocompletaba.
+/// </summary>
 public static class ClaseTurno
 {
-    public const int Primero  = 1;   // 06:00 – 14:00
-    public const int Segundo  = 2;   // 14:00 – 22:00
-    public const int Tercero  = 3;   // 22:00 – 06:00
+    public const int Primero  = 1;   // 22:00 – 06:00
+    public const int Segundo  = 2;   // 06:00 – 14:00
+    public const int Tercero  = 3;   // 14:00 – 22:00
 
     public static string Descripcion(int clase) => clase switch
     {

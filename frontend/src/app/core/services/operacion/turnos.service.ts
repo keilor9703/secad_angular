@@ -368,10 +368,12 @@ export class TurnosService {
    * Usada para cargar inicialmente el panel de despacho.
    */
   getRecursosCanal(
-    canalCodigo: number,
-    sitioGraba:  number = 1
+    canalCodigo:   number,
+    sitioGraba:    number = 1,
+    canalFuerzaId?: number
   ): Observable<DtoMedioDisponible[]> {
-    const params = new HttpParams().set('sitioGraba', sitioGraba);
+    let params = new HttpParams().set('sitioGraba', sitioGraba);
+    if (canalFuerzaId != null) params = params.set('canalFuerzaId', canalFuerzaId);
     return this.http
       .get<{ success: boolean; data: DtoMedioDisponible[] }>(
         `${this.base}/canal/${canalCodigo}/recursos`, { params }
@@ -384,10 +386,12 @@ export class TurnosService {
    * Usada para el polling periódico (cada 5-10 s) del panel de despacho.
    */
   getResumenRecursosCanal(
-    canalCodigo: number,
-    sitioGraba:  number = 1
+    canalCodigo:   number,
+    sitioGraba:    number = 1,
+    canalFuerzaId?: number
   ): Observable<DtoMedioDisponibleResumen[]> {
-    const params = new HttpParams().set('sitioGraba', sitioGraba);
+    let params = new HttpParams().set('sitioGraba', sitioGraba);
+    if (canalFuerzaId != null) params = params.set('canalFuerzaId', canalFuerzaId);
     return this.http
       .get<{ success: boolean; data: DtoMedioDisponibleResumen[] }>(
         `${this.base}/canal/${canalCodigo}/recursos/resumen`, { params }

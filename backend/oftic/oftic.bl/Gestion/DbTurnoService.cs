@@ -28,48 +28,44 @@ namespace Negocio.Gestion
             => _repo.G_GetMediosTurnoAsync(turnoId, turnoUnidadId, ct);
 
         public Task<List<DtoMedioDisponible>> G_GetMediosActivosPorCanalAsync(
-            int canalCodigo, int sitioGraba, CancellationToken ct)
-            => _repo.G_GetMediosActivosPorCanalAsync(canalCodigo, sitioGraba, ct);
+            int canalCodigo, int canalFuerzaId, int sitioGraba, CancellationToken ct)
+            => _repo.G_GetMediosActivosPorCanalAsync(canalCodigo, canalFuerzaId, sitioGraba, ct);
 
         public Task<List<DtoMedioDisponibleResumen>> G_GetResumenMediosCanalAsync(
-            int canalCodigo, int sitioGraba, CancellationToken ct)
-            => _repo.G_GetResumenMediosCanalAsync(canalCodigo, sitioGraba, ct);
-
-        public Task<List<Dictionary<string, object?>>> G_DiagnosticoCanalAsync(
-            int canalCodigo, int sitioGraba, CancellationToken ct)
-            => _repo.G_DiagnosticoCanalAsync(canalCodigo, sitioGraba, ct);
+            int canalCodigo, int canalFuerzaId, int sitioGraba, CancellationToken ct)
+            => _repo.G_GetResumenMediosCanalAsync(canalCodigo, canalFuerzaId, sitioGraba, ct);
 
         public Task<DtoTurnoResult> P_CrearTurnoAsync(
             DtoCrearTurnoRequest req, string usuario, CancellationToken ct)
             => _repo.P_CrearTurnoAsync(req, usuario, ct);
 
         public Task<DtoTurnoResult> P_CopiarTurnoAsync(
-            DtoCopiarTurnoRequest req, string usuario, CancellationToken ct)
-            => _repo.P_CopiarTurnoAsync(req, usuario, ct);
+            DtoCopiarTurnoRequest req, int fuerzaId, string usuario, CancellationToken ct)
+            => _repo.P_CopiarTurnoAsync(req, fuerzaId, usuario, ct);
 
         public Task<DtoTurnoResult> P_AgregarUnidadAsync(
-            DtoAgregarUnidadRequest req, string usuario, CancellationToken ct)
-            => _repo.P_AgregarUnidadAsync(req, usuario, ct);
+            DtoAgregarUnidadRequest req, int fuerzaId, string usuario, CancellationToken ct)
+            => _repo.P_AgregarUnidadAsync(req, fuerzaId, usuario, ct);
 
         public Task<DtoTurnoResult> P_AgregarMedioAsync(
-            DtoAgregarMedioRequest req, string usuario, CancellationToken ct)
-            => _repo.P_AgregarMedioAsync(req, usuario, ct);
+            DtoAgregarMedioRequest req, int fuerzaId, string usuario, CancellationToken ct)
+            => _repo.P_AgregarMedioAsync(req, fuerzaId, usuario, ct);
 
         public Task<DtoTurnoResult> P_ActualizarMedioAsync(
-            long medioId, DtoActualizarMedioRequest req, string usuario, CancellationToken ct)
-            => _repo.P_ActualizarMedioAsync(medioId, req, usuario, ct);
+            long medioId, DtoActualizarMedioRequest req, int fuerzaId, string usuario, CancellationToken ct)
+            => _repo.P_ActualizarMedioAsync(medioId, req, fuerzaId, usuario, ct);
 
         public Task<List<DtoUnidadSivicc>> G_GetUnidadesSiviccAsync(
             long turnoId, CancellationToken ct)
             => _repo.G_GetUnidadesSiviccAsync(turnoId, ct);
 
         public Task<DtoTurnoResult> P_ImportarDesdeSiviccAsync(
-            DtoImportarSiviccRequest req, string usuario, CancellationToken ct)
-            => _repo.P_ImportarDesdeSiviccAsync(req, usuario, ct);
+            DtoImportarSiviccRequest req, int fuerzaId, string usuario, CancellationToken ct)
+            => _repo.P_ImportarDesdeSiviccAsync(req, fuerzaId, usuario, ct);
 
         public Task<DtoTurnoResult> P_CambiarEstadoMedioAsync(
-            long medioId, DtoCambiarEstadoMedioRequest req, string usuario, CancellationToken ct)
-            => _repo.P_CambiarEstadoMedioAsync(medioId, req, usuario, ct);
+            long medioId, DtoCambiarEstadoMedioRequest req, int fuerzaId, string usuario, CancellationToken ct)
+            => _repo.P_CambiarEstadoMedioAsync(medioId, req, fuerzaId, usuario, ct);
 
         public Task<int> P_ActualizarUbicacionesGespoAsync(
             IEnumerable<DtoGespoUbicacion> ubicaciones, CancellationToken ct)

@@ -197,11 +197,11 @@ VALUES
                 await using var cmd  = conn.CreateCommand();
                 cmd.CommandText = @"
 UPDATE cad_anotaciones_turno
-   SET tipo             = @tipo,
-       titulo           = @titulo,
-       descripcion      = @desc,
-       fecha_modifica   = NOW(),
-       usuario_modifica = @usr
+   SET tipo              = @tipo,
+       titulo            = @titulo,
+       descripcion       = @desc,
+       fecha_modifica    = NOW(),
+       username_modifica = @usr
  WHERE id = @id";
 
                 cmd.Parameters.AddWithValue("id",    id);

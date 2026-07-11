@@ -1047,7 +1047,7 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
       .pipe(startWith(0), switchMap(() => {
         this.cargandoRecursos = true;
         return this.turnosSvc.getResumenRecursosCanal(
-          this.canalSeleccionado, this.sitioGraba || 1
+          this.canalSeleccionado, this.sitioGraba || 1, this.fuerzaId || undefined
         );
       }))
       .subscribe({
@@ -1540,7 +1540,7 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
   private recargarRecursos(): void {
     if (this.canalSeleccionado <= 0) return;
     this.turnosSvc.getResumenRecursosCanal(
-      this.canalSeleccionado, this.sitioGraba || 1
+      this.canalSeleccionado, this.sitioGraba || 1, this.fuerzaId || undefined
     ).subscribe({
       next: (data) => {
         this.recursos          = data;
