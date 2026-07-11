@@ -750,17 +750,73 @@ html.dark-mode .ev-no-canal-banner {
   background:    #e8eff8;
 }
 
-// ── Field modifiers ───────────────────────────────────────────
-.ev-field-highlight {
-  font-weight: 700 !important;
-  color:       var(--policia-oscuro) !important;
+// ══════════════════════════════════════════════════════════════
+//  DATOS DEL INCIDENTE — ficha de solo consulta (no formulario)
+// ══════════════════════════════════════════════════════════════
+.ev-datos-grid {
+  display:               grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap:                   14px 22px;
+  padding:               14px 16px 12px;
 }
 
-.ev-textarea-readonly {
-  resize:      none;
-  background:  rgba(21,27,59,.02) !important;
-  color:       rgba(21,27,59,.75) !important;
-  line-height: 1.5;
+.ev-datos-item {
+  display:        flex;
+  flex-direction: column;
+  gap:            3px;
+  min-width:      0;
+
+  &--full { grid-column: 1 / -1; }
+
+  &__label {
+    display:        flex;
+    align-items:    center;
+    gap:            5px;
+    font-size:      calc(9.5px * var(--font-size-scale));
+    font-weight:    700;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    color:          rgba(21,27,59,.42);
+
+    i { font-size: 10px; color: rgba(21,27,59,.30); width: 12px; text-align: center; }
+  }
+
+  &__value {
+    font-size:   calc(13px * var(--font-size-scale));
+    font-weight: 600;
+    color:       var(--policia-oscuro);
+    line-height: 1.35;
+    word-break:  break-word;
+
+    &--vacio { color: rgba(21,27,59,.32); font-weight: 400; }
+    &--lg    { font-size: calc(15px * var(--font-size-scale)); font-weight: 700; }
+  }
+
+  &__sub {
+    font-size: calc(11px * var(--font-size-scale));
+    color:     rgba(21,27,59,.50);
+  }
+
+  // Dirección del caso: el dato de mayor relevancia operativa
+  &--destacado {
+    background:    linear-gradient(135deg, rgba(8,166,203,.08), rgba(8,166,203,.02));
+    border-left:   3px solid #08a6cb;
+    border-radius: 8px;
+    padding:       9px 14px;
+    margin:        2px 0;
+  }
+}
+
+.ev-datos-relato {
+  margin:        2px 0 0;
+  padding:       10px 13px;
+  background:    rgba(21,27,59,.03);
+  border-left:   3px solid rgba(21,27,59,.15);
+  border-radius: 0 8px 8px 0;
+  font-size:     calc(12.5px * var(--font-size-scale));
+  line-height:   1.55;
+  color:         rgba(21,27,59,.80);
+  white-space:   pre-wrap;
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -1241,9 +1297,23 @@ html.dark-mode {
   .ev-rec-count   { background: rgba(255,255,255,.08); color: var(--ui-text-muted); }
   .ev-rec-meta    { color: var(--ui-text-muted); }
 
-  .ev-textarea-readonly {
-    background: rgba(255,255,255,.03) !important;
-    color:      var(--ui-text-muted) !important;
+  .ev-datos-item {
+    &__label { color: rgba(228,231,235,.45); i { color: rgba(228,231,235,.30); } }
+    &__value {
+      color: rgba(228,231,235,.92);
+      &--vacio { color: rgba(228,231,235,.35); }
+    }
+    &__sub { color: rgba(228,231,235,.55); }
+    &--destacado {
+      background:  linear-gradient(135deg, rgba(34,211,238,.10), rgba(34,211,238,.02));
+      border-left-color: #22d3ee;
+    }
+  }
+
+  .ev-datos-relato {
+    background:  rgba(255,255,255,.04);
+    border-left-color: rgba(255,255,255,.18);
+    color:       rgba(228,231,235,.82);
   }
 
   .prio-default {

@@ -410,57 +410,60 @@
             <!-- ── Secciones del detalle ────────────────────────────────── -->
             <div class="ev-sections">
 
-              <!-- DATOS DEL INCIDENTE -->
+              <!-- DATOS DEL INCIDENTE — solo consulta: presentado como ficha de
+                   datos (etiqueta + valor), no como un formulario editable. -->
               <app-panel-colapsable titulo="Datos del incidente" icono="fa-solid fa-file-shield"
                                     [(abierto)]="datosAbierto">
-                <div class="ui-grid" style="padding:12px 14px; gap:10px;">
+                <div class="ev-datos-grid">
 
-                  <div class="ui-field ui-col-4">
-                    <label class="ui-label">N.º llamada</label>
-                    <input class="ui-control" type="text" readonly
-                           [value]="detalle.numeLlamada ?? '—'">
+                  <div class="ev-datos-item">
+                    <span class="ev-datos-item__label"><i class="fa-solid fa-phone-volume"></i> N.º llamada</span>
+                    <span class="ev-datos-item__value" [class.ev-datos-item__value--vacio]="!detalle.numeLlamada">
+                      {{ detalle.numeLlamada ?? '—' }}
+                    </span>
                   </div>
-                  <div class="ui-field ui-col-4">
-                    <label class="ui-label">Teléfono</label>
-                    <input class="ui-control" type="text" readonly
-                           [value]="detalle.numeTelefono ?? '—'">
+                  <div class="ev-datos-item">
+                    <span class="ev-datos-item__label"><i class="fa-solid fa-phone"></i> Teléfono</span>
+                    <span class="ev-datos-item__value" [class.ev-datos-item__value--vacio]="!detalle.numeTelefono">
+                      {{ detalle.numeTelefono ?? '—' }}
+                    </span>
                   </div>
-                  <div class="ui-field ui-col-4">
-                    <label class="ui-label">Hora del caso</label>
-                    <input class="ui-control" type="text" readonly
-                           [value]="formatHora(detalle.horaCaso)">
-                  </div>
-
-                  <div class="ui-field ui-col-6">
-                    <label class="ui-label">Llamante</label>
-                    <input class="ui-control" type="text" readonly
-                           [value]="detalle.nombLlamante || '—'">
-                  </div>
-                  <div class="ui-field ui-col-6">
-                    <label class="ui-label">Prop. teléfono</label>
-                    <input class="ui-control" type="text" readonly
-                           [value]="detalle.propTelefono || '—'">
+                  <div class="ev-datos-item">
+                    <span class="ev-datos-item__label"><i class="fa-regular fa-clock"></i> Hora del caso</span>
+                    <span class="ev-datos-item__value">{{ formatHora(detalle.horaCaso) }}</span>
                   </div>
 
-                  <div class="ui-field ui-col-12">
-                    <label class="ui-label">Dirección del caso</label>
-                    <input class="ui-control ev-field-highlight" type="text" readonly
-                           [value]="detalle.direCaso || '—'">
+                  <div class="ev-datos-item">
+                    <span class="ev-datos-item__label"><i class="fa-solid fa-user"></i> Llamante</span>
+                    <span class="ev-datos-item__value" [class.ev-datos-item__value--vacio]="!detalle.nombLlamante">
+                      {{ detalle.nombLlamante || '—' }}
+                    </span>
+                  </div>
+                  <div class="ev-datos-item">
+                    <span class="ev-datos-item__label"><i class="fa-solid fa-mobile-screen"></i> Prop. teléfono</span>
+                    <span class="ev-datos-item__value" [class.ev-datos-item__value--vacio]="!detalle.propTelefono">
+                      {{ detalle.propTelefono || '—' }}
+                    </span>
+                  </div>
+                  <div class="ev-datos-item">
+                    <span class="ev-datos-item__label"><i class="fa-solid fa-city"></i> Ciudad</span>
+                    <span class="ev-datos-item__value" [class.ev-datos-item__value--vacio]="!detalle.ciudad">
+                      {{ detalle.ciudad || '—' }}
+                    </span>
                   </div>
 
-                  <div class="ui-field ui-col-4">
-                    <label class="ui-label">Ciudad</label>
-                    <input class="ui-control" type="text" readonly
-                           [value]="detalle.ciudad || '—'">
+                  <!-- Dirección: dato operativo más importante — visualmente destacado -->
+                  <div class="ev-datos-item ev-datos-item--full ev-datos-item--destacado">
+                    <span class="ev-datos-item__label"><i class="fa-solid fa-location-dot"></i> Dirección del caso</span>
+                    <span class="ev-datos-item__value ev-datos-item__value--lg">{{ detalle.direCaso || '—' }}</span>
+                    @if (detalle.barrio) {
+                      <span class="ev-datos-item__sub">{{ detalle.barrio }}</span>
+                    }
                   </div>
-                  <div class="ui-field ui-col-4">
-                    <label class="ui-label">Barrio</label>
-                    <input class="ui-control" type="text" readonly
-                           [value]="detalle.barrio || '—'">
-                  </div>
+
                   <!-- Código(s) de caso con descripción ─────────────────── -->
-                  <div class="ui-field ui-col-12">
-                    <label class="ui-label">Código(s) de caso</label>
+                  <div class="ev-datos-item ev-datos-item--full">
+                    <span class="ev-datos-item__label"><i class="fa-solid fa-tags"></i> Código(s) de caso</span>
                     <div class="ev-codigos-caso">
                       @if (detalle.codiPedido) {
                         <div class="ev-codigo-item">
@@ -480,36 +483,34 @@
                     </div>
                   </div>
 
-                  <div class="ui-field ui-col-4">
-                    <label class="ui-label">Tipo</label>
-                    <input class="ui-control" type="text" readonly
-                           [value]="detalle.tipoPedido || '—'">
+                  <div class="ev-datos-item">
+                    <span class="ev-datos-item__label"><i class="fa-solid fa-clipboard-list"></i> Tipo</span>
+                    <span class="ev-datos-item__value" [class.ev-datos-item__value--vacio]="!detalle.tipoPedido">
+                      {{ detalle.tipoPedido || '—' }}
+                    </span>
                   </div>
-                  <div class="ui-field ui-col-4">
-                    <label class="ui-label">Calidad</label>
-                    <input class="ui-control" type="text" readonly
-                           [value]="detalle.caliPedido || '—'">
+                  <div class="ev-datos-item">
+                    <span class="ev-datos-item__label"><i class="fa-solid fa-star"></i> Calidad</span>
+                    <span class="ev-datos-item__value" [class.ev-datos-item__value--vacio]="!detalle.caliPedido">
+                      {{ detalle.caliPedido || '—' }}
+                    </span>
                   </div>
-                  <div class="ui-field ui-col-4">
-                    <label class="ui-label">Importancia</label>
-                    <input class="ui-control" type="text" readonly
-                           [value]="detalle.importancia || '—'">
+                  <div class="ev-datos-item">
+                    <span class="ev-datos-item__label"><i class="fa-solid fa-triangle-exclamation"></i> Importancia</span>
+                    <span class="ev-datos-item__value" [class.ev-datos-item__value--vacio]="!detalle.importancia">
+                      {{ detalle.importancia || '—' }}
+                    </span>
                   </div>
 
                   @if (detalle.comentario) {
-                    <div class="ui-field ui-col-12">
-                      <label class="ui-label">Descripción de hechos</label>
-                      <textarea class="ui-control ev-textarea-readonly" readonly
-                                rows="3">{{ detalle.comentario }}</textarea>
+                    <div class="ev-datos-item ev-datos-item--full">
+                      <span class="ev-datos-item__label"><i class="fa-solid fa-align-left"></i> Descripción de hechos</span>
+                      <p class="ev-datos-relato">{{ detalle.comentario }}</p>
                     </div>
                   }
 
                 </div>
 
-
-
-
-                
               </app-panel-colapsable><!-- /DATOS -->
 
               <!-- CANALES Y AGENCIAS ASIGNADOS (visibilidad multi-canal) -->
