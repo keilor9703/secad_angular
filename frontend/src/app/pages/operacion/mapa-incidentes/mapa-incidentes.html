@@ -50,12 +50,13 @@
         <option value="RUTINA">Rutina</option>
       </select>
 
-      <!-- Filtro por canal — re-consulta el backend -->
-      <select [(ngModel)]="filtroCanal" (ngModelChange)="onCanalChange()" class="filtro-select"
-              *ngIf="canalesDisponibles.length > 0">
-        <option [ngValue]="0">Todos los canales</option>
-        <option *ngFor="let c of canalesDisponibles" [ngValue]="c.codigo">
-          {{ c.descripcion }}
+      <!-- Filtro por canal — clave compuesta código::fuerza (el código solo no es
+           único entre fuerzas); re-consulta el backend -->
+      <select [ngModel]="canalKey(filtroCanal, filtroCanalFuerzaId)" (ngModelChange)="onCanalKeyChange($event)"
+              class="filtro-select" *ngIf="canalesDisponibles.length > 0">
+        <option [ngValue]="canalKey(0, 0)">Todos los canales</option>
+        <option *ngFor="let c of canalesDisponibles" [ngValue]="canalKey(c.codigo, c.fuerzaId)">
+          {{ c.descripcion }} ({{ c.fuerzaDesc }})
         </option>
       </select>
 
@@ -70,7 +71,8 @@
       <button *ngIf="filtroEstado || filtroPrioridad || filtroTexto || filtroCanal"
               (click)="limpiarFiltros()"
               class="btn-limpiar"
-              title="Limpiar todos los filtros">
+              title="Limpiar todos los filtros"
+              aria-label="Limpiar todos los filtros">
         <i class="fa-solid fa-xmark"></i>
       </button>
     </div>
@@ -84,7 +86,8 @@
         placeholder="Ir a dirección..."
         class="geocode-input"
       />
-      <button (click)="geocodificarDireccion()" class="btn-geocode" title="Buscar en el mapa">
+      <button (click)="geocodificarDireccion()" class="btn-geocode" title="Buscar en el mapa"
+              aria-label="Buscar dirección en el mapa">
         <i class="fa-solid fa-magnifying-glass"></i>
       </button>
     </div>
@@ -99,7 +102,13 @@
 
     <!-- MAPA -->
     <div class="mapa-container" [class.panel-abierto]="panelAbierto">
-      <div id="mapaIncidentesDiv" class="mapa-leaflet"></div>
+      <div id="mapaIncidentesDiv" class="mapa-leaflet" role="application"
+           aria-label="Mapa de incidentes activos"></div>
+
+      <div *ngIf="mapaNoDisponible" class="mapa-no-disponible" role="alert">
+        <i class="fa-solid fa-triangle-exclamation"></i>
+        No se pudo cargar el mapa. Recargue la página o contacte a soporte.
+      </div>
 
       <!-- Leyenda flotante -->
       <div class="mapa-leyenda">
@@ -134,7 +143,8 @@
           <i class="fa-solid fa-circle-info"></i>
           Detalle del Incidente
         </div>
-        <button (click)="cerrarPanel()" class="btn-cerrar-panel" title="Cerrar panel">
+        <button (click)="cerrarPanel()" class="btn-cerrar-panel" title="Cerrar panel"
+                aria-label="Cerrar panel de detalle">
           <i class="fa-solid fa-xmark"></i>
         </button>
       </div>

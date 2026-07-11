@@ -46,13 +46,19 @@ export class MapaService {
 
   /**
    * Retorna los incidentes activos con coordenadas válidas para el mapa.
-   * @param sitioGraba  Opcional — si se omite, el backend lo resuelve desde el JWT.
-   * @param canalCodigo Opcional — filtra por canal de atención (0 = todos).
+   * @param sitioGraba    Opcional — si se omite, el backend lo resuelve desde el JWT.
+   * @param canalCodigo   Opcional — filtra por canal de atención (0 = todos).
+   * @param canalFuerzaId Obligatorio cuando canalCodigo &gt; 0: cad_canales.codigo no es
+   *   único por sí solo (cada fuerza numera sus canales desde 1); sin este parámetro el
+   *   backend devolvería incidentes de cualquier fuerza que reutilice ese mismo código.
    */
-  getIncidentesActivos(sitioGraba?: number, canalCodigo?: number): Observable<DtoMapaIncidente[]> {
+  getIncidentesActivos(
+    sitioGraba?: number, canalCodigo?: number, canalFuerzaId?: number
+  ): Observable<DtoMapaIncidente[]> {
     let params = new HttpParams();
-    if (sitioGraba   != null && sitioGraba   > 0) params = params.set('sitioGraba',  sitioGraba.toString());
-    if (canalCodigo  != null && canalCodigo  > 0) params = params.set('canalCodigo', canalCodigo.toString());
+    if (sitioGraba     != null && sitioGraba     > 0) params = params.set('sitioGraba',     sitioGraba.toString());
+    if (canalCodigo    != null && canalCodigo    > 0) params = params.set('canalCodigo',    canalCodigo.toString());
+    if (canalFuerzaId  != null && canalFuerzaId  > 0) params = params.set('canalFuerzaId',  canalFuerzaId.toString());
     return this.http.get<DtoMapaIncidente[]>(`${this.baseUrl}/incidentes`, { params });
   }
 }

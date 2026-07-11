@@ -26,9 +26,13 @@ namespace Datos.Gestion
         // Esto evita que la conexión espere indefinidamente cuando el CAD está degradado.
         private const int DbTimeoutSeconds = 12;
 
+        // Debe coincidir con el LIMIT de la consulta — usado para inferir si la
+        // lista fue truncada (llegar exactamente a este número es la señal).
+        private const int MaxIncidentes = 1000;
+
         /// <inheritdoc />
-        public async Task<List<DtoMapaIncidente>> GetIncidentesActivosAsync(
-            int sitioGraba, int canalCodigo, CancellationToken ct)
+        public async Task<(List<DtoMapaIncidente> Items, bool Truncated)> GetIncidentesActivosAsync(
+            int sitioGraba, int canalCodigo, int canalFuerzaId, CancellationToken ct)
         {
             var result = new List<DtoMapaIncidente>();
 
@@ -103,19 +107,19 @@ LEFT JOIN cad_canales cn
        ON cn.codigo      = e.canal_codigo
       AND cn.cadfuerz_id = e.fuerza_id
 WHERE p.estado NOT IN ('C','V')
-  AND p.latitud_caso  IS NOT NULL
-  AND p.latitud_caso  <> ''
-  AND p.latitud_caso  <> '0'
-  AND p.longitud_caso IS NOT NULL
-  AND p.longitud_caso <> ''
-  AND p.longitud_caso <> '0'
+  AND p.latitud_caso  ~ '^-?[0-9]+\.?[0-9]*$'
+  AND p.longitud_caso ~ '^-?[0-9]+\.?[0-9]*$'
+  AND p.latitud_caso::NUMERIC  <> 0
+  AND p.longitud_caso::NUMERIC <> 0
   {(sitioGraba   > 0 ? "AND p.sitio_graba   = @sitio"  : "")}
   {(canalCodigo  > 0 ? "AND e.canal_codigo  = @canal"  : "")}
+  {(canalCodigo  > 0 && canalFuerzaId > 0 ? "AND e.fuerza_id = @canalFuerza" : "")}
 ORDER BY p.hora_caso DESC
-LIMIT 1000";
+LIMIT {MaxIncidentes}";
 
                 if (sitioGraba  > 0) cmd.Parameters.AddWithValue("sitio", sitioGraba);
                 if (canalCodigo > 0) cmd.Parameters.AddWithValue("canal", canalCodigo);
+                if (canalCodigo > 0 && canalFuerzaId > 0) cmd.Parameters.AddWithValue("canalFuerza", canalFuerzaId);
 
                 await using var reader = await cmd.ExecuteReaderAsync(queryCt);
                 while (await reader.ReadAsync(queryCt))
@@ -170,7 +174,7 @@ LIMIT 1000";
                 _logger.LogError(ex, "[Mapa] Error consultando incidentes activos (sitioGraba={Sitio})", sitioGraba);
             }
 
-            return result;
+            return (result, result.Count >= MaxIncidentes);
         }
     }
 }

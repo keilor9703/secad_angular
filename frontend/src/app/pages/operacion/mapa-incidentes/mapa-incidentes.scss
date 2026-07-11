@@ -159,6 +159,22 @@ $radius:         6px;
   z-index: 1;
 }
 
+.mapa-no-disponible {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: #f0f2f5;
+  color: #721c24;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: center;
+  padding: 20px;
+}
+
 // ── Leyenda flotante ──────────────────────────────────────────────────────────
 
 .mapa-leyenda {
@@ -561,4 +577,85 @@ $radius:         6px;
   &.badge-revision    { background: #f8d7da; color: #721c24; }
   &.badge-cerrado     { background: #d6d8db; color: #383d41; }
   &.badge-default     { background: #eee;    color: #333;    }
+}
+
+// ══════════════════════════════════════════════════════════════
+//  DARK MODE  (html.dark-mode, NOT :host-context)
+// ══════════════════════════════════════════════════════════════
+// Antes este archivo no tenía ningún override de modo oscuro — a diferencia
+// de las demás páginas de Operación, quedaba con fondo/texto claros fijos
+// (ilegible o con salto visual brusco cuando el resto del layout oscurece).
+
+html.dark-mode {
+  .mapa-wrapper { background: var(--ui-bg); }
+
+  .mapa-no-disponible {
+    background: var(--ui-bg);
+    color: #f5b5bb;
+  }
+
+  .mapa-leyenda {
+    background: rgba(30,40,64,0.95);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+
+    .leyenda-titulo { color: var(--ui-text-muted); }
+    .leyenda-item   { color: var(--ui-text); }
+  }
+
+  .panel-detalle { background: var(--ui-surface); box-shadow: -4px 0 16px rgba(0,0,0,0.4); }
+
+  .detalle-seccion {
+    border-bottom-color: var(--ui-border);
+
+    .detalle-label { color: var(--ui-text-muted); }
+
+    .detalle-valor {
+      color: var(--ui-text);
+      &.secondary { color: var(--ui-text-muted); }
+      &.coords    { color: var(--ui-text-muted); }
+    }
+  }
+
+  .detalle-chip { background: rgba(255,255,255,0.10); color: #8ec7ff; }
+
+  .detalle-seccion.trazabilidad {
+    background: rgba(255,255,255,0.04);
+    border-color: var(--ui-border);
+    .detalle-label { color: #8ec7ff; }
+  }
+
+  .id-item {
+    .id-label { color: var(--ui-text-muted); }
+    .id-valor {
+      background: var(--ui-bg);
+      border-color: var(--ui-border);
+      color: var(--ui-text);
+    }
+  }
+
+  .mapa-lista {
+    background: var(--ui-surface);
+    border-top-color: var(--ui-border);
+
+    .lista-header {
+      background: rgba(255,255,255,0.03);
+      border-bottom-color: var(--ui-border);
+      color: var(--ui-text-muted);
+      .lista-conteo { color: var(--ui-text-muted); opacity: .7; }
+    }
+
+    .lista-vacia { color: var(--ui-text-muted); }
+  }
+
+  .lista-card {
+    background: var(--ui-surface);
+    border-color: var(--ui-border);
+
+    &:hover   { border-color: var(--policia-acento, #08a6cb); }
+    &.seleccionado { box-shadow: 0 0 0 2px rgba(8,166,203,0.3); }
+
+    .card-desc { color: var(--ui-text); }
+    .card-dir  { color: var(--ui-text-muted); i { color: var(--ui-text-muted); } }
+    .card-footer { color: var(--ui-text-muted); }
+  }
 }
