@@ -849,7 +849,7 @@ export class PedidoComponent implements OnInit, OnDestroy {
 
   getOrigenLabel(origen: string): string {
     const map: Record<string, string> = {
-      'CTI':         'Llamada 112/123',
+      'PLANTATEL':   'Llamada 112/123',
       'RECEPCION':   'Recepción telefónica',
       'RADIO':       'Radio policial',
       'CAMPO':       'Reporte de campo',

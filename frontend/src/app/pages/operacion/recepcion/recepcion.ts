@@ -128,7 +128,7 @@ export class RecepcionComponent implements OnInit, AfterViewInit, OnDestroy {
   private buscar2$ = new Subject<string>();
   private destroy$ = new Subject<void>();
   private pollTimer: any = null;
-  /** Marca de tiempo del último poll CTI exitoso — indicador de salud de la conexión. */
+  /** Marca de tiempo del último poll PlantaTel exitoso — indicador de salud de la conexión. */
   ultimoPollExitoso: Date | null = null;
   /** true tras ngOnDestroy — guarda contra fetch() nativos (sin takeUntil) que
    *  resuelven después de navegar fuera del componente. */
@@ -225,7 +225,7 @@ export class RecepcionComponent implements OnInit, AfterViewInit, OnDestroy {
       .pipe(debounceTime(800), takeUntil(this.destroy$))
       .subscribe(() => this.ejecutarBusquedaDuplicados());
 
-    // Indicador de salud CTI: re-renderiza el badge cada 5s para que "hace Xs"
+    // Indicador de salud PlantaTel: re-renderiza el badge cada 5s para que "hace Xs"
     // avance visualmente aunque no llegue ninguna llamada nueva. El polling en
     // sí (iniciarPollLlamada) era completamente invisible para el operador —
     // no había forma de distinguir "sin llamadas ahora mismo" de "el poll se
@@ -471,7 +471,7 @@ export class RecepcionComponent implements OnInit, AfterViewInit, OnDestroy {
       .catch(err => console.warn('[Mapa] Error cargando cuadrantes:', err));
   }
 
-  // ── Polling CTI ───────────────────────────────────────────────────────────
+  // ── Polling PlantaTel ────────────────────────────────────────────────────
 
   private iniciarPollLlamada(): void {
     if (this.llamadaEncontrada || this.txtNumeLlamada) return;
@@ -479,7 +479,7 @@ export class RecepcionComponent implements OnInit, AfterViewInit, OnDestroy {
     // una respuesta que llega después de navegar fuera de Recepción seguía
     // ejecutando el callback (incl. cdr.detectChanges() sobre vista destruida)
     // y volvía a programar un setTimeout que ngOnDestroy ya no podía cancelar,
-    // dejando un loop de polling CTI corriendo indefinidamente en background.
+    // dejando un loop de polling PlantaTel corriendo indefinidamente en background.
     this.svc.getLlamada()
       .pipe(takeUntil(this.destroy$))
       .subscribe({
@@ -506,7 +506,7 @@ export class RecepcionComponent implements OnInit, AfterViewInit, OnDestroy {
               this.dispararVerificacionDuplicados();  // §6.8
             }
             this.llamadaEncontrada = true;
-            this.canalOrigenUI     = 'TEL_123'; // llamada CTI → origen automático
+            this.canalOrigenUI     = 'TEL_123'; // llamada PlantaTel → origen automático
             this.ultimoPollExitoso = new Date();
             this.cdr.detectChanges();
           } else {
@@ -999,13 +999,13 @@ get gruposCanalesOrdenados() {
 
 
   
-  // ── Indicador de salud de conexión CTI ───────────────────────────────────
+  // ── Indicador de salud de conexión PlantaTel ─────────────────────────────
   // El polling corre en background cada 5s sin ninguna señal visible para el
   // operador — si el backend empieza a fallar silenciosamente, nadie lo nota
   // hasta que una llamada real "no llega". Este indicador da visibilidad real
   // sobre un mecanismo que hasta ahora era una caja negra.
 
-  get ctiEstado(): 'ok' | 'demorado' | 'inactivo' {
+  get plantaTelEstado(): 'ok' | 'demorado' | 'inactivo' {
     if (this.llamadaEncontrada) return 'ok';   // hay una llamada activa en pantalla
     if (!this.ultimoPollExitoso) return 'inactivo';
     const segs = (Date.now() - this.ultimoPollExitoso.getTime()) / 1000;
@@ -1014,11 +1014,11 @@ get gruposCanalesOrdenados() {
     return 'inactivo';
   }
 
-  get ctiEstadoLabel(): string {
+  get plantaTelEstadoLabel(): string {
     if (this.llamadaEncontrada) return 'Llamada en pantalla';
     if (!this.ultimoPollExitoso) return 'Conectando…';
     const segs = Math.floor((Date.now() - this.ultimoPollExitoso.getTime()) / 1000);
-    if (segs < 8)  return 'CTI activo';
+    if (segs < 8)  return 'PlantaTel activo';
     if (segs < 60) return `Última respuesta hace ${segs}s`;
     return `Sin respuesta hace ${Math.floor(segs / 60)} min`;
   }
@@ -1029,7 +1029,7 @@ get gruposCanalesOrdenados() {
 
   private mapCanalOrigen(canal: string): OrigenEvento {
     switch (canal) {
-      case 'TEL_123':     return 'CTI';
+      case 'TEL_123':     return 'PLANTATEL';
       case 'TEL_DIRECTO': return 'RECEPCION';
       case 'RADIO':       return 'INTERNO';
       case 'CAMPO':       return 'INTERNO';

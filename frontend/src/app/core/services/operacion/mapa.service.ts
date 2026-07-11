@@ -26,7 +26,7 @@ export interface DtoMapaIncidente {
   totalActuaciones: number;
   codDane: string;
   // ── Trazabilidad ──────────────────────────────────────────────────────────
-  /** Número de llamada CTI (cad_pedidos.nume_llamada). */
+  /** Número de llamada PlantaTel (cad_pedidos.nume_llamada). */
   numeLlamada: number | null;
   /** Snowflake ID del evento de despacho (cad_eventos.id). */
   numeEvento: string | null;

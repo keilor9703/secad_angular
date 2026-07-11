@@ -1,16 +1,16 @@
 using Npgsql;
 
 // ════════════════════════════════════════════════════════════════════════
-// Edge CTI Service — Nivel 3 (Offline)
+// Edge PlantaTel Service — Nivel 3 (Offline)
 //
 // Microservicio mínimo desplegado en la sede local de cada CAD. Recibe el
-// mismo payload que api/RecepcionExterna/cti del backend central, pero
+// mismo payload que api/RecepcionExterna/plantatel del backend central, pero
 // escribe directo en la BD PostgreSQL local (réplica promovida a primaria
 // durante el corte de WAN), sin depender de la resolución de tenant ni del
 // resto del backend central.
 //
 // La PBX debe apuntar aquí SOLO como destino de fallback cuando
-// https://secad.polired.gov.co no responde (ver docs/CTI_PBX_INTEGRACION.md).
+// https://secad.polired.gov.co no responde (ver docs/PLANTATEL_PBX_INTEGRACION.md).
 //
 // Fuera de alcance de este servicio: promoción de réplica, reconciliación
 // con la BD central al restaurar el enlace. Ver
@@ -25,12 +25,12 @@ builder.Services.AddSingleton(NpgsqlDataSource.Create(connectionString));
 
 var app = builder.Build();
 
-var apiKey            = app.Configuration["EdgeCti:ApiKey"] ?? "";
-var sitioGrabaDefault = app.Configuration.GetValue<int>("EdgeCti:SitioGraba");
+var apiKey            = app.Configuration["EdgePlantaTel:ApiKey"] ?? "";
+var sitioGrabaDefault = app.Configuration.GetValue<int>("EdgePlantaTel:SitioGraba");
 
 app.MapGet("/health", () => Results.Ok(new { status = "ok", modo = "edge-offline" }));
 
-app.MapPost("/api/cti", async (CtiEntradaRequest req, NpgsqlDataSource db, HttpContext ctx) =>
+app.MapPost("/api/plantatel", async (PlantaTelEntradaRequest req, NpgsqlDataSource db, HttpContext ctx) =>
 {
     if (string.IsNullOrWhiteSpace(apiKey))
         return Results.Json(new { success = false, message = "Servicio edge no configurado." }, statusCode: 503);
@@ -53,7 +53,7 @@ app.MapPost("/api/cti", async (CtiEntradaRequest req, NpgsqlDataSource db, HttpC
     await using var conn = await db.OpenConnectionAsync(ctx.RequestAborted);
     await using var cmd  = conn.CreateCommand();
     cmd.CommandText = @"
-        INSERT INTO cad_interfaz_cti (sitio_graba, acd, nume_telefono, registrada, fecha_registro)
+        INSERT INTO cad_plantatel (sitio_graba, acd, nume_telefono, registrada, fecha_registro)
         VALUES (@sg, @acd, @tel, 'N', NOW())
         RETURNING id";
     cmd.Parameters.AddWithValue("sg",  sitioGraba);
@@ -65,11 +65,11 @@ app.MapPost("/api/cti", async (CtiEntradaRequest req, NpgsqlDataSource db, HttpC
     return Results.Ok(new
     {
         success = true,
-        message = "Llamada CTI registrada en el nodo edge (modo offline).",
+        message = "Llamada PlantaTel registrada en el nodo edge (modo offline).",
         id      = id.ToString()
     });
 });
 
 app.Run();
 
-record CtiEntradaRequest(string Acd, string NumTelefono, int SitioGraba);
+record PlantaTelEntradaRequest(string Acd, string NumTelefono, int SitioGraba);

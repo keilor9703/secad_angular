@@ -12,7 +12,7 @@
 
 | Req. | Módulo | Detalle |
 |------|--------|---------|
-| 6.7 parcial | **Recepción CTI** | Integración centralita, formulario estructurado, ID Snowflake, multi-canal recepción |
+| 6.7 parcial | **Recepción PlantaTel** | Integración centralita, formulario estructurado, ID Snowflake, multi-canal recepción |
 | 6.11 parcial | **Módulo Eventos/Despacho** | Cola por canal, semáforo SLA configurable, actuaciones, lifecycle |
 | 6.17 | **Asistente Inteligente** | Preguntas orientadoras automáticas al tipificar + relato narrativo natural |
 | 6.15 | **Anotaciones de turno** | Novedades, comunicados, actividades durante el turno |
@@ -144,7 +144,7 @@
 
 ### F3.5 — ELS/AML localización del llamante (Req. 6.8)
 - [ ] Integrar con operadores móviles para coordenadas ELS (Google) y AML (ETSI/EENA)
-- [ ] Visualización automática en capa GIS al recibir llamada CTI
+- [ ] Visualización automática en capa GIS al recibir llamada PlantaTel
 - [ ] Sin requerir app adicional ni datos activos del usuario
 - [ ] *(Condicionado a acuerdos Policía Nacional ↔ operadores móviles)*
 
@@ -172,7 +172,7 @@
 - [ ] Skills-based routing: asignar llamadas según habilidades del operador
 - [ ] Estados de agente configurables: Disponible, Ocupado, Pausa, Desconectado
 - [ ] Grabación de llamadas con trazabilidad al ID de incidente
-- [ ] Integración CTI/SIP mejorada
+- [ ] Integración PlantaTel/SIP mejorada
 - [ ] Monitoreo: tablero supervisor en tiempo real
 
 ### F4.3 — Analítica ETL/DWH nacional (Req. 5.1)

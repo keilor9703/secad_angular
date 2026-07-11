@@ -35,7 +35,7 @@ export interface DtoEventoListItem {
    */
   fechaPrimerAcceso: string | null;
   /**
-   * Canal de origen del evento (CTI, RECEPCION, APP_MOVIL, INTEGRACION, SIEDCO, INTERNO, MANUAL).
+   * Canal de origen del evento (PLANTATEL, RECEPCION, APP_MOVIL, INTEGRACION, SIEDCO, INTERNO, MANUAL).
    * Proviene de cad_eventos.origen. Valor por defecto "MANUAL" cuando es NULL en BD.
    */
   origen?: string;

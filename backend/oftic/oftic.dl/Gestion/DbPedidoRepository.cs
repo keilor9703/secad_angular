@@ -1249,7 +1249,7 @@ ORDER BY f.descripcion, c.codigo";
             TotalActuacionesActivas  = r.IsDBNull(18) ? 0    : r.GetInt32(18),
             // col 19: cad_eventos.id — el número oficial del evento para el despachador
             NumeEvento               = r.IsDBNull(19) ? null : r.GetInt64(19),
-            // col 20: cad_eventos.origen — canal de origen (CTI, RECEPCION, MANUAL, etc.)
+            // col 20: cad_eventos.origen — canal de origen (PLANTATEL, RECEPCION, MANUAL, etc.)
             Origen                   = r.IsDBNull(20) ? "MANUAL" : r.GetString(20),
             // col 21: nombre del llamante / afectado (cad_pedidos.nomb_llamante)
             NombLlamante             = r.IsDBNull(21) ? "" : r.GetString(21)

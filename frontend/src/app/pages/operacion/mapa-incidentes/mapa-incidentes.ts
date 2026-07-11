@@ -598,7 +598,7 @@ export class MapaIncidentesComponent implements OnInit, AfterViewInit, OnDestroy
 
   labelOrigen(origen: string): string {
     const map: Record<string, string> = {
-      CTI:        'Llamada CTI',
+      PLANTATEL:  'Llamada PlantaTel',
       RECEPCION:  'Recepción',
       APP_MOVIL:  'App Móvil',
       INTEGRACION:'Integración',

@@ -2,7 +2,7 @@ using System.Text.Json.Serialization;
 
 namespace Comun.Dtos.Recepcion
 {
-    // ── Incoming telephony event (from CTI interface) ───────────────────────────
+    // ── Incoming telephony event (from PlantaTel interface) ─────────────────────
     // IMPORTANTE: todas las propiedades llevan [JsonPropertyName] explícito con su
     // nombre literal en mayúsculas. Program.cs configura PropertyNamingPolicy =
     // JsonNamingPolicy.CamelCase globalmente, que SÍ transforma nombres ya en
@@ -160,8 +160,8 @@ namespace Comun.Dtos.Recepcion
         public string ENVIAR         { get; set; } = "N";
         /// <summary>
         /// Origen del evento a registrar en cad_eventos.
-        /// Valores: CTI | RECEPCION | APP_MOVIL | INTEGRACION | SIEDCO | INTERNO | MANUAL.
-        /// El frontend envía "CTI" cuando la llamada llega de la centralita,
+        /// Valores: PLANTATEL | RECEPCION | APP_MOVIL | INTEGRACION | SIEDCO | INTERNO | MANUAL.
+        /// El frontend envía "PLANTATEL" cuando la llamada llega de la centralita,
         /// "RECEPCION" cuando el operador la digita manualmente.
         /// </summary>
         public string Origen         { get; set; } = "RECEPCION";

@@ -55,7 +55,7 @@ namespace Comun.Dtos.Mapa
         /// <summary>Nombre de usuario del operador que creó el incidente.</summary>
         public string UsernameCreacion { get; set; } = "";
 
-        /// <summary>Canal de origen: CTI, RECEPCION, APP_MOVIL, INTEGRACION, INTERNO, MANUAL.</summary>
+        /// <summary>Canal de origen: PLANTATEL, RECEPCION, APP_MOVIL, INTEGRACION, INTERNO, MANUAL.</summary>
         public string Origen { get; set; } = "";
 
         /// <summary>Número de actuaciones activas (patrullas despachadas).</summary>
@@ -67,8 +67,8 @@ namespace Comun.Dtos.Mapa
         // ── Identificadores para trazabilidad ─────────────────────────────────
 
         /// <summary>
-        /// Número de llamada CTI (cad_pedidos.nume_llamada).
-        /// Puede ser NULL si el pedido se creó sin llamada CTI activa.
+        /// Número de llamada PlantaTel (cad_pedidos.nume_llamada).
+        /// Puede ser NULL si el pedido se creó sin llamada PlantaTel activa.
         /// </summary>
         public long? NumeLlamada { get; set; }
 

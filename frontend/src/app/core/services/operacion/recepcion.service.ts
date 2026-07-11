@@ -5,7 +5,7 @@ import { environment } from '../../../../environments/environment';
 
 // ─── Constantes de origen (deben coincidir con el CHECK en cad_eventos.origen) ─
 export const ORIGEN_EVENTO = {
-  CTI:         'CTI',
+  PLANTATEL:   'PLANTATEL',
   RECEPCION:   'RECEPCION',
   APP_MOVIL:   'APP_MOVIL',
   INTEGRACION: 'INTEGRACION',
@@ -120,7 +120,7 @@ export interface DtoRecepcion {
   OPERADOR:             string;
   ESTADO:               string;
   ENVIAR:               string;
-  /** Origen del evento a registrar. Por defecto 'RECEPCION'; usar 'CTI' si la
+  /** Origen del evento a registrar. Por defecto 'RECEPCION'; usar 'PLANTATEL' si la
    *  llamada llega de la centralita telefónica, 'APP_MOVIL', etc. */
   Origen:               OrigenEvento;
   CANALES_SELECCIONADOS: DtoCanalSeleccionado[];
@@ -280,7 +280,7 @@ export class RecepcionService {
 
   constructor(private http: HttpClient) {}
 
-  // ── CTI / Incoming call ──────────────────────────────────────────────────────
+  // ── PlantaTel / Incoming call ────────────────────────────────────────────────
 
   /** Poll para llamada entrante desde centralita */
   getLlamada(): Observable<RecepcionApiResponse<DtoLlamadaEntrante | null>> {

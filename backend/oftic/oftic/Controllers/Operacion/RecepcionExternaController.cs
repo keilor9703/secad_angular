@@ -240,15 +240,15 @@ namespace Api.Controllers.Operacion
             }
         }
 
-        // ── POST api/RecepcionExterna/cti ─────────────────────────────────────────
+        // ── POST api/RecepcionExterna/plantatel ───────────────────────────────────
         /// <summary>
         /// Recibe el evento de una llamada entrante desde la centralita telefónica (PBX)
-        /// y lo registra en cad_interfaz_cti. El operador ya lo recibe vía el polling
+        /// y lo registra en cad_plantatel. El operador ya lo recibe vía el polling
         /// existente (GET api/Recepcion/llamada), sin cambios en ese flujo.
         /// </summary>
-        [HttpPost("cti")]
-        public async Task<IActionResult> RecibirLlamadaCTI(
-            [FromBody] DtoCtiEntrada dto,
+        [HttpPost("plantatel")]
+        public async Task<IActionResult> RecibirLlamadaPlantaTel(
+            [FromBody] DtoPlantaTelEntrada dto,
             CancellationToken ct)
         {
             var keyError = ValidarApiKey();
@@ -266,7 +266,7 @@ namespace Api.Controllers.Operacion
 
             try
             {
-                var result = await _recepcionSvc.P_RegistrarLlamadaCtiAsync(
+                var result = await _recepcionSvc.P_RegistrarLlamadaPlantaTelAsync(
                     dto.SitioGraba, acd, numeTelefono, ct);
 
                 if (!result.Success)
@@ -276,8 +276,8 @@ namespace Api.Controllers.Operacion
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "RecibirLlamadaCTI error sitioGraba={Sg} acd={Acd}", dto.SitioGraba, dto.Acd);
-                return StatusCode(500, new { success = false, message = "Error interno registrando la llamada CTI." });
+                _logger.LogError(ex, "RecibirLlamadaPlantaTel error sitioGraba={Sg} acd={Acd}", dto.SitioGraba, dto.Acd);
+                return StatusCode(500, new { success = false, message = "Error interno registrando la llamada PlantaTel." });
             }
         }
     }

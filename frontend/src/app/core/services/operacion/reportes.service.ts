@@ -282,7 +282,7 @@ export class ReportesService {
 
   origenLabel(origen: string): string {
     const map: Record<string, string> = {
-      CTI: 'Línea 123/112', RECEPCION: 'Recepción', APP_MOVIL: 'App Móvil',
+      PLANTATEL: 'Línea 123/112', RECEPCION: 'Recepción', APP_MOVIL: 'App Móvil',
       INTEGRACION: 'Integración', SIEDCO: 'SIEDCO', INTERNO: 'Interno',
       MANUAL: 'Manual', CHAT: 'Chat', SMS: 'SMS', SIN_ORIGEN: 'Sin origen'
     };
@@ -291,7 +291,7 @@ export class ReportesService {
 
   origenColor(origen: string): string {
     const map: Record<string, string> = {
-      CTI: '#08a6cb', RECEPCION: '#6366f1', APP_MOVIL: '#10b981',
+      PLANTATEL: '#08a6cb', RECEPCION: '#6366f1', APP_MOVIL: '#10b981',
       INTEGRACION: '#f59e0b', SIEDCO: '#8b5cf6', INTERNO: '#64748b',
       MANUAL: '#94a3b8', CHAT: '#22c55e', SMS: '#3b82f6', SIN_ORIGEN: '#e5e7eb'
     };

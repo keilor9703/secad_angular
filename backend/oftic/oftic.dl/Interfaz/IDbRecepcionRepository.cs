@@ -5,12 +5,12 @@ namespace Datos.Interfaz
 {
     public interface IDbRecepcionRepository
     {
-        // ── CTI / Incoming call ─────────────────────────────────────────────────
-        /// <summary>Poll CTI interface for an unregistered incoming call.</summary>
+        // ── PlantaTel / Incoming call ────────────────────────────────────────────
+        /// <summary>Poll the PlantaTel interface for an unregistered incoming call.</summary>
         Task<DtoLlamadaEntrante?> F_GetLlamadasAsync(int sitioGraba, int acd, CancellationToken ct);
 
-        /// <summary>Insert an incoming call event from the PBX into cad_interfaz_cti.</summary>
-        Task<DtoCtiEntradaResult> P_RegistrarLlamadaCtiAsync(
+        /// <summary>Insert an incoming call event from the PBX into cad_plantatel.</summary>
+        Task<DtoPlantaTelEntradaResult> P_RegistrarLlamadaPlantaTelAsync(
             int sitioGraba, int acd, long numeTelefono, CancellationToken ct);
 
         /// <summary>Get the next call-sequence Snowflake ID (no DB round-trip).</summary>

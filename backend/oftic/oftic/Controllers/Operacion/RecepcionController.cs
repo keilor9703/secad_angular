@@ -42,7 +42,7 @@ namespace Api.Controllers.Operacion
             HttpContext.Connection.RemoteIpAddress?.ToString() ?? Environment.MachineName ?? "N/A";
 
         // ════════════════════════════════════════════════════════════════════════
-        // CTI / INCOMING CALL
+        // PLANTATEL / INCOMING CALL
         // GET api/Recepcion/llamada
         // ════════════════════════════════════════════════════════════════════════
         [HttpGet("llamada")]

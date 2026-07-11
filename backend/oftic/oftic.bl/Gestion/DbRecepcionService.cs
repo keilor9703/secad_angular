@@ -14,13 +14,13 @@ namespace Negocio.Gestion
             _repo = repo;
         }
 
-        // ── CTI / Incoming call ─────────────────────────────────────────────────
+        // ── PlantaTel / Incoming call ────────────────────────────────────────────
         public Task<DtoLlamadaEntrante?> F_GetLlamadasAsync(int sitioGraba, int acd, CancellationToken ct)
             => _repo.F_GetLlamadasAsync(sitioGraba, acd, ct);
 
-        public Task<DtoCtiEntradaResult> P_RegistrarLlamadaCtiAsync(
+        public Task<DtoPlantaTelEntradaResult> P_RegistrarLlamadaPlantaTelAsync(
             int sitioGraba, int acd, long numeTelefono, CancellationToken ct)
-            => _repo.P_RegistrarLlamadaCtiAsync(sitioGraba, acd, numeTelefono, ct);
+            => _repo.P_RegistrarLlamadaPlantaTelAsync(sitioGraba, acd, numeTelefono, ct);
 
         public Task<long> F_ConsultarSeqPedidoAsync(CancellationToken ct)
             => _repo.F_ConsultarSeqPedidoAsync(ct);

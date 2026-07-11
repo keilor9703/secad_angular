@@ -1,9 +1,9 @@
-# Integración CTI — PBX → SECAD
+# Integración PlantaTel — PBX → SECAD
 
 Implementa la recepción de llamadas entrantes desde la centralita telefónica
-(PBX) de cada CAD, reemplazando la integración local antigua (`localhost`)
-por un endpoint centralizado multi-tenant en Bogotá, con un microservicio
-edge como respaldo cuando no hay conectividad WAN.
+(PBX/PlantaTel) de cada CAD, reemplazando la integración local antigua
+(`localhost`) por un endpoint centralizado multi-tenant en Bogotá, con un
+microservicio edge como respaldo cuando no hay conectividad WAN.
 
 ## Los 3 niveles de operación
 
@@ -11,7 +11,7 @@ edge como respaldo cuando no hay conectividad WAN.
 Nivel 1 — Normal
   PBX Cali → HTTPS + X-Cod-Dane: 11001 → API Central Bogotá
            → TenantMiddleware → BD Cali (Bogotá)
-           → cad_interfaz_cti (BD Cali)
+           → cad_plantatel (BD Cali)
            → Operador Cali hace polling → ve la llamada
 
 Nivel 2 — Degradado (WAN lenta)
@@ -21,20 +21,21 @@ Nivel 2 — Degradado (WAN lenta)
 
 Nivel 3 — Offline (sin WAN)
   PBX Cali → HTTPS a Bogotá FALLA → fallback → microservicio edge local
-           → cad_interfaz_cti (BD local)
+           → cad_plantatel (BD local)
            → Operador Cali hace polling (BD local) → ve la llamada
   ⚠️ Pendiente: reconciliación automática al restaurar la WAN.
   Ver backend/docs/RESILIENCIA_ESTADO_ACTUAL.md (Componente C).
 ```
 
-Este documento cubre lo que ya está implementado: el **endpoint CTI** (Nivel
-1) y el **microservicio edge** que recibe el mismo payload cuando la PBX no
-alcanza a Bogotá (Nivel 3, solo la escritura — ver limitaciones abajo).
+Este documento cubre lo que ya está implementado: el **endpoint PlantaTel**
+(Nivel 1) y el **microservicio edge** que recibe el mismo payload cuando la
+PBX no alcanza a Bogotá (Nivel 3, solo la escritura — ver limitaciones
+abajo).
 
-## 1. Endpoint CTI en el backend central
+## 1. Endpoint PlantaTel en el backend central
 
 ```
-POST /api/RecepcionExterna/cti
+POST /api/RecepcionExterna/plantatel
 ```
 
 Implementado en
@@ -69,11 +70,12 @@ tenant por `X-Cod-Dane` (vía `TenantMiddleware`, ya existente — sin cambios).
 **Respuesta:**
 
 ```json
-{ "success": true, "message": "Llamada CTI registrada.", "id": "123" }
+{ "success": true, "message": "Llamada PlantaTel registrada.", "id": "123" }
 ```
 
-El endpoint inserta directamente en `cad_interfaz_cti` (tabla ya existente
-desde `V4__reception_tables.sql`) del tenant resuelto por `X-Cod-Dane`. No
+El endpoint inserta directamente en `cad_plantatel` (tabla ya existente
+desde `V4__reception_tables.sql`, renombrada de `cad_interfaz_cti` en
+`V38__rename_cti_a_plantatel.sql`) del tenant resuelto por `X-Cod-Dane`. No
 crea un `cad_pedidos` — esa tabla es solo el buzón de llamadas entrantes que
 el operador consume por polling.
 
@@ -84,9 +86,15 @@ desde la consola de administración de la PBX (Cisco, Avaya, Asterisk, etc.):
 
 | | Antes | Después |
 |---|---|---|
-| URL destino | `http://192.168.1.10/api/cti` (IP local) | `https://secad.polired.gov.co/api/RecepcionExterna/cti` |
+| URL destino | `http://192.168.1.10/api/cti` (IP local) | `https://secad.polired.gov.co/api/RecepcionExterna/plantatel` |
 | Autenticación | Ninguna (localhost) | `X-Api-Key` + `X-Cod-Dane` |
-| Fallback | N/A | `http://<ip-edge-local>:8081/api/cti` (ver microservicio edge) |
+| Fallback | N/A | `http://<ip-edge-local>:8081/api/plantatel` (ver microservicio edge) |
+
+**Importante:** la ruta cambió de `/api/RecepcionExterna/cti` a
+`/api/RecepcionExterna/plantatel` (renombrada por completo, sin alias de
+compatibilidad) — cada PBX ya configurada con la URL antigua debe
+actualizarse a la vez que se despliega este cambio, o dejará de registrar
+llamadas entrantes.
 
 La `X-Api-Key` se gestiona hoy como una clave compartida en
 `appsettings.json` del backend (`RecepcionExterna:ApiKey`) — igual que Chat
@@ -100,14 +108,14 @@ extensión de `DtoTenant`/`secad_tenants` que hoy no existe.
 `sitio_graba`, `acd` y `registrada = 'N'` usando los claims del JWT del
 operador (`sitio_graba`, `acd`) y el tenant resuelto por `TenantMiddleware`
 a partir del `cod_dane` del JWT. El aislamiento multi-tenant ya lo garantiza
-el middleware existente — el nuevo endpoint CTI solo agrega filas a la
+el middleware existente — el endpoint PlantaTel solo agrega filas a la
 misma tabla que este flujo ya consume.
 
 ## 4. Microservicio edge (Nivel 3 — Offline)
 
-Ver [`backend/edge-cti-service/README.md`](../backend/edge-cti-service/README.md)
+Ver [`backend/edge-plantatel-service/README.md`](../backend/edge-plantatel-service/README.md)
 para el detalle completo. En resumen: un servicio standalone con el mismo
-contrato (`POST /api/cti`), pensado como destino de fallback de la PBX
+contrato (`POST /api/plantatel`), pensado como destino de fallback de la PBX
 cuando `secad.polired.gov.co` no responde. Escribe en una BD PostgreSQL
 local — **no** resuelve tenant ni depende del backend central.
 

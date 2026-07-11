@@ -562,7 +562,7 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
       e.codiPedido2?.toLowerCase().includes(q)           ||
       e.descPedido?.toLowerCase().includes(q)            ||
       // Identificadores numéricos
-      String(e.numeLlamada  ?? '').includes(q)           ||  // N° llamada CTI
+      String(e.numeLlamada  ?? '').includes(q)           ||  // N° llamada PlantaTel
       String(e.numeTelefono ?? '').includes(q)           ||  // Teléfono del llamante
       String(e.numeEvento   ?? '').includes(q)           ||  // ID del evento (Snowflake)
       String(e.id           ?? '').includes(q)           ||  // ID del pedido (Snowflake)

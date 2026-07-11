@@ -229,7 +229,7 @@ namespace Comun.Dtos.Incidentes
         public string    Ciudad                { get; set; } = string.Empty;
 
         /// <summary>
-        /// Canal de origen del evento (CTI, RECEPCION, APP_MOVIL, INTEGRACION, SIEDCO, INTERNO, MANUAL).
+        /// Canal de origen del evento (PLANTATEL, RECEPCION, APP_MOVIL, INTEGRACION, SIEDCO, INTERNO, MANUAL).
         /// Proviene de cad_eventos.origen vía JOIN. Valor por defecto "MANUAL" cuando es NULL.
         /// </summary>
         public string    Origen                { get; set; } = "MANUAL";

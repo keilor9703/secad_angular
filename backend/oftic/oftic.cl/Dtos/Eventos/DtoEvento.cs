@@ -8,7 +8,7 @@ namespace Comun.Dtos.Eventos;
 // ─────────────────────────────────────────────────────────────────────────────
 public static class OrigenEvento
 {
-    public const string Cti          = "CTI";
+    public const string PlantaTel    = "PLANTATEL";
     public const string Recepcion    = "RECEPCION";
     public const string AppMovil     = "APP_MOVIL";
     public const string Integracion  = "INTEGRACION";
