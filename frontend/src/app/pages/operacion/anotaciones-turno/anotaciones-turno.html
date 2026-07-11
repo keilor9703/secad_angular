@@ -71,7 +71,7 @@
           </div>
 
           <div class="anot-form-footer">
-            <button class="ui-btn neutral" type="button" (click)="cancelar()" *ngIf="modoEdicion">
+            <button class="ui-btn neutral" type="button" (click)="cancelar()" *ngIf="modoEdicion" [disabled]="guardando">
               <i class="fa-solid fa-xmark"></i> Cancelar
             </button>
             <button class="ui-btn primary" type="button" (click)="guardar()" [disabled]="guardando">
@@ -136,6 +136,11 @@
           <div class="anot-error" *ngIf="errorCarga && !cargando">
             <i class="fa-solid fa-circle-exclamation"></i> {{ errorCarga }}
           </div>
+          <div class="anot-warning" *ngIf="posibleTruncamiento && !cargando">
+            <i class="fa-solid fa-triangle-exclamation"></i>
+            Se muestran los 500 registros más recientes del rango — puede haber más.
+            Reduce el rango de fechas para verlos todos.
+          </div>
 
           <!-- Lista vacía -->
           <div class="anot-empty" *ngIf="!cargando && !errorCarga && anotacionesFiltradas.length === 0">
@@ -185,10 +190,10 @@
               </div>
 
               <div class="anot-card__actions">
-                <button class="ui-btn-icon" title="Editar" (click)="editar(a)">
+                <button class="ui-btn-icon" title="Editar" aria-label="Editar anotación" (click)="editar(a)">
                   <i class="fa-solid fa-pen-to-square"></i>
                 </button>
-                <button class="ui-btn-icon danger" title="Eliminar" (click)="solicitarEliminar(a)">
+                <button class="ui-btn-icon danger" title="Eliminar" aria-label="Eliminar anotación" (click)="solicitarEliminar(a)">
                   <i class="fa-solid fa-trash"></i>
                 </button>
               </div>

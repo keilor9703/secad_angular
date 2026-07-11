@@ -35,7 +35,7 @@ export class AnotacionesTurnoComponent implements OnInit {
 
   // ─── Formulario ──────────────────────────────────────────────────────────
   modoEdicion         = false;
-  editandoId: number | null = null;
+  editandoId: string | null = null;
   guardando           = false;
 
   form: AnotacionTurnoRequest = this.formVacio();
@@ -89,26 +89,39 @@ export class AnotacionesTurnoComponent implements OnInit {
   //  CARGAR
   // ────────────────────────────────────────────────────────────────────────
 
-  cargar(): void {
+  /**
+   * @param resetPage false preserva la página actual (usado tras crear/editar/
+   *   eliminar, para no sacar al operador de donde estaba trabajando).
+   */
+  cargar(resetPage = true): void {
     this.cargando  = true;
     this.errorCarga = '';
-    this.p = 1;
+    if (resetPage) this.p = 1;
 
     this.svc.getList({
-      canal: this.canalCodigo || undefined,
-      sitio: this.sitioGraba  || undefined,
-      desde: this.filtroDesde || undefined,
-      hasta: this.filtroHasta || undefined,
+      canal:  this.canalCodigo || undefined,
+      sitio:  this.sitioGraba  || undefined,
+      desde:  this.filtroDesde || undefined,
+      hasta:  this.filtroHasta || undefined,
+      fuerza: this.fuerzaId    || undefined,
     }).subscribe({
       next: (r) => {
         this.anotaciones = r.data ?? [];
         this.cargando    = false;
+        // La página pudo quedar fuera de rango (p. ej. se eliminó el único
+        // registro de la última página) — recortar en vez de dejarla vacía.
+        if (this.p > this.totalPages) this.p = this.totalPages;
       },
       error: () => {
         this.cargando  = false;
         this.errorCarga = 'No se pudo cargar la bitácora.';
       }
     });
+  }
+
+  /** true si la lista pudo haber sido truncada por el límite del backend (500 registros). */
+  get posibleTruncamiento(): boolean {
+    return this.anotaciones.length >= 500;
   }
 
   // ────────────────────────────────────────────────────────────────────────
@@ -142,7 +155,7 @@ export class AnotacionesTurnoComponent implements OnInit {
             r.message ?? 'Anotación guardada.'
           );
           this.cancelar();
-          this.cargar();
+          this.cargar(false);
         } else {
           this.toast.error('Error', r.message ?? 'No se pudo guardar.');
         }
@@ -200,7 +213,7 @@ export class AnotacionesTurnoComponent implements OnInit {
         this.itemAEliminar = null;
         if (r.success) {
           this.toast.success('Eliminada', 'La anotación fue eliminada.');
-          this.cargar();
+          this.cargar(false);
         } else {
           this.toast.error('Error', r.message ?? 'No se pudo eliminar.');
         }

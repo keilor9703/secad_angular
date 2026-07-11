@@ -4,7 +4,8 @@ import { Observable } from 'rxjs';
 import { environment } from '../../../../environments/environment';
 
 export interface AnotacionTurno {
-  id: number;
+  /** Snowflake ID — el backend lo serializa como string para evitar pérdida de precisión en JS. */
+  id: string;
   tipo: string;
   titulo?: string;
   descripcion: string;
@@ -50,13 +51,16 @@ export class AnotacionTurnoService {
     tipo?: string;
     desde?: string;
     hasta?: string;
+    /** Obligatorio salvo para super-admin — sin esto el backend restringe a la fuerza del JWT. */
+    fuerza?: number;
   }): Observable<{ success: boolean; data: AnotacionTurno[] }> {
     let params = new HttpParams();
-    if (filters.canal) params = params.set('canal', filters.canal);
-    if (filters.sitio) params = params.set('sitio', filters.sitio);
-    if (filters.tipo)  params = params.set('tipo',  filters.tipo);
-    if (filters.desde) params = params.set('desde', filters.desde);
-    if (filters.hasta) params = params.set('hasta', filters.hasta);
+    if (filters.canal)  params = params.set('canal',  filters.canal);
+    if (filters.sitio)  params = params.set('sitio',  filters.sitio);
+    if (filters.tipo)   params = params.set('tipo',   filters.tipo);
+    if (filters.desde)  params = params.set('desde',  filters.desde);
+    if (filters.hasta)  params = params.set('hasta',  filters.hasta);
+    if (filters.fuerza) params = params.set('fuerza', filters.fuerza);
     return this.http.get<{ success: boolean; data: AnotacionTurno[] }>(this.base, { params });
   }
 
@@ -64,11 +68,11 @@ export class AnotacionTurnoService {
     return this.http.post<{ success: boolean; data: AnotacionTurno; message: string }>(this.base, req);
   }
 
-  update(id: number, req: AnotacionTurnoRequest): Observable<{ success: boolean; message: string }> {
+  update(id: string, req: AnotacionTurnoRequest): Observable<{ success: boolean; message: string }> {
     return this.http.put<{ success: boolean; message: string }>(`${this.base}/${id}`, req);
   }
 
-  delete(id: number): Observable<{ success: boolean; message: string }> {
+  delete(id: string): Observable<{ success: boolean; message: string }> {
     return this.http.delete<{ success: boolean; message: string }>(`${this.base}/${id}`);
   }
 

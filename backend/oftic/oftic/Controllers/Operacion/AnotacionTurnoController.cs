@@ -29,6 +29,12 @@ namespace Api.Controllers.Operacion
             _logger = logger;
         }
 
+        /// <summary>Categorías válidas — ver comentario de columna en V16__anotaciones_turno.sql.</summary>
+        private static readonly HashSet<string> TiposValidos = new(StringComparer.OrdinalIgnoreCase)
+        {
+            "COMUNICADO", "REVISTA", "OPERATIVA", "PREVENTIVA", "NOVEDAD_PERSONAL", "GENERAL"
+        };
+
         // ─── GET /api/AnotacionTurno ─────────────────────────────────────────
         [HttpGet]
         public async Task<IActionResult> GetList(
@@ -37,9 +43,14 @@ namespace Api.Controllers.Operacion
             [FromQuery] string? tipo,
             [FromQuery] string? desde,
             [FromQuery] string? hasta,
+            [FromQuery] int?    fuerza,
             CancellationToken ct)
         {
-            var data = await _repo.GetListAsync(canal, sitio, tipo, desde, hasta, ct);
+            // La fuerza SIEMPRE se resuelve del JWT — solo un super-admin puede pasar
+            // una fuerza explícita distinta a la propia (evita fuga cross-fuerza).
+            var resolvedFuerza = IsAdmin() ? (fuerza ?? FuerzaIdClaim()) : FuerzaIdClaim();
+
+            var data = await _repo.GetListAsync(canal, sitio, tipo, desde, hasta, resolvedFuerza, ct);
             return Ok(new { success = true, data });
         }
 
@@ -47,7 +58,8 @@ namespace Api.Controllers.Operacion
         [HttpGet("{id:long}")]
         public async Task<IActionResult> GetById(long id, CancellationToken ct)
         {
-            var item = await _repo.GetByIdAsync(id, ct);
+            var resolvedFuerza = IsAdmin() ? 0 : FuerzaIdClaim();
+            var item = await _repo.GetByIdAsync(id, resolvedFuerza, ct);
             if (item is null) return NotFound(new { success = false, message = "No encontrada." });
             return Ok(new { success = true, data = item });
         }
@@ -60,9 +72,18 @@ namespace Api.Controllers.Operacion
         {
             if (string.IsNullOrWhiteSpace(request.Descripcion))
                 return BadRequest(new { success = false, message = "La descripción es requerida." });
+            if (!string.IsNullOrWhiteSpace(request.Tipo) && !TiposValidos.Contains(request.Tipo))
+                return BadRequest(new { success = false, message = $"Tipo inválido. Use: {string.Join(", ", TiposValidos)}." });
+            if (request.Titulo?.Length > 200)
+                return BadRequest(new { success = false, message = "El título no puede superar 200 caracteres." });
 
             var (idUsuario, username, nombreCompleto) = GetUserClaims();
             var maquina = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "API";
+
+            // fuerza_id NUNCA se toma del cliente — el esquema documenta que el
+            // contexto operativo se toma del JWT del usuario, y confiar en el body
+            // permite falsificar de qué fuerza es una anotación.
+            request.FuerzaId = FuerzaIdClaim();
 
             var created = await _repo.CreateAsync(
                 request, idUsuario, username, nombreCompleto, maquina, ct);
@@ -80,23 +101,30 @@ namespace Api.Controllers.Operacion
         {
             if (string.IsNullOrWhiteSpace(request.Descripcion))
                 return BadRequest(new { success = false, message = "La descripción es requerida." });
+            if (!string.IsNullOrWhiteSpace(request.Tipo) && !TiposValidos.Contains(request.Tipo))
+                return BadRequest(new { success = false, message = $"Tipo inválido. Use: {string.Join(", ", TiposValidos)}." });
+            if (request.Titulo?.Length > 200)
+                return BadRequest(new { success = false, message = "El título no puede superar 200 caracteres." });
 
             var (_, username, _) = GetUserClaims();
-            var ok = await _repo.UpdateAsync(id, request, username, ct);
+            // Solo el autor (username_creacion) o un super-admin pueden editar —
+            // ver comentario en IDbAnotacionTurnoRepository.DeleteAsync.
+            var ok = await _repo.UpdateAsync(id, request, username, IsAdmin(), ct);
 
             return ok
                 ? Ok(new { success = true, message = "Anotación actualizada." })
-                : NotFound(new { success = false, message = "Anotación no encontrada." });
+                : NotFound(new { success = false, message = "Anotación no encontrada o sin permiso para editarla." });
         }
 
         // ─── DELETE /api/AnotacionTurno/{id} ─────────────────────────────────
         [HttpDelete("{id:long}")]
         public async Task<IActionResult> Delete(long id, CancellationToken ct)
         {
-            var ok = await _repo.DeleteAsync(id, ct);
+            var (_, username, _) = GetUserClaims();
+            var ok = await _repo.DeleteAsync(id, username, IsAdmin(), ct);
             return ok
                 ? Ok(new { success = true, message = "Anotación eliminada." })
-                : NotFound(new { success = false, message = "Anotación no encontrada." });
+                : NotFound(new { success = false, message = "Anotación no encontrada o sin permiso para eliminarla." });
         }
 
         // ─── Helpers ─────────────────────────────────────────────────────────
@@ -113,5 +141,11 @@ namespace Api.Controllers.Operacion
                                     || c.Type == ClaimTypes.GivenName)?.Value ?? username;
             return (idUsuario, username, nombreCompleto);
         }
+
+        private int FuerzaIdClaim() =>
+            int.TryParse(User.FindFirstValue("fuerza_id"), out var v) ? v : 0;
+
+        private bool IsAdmin() =>
+            string.Equals(User.FindFirstValue("es_admin"), "true", StringComparison.OrdinalIgnoreCase);
     }
 }

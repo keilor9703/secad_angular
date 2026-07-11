@@ -36,6 +36,7 @@ namespace Datos.Gestion
             string?  tipo,
             string?  fechaDesde,
             string?  fechaHasta,
+            int      fuerzaId,
             CancellationToken ct)
         {
             var result = new List<DtoAnotacionTurno>();
@@ -64,11 +65,13 @@ FROM   cad_anotaciones_turno a
 -- misma anotación se duplica una vez por cada fuerza que comparte ese código).
 LEFT   JOIN cad_canales c ON c.codigo = a.canal_codigo AND c.cadfuerz_id = a.fuerza_id
 LEFT   JOIN cad_fuerzas f ON f.id     = a.fuerza_id
-WHERE  (@canal IS NULL OR a.canal_codigo = @canal)
-  AND  (@sitio IS NULL OR a.sitio_graba  = @sitio)
-  AND  (@tipo  IS NULL OR a.tipo         = @tipo)
-  AND  (@desde IS NULL OR (a.fecha_creacion AT TIME ZONE 'America/Bogota')::date >= @desde)
-  AND  (@hasta IS NULL OR (a.fecha_creacion AT TIME ZONE 'America/Bogota')::date <= @hasta)
+WHERE  a.vigente = 1
+  AND  (@canal  IS NULL OR a.canal_codigo = @canal)
+  AND  (@sitio  IS NULL OR a.sitio_graba  = @sitio)
+  AND  (@tipo   IS NULL OR a.tipo         = @tipo)
+  AND  (@desde  IS NULL OR (a.fecha_creacion AT TIME ZONE 'America/Bogota')::date >= @desde)
+  AND  (@hasta  IS NULL OR (a.fecha_creacion AT TIME ZONE 'America/Bogota')::date <= @hasta)
+  AND  (@fuerza = 0    OR a.fuerza_id     = @fuerza)
 ORDER  BY a.fecha_creacion DESC
 LIMIT  500";
 
@@ -83,11 +86,12 @@ LIMIT  500";
                 // Si se pasan como DBNull.Value sin tipo, PostgreSQL lanza 42P08
                 // ("no se pudo determinar el tipo del parámetro $N") porque el
                 // planificador no puede inferirlo sólo del contexto IS NULL.
-                AddParam(cmd, "canal", NpgsqlDbType.Integer, canalCodigo);
-                AddParam(cmd, "sitio", NpgsqlDbType.Integer, sitioGraba);
-                AddParam(cmd, "tipo",  NpgsqlDbType.Varchar, tipo);
-                AddParam(cmd, "desde", NpgsqlDbType.Date,    desdeDate);
-                AddParam(cmd, "hasta", NpgsqlDbType.Date,    hastaDate);
+                AddParam(cmd, "canal",  NpgsqlDbType.Integer, canalCodigo);
+                AddParam(cmd, "sitio",  NpgsqlDbType.Integer, sitioGraba);
+                AddParam(cmd, "tipo",   NpgsqlDbType.Varchar, tipo);
+                AddParam(cmd, "desde",  NpgsqlDbType.Date,    desdeDate);
+                AddParam(cmd, "hasta",  NpgsqlDbType.Date,    hastaDate);
+                cmd.Parameters.AddWithValue("fuerza", fuerzaId);
 
                 await using var reader = await cmd.ExecuteReaderAsync(ct);
                 while (await reader.ReadAsync(ct))
@@ -104,7 +108,7 @@ LIMIT  500";
         //  GET BY ID
         // ════════════════════════════════════════════════════════════════════════
 
-        public async Task<DtoAnotacionTurno?> GetByIdAsync(long id, CancellationToken ct)
+        public async Task<DtoAnotacionTurno?> GetByIdAsync(long id, int fuerzaId, CancellationToken ct)
         {
             try
             {
@@ -122,8 +126,11 @@ SELECT a.id, a.tipo, a.titulo, a.descripcion, a.canal_codigo,
 FROM   cad_anotaciones_turno a
 LEFT   JOIN cad_canales c ON c.codigo = a.canal_codigo AND c.cadfuerz_id = a.fuerza_id
 LEFT   JOIN cad_fuerzas f ON f.id     = a.fuerza_id
-WHERE  a.id = @id";
+WHERE  a.id = @id
+  AND  a.vigente = 1
+  AND  (@fuerza = 0 OR a.fuerza_id = @fuerza)";
                 cmd.Parameters.AddWithValue("id", id);
+                cmd.Parameters.AddWithValue("fuerza", fuerzaId);
 
                 await using var reader = await cmd.ExecuteReaderAsync(ct);
                 if (await reader.ReadAsync(ct)) return MapRow(reader);
@@ -177,7 +184,7 @@ VALUES
                 throw;
             }
 
-            return (await GetByIdAsync(newId, ct))
+            return (await GetByIdAsync(newId, 0, ct))
                 ?? new DtoAnotacionTurno { Id = newId, Tipo = request.Tipo, Descripcion = request.Descripcion };
         }
 
@@ -189,12 +196,17 @@ VALUES
             long   id,
             DtoAnotacionTurnoRequest request,
             string username,
+            bool   isAdmin,
             CancellationToken ct)
         {
             try
             {
                 await using var conn = await _tenant.DataSource.OpenConnectionAsync(ct);
                 await using var cmd  = conn.CreateCommand();
+                // El guard (username_creacion = @usr OR @isAdmin) hace que un intento
+                // de editar la anotación de otro autor simplemente no afecte filas —
+                // el controller lo traduce a "no encontrada o sin permiso", sin
+                // distinguir los dos casos para no revelar si el id existe.
                 cmd.CommandText = @"
 UPDATE cad_anotaciones_turno
    SET tipo              = @tipo,
@@ -202,13 +214,16 @@ UPDATE cad_anotaciones_turno
        descripcion       = @desc,
        fecha_modifica    = NOW(),
        username_modifica = @usr
- WHERE id = @id";
+ WHERE id = @id
+   AND vigente = 1
+   AND (username_creacion = @usr OR @isAdmin = TRUE)";
 
-                cmd.Parameters.AddWithValue("id",    id);
-                cmd.Parameters.AddWithValue("tipo",  request.Tipo ?? "GENERAL");
-                cmd.Parameters.AddWithValue("titulo",(object?)(request.Titulo?.Trim()) ?? DBNull.Value);
-                cmd.Parameters.AddWithValue("desc",  request.Descripcion ?? "");
-                cmd.Parameters.AddWithValue("usr",   username);
+                cmd.Parameters.AddWithValue("id",      id);
+                cmd.Parameters.AddWithValue("tipo",    request.Tipo ?? "GENERAL");
+                cmd.Parameters.AddWithValue("titulo",  (object?)(request.Titulo?.Trim()) ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("desc",    request.Descripcion ?? "");
+                cmd.Parameters.AddWithValue("usr",     username);
+                cmd.Parameters.AddWithValue("isAdmin", isAdmin);
 
                 return await cmd.ExecuteNonQueryAsync(ct) > 0;
             }
@@ -223,14 +238,27 @@ UPDATE cad_anotaciones_turno
         //  DELETE
         // ════════════════════════════════════════════════════════════════════════
 
-        public async Task<bool> DeleteAsync(long id, CancellationToken ct)
+        public async Task<bool> DeleteAsync(long id, string username, bool isAdmin, CancellationToken ct)
         {
             try
             {
                 await using var conn = await _tenant.DataSource.OpenConnectionAsync(ct);
                 await using var cmd  = conn.CreateCommand();
-                cmd.CommandText = "DELETE FROM cad_anotaciones_turno WHERE id = @id";
-                cmd.Parameters.AddWithValue("id", id);
+                // Borrado LÓGICO (vigente=0), no físico: el esquema (V16) fue diseñado
+                // con una columna de vigencia e índices parciales WHERE vigente=1
+                // justamente para retener la bitácora como constancia/evidencia de
+                // turno aunque el operador la "elimine" de la vista activa.
+                cmd.CommandText = @"
+UPDATE cad_anotaciones_turno
+   SET vigente           = 0,
+       fecha_modifica    = NOW(),
+       username_modifica = @usr
+ WHERE id = @id
+   AND vigente = 1
+   AND (username_creacion = @usr OR @isAdmin = TRUE)";
+                cmd.Parameters.AddWithValue("id",      id);
+                cmd.Parameters.AddWithValue("usr",     username);
+                cmd.Parameters.AddWithValue("isAdmin", isAdmin);
                 return await cmd.ExecuteNonQueryAsync(ct) > 0;
             }
             catch (Exception ex)
