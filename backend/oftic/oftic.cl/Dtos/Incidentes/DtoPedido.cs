@@ -79,6 +79,20 @@ namespace Comun.Dtos.Incidentes
         public DateTime? FechaCreacion { get; set; }
     }
 
+    /// <summary>
+    /// Página de resultados de GetListAsync — cad_pedidos puede crecer a millones de
+    /// filas, así que el listado ya no devuelve un array plano sin acotar; el cliente
+    /// pide una página (offset/limit) y opcionalmente un rango de fechas, y el total
+    /// permite construir un paginador real en vez de un límite fijo silencioso.
+    /// </summary>
+    public class DtoPedidoListPagedResult
+    {
+        public List<DtoPedidoListItem> Items { get; set; } = new();
+        public int Total { get; set; }
+        public int Page { get; set; }
+        public int PageSize { get; set; }
+    }
+
     public class DtoPedidoDetalle : DtoPedidoListItem
     {
         public string PropTelefono { get; set; } = string.Empty;

@@ -130,17 +130,19 @@ AND EXISTS (
                 p["canal"] = f.CanalCodigo;
             }
 
-            // Turno de vigilancia — franja horaria sobre hora_caso en hora Colombia
+            // Turno de vigilancia — franja horaria sobre hora_caso en hora Colombia.
+            // 1=Primer turno (22-05h), 2=Segundo (06-13h), 3=Tercer (14-21h) — misma
+            // numeración que GetTurnoActual() en DbPedidoRepository.cs.
             switch (f.TurnoVigilancia)
             {
                 case 1:
-                    sb.Append("\nAND EXTRACT(HOUR FROM p.hora_caso AT TIME ZONE 'America/Bogota') BETWEEN 6 AND 13");
+                    sb.Append("\nAND (EXTRACT(HOUR FROM p.hora_caso AT TIME ZONE 'America/Bogota') >= 22 OR EXTRACT(HOUR FROM p.hora_caso AT TIME ZONE 'America/Bogota') < 6)");
                     break;
                 case 2:
-                    sb.Append("\nAND EXTRACT(HOUR FROM p.hora_caso AT TIME ZONE 'America/Bogota') BETWEEN 14 AND 21");
+                    sb.Append("\nAND EXTRACT(HOUR FROM p.hora_caso AT TIME ZONE 'America/Bogota') BETWEEN 6 AND 13");
                     break;
                 case 3:
-                    sb.Append("\nAND (EXTRACT(HOUR FROM p.hora_caso AT TIME ZONE 'America/Bogota') >= 22 OR EXTRACT(HOUR FROM p.hora_caso AT TIME ZONE 'America/Bogota') < 6)");
+                    sb.Append("\nAND EXTRACT(HOUR FROM p.hora_caso AT TIME ZONE 'America/Bogota') BETWEEN 14 AND 21");
                     break;
             }
 

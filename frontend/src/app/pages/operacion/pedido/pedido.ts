@@ -122,13 +122,26 @@ export class PedidoComponent implements OnInit, OnDestroy {
   filtroEstado    = '';
   filtroTexto     = '';
   filtroPrioridad = '';
-  filtroTurno     = 0;   // 0=Todos, 1=Segundo(06-13h), 2=Tercer(14-21h), 3=Cuarto(22-05h)
+  filtroTurno     = 0;   // 0=Todos, 1=Primer(22-05h), 2=Segundo(06-13h), 3=Tercer(14-21h)
+  /** Rango de fechas (YYYY-MM-DD, <input type="date">) — filtro de SERVIDOR, no local. */
+  filtroFechaDesde = '';
+  filtroFechaHasta = '';
+
+  // ── Paginación (servidor) ──────────────────────────────────────────────────
+  // cad_pedidos puede tener millones de filas — la lista ya no trae "todo",
+  // trae una página a la vez. Sin filtro de fecha, siempre es la más reciente.
+  paginaActual  = 1;
+  readonly pageSize = 150;
+  totalPedidos  = 0;
+  get totalPaginas(): number {
+    return Math.max(1, Math.ceil(this.totalPedidos / this.pageSize));
+  }
 
   readonly turnosVigilancia = [
-    { value: 0, label: 'Todos los turnos',          icono: 'fa-clock',            color: '#64748b' },
-    { value: 1, label: 'Segundo turno (06:00-13:59)',icono: 'fa-sun',              color: '#2563eb' },
-    { value: 2, label: 'Tercer turno  (14:00-21:59)',icono: 'fa-cloud-sun',        color: '#7c3aed' },
-    { value: 3, label: 'Cuarto turno  (22:00-05:59)',icono: 'fa-moon',             color: '#dc2626' },
+    { value: 0, label: 'Todos los turnos',           icono: 'fa-clock',     color: '#64748b' },
+    { value: 1, label: 'Primer turno  (22:00-05:59)',icono: 'fa-moon',      color: '#dc2626' },
+    { value: 2, label: 'Segundo turno (06:00-13:59)',icono: 'fa-sun',       color: '#2563eb' },
+    { value: 3, label: 'Tercer turno  (14:00-21:59)',icono: 'fa-cloud-sun', color: '#7c3aed' },
   ];
 
   // ── Datos ─────────────────────────────────────────────────────────────────
@@ -215,15 +228,23 @@ export class PedidoComponent implements OnInit, OnDestroy {
   // ──────────────────────────────────────────────────────────────────────────
 
   /**
-   * Carga TODOS los pedidos y, en paralelo, los eventos del módulo de despacho.
-   * Los eventos enriquecen la lista con prioridad, origen, numeEvento y descPedido
-   * que el endpoint /Pedido no devuelve en el listado.
+   * Carga UNA PÁGINA de pedidos (ver paginaActual/pageSize) y, en paralelo, los
+   * eventos del módulo de despacho. Los eventos enriquecen la lista con
+   * prioridad, origen, numeEvento y descPedido que el endpoint /Pedido no
+   * devuelve en el listado.
+   * Nota: los KPIs/semáforo del dashboard (computarStats/computarKpis) se
+   * calculan sobre la página cargada — al filtrar por fecha o navegar a otra
+   * página, reflejan ese subconjunto, no el histórico completo del sistema.
    */
   cargarLista(silencioso = false): void {
     if (!silencioso) this.loading = true;
 
     forkJoin({
-      pedidos: this.pedidoService.getList(),
+      pedidos: this.pedidoService.getList(
+        undefined, undefined,
+        this.filtroFechaDesde || undefined, this.filtroFechaHasta || undefined,
+        this.paginaActual, this.pageSize
+      ),
       eventos: this.eventoService.getEventos()
         .pipe(catchError(() => of([] as DtoEventoListItem[]))),
       conteos: this.eventoService.getConteos()
@@ -241,7 +262,8 @@ export class PedidoComponent implements OnInit, OnDestroy {
           this.eventoMap[String(ev.id)] = ev;
         }
 
-        this.listaPedidos = (pedidos ?? []).map(p => this.normalizarListItem(p as any));
+        this.listaPedidos = (pedidos?.items ?? []).map(p => this.normalizarListItem(p as any));
+        this.totalPedidos = pedidos?.total ?? this.listaPedidos.length;
         this.loading      = false;
         this.lastRefresh  = new Date();
         this.computarStats();
@@ -263,6 +285,24 @@ export class PedidoComponent implements OnInit, OnDestroy {
         }
       }
     });
+  }
+
+  irAPagina(pagina: number): void {
+    if (pagina < 1 || pagina > this.totalPaginas || pagina === this.paginaActual) return;
+    this.paginaActual = pagina;
+    this.cargarLista();
+  }
+
+  aplicarFiltroFecha(): void {
+    this.paginaActual = 1;
+    this.cargarLista();
+  }
+
+  limpiarFiltroFecha(): void {
+    this.filtroFechaDesde = '';
+    this.filtroFechaHasta = '';
+    this.paginaActual     = 1;
+    this.cargarLista();
   }
 
   /**
@@ -698,16 +738,20 @@ export class PedidoComponent implements OnInit, OnDestroy {
 
   // ── Helpers de turno de vigilancia ─────────────────────────────────────────
 
-  /** Calcula el turno de vigilancia (1/2/3) desde hora_caso (ISO UTC). */
+  /**
+   * Calcula el turno de vigilancia (1/2/3) desde hora_caso (ISO UTC).
+   * 1=Primer turno (22:00-05:59), 2=Segundo (06:00-13:59), 3=Tercer (14:00-21:59)
+   * — misma numeración que GetTurnoActual() en el backend (DbPedidoRepository.cs).
+   */
   turnoDeIncidente(horaCaso: string | null | undefined): number {
     if (!horaCaso) return 0;
     const d = new Date(horaCaso);
     if (isNaN(d.getTime())) return 0;
     // Colombia es UTC-5 (sin cambio de horario)
     const h = ((d.getUTCHours() - 5) + 24) % 24;
-    if (h >= 6  && h <= 13) return 1;   // Segundo turno
-    if (h >= 14 && h <= 21) return 2;   // Tercer turno
-    return 3;                            // Cuarto turno (22-05h)
+    if (h >= 22 || h < 6) return 1;     // Primer turno
+    if (h >= 6  && h <= 13) return 2;   // Segundo turno
+    return 3;                            // Tercer turno (14-21h)
   }
 
   turnoLabel(n: number): string {
@@ -723,7 +767,7 @@ export class PedidoComponent implements OnInit, OnDestroy {
   }
 
   turnoRango(n: number): string {
-    return ['', '06:00–13:59', '14:00–21:59', '22:00–05:59'][n] ?? '';
+    return ['', '22:00–05:59', '06:00–13:59', '14:00–21:59'][n] ?? '';
   }
 
   get incidentesCriticos(): DtoPedidoListItem[] {

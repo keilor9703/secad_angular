@@ -26,17 +26,23 @@ namespace Api.Controllers.Operacion
             { "A", "P", "E", "T", "R", "C" };
 
         /// <summary>
-        /// Lista casos con filtros opcionales: estado (A/C/P) y sitio_graba.
+        /// Lista paginada de casos con filtros opcionales: estado (A/C/P), sitio_graba
+        /// y rango de fechas (fechaDesde/fechaHasta, fecha local de Colombia).
+        /// page es 1-based; pageSize se acota a 200 en el servidor.
         /// </summary>
         [HttpGet]
         public async Task<ActionResult> GetList(
             [FromQuery] string? estado,
             [FromQuery] int? sitioGraba,
-            CancellationToken ct)
+            [FromQuery] DateTime? fechaDesde,
+            [FromQuery] DateTime? fechaHasta,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 100,
+            CancellationToken ct = default)
         {
             try
             {
-                var result = await _service.GetListAsync(estado, sitioGraba, ct);
+                var result = await _service.GetListAsync(estado, sitioGraba, fechaDesde, fechaHasta, page, pageSize, ct);
                 return Ok(result);
             }
             catch (Exception ex)

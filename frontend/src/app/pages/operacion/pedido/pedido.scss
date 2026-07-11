@@ -547,6 +547,34 @@
   height:    auto !important;
 }
 
+.seg-filter-row--fechas {
+  align-items: center;
+}
+
+.seg-filter-fecha {
+  flex:      1;
+  min-width: 0;
+  font-size: calc(11px * var(--font-size-scale, 1)) !important;
+  padding:   5px 6px !important;
+  height:    auto !important;
+
+  &__sep { color: var(--text-muted, #888); font-size: 12px; }
+}
+
+.seg-pager {
+  display:         flex;
+  align-items:     center;
+  justify-content: center;
+  gap:             10px;
+  padding:         10px 0 4px;
+
+  &__info {
+    font-size: calc(11px * var(--font-size-scale, 1));
+    color:     var(--text-muted, #666);
+    white-space: nowrap;
+  }
+}
+
 .seg-list-header {
   display:         flex;
   justify-content: space-between;

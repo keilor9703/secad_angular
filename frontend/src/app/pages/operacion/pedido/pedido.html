@@ -320,6 +320,27 @@
                   </span>
                 }
               </div>
+
+              <!-- Rango de fechas — consulta al servidor (no filtro local): la
+                   tabla puede tener millones de casos, así que sin este rango la
+                   lista solo trae la página más reciente. -->
+              <div class="seg-filter-row seg-filter-row--fechas">
+                <input class="ui-control seg-filter-fecha" type="date"
+                       [(ngModel)]="filtroFechaDesde"
+                       title="Desde">
+                <span class="seg-filter-fecha__sep">–</span>
+                <input class="ui-control seg-filter-fecha" type="date"
+                       [(ngModel)]="filtroFechaHasta"
+                       title="Hasta">
+                <button type="button" class="ui-btn xs primary" (click)="aplicarFiltroFecha()">
+                  <i class="fa-solid fa-magnifying-glass"></i> Buscar
+                </button>
+                @if (filtroFechaDesde || filtroFechaHasta) {
+                  <button type="button" class="ui-btn xs ghost" (click)="limpiarFiltroFecha()">
+                    <i class="fa-solid fa-xmark"></i> Limpiar
+                  </button>
+                }
+              </div>
             </div>
 
             <!-- Contador -->
@@ -413,6 +434,25 @@
                 </div>
               }
             </div>
+
+            <!-- Paginador — la lista viene acotada por página desde el servidor -->
+            @if (totalPaginas > 1) {
+              <div class="seg-pager">
+                <button type="button" class="ui-btn xs ghost"
+                        [disabled]="paginaActual <= 1 || loading"
+                        (click)="irAPagina(paginaActual - 1)">
+                  <i class="fa-solid fa-chevron-left"></i>
+                </button>
+                <span class="seg-pager__info">
+                  Página {{ paginaActual }} de {{ totalPaginas }} · {{ totalPedidos }} en total
+                </span>
+                <button type="button" class="ui-btn xs ghost"
+                        [disabled]="paginaActual >= totalPaginas || loading"
+                        (click)="irAPagina(paginaActual + 1)">
+                  <i class="fa-solid fa-chevron-right"></i>
+                </button>
+              </div>
+            }
 
           </div><!-- /seg-col-list -->
 

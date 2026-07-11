@@ -26,9 +26,23 @@ namespace Datos.Gestion
 
         // ─── Queries ──────────────────────────────────────────────────────────
 
-        public async Task<List<DtoPedidoListItem>> GetListAsync(string? estado, int? sitioGraba, CancellationToken ct)
+        /// <summary>
+        /// Lista paginada de pedidos. cad_pedidos puede crecer a millones de filas —
+        /// antes esto devolvía siempre los últimos 500 por hora_caso sin forma de ver
+        /// nada más viejo; ahora acepta página/tamaño y un rango de fechas opcional,
+        /// y devuelve el total real para que el cliente arme un paginador.
+        /// pageSize se acota a [1,200] — 200 sigue siendo una carga liviana por página
+        /// (ver MapListItem: solo columnas escalares) y evita que un valor arbitrario
+        /// del cliente vuelva a convertir esto en un "traer todo" sin control.
+        /// </summary>
+        public async Task<DtoPedidoListPagedResult> GetListAsync(
+            string? estado, int? sitioGraba, DateTime? fechaDesde, DateTime? fechaHasta,
+            int page, int pageSize, CancellationToken ct)
         {
-            var result = new List<DtoPedidoListItem>();
+            page     = page     < 1 ? 1   : page;
+            pageSize = pageSize < 1 ? 100 : Math.Min(pageSize, 200);
+
+            var result = new DtoPedidoListPagedResult { Page = page, PageSize = pageSize };
             await using var conn = await _tenant.DataSource.OpenConnectionAsync(ct);
             await using var cmd = conn.CreateCommand();
 
@@ -38,7 +52,8 @@ namespace Datos.Gestion
                                p.codi_pedido, p.codi_pedido2, p.comentario,
                                -- Preferir username_creacion almacenado directamente; fallback a cadusua_usuario (Recepción); último recurso, el JOIN
                                COALESCE(NULLIF(p.username_creacion,''), NULLIF(p.cadusua_usuario,''), u.username, 'sin usuario') AS username_creacion,
-                               p.fecha_creacion
+                               p.fecha_creacion,
+                               COUNT(*) OVER() AS total_count
                         FROM cad_pedidos p
                         LEFT JOIN ctr_usuarios u ON u.id_usuario = p.usuario_creacion
                         WHERE 1=1";
@@ -47,18 +62,37 @@ namespace Datos.Gestion
                 sql += " AND p.estado = @estado";
             if (sitioGraba.HasValue)
                 sql += " AND p.sitio_graba = @sitioGraba";
+            if (fechaDesde.HasValue)
+                sql += " AND p.hora_caso >= @fechaDesde";
+            if (fechaHasta.HasValue)
+                // Límite superior EXCLUSIVO — el llamador pasa el día siguiente a las
+                // 00:00 para que "hasta el 10" incluya todo el 10 sin ambigüedad de hora.
+                sql += " AND p.hora_caso < @fechaHasta";
 
-            sql += " ORDER BY p.hora_caso DESC LIMIT 500";
+            sql += " ORDER BY p.hora_caso DESC LIMIT @pageSize OFFSET @offset";
 
             cmd.CommandText = sql;
             if (!string.IsNullOrWhiteSpace(estado))
                 cmd.Parameters.AddWithValue("estado", estado);
             if (sitioGraba.HasValue)
                 cmd.Parameters.AddWithValue("sitioGraba", sitioGraba.Value);
+            // fechaDesde/fechaHasta llegan como fecha local de Colombia (UTC-5, sin
+            // horario de verano) — sumar 5h para obtener la medianoche real en UTC,
+            // igual que el resto del sistema (ver GetTurnoActual/turnoDeIncidente).
+            if (fechaDesde.HasValue)
+                cmd.Parameters.AddWithValue("fechaDesde", DateTime.SpecifyKind(fechaDesde.Value.Date.AddHours(5), DateTimeKind.Utc));
+            if (fechaHasta.HasValue)
+                cmd.Parameters.AddWithValue("fechaHasta", DateTime.SpecifyKind(fechaHasta.Value.Date.AddDays(1).AddHours(5), DateTimeKind.Utc));
+            cmd.Parameters.AddWithValue("pageSize", pageSize);
+            cmd.Parameters.AddWithValue("offset", (page - 1) * pageSize);
 
             await using var reader = await cmd.ExecuteReaderAsync(ct);
             while (await reader.ReadAsync(ct))
-                result.Add(MapListItem(reader));
+            {
+                result.Items.Add(MapListItem(reader));
+                if (result.Total == 0)
+                    result.Total = reader.IsDBNull(13) ? 0 : (int)reader.GetInt64(13);
+            }
 
             return result;
         }

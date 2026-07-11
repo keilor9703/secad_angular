@@ -14,8 +14,10 @@ namespace Negocio.Gestion
             _repository = repository;
         }
 
-        public Task<List<DtoPedidoListItem>> GetListAsync(string? estado, int? sitioGraba, CancellationToken ct)
-            => _repository.GetListAsync(estado, sitioGraba, ct);
+        public Task<DtoPedidoListPagedResult> GetListAsync(
+            string? estado, int? sitioGraba, DateTime? fechaDesde, DateTime? fechaHasta,
+            int page, int pageSize, CancellationToken ct)
+            => _repository.GetListAsync(estado, sitioGraba, fechaDesde, fechaHasta, page, pageSize, ct);
 
         public Task<DtoPedidoDetalle?> GetByIdAsync(long id, CancellationToken ct)
         {

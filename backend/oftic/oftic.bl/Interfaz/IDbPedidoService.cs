@@ -5,7 +5,9 @@ namespace Negocio.Interfaz
 {
     public interface IDbPedidoService
     {
-        Task<List<DtoPedidoListItem>> GetListAsync(string? estado, int? sitioGraba, CancellationToken ct);
+        Task<DtoPedidoListPagedResult> GetListAsync(
+            string? estado, int? sitioGraba, DateTime? fechaDesde, DateTime? fechaHasta,
+            int page, int pageSize, CancellationToken ct);
         Task<DtoPedidoDetalle?> GetByIdAsync(long id, CancellationToken ct);
         Task<DtoPedidoResult> CreateAsync(DtoPedidoRequest request, long usuarioAuditoria, string usernameAuditoria, string maquinaAuditoria, CancellationToken ct);
         Task<DtoPedidoResult> UpdateAsync(long id, DtoPedidoRequest request, long usuarioAuditoria, string usernameAuditoria, string maquinaAuditoria, CancellationToken ct);

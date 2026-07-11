@@ -45,10 +45,10 @@ export class MapaEstadisticoComponent implements OnInit, AfterViewInit, OnDestro
 
   // Turnos de vigilancia — mismas franjas que el módulo de Reportes
   readonly turnos = [
-    { value: 0, label: 'Todos los turnos'      },
-    { value: 1, label: 'Segundo turno (06-13h)' },
-    { value: 2, label: 'Tercer turno  (14-21h)' },
-    { value: 3, label: 'Cuarto turno  (22-05h)' },
+    { value: 0, label: 'Todos los turnos'       },
+    { value: 1, label: 'Primer turno  (22-05h)' },
+    { value: 2, label: 'Segundo turno (06-13h)' },
+    { value: 3, label: 'Tercer turno  (14-21h)' },
   ];
 
   // ── Estado ────────────────────────────────────────────────────────────────
@@ -237,7 +237,7 @@ export class MapaEstadisticoComponent implements OnInit, AfterViewInit, OnDestro
   }
 
   turnoBadgeColor(v: number): string {
-    return ['#64748b', '#2563eb', '#7c3aed', '#dc2626'][v] ?? '#64748b';
+    return ['#64748b', '#dc2626', '#2563eb', '#7c3aed'][v] ?? '#64748b';
   }
 
   // ══════════════════════════════════════════════════════════════════════════

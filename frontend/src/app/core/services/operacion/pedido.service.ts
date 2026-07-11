@@ -170,6 +170,14 @@ export interface DtoPedidoAsociar {
   sitioGraba: number;
 }
 
+/** Página de resultados de getList() — ver DtoPedidoListPagedResult en el backend. */
+export interface DtoPedidoListPagedResult {
+  items: DtoPedidoListItem[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
 // ─── Service ──────────────────────────────────────────────────────────────────
 
 @Injectable({ providedIn: 'root' })
@@ -178,11 +186,24 @@ export class PedidoService {
 
   constructor(private http: HttpClient) {}
 
-  getList(estado?: string, sitioGraba?: number): Observable<DtoPedidoListItem[]> {
-    let params = new HttpParams();
-    if (estado) params = params.set('estado', estado);
+  /**
+   * Lista paginada de pedidos. cad_pedidos puede crecer a millones de filas —
+   * ya no trae "todo" de una vez, sino una página con fechaDesde/fechaHasta
+   * (fecha local de Colombia, formato YYYY-MM-DD) opcionales.
+   */
+  getList(
+    estado?: string, sitioGraba?: number,
+    fechaDesde?: string, fechaHasta?: string,
+    page = 1, pageSize = 100
+  ): Observable<DtoPedidoListPagedResult> {
+    let params = new HttpParams()
+      .set('page', page.toString())
+      .set('pageSize', pageSize.toString());
+    if (estado)      params = params.set('estado', estado);
     if (sitioGraba != null) params = params.set('sitioGraba', sitioGraba.toString());
-    return this.http.get<DtoPedidoListItem[]>(this.baseUrl, { params });
+    if (fechaDesde)  params = params.set('fechaDesde', fechaDesde);
+    if (fechaHasta)  params = params.set('fechaHasta', fechaHasta);
+    return this.http.get<DtoPedidoListPagedResult>(this.baseUrl, { params });
   }
 
   getById(id: string): Observable<DtoPedidoDetalle> {
