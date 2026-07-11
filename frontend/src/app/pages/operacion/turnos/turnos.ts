@@ -8,7 +8,7 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Subscription } from 'rxjs';
+import { Subscription, interval } from 'rxjs';
 
 import {
   TurnosService,
@@ -16,11 +16,12 @@ import {
   DtoCrearTurnoRequest, DtoCopiarTurnoRequest,
   DtoAgregarUnidadRequest, DtoAgregarMedioRequest, DtoActualizarMedioRequest,
   DtoImportarSiviccRequest, DtoUnidadSivicc,
-  CLASE_TURNO, TIPO_MEDIO, EstadoMedio
+  EstadoMedio
 } from '../../../core/services/operacion/turnos.service';
 import { AuthService } from '../../../core/auth/auth.service';
 import { EventoService, DtoCanalItem } from '../../../core/services/operacion/evento.service';
 import { FuerzaService, DtoFuerza } from '../../../core/services/administracion/fuerza.service';
+import { ToastService } from '../../../core/services/toast.service';
 
 // Leaflet cargado vía CDN en index.html
 declare const L: any;
@@ -58,6 +59,7 @@ export class TurnosComponent implements OnInit, OnDestroy, AfterViewChecked {
   private cdr        = inject(ChangeDetectorRef);
   private eventoSvc  = inject(EventoService);
   private fuerzaSvc  = inject(FuerzaService);
+  private toast      = inject(ToastService);
 
   // ── Fuerzas disponibles (para desplegable) ────────────────────────────────────
   fuerzas: DtoFuerza[] = [];
@@ -146,15 +148,15 @@ export class TurnosComponent implements OnInit, OnDestroy, AfterViewChecked {
     turnoId: '', fuerzaId: 0, sitioGraba: 0, unidades: []
   };
 
-  // ── Mensajes de éxito inline ──────────────────────────────────────────────────
-  msgExito = '';
+  // ── Resumen de disponibilidad en vivo (medios de la unidad activa) ────────────
+  /** Refresca `medios` cada 15 s mientras haya una unidad seleccionada y la pestaña esté visible. */
+  private readinessSub: Subscription | null = null;
+  ultimaActualizacionMedios: Date | null = null;
 
   // ── Subscriptions ─────────────────────────────────────────────────────────────
   private subs = new Subscription();
 
   // ── Constantes expuestas al template ─────────────────────────────────────────
-  readonly CLASE_TURNO = CLASE_TURNO;
-  readonly TIPO_MEDIO  = TIPO_MEDIO;
   readonly TIPOS_MEDIO_LIST = [
     { value: 20, label: 'Motocicleta'     },
     { value: 21, label: 'Bicicleta'       },
@@ -180,14 +182,17 @@ export class TurnosComponent implements OnInit, OnDestroy, AfterViewChecked {
   }
 
   private cargarFuerzas(): void {
-    this.fuerzaSvc.getFuerzas().subscribe({
-      next: r => { this.fuerzas = (r.data ?? []).filter(f => f.vigente === 'S'); },
-      error: () => { /* no crítico — si falla, el campo queda sin opciones */ }
-    });
+    this.subs.add(
+      this.fuerzaSvc.getFuerzas().subscribe({
+        next: r => { this.fuerzas = (r.data ?? []).filter(f => f.vigente === 'S'); },
+        error: () => { /* no crítico — si falla, el campo queda sin opciones */ }
+      })
+    );
   }
 
   ngOnDestroy(): void {
     this.subs.unsubscribe();
+    this.detenerReadiness();
     this.destruirMapa();
   }
 
@@ -203,14 +208,20 @@ export class TurnosComponent implements OnInit, OnDestroy, AfterViewChecked {
   // ═══════════════════════════════════════════════════════════════════════════
 
   cargarTurnos(): void {
-    if (!this.fuerzaFiltro || !this.fechaBusqueda) { this.error = 'Ingrese fuerza y fecha.'; return; }
+    if (!this.fuerzaFiltro || !this.fechaBusqueda) { this.error = 'Seleccione una fuerza y una fecha.'; return; }
     this.cargando = true;
     this.error    = '';
-    this.turnosSvc.getTurnos(this.fuerzaFiltro, this.fechaParaApi(this.fechaBusqueda), this.sitioGraba)
-      .subscribe({
-        next: (t) => { this.turnos = t; this.cargando = false; },
-        error: (e) => { this.cargando = false; this.error = 'Error al cargar turnos: ' + (e.error?.message ?? e.message); }
-      });
+    this.subs.add(
+      this.turnosSvc.getTurnos(this.fuerzaFiltro, this.fechaParaApi(this.fechaBusqueda), this.sitioGraba)
+        .subscribe({
+          next: (t) => { this.turnos = t; this.cargando = false; this.cdr.markForCheck(); },
+          error: (e) => {
+            this.cargando = false;
+            this.error = 'Error al cargar turnos: ' + (e.error?.message ?? e.message);
+            this.cdr.markForCheck();
+          }
+        })
+    );
   }
 
   seleccionarTurno(t: DtoTurnoListItem): void {
@@ -222,16 +233,24 @@ export class TurnosComponent implements OnInit, OnDestroy, AfterViewChecked {
     this.medios            = [];
     this.mapaVisible       = false;
     this.destruirMapa();
+    this.detenerReadiness();
 
     // Detalle completo del turno
-    this.turnosSvc.getTurno(t.id).subscribe({ next: d => this.turnoDetalle = d });
+    this.subs.add(
+      this.turnosSvc.getTurno(t.id).subscribe({
+        next:  d => { this.turnoDetalle = d; },
+        error: () => { this.turnoDetalle = null; this.error = 'No se pudo cargar el detalle del turno.'; }
+      })
+    );
 
     // Cargar unidades
     this.cargandoUnidades = true;
-    this.turnosSvc.getUnidades(t.id).subscribe({
-      next: (u) => { this.unidades = u; this.cargandoUnidades = false; },
-      error: ()  => { this.cargandoUnidades = false; }
-    });
+    this.subs.add(
+      this.turnosSvc.getUnidades(t.id).subscribe({
+        next: (u) => { this.unidades = u; this.cargandoUnidades = false; },
+        error: ()  => { this.cargandoUnidades = false; this.error = 'No se pudieron cargar las unidades.'; }
+      })
+    );
   }
 
   seleccionarUnidad(u: DtoTurnoUnidad): void {
@@ -241,19 +260,72 @@ export class TurnosComponent implements OnInit, OnDestroy, AfterViewChecked {
     this.mapaVisible   = false;
     this.destruirMapa();
     this.cargarMedios(u.turnoId, u.id);
+    this.iniciarReadiness();
   }
 
   cargarMedios(turnoId: string, unidadId?: string): void {
     if (!this.turnoSeleccionado) return;
     this.cargandoMedios = true;
-    this.turnosSvc.getMedios(turnoId, unidadId).subscribe({
-      next: (m) => {
-        this.medios         = m;
-        this.cargandoMedios = false;
-        if (this.mapaVisible) this.actualizarMarcadoresMedios();
-      },
-      error: () => { this.cargandoMedios = false; }
+    this.subs.add(
+      this.turnosSvc.getMedios(turnoId, unidadId).subscribe({
+        next: (m) => {
+          this.medios              = m;
+          this.cargandoMedios      = false;
+          this.ultimaActualizacionMedios = new Date();
+          if (this.mapaVisible) this.actualizarMarcadoresMedios();
+        },
+        error: () => { this.cargandoMedios = false; this.error = 'No se pudieron cargar los medios.'; }
+      })
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // RESUMEN DE DISPONIBILIDAD EN VIVO ("Shift Readiness")
+  // Refresca silenciosamente los medios de la unidad activa cada 15 s, para que
+  // el operador vea libres/GPS activo actualizados sin tener que reabrir la
+  // unidad. Se pausa cuando la pestaña está oculta para no gastar red/CPU.
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  private iniciarReadiness(): void {
+    this.detenerReadiness();
+    this.readinessSub = interval(15_000).subscribe(() => {
+      if (document.hidden || !this.unidadActiva) return;
+      this.cargarMedios(this.unidadActiva.turnoId, this.unidadActiva.id);
     });
+  }
+
+  private detenerReadiness(): void {
+    this.readinessSub?.unsubscribe();
+    this.readinessSub = null;
+    this.ultimaActualizacionMedios = null;
+  }
+
+  /** Medios libres (estado 27) sobre el total de la unidad activa. */
+  get resumenLibres(): string {
+    if (this.medios.length === 0) return '—';
+    const libres = this.medios.filter(m => m.estado === 27).length;
+    return `${libres}/${this.medios.length}`;
+  }
+
+  /** Medios con GPS activo sobre el total de la unidad activa. */
+  get resumenGpsActivo(): string {
+    if (this.medios.length === 0) return '—';
+    const activos = this.medios.filter(m => m.gpsActivo).length;
+    return `${activos}/${this.medios.length}`;
+  }
+
+  /** Color del punto de disponibilidad: verde si hay medios libres, rojo si no queda ninguno. */
+  get readinessColor(): 'ok' | 'warn' | 'none' {
+    if (this.medios.length === 0) return 'none';
+    return this.medios.some(m => m.estado === 27) ? 'ok' : 'warn';
+  }
+
+  /** "hace Ns" / "hace Nm" desde la última actualización de medios. */
+  get readinessHaceTexto(): string {
+    if (!this.ultimaActualizacionMedios) return '';
+    const seg = Math.max(0, Math.round((Date.now() - this.ultimaActualizacionMedios.getTime()) / 1000));
+    if (seg < 60) return `hace ${seg}s`;
+    return `hace ${Math.round(seg / 60)}m`;
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -329,10 +401,7 @@ export class TurnosComponent implements OnInit, OnDestroy, AfterViewChecked {
   }
 
   private colorEstadoMedio(estado: number): string {
-    const m: Record<number, string> = {
-      27: '#22c55e', 28: '#ef4444', 29: '#6b7280', 30: '#f59e0b', 31: '#3b82f6'
-    };
-    return m[estado] ?? '#94a3b8';
+    return this.turnosSvc.colorEstadoMedio(estado as EstadoMedio);
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -345,6 +414,10 @@ export class TurnosComponent implements OnInit, OnDestroy, AfterViewChecked {
     this.guardandoCrear  = false;
     this.modalCrear      = true;
     this.bloquearScroll(true);
+    // Sin esto el modal abre con la clase de turno ya seleccionada pero las
+    // fechas vacías — el usuario tenía que volver a tocar el select para que
+    // se autocompletaran las horas.
+    this.autocompletarHoras(this.formCrear.claseTurno, this.formCrear);
   }
 
   cerrarModalCrear(): void {
@@ -369,6 +442,8 @@ export class TurnosComponent implements OnInit, OnDestroy, AfterViewChecked {
 
   guardarCrear(): void {
     if (!this.formCrear._inicio || !this.formCrear._fin) { this.errorCrear = 'Complete las fechas.'; return; }
+    const rangoError = this.validarRangoHoras(this.formCrear._inicio, this.formCrear._fin);
+    if (rangoError) { this.errorCrear = rangoError; return; }
     this.guardandoCrear  = true;
     this.errorCrear      = '';
     const req: DtoCrearTurnoRequest = {
@@ -380,18 +455,19 @@ export class TurnosComponent implements OnInit, OnDestroy, AfterViewChecked {
       horaTermina: this.dtLocalParaApi(this.formCrear._fin),
       consignas:   this.formCrear.consignas
     };
-    this.turnosSvc.crearTurno(req).subscribe({
-      next: (r) => {
-        this.guardandoCrear = false;
-        if (r.success) {
-          this.cerrarModalCrear();
-          this.msgExito = `✔ Turno creado (ID ${r.id})`;
-          setTimeout(() => (this.msgExito = ''), 4000);
-          this.cargarTurnos();
-        } else { this.errorCrear = r.message; }
-      },
-      error: (e) => { this.guardandoCrear = false; this.errorCrear = e.error?.message ?? 'Error al crear turno.'; }
-    });
+    this.subs.add(
+      this.turnosSvc.crearTurno(req).subscribe({
+        next: (r) => {
+          this.guardandoCrear = false;
+          if (r.success) {
+            this.cerrarModalCrear();
+            this.toast.success('Turno creado', `Turno registrado correctamente (ID ${r.id}).`);
+            this.cargarTurnos();
+          } else { this.errorCrear = r.message; }
+        },
+        error: (e) => { this.guardandoCrear = false; this.errorCrear = e.error?.message ?? 'Error al crear turno.'; }
+      })
+    );
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -412,6 +488,7 @@ export class TurnosComponent implements OnInit, OnDestroy, AfterViewChecked {
     this.guardandoCopiar = false;
     this.modalCopiar     = true;
     this.bloquearScroll(true);
+    this.autocompletarHoras(this.formCopiar.claseTurno, this.formCopiar);
   }
 
   cerrarModalCopiar(): void {
@@ -426,6 +503,8 @@ export class TurnosComponent implements OnInit, OnDestroy, AfterViewChecked {
 
   guardarCopiar(): void {
     if (!this.formCopiar._inicio || !this.formCopiar._fin) { this.errorCopiar = 'Complete las fechas.'; return; }
+    const rangoError = this.validarRangoHoras(this.formCopiar._inicio, this.formCopiar._fin);
+    if (rangoError) { this.errorCopiar = rangoError; return; }
     this.guardandoCopiar = true;
     this.errorCopiar     = '';
     const req: DtoCopiarTurnoRequest = {
@@ -435,18 +514,19 @@ export class TurnosComponent implements OnInit, OnDestroy, AfterViewChecked {
       horaInicia:    this.dtLocalParaApi(this.formCopiar._inicio),
       horaTermina:   this.dtLocalParaApi(this.formCopiar._fin)
     };
-    this.turnosSvc.copiarTurno(req).subscribe({
-      next: (r) => {
-        this.guardandoCopiar = false;
-        if (r.success) {
-          this.cerrarModalCopiar();
-          this.msgExito = `✔ Turno copiado (nuevo ID ${r.id})`;
-          setTimeout(() => (this.msgExito = ''), 4000);
-          this.cargarTurnos();
-        } else { this.errorCopiar = r.message; }
-      },
-      error: (e) => { this.guardandoCopiar = false; this.errorCopiar = e.error?.message ?? 'Error al copiar turno.'; }
-    });
+    this.subs.add(
+      this.turnosSvc.copiarTurno(req).subscribe({
+        next: (r) => {
+          this.guardandoCopiar = false;
+          if (r.success) {
+            this.cerrarModalCopiar();
+            this.toast.success('Turno copiado', `Se creó el nuevo turno (ID ${r.id}) con toda su jerarquía.`);
+            this.cargarTurnos();
+          } else { this.errorCopiar = r.message; }
+        },
+        error: (e) => { this.guardandoCopiar = false; this.errorCopiar = e.error?.message ?? 'Error al copiar turno.'; }
+      })
+    );
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -468,19 +548,25 @@ export class TurnosComponent implements OnInit, OnDestroy, AfterViewChecked {
     if (!this.formUnidad.unidadCodigo.trim()) { this.errorUnidad = 'El código de unidad es obligatorio.'; return; }
     this.guardandoUnidad = true;
     this.errorUnidad     = '';
-    this.turnosSvc.agregarUnidad(this.formUnidad.turnoId, this.formUnidad).subscribe({
-      next: (r) => {
-        this.guardandoUnidad = false;
-        if (r.success) {
-          this.cerrarModalUnidad();
-          this.msgExito = '✔ Unidad agregada.';
-          setTimeout(() => (this.msgExito = ''), 3000);
-          // Recargar unidades
-          this.turnosSvc.getUnidades(this.formUnidad.turnoId).subscribe(u => this.unidades = u);
-        } else { this.errorUnidad = r.message; }
-      },
-      error: (e) => { this.guardandoUnidad = false; this.errorUnidad = e.error?.message ?? 'Error.'; }
-    });
+    this.subs.add(
+      this.turnosSvc.agregarUnidad(this.formUnidad.turnoId, this.formUnidad).subscribe({
+        next: (r) => {
+          this.guardandoUnidad = false;
+          if (r.success) {
+            this.cerrarModalUnidad();
+            this.toast.success('Unidad agregada', `'${this.formUnidad.unidadCodigo}' se registró en el turno.`);
+            // Recargar unidades
+            this.subs.add(
+              this.turnosSvc.getUnidades(this.formUnidad.turnoId).subscribe({
+                next: u => this.unidades = u,
+                error: () => { this.error = 'No se pudo actualizar la lista de unidades.'; }
+              })
+            );
+          } else { this.errorUnidad = r.message; }
+        },
+        error: (e) => { this.guardandoUnidad = false; this.errorUnidad = e.error?.message ?? 'Error al agregar la unidad.'; }
+      })
+    );
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -506,10 +592,12 @@ export class TurnosComponent implements OnInit, OnDestroy, AfterViewChecked {
   private cargarCanales(): void {
     if (this.canales.length > 0 || this.cargandoCanales) return;
     this.cargandoCanales = true;
-    this.eventoSvc.getCanales(this.sitioGraba).subscribe({
-      next:  c  => { this.canales = c; this.cargandoCanales = false; },
-      error: () => { this.cargandoCanales = false; }
-    });
+    this.subs.add(
+      this.eventoSvc.getCanales(this.sitioGraba).subscribe({
+        next:  c  => { this.canales = c; this.cargandoCanales = false; },
+        error: () => { this.cargandoCanales = false; }
+      })
+    );
   }
 
   cerrarModalMedio(): void { this.modalMedio = false; this.bloquearScroll(false); }
@@ -586,26 +674,27 @@ export class TurnosComponent implements OnInit, OnDestroy, AfterViewChecked {
       personal
     };
 
-    this.turnosSvc.actualizarMedio(this.medioEditando.id, req).subscribe({
-      next: (r) => {
-        this.guardandoEditarMedio = false;
-        if (r.success) {
-          this.cerrarModalEditarMedio();
-          this.msgExito = '✔ Medio actualizado.';
-          setTimeout(() => (this.msgExito = ''), 3000);
-          // Recargar la lista de medios de la unidad activa
-          if (this.unidadActiva) {
-            this.cargarMedios(this.unidadActiva.turnoId, this.unidadActiva.id);
+    this.subs.add(
+      this.turnosSvc.actualizarMedio(this.medioEditando.id, req).subscribe({
+        next: (r) => {
+          this.guardandoEditarMedio = false;
+          if (r.success) {
+            this.cerrarModalEditarMedio();
+            this.toast.success('Medio actualizado', 'Los cambios se guardaron correctamente.');
+            // Recargar la lista de medios de la unidad activa
+            if (this.unidadActiva) {
+              this.cargarMedios(this.unidadActiva.turnoId, this.unidadActiva.id);
+            }
+          } else {
+            this.errorEditarMedio = r.message;
           }
-        } else {
-          this.errorEditarMedio = r.message;
+        },
+        error: (e) => {
+          this.guardandoEditarMedio = false;
+          this.errorEditarMedio = e.error?.message ?? 'Error al actualizar el medio.';
         }
-      },
-      error: (e) => {
-        this.guardandoEditarMedio = false;
-        this.errorEditarMedio = e.error?.message ?? 'Error al actualizar el medio.';
-      }
-    });
+      })
+    );
   }
 
   /**
@@ -681,20 +770,26 @@ export class TurnosComponent implements OnInit, OnDestroy, AfterViewChecked {
       tipoMedio:     this.formMedio.tipoMedio,
       personal
     };
-    this.turnosSvc.agregarMedio(req.turnoId, req).subscribe({
-      next: (r) => {
-        this.guardandoMedio = false;
-        if (r.success) {
-          this.cerrarModalMedio();
-          this.msgExito = '✔ Medio agregado.';
-          setTimeout(() => (this.msgExito = ''), 3000);
-          if (this.unidadActiva) this.cargarMedios(req.turnoId, req.turnoUnidadId);
-          // Actualizar conteo en turno seleccionado
-          this.turnosSvc.getUnidades(req.turnoId).subscribe(u => this.unidades = u);
-        } else { this.errorMedio = r.message; }
-      },
-      error: (e) => { this.guardandoMedio = false; this.errorMedio = e.error?.message ?? 'Error.'; }
-    });
+    this.subs.add(
+      this.turnosSvc.agregarMedio(req.turnoId, req).subscribe({
+        next: (r) => {
+          this.guardandoMedio = false;
+          if (r.success) {
+            this.cerrarModalMedio();
+            this.toast.success('Medio agregado', `'${req.patrullaCodigo}' se registró en el turno.`);
+            if (this.unidadActiva) this.cargarMedios(req.turnoId, req.turnoUnidadId);
+            // Actualizar conteo en turno seleccionado
+            this.subs.add(
+              this.turnosSvc.getUnidades(req.turnoId).subscribe({
+                next: u => this.unidades = u,
+                error: () => { this.error = 'No se pudo actualizar la lista de unidades.'; }
+              })
+            );
+          } else { this.errorMedio = r.message; }
+        },
+        error: (e) => { this.guardandoMedio = false; this.errorMedio = e.error?.message ?? 'Error al agregar el medio.'; }
+      })
+    );
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -722,18 +817,20 @@ export class TurnosComponent implements OnInit, OnDestroy, AfterViewChecked {
     this.cargarCanales(); // para el select de canal opcional
 
     // Paso 1: consultar unidades automáticamente
-    this.turnosSvc.getUnidadesSivicc(this.turnoSeleccionado.id).subscribe({
-      next: (lista) => {
-        this.cargandoUnidadesSivicc = false;
-        // Todas comienzan seleccionadas si no existen aún en CAD
-        this.unidadesSivicc = lista.map(u => ({ ...u, seleccionada: !u.existeEnCadMedios }));
-        // Si no hay unidades se muestra el estado vacío en el template (no es un error)
-      },
-      error: (e) => {
-        this.cargandoUnidadesSivicc = false;
-        this.errorSivicc = 'Error al consultar SIVICC: ' + (e.error?.message ?? e.message ?? 'Error desconocido.');
-      }
-    });
+    this.subs.add(
+      this.turnosSvc.getUnidadesSivicc(this.turnoSeleccionado.id).subscribe({
+        next: (lista) => {
+          this.cargandoUnidadesSivicc = false;
+          // Todas comienzan seleccionadas si no existen aún en CAD
+          this.unidadesSivicc = lista.map(u => ({ ...u, seleccionada: !u.existeEnCadMedios }));
+          // Si no hay unidades se muestra el estado vacío en el template (no es un error)
+        },
+        error: (e) => {
+          this.cargandoUnidadesSivicc = false;
+          this.errorSivicc = 'Error al consultar SIVICC: ' + (e.error?.message ?? e.message ?? 'Error desconocido.');
+        }
+      })
+    );
   }
 
   cerrarModalSivicc(): void {
@@ -773,35 +870,37 @@ export class TurnosComponent implements OnInit, OnDestroy, AfterViewChecked {
       unidades
     };
 
-    this.turnosSvc.importarSivicc(req.turnoId, req).subscribe({
-      next: (r) => {
-        this.guardandoSivicc = false;
-        if (r.success) {
-          this.cerrarModalSivicc();
-          this.msgExito = '✔ Importación SIVICC completada.';
-          setTimeout(() => (this.msgExito = ''), 4000);
-          this.cargarTurnos();
-          if (this.turnoSeleccionado) {
-            this.turnosSvc.getUnidades(this.turnoSeleccionado.id).subscribe(u => this.unidades = u);
+    this.subs.add(
+      this.turnosSvc.importarSivicc(req.turnoId, req).subscribe({
+        next: (r) => {
+          this.guardandoSivicc = false;
+          if (r.success) {
+            this.cerrarModalSivicc();
+            this.toast.success('Importación SIVICC completada', 'Se importaron los medios y personal seleccionados.');
+            this.cargarTurnos();
+            if (this.turnoSeleccionado) {
+              this.subs.add(
+                this.turnosSvc.getUnidades(this.turnoSeleccionado.id).subscribe({
+                  next: u => this.unidades = u,
+                  error: () => { this.error = 'No se pudo actualizar la lista de unidades.'; }
+                })
+              );
+            }
+          } else {
+            this.errorSivicc = r.message;
           }
-        } else {
-          this.errorSivicc = r.message;
+        },
+        error: (e) => {
+          this.guardandoSivicc = false;
+          this.errorSivicc = e.error?.message ?? 'Error al importar desde SIVICC.';
         }
-      },
-      error: (e) => {
-        this.guardandoSivicc = false;
-        this.errorSivicc = e.error?.message ?? 'Error al importar desde SIVICC.';
-      }
-    });
+      })
+    );
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
   // HELPERS DE PRESENTACIÓN
   // ═══════════════════════════════════════════════════════════════════════════
-
-  claseTurnoDesc(clase: number): string {
-    return this.turnosSvc.etiquetaClaseTurno(clase as 1 | 2 | 3);
-  }
 
   claseTurnoCorto(clase: number): string {
     return this.turnosSvc.etiquetaClaseTurnoCorta(clase as 1 | 2 | 3);
@@ -827,18 +926,9 @@ export class TurnosComponent implements OnInit, OnDestroy, AfterViewChecked {
     return this.turnosSvc.claseEstadoMedio(estado as EstadoMedio);
   }
 
-  /** Devuelve las clases FontAwesome para el tipo de medio (reemplaza Material Icons). */
+  /** Clases FontAwesome para el tipo de medio (delega en el servicio para no duplicar el mapa). */
   iconoTipo(tipo: number): string {
-    const map: Record<number, string> = {
-      20: 'fa-solid fa-motorcycle',        // Motocicleta
-      21: 'fa-solid fa-bicycle',           // Bicicleta
-      22: 'fa-solid fa-car-side',          // Patrulla
-      23: 'fa-solid fa-truck-medical',     // Ambulancia
-      24: 'fa-solid fa-fire-flame-curved', // Camión Bomberos
-      25: 'fa-solid fa-helicopter',        // Helicóptero
-      26: 'fa-solid fa-sailboat',          // Lancha
-    };
-    return map[tipo] ?? 'fa-solid fa-car';
+    return this.turnosSvc.iconoTipoMedio(tipo as any);
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -860,14 +950,45 @@ export class TurnosComponent implements OnInit, OnDestroy, AfterViewChecked {
     return `${d}/${m}/${y} ${time ?? '00:00'}`;
   }
 
+  /**
+   * yyyy-MM-dd de HOY en hora local. Usar Date.toISOString() aquí convierte a
+   * UTC antes de recortar la fecha — en Bogotá (UTC-5), entre las 19:00 y las
+   * 23:59 locales ya es "mañana" en UTC, así que el filtro de fecha y el
+   * autocompletado de horas mostraban el día siguiente al real.
+   */
   private hoyIso(): string {
-    return new Date().toISOString().substring(0, 10);
+    return this.fechaLocalIso(new Date());
   }
 
   private sumarDia(iso: string): string {
-    const d = new Date(iso + 'T00:00:00');
-    d.setDate(d.getDate() + 1);
-    return d.toISOString().substring(0, 10);
+    const [y, m, d] = iso.split('-').map(Number);
+    const fecha = new Date(y, m - 1, d);
+    fecha.setDate(fecha.getDate() + 1);
+    return this.fechaLocalIso(fecha);
+  }
+
+  private fechaLocalIso(d: Date): string {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  }
+
+  /**
+   * Valida del lado del cliente el mismo rango que exige el backend
+   * (P_CrearTurnoAsync/P_CopiarTurnoAsync): inicio antes que fin y duración
+   * entre 6 y 9 horas. Evita el viaje al servidor para el error más común.
+   */
+  private validarRangoHoras(inicioLocal: string, finLocal: string): string {
+    const inicio = new Date(inicioLocal);
+    const fin    = new Date(finLocal);
+    if (isNaN(inicio.getTime()) || isNaN(fin.getTime())) return 'Fechas inválidas.';
+    if (inicio >= fin) return 'La hora de inicio debe ser anterior a la hora de fin.';
+    const horas = (fin.getTime() - inicio.getTime()) / 3_600_000;
+    if (horas < 6 || horas > 9) {
+      return `La duración del turno debe estar entre 6 y 9 horas (actual: ${horas.toFixed(1)}h).`;
+    }
+    return '';
   }
 
   // ═══════════════════════════════════════════════════════════════════════════

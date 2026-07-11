@@ -6,11 +6,15 @@ import { environment } from '../../../../environments/environment';
 
 // ─── Constantes de dominio ─────────────────────────────────────────────────────
 
-/** Clase de turno: correlación con horario oficial de vigilancia */
+/**
+ * Clase de turno: correlación con horario oficial de vigilancia.
+ * Esquema canónico usado en todo el sistema (ver GetTurnoActual() en
+ * DbPedidoRepository.cs del backend).
+ */
 export const CLASE_TURNO = {
-  PRIMERO:  1,   // 06:00 – 14:00
-  SEGUNDO:  2,   // 14:00 – 22:00
-  TERCERO:  3    // 22:00 – 06:00
+  PRIMERO:  1,   // 22:00 – 06:00
+  SEGUNDO:  2,   // 06:00 – 14:00
+  TERCERO:  3    // 14:00 – 22:00
 } as const;
 export type ClaseTurno = typeof CLASE_TURNO[keyof typeof CLASE_TURNO];
 
@@ -512,9 +516,9 @@ export class TurnosService {
   /** Etiqueta legible para la clase de turno */
   etiquetaClaseTurno(clase: ClaseTurno): string {
     const map: Record<ClaseTurno, string> = {
-      1: 'Primer Turno  (06:00 – 14:00)',
-      2: 'Segundo Turno (14:00 – 22:00)',
-      3: 'Tercer Turno  (22:00 – 06:00)'
+      1: 'Primer Turno  (22:00 – 06:00)',
+      2: 'Segundo Turno (06:00 – 14:00)',
+      3: 'Tercer Turno  (14:00 – 22:00)'
     };
     return map[clase] ?? `Turno ${clase}`;
   }
@@ -545,6 +549,18 @@ export class TurnosService {
       31: 'En base'
     };
     return map[estado] ?? `Estado ${estado}`;
+  }
+
+  /** Color hex del estado de un medio (marcadores del mapa Leaflet). */
+  colorEstadoMedio(estado: EstadoMedio): string {
+    const map: Record<EstadoMedio, string> = {
+      27: '#22c55e',  // Libre — verde
+      28: '#ef4444',  // Ocupado — rojo
+      29: '#6b7280',  // Fuera servicio — gris oscuro
+      30: '#f59e0b',  // En ruta — ámbar
+      31: '#3b82f6'   // En base — azul
+    };
+    return map[estado] ?? '#94a3b8';
   }
 
   /** Clase CSS (badge/chip) para el estado de un medio */

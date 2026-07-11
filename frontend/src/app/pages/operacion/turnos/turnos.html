@@ -18,11 +18,6 @@
       </div>
 
       <div class="tr-head-right">
-        @if (msgExito) {
-          <span class="tr-msg-ok">
-            <i class="fa-solid fa-circle-check"></i> {{ msgExito }}
-          </span>
-        }
         <button class="ui-btn sm primary" type="button"
                 [disabled]="!fuerzaFiltro"
                 (click)="abrirModalCrear()">
@@ -36,7 +31,6 @@
       <div class="tr-filter-group">
         <label class="tr-filter-label">Fuerza</label>
         <select class="ui-control tr-filter-input" [(ngModel)]="fuerzaFiltro">
-          <option [ngValue]="0">— Todas las fuerzas —</option>
           @for (f of fuerzas; track f.id) {
             <option [ngValue]="f.id">{{ f.descripcion }}</option>
           }
@@ -259,6 +253,22 @@
             </div>
           </div>
 
+          <!-- Resumen de disponibilidad en vivo -->
+          @if (medios.length > 0) {
+            <div class="tr-readiness" [ngClass]="'tr-readiness--' + readinessColor">
+              <span class="tr-readiness-dot"></span>
+              <span class="tr-readiness-item">
+                <i class="fa-solid fa-car-side"></i> {{ resumenLibres }} libres
+              </span>
+              <span class="tr-readiness-item">
+                <i class="fa-solid fa-satellite-dish"></i> {{ resumenGpsActivo }} con GPS
+              </span>
+              @if (readinessHaceTexto) {
+                <span class="tr-readiness-hace">actualizado {{ readinessHaceTexto }}</span>
+              }
+            </div>
+          }
+
           <!-- Mini-mapa GPS -->
           @if (mapaVisible) {
             <div class="tr-map-container">
@@ -296,6 +306,7 @@
                       <!-- Botón editar — solo visble en hover via CSS -->
                       <button class="ui-btn xs ghost tr-medio-edit-btn" type="button"
                               title="Editar datos del medio"
+                              aria-label="Editar datos del medio"
                               (click)="abrirModalEditarMedio(m); $event.stopPropagation()">
                         <i class="fa-solid fa-pencil"></i>
                       </button>
@@ -361,7 +372,7 @@
           <i class="fa-solid fa-calendar-plus"></i>
           Crear turno de vigilancia
         </div>
-        <button class="ui-icon-btn" type="button" (click)="cerrarModalCrear()">
+        <button class="ui-icon-btn" type="button" (click)="cerrarModalCrear()" aria-label="Cerrar">
           <i class="fa-solid fa-xmark"></i>
         </button>
       </div>
@@ -445,7 +456,7 @@
           <i class="fa-solid fa-copy"></i>
           Copiar turno
         </div>
-        <button class="ui-icon-btn" type="button" (click)="cerrarModalCopiar()">
+        <button class="ui-icon-btn" type="button" (click)="cerrarModalCopiar()" aria-label="Cerrar">
           <i class="fa-solid fa-xmark"></i>
         </button>
       </div>
@@ -462,9 +473,9 @@
             <select class="ui-control"
                     [ngModel]="formCopiar.claseTurno"
                     (ngModelChange)="onClaseTurnoCopiar($event)">
-              <option [ngValue]="1">1° Turno — 06:00 a 14:00</option>
-              <option [ngValue]="2">2° Turno — 14:00 a 22:00</option>
-              <option [ngValue]="3">3° Turno — 22:00 a 06:00</option>
+              <option [ngValue]="2">2° Turno — 06:00 a 14:00</option>
+              <option [ngValue]="3">3° Turno — 14:00 a 22:00</option>
+              <option [ngValue]="1">1° Turno — 22:00 a 06:00</option>
             </select>
           </div>
 
@@ -516,7 +527,7 @@
           <i class="fa-solid fa-building-shield"></i>
           Agregar unidad al turno
         </div>
-        <button class="ui-icon-btn" type="button" (click)="cerrarModalUnidad()">
+        <button class="ui-icon-btn" type="button" (click)="cerrarModalUnidad()" aria-label="Cerrar">
           <i class="fa-solid fa-xmark"></i>
         </button>
       </div>
@@ -579,7 +590,7 @@
           <i class="fa-solid fa-car-side"></i>
           Agregar medio al turno
         </div>
-        <button class="ui-icon-btn" type="button" (click)="cerrarModalMedio()">
+        <button class="ui-icon-btn" type="button" (click)="cerrarModalMedio()" aria-label="Cerrar">
           <i class="fa-solid fa-xmark"></i>
         </button>
       </div>
@@ -698,7 +709,7 @@
           <i class="fa-solid fa-pencil"></i>
           Editar medio — {{ medioEditando?.patrullaCodigo }}
         </div>
-        <button class="ui-icon-btn" type="button" (click)="cerrarModalEditarMedio()">
+        <button class="ui-icon-btn" type="button" (click)="cerrarModalEditarMedio()" aria-label="Cerrar">
           <i class="fa-solid fa-xmark"></i>
         </button>
       </div>
@@ -814,7 +825,7 @@
           <i class="fa-solid fa-file-import"></i>
           Importar desde minuta SIVICC
         </div>
-        <button class="ui-icon-btn" type="button" (click)="cerrarModalSivicc()">
+        <button class="ui-icon-btn" type="button" (click)="cerrarModalSivicc()" aria-label="Cerrar">
           <i class="fa-solid fa-xmark"></i>
         </button>
       </div>
