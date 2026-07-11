@@ -41,7 +41,13 @@ namespace Datos.Gestion
             if (!DateOnly.TryParse(filtro.Hasta, out var hasta))
                 hasta = DateOnly.FromDateTime(DateTime.Now);
 
-            // Asegurar rango razonable (máx. 2 años)
+            // Asegurar rango razonable (máx. 2 años) — antes solo estaba comentado,
+            // sin ningún clamp real: un rango arbitrariamente amplio escanea el
+            // histórico completo de cad_pedidos en 6 queries de agregación por
+            // request, invocable por cualquier operador autenticado.
+            if (desde < hasta.AddYears(-2))
+                desde = hasta.AddYears(-2);
+
             var desdeTs = desde.ToDateTime(TimeOnly.MinValue);
             var hastaTs = hasta.ToDateTime(new TimeOnly(23, 59, 59));
 
@@ -121,13 +127,19 @@ AND p.hora_caso <= @hasta");
 
             if (f.CanalCodigo > 0)
             {
+                // cad_canales.codigo no es único por sí solo (PK compuesta con
+                // cadfuerz_id: cada fuerza numera sus canales desde 1) — sin el
+                // AND de fuerza, este filtro mezclaba incidentes de canales
+                // homónimos de otra fuerza.
                 sb.Append(@"
 AND EXISTS (
     SELECT 1 FROM cad_eventos ev
     WHERE ev.pedido_id   = p.id
       AND ev.canal_codigo = @canal
+      AND (@canalFuerza = 0 OR ev.fuerza_id = @canalFuerza)
 )");
-                p["canal"] = f.CanalCodigo;
+                p["canal"]       = f.CanalCodigo;
+                p["canalFuerza"] = f.CanalFuerzaId;
             }
 
             // Turno de vigilancia — franja horaria sobre hora_caso en hora Colombia.
@@ -363,19 +375,24 @@ LIMIT 15");
 
         // ── Ciudades disponibles en el tenant ─────────────────────────────────
 
-        public async Task<List<string>> GetCiudadesAsync(CancellationToken ct)
+        public async Task<List<string>> GetCiudadesAsync(int sitioGraba, CancellationToken ct)
         {
             var result = new List<string>();
             try
             {
                 await using var conn = await _tenant.DataSource.OpenConnectionAsync(ct);
                 await using var cmd  = conn.CreateCommand();
+                // sitioGraba=0 (solo super-admin) omite el filtro — antes esta consulta
+                // nunca lo aplicaba, contradiciendo el propio contrato documentado
+                // ("para operadores solo las del tenant actual").
                 cmd.CommandText = @"
 SELECT DISTINCT TRIM(ciudad) AS ciudad
 FROM   cad_pedidos
 WHERE  ciudad IS NOT NULL AND TRIM(ciudad) <> ''
+  AND  (@sitio = 0 OR sitio_graba = @sitio)
 ORDER  BY ciudad
 LIMIT  100";
+                cmd.Parameters.AddWithValue("sitio", sitioGraba);
                 cmd.CommandTimeout = 15;
                 await using var r = await cmd.ExecuteReaderAsync(ct);
                 while (await r.ReadAsync(ct))
@@ -390,7 +407,7 @@ LIMIT  100";
 
         // ── Barrios por ciudad (o todos si ciudad vacía) ───────────────────────
 
-        public async Task<List<string>> GetBarriosAsync(string? ciudad, CancellationToken ct)
+        public async Task<List<string>> GetBarriosAsync(string? ciudad, int sitioGraba, CancellationToken ct)
         {
             var result = new List<string>();
             try
@@ -403,9 +420,11 @@ SELECT DISTINCT TRIM(barrio) AS barrio
 FROM   cad_pedidos
 WHERE  barrio IS NOT NULL AND TRIM(barrio) <> ''
   AND  (@ciudad = '' OR UPPER(TRIM(ciudad)) = UPPER(@ciudad))
+  AND  (@sitio  = 0  OR sitio_graba = @sitio)
 ORDER  BY barrio
 LIMIT  300";
                 cmd.Parameters.AddWithValue("ciudad", filtCiudad);
+                cmd.Parameters.AddWithValue("sitio",  sitioGraba);
                 cmd.CommandTimeout = 15;
                 await using var r = await cmd.ExecuteReaderAsync(ct);
                 while (await r.ReadAsync(ct))

@@ -64,6 +64,7 @@ export class MapaEstadisticoComponent implements OnInit, AfterViewInit, OnDestro
   // ── Claims del usuario ────────────────────────────────────────────────────
   esSuperAdmin   = false;
   ciudadUsuario  = '';   // ciudad auto-detectada para no-superadmin
+  private sitioGraba = 0;
 
   // ── Datos ─────────────────────────────────────────────────────────────────
   puntos:   DtoPuntoEstadistico[]    = [];
@@ -109,6 +110,7 @@ export class MapaEstadisticoComponent implements OnInit, AfterViewInit, OnDestro
     const claims      = this.auth.getJwtClaims();
     this.codDane      = claims.codDane;
     this.esSuperAdmin = claims.esSuperAdmin;
+    this.sitioGraba   = claims.sitioGraba ?? 0;
 
     if (!this.esSuperAdmin) {
       // Para operadores la ciudad viene del nombre del CAD o nombreCad
@@ -154,14 +156,16 @@ export class MapaEstadisticoComponent implements OnInit, AfterViewInit, OnDestro
           error: () => { this.cargandoListas = false; }
         });
     } else {
-      // Operador: solo carga barrios (la ciudad está fijada por el tenant)
+      // Operador: solo carga barrios, acotados a su propio sitio (sitioGraba).
+      // Antes se pedía sin ciudad y sin sitio, trayendo barrios de TODAS las
+      // ciudades/CADs del sistema en vez de solo los del tenant del operador.
       this.cargarBarrios('');
     }
   }
 
   private cargarBarrios(ciudad: string): void {
     this.cargandoListas = true;
-    this.svc.getBarrios(ciudad || undefined)
+    this.svc.getBarrios(ciudad || undefined, this.esSuperAdmin ? undefined : this.sitioGraba)
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: list => {
@@ -190,6 +194,10 @@ export class MapaEstadisticoComponent implements OnInit, AfterViewInit, OnDestro
       this.toast.warning('Filtros', 'Debe seleccionar un rango de fechas.');
       return;
     }
+    if (this.filtro.desde > this.filtro.hasta) {
+      this.toast.warning('Filtros', 'La fecha "Desde" no puede ser posterior a "Hasta".');
+      return;
+    }
     this.cargando   = true;
     this.errorCarga = false;
 
@@ -200,7 +208,14 @@ export class MapaEstadisticoComponent implements OnInit, AfterViewInit, OnDestro
           this.zone.run(() => {
             this.cargando   = false;
             this.consultado = true;
-            this.puntos     = data.puntos   ?? [];
+            // Un solo punto con coordenadas no numéricas rompía L.circleMarker/
+            // L.heatLayer a mitad del bucle de render, dejando el mapa Y las
+            // gráficas sin dibujar para toda la consulta (el error interrumpía
+            // actualizarMapa() antes de llegar al setTimeout de renderCharts()).
+            this.puntos = (data.puntos ?? []).filter(p =>
+              Number.isFinite(p.lat) && Number.isFinite(p.lng) &&
+              Math.abs(p.lat) <= 90 && Math.abs(p.lng) <= 180
+            );
             this.metricas   = data.metricas ?? this.metricasVacias();
             // Fallback: si el backend no devolvió métricas pero hay puntos,
             // las calculamos en el cliente para garantizar que los gráficos funcionen.
@@ -230,6 +245,15 @@ export class MapaEstadisticoComponent implements OnInit, AfterViewInit, OnDestro
       canalCodigo: 0, soloCerrados: true, turnoVigilancia: 0
     };
     if (this.esSuperAdmin) this.barrios = [];
+
+    // Antes "Limpiar" solo reseteaba el formulario: el mapa, el panel de
+    // resumen y las gráficas seguían mostrando la consulta anterior, dando
+    // la falsa impresión de que correspondían a "todos los incidentes".
+    this.consultado = false;
+    this.puntos      = [];
+    this.metricas    = this.metricasVacias();
+    this.limpiarCapasIncidentes();
+    this.destroyCharts();
   }
 
   turnoLabel(v: number): string {
@@ -253,21 +277,21 @@ export class MapaEstadisticoComponent implements OnInit, AfterViewInit, OnDestro
     const imgPrio  = this.chartPrioRef?.nativeElement?.toDataURL('image/png') ?? '';
 
     const filtrosTexto = [
-      `Período: ${this.filtro.desde} → ${this.filtro.hasta}`,
-      (this.filtro.turnoVigilancia ?? 0) > 0 ? `Turno: ${this.turnoLabel(this.filtro.turnoVigilancia!)}` : null,
-      this.filtro.prioridad   ? `Prioridad: ${this.filtro.prioridad}` : null,
-      this.filtro.codiPedido  ? `Código caso: ${this.filtro.codiPedido}` : null,
-      !this.esSuperAdmin && this.ciudadUsuario ? `Ciudad: ${this.ciudadUsuario}` : null,
-      this.esSuperAdmin && this.filtro.ciudad  ? `Ciudad: ${this.filtro.ciudad}` : null,
-      this.filtro.barrio      ? `Barrio: ${this.filtro.barrio}` : null,
+      `Período: ${this.escapeHtml(this.filtro.desde)} → ${this.escapeHtml(this.filtro.hasta)}`,
+      (this.filtro.turnoVigilancia ?? 0) > 0 ? `Turno: ${this.escapeHtml(this.turnoLabel(this.filtro.turnoVigilancia!))}` : null,
+      this.filtro.prioridad   ? `Prioridad: ${this.escapeHtml(this.filtro.prioridad)}` : null,
+      this.filtro.codiPedido  ? `Código caso: ${this.escapeHtml(this.filtro.codiPedido)}` : null,
+      !this.esSuperAdmin && this.ciudadUsuario ? `Ciudad: ${this.escapeHtml(this.ciudadUsuario)}` : null,
+      this.esSuperAdmin && this.filtro.ciudad  ? `Ciudad: ${this.escapeHtml(this.filtro.ciudad)}` : null,
+      this.filtro.barrio      ? `Barrio: ${this.escapeHtml(this.filtro.barrio)}` : null,
       this.filtro.soloCerrados ? 'Solo incidentes cerrados' : 'Todos los incidentes',
     ].filter(Boolean).join(' &nbsp;|&nbsp; ');
 
     const topCasos = this.metricas.porTipoCaso.slice(0, 10)
       .map((c, i) => `<tr>
         <td>${i + 1}</td>
-        <td>${c.clave}</td>
-        <td>${c.descripcion}</td>
+        <td>${this.escapeHtml(c.clave)}</td>
+        <td>${this.escapeHtml(c.descripcion)}</td>
         <td style="text-align:right;font-weight:700">${c.total.toLocaleString('es-CO')}</td>
       </tr>`).join('');
 
@@ -280,7 +304,7 @@ export class MapaEstadisticoComponent implements OnInit, AfterViewInit, OnDestro
             ${this.metricas.porCiudad.slice(0, 8).map((c, i) => `
               <tr>
                 <td>${i + 1}</td>
-                <td>${c.descripcion}</td>
+                <td>${this.escapeHtml(c.descripcion)}</td>
                 <td style="text-align:right;font-weight:700">${c.total.toLocaleString('es-CO')}</td>
               </tr>`).join('')}
           </tbody>
@@ -423,7 +447,7 @@ export class MapaEstadisticoComponent implements OnInit, AfterViewInit, OnDestro
   <div class="insights">
     <div class="insight">
       <div class="insight-label">Tipo más frecuente</div>
-      <div class="insight-valor">${this.topCaso ? (this.topCaso.descripcion || this.topCaso.clave) + ' (' + this.topCaso.total + ')' : '—'}</div>
+      <div class="insight-valor">${this.topCaso ? this.escapeHtml(this.topCaso.descripcion || this.topCaso.clave) + ' (' + this.topCaso.total + ')' : '—'}</div>
     </div>
     <div class="insight">
       <div class="insight-label">Hora pico de incidentes</div>
@@ -474,6 +498,8 @@ export class MapaEstadisticoComponent implements OnInit, AfterViewInit, OnDestro
     if (ventana) {
       ventana.document.write(html);
       ventana.document.close();
+    } else {
+      this.toast.warning('Informe bloqueado', 'El navegador bloqueó la ventana emergente. Habilite popups para este sitio e intente de nuevo.');
     }
   }
 
@@ -628,27 +654,53 @@ export class MapaEstadisticoComponent implements OnInit, AfterViewInit, OnDestro
     this.puntosGroup.addTo(this.map);
   }
 
+  /**
+   * Escapa HTML para interpolación segura en popups de Leaflet e informes.
+   * bindPopup()/document.write() asignan el string vía innerHTML — nunca pasa
+   * por el sanitizador de Angular. Todo campo de texto libre digitado por un
+   * operador (dirección, descripción, barrio, código de caso…) debe pasar por
+   * aquí antes de interpolarse, o un valor malicioso capturado en, por
+   * ejemplo, dire_caso se ejecutaría en la sesión del analista que abra el
+   * mapa o genere el informe (mismo patrón corregido en Mapa de Incidentes).
+   */
+  private escapeHtml(value: string | number | null | undefined): string {
+    if (value == null) return '';
+    return String(value)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
   private buildPopup(p: DtoPuntoEstadistico): string {
+    const codiPedido = this.escapeHtml(p.codiPedido);
+    const descPedido = this.escapeHtml(p.descPedido) || 'Sin descripción';
+    const direCaso    = this.escapeHtml(p.direCaso) || '—';
+    const barrio      = this.escapeHtml(p.barrio);
+    const ciudad      = this.escapeHtml(p.ciudad);
+    const horaCaso    = this.escapeHtml(p.horaCaso);
+    const id          = this.escapeHtml(p.id);
     return `
       <div style="font-family:sans-serif;min-width:190px;font-size:12px">
         <div style="font-weight:700;color:#003087;margin-bottom:5px;font-size:13px">
-          ${p.codiPedido} — ${p.descPedido || 'Sin descripción'}
+          ${codiPedido} — ${descPedido}
         </div>
         <div style="margin-bottom:2px">
           <i class="fa-solid fa-location-dot" style="color:#cc0000"></i>
-          <strong>${p.direCaso || '—'}</strong>
+          <strong>${direCaso}</strong>
         </div>
-        ${p.barrio ? `<div style="color:#666;margin-bottom:2px">${p.barrio}${p.ciudad ? ', ' + p.ciudad : ''}</div>` : ''}
+        ${barrio ? `<div style="color:#666;margin-bottom:2px">${barrio}${ciudad ? ', ' + ciudad : ''}</div>` : ''}
         <div style="margin-top:5px;margin-bottom:5px">
           <span style="background:${this.colorPrioridad(p.prioridad)};color:#fff;padding:2px 9px;
                        border-radius:10px;font-size:10px;font-weight:700;letter-spacing:.04em">
             ${this.labelPrioridad(p.prioridad)}
           </span>
           <span style="color:#888;font-size:10px;margin-left:6px">
-            <i class="fa-regular fa-clock"></i> ${p.horaCaso}
+            <i class="fa-regular fa-clock"></i> ${horaCaso}
           </span>
         </div>
-        <div style="font-size:10px;color:#aaa">ID: ${p.id}</div>
+        <div style="font-size:10px;color:#aaa">ID: ${id}</div>
       </div>`;
   }
 
@@ -666,7 +718,9 @@ export class MapaEstadisticoComponent implements OnInit, AfterViewInit, OnDestro
         this.map.fitBounds(bounds, { padding: [20, 20] });
         this.cargarCuadrantesPorBbox(bounds);
       }
-    }).catch(() => {});
+    }).catch(() => {
+      this.zone.run(() => this.toast.warning('Mapa', 'No se pudo cargar la capa de municipio (servicio GIS no disponible).'));
+    });
   }
 
   private cargarCuadrantesPorBbox(bounds: any): void {
@@ -679,7 +733,9 @@ export class MapaEstadisticoComponent implements OnInit, AfterViewInit, OnDestro
       this.cuadrantesLayer = L.geoJSON(g, {
         style: { color: '#ff0000', weight: 1.2, fillOpacity: 0, opacity: 0.45 }
       }).addTo(this.map);
-    }).catch(() => {});
+    }).catch(() => {
+      this.zone.run(() => this.toast.warning('Mapa', 'No se pudo cargar la capa de cuadrantes (servicio GIS no disponible).'));
+    });
   }
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -847,14 +903,27 @@ export class MapaEstadisticoComponent implements OnInit, AfterViewInit, OnDestro
     return Array.from({ length: n }, (_, i) => base[i % base.length]);
   }
 
+  /**
+   * yyyy-MM-dd en hora LOCAL. Date.toISOString() convierte a UTC antes de
+   * recortar la fecha — en Bogotá (UTC-5), a partir de ~19:00 locales ya es
+   * "mañana" en UTC, así que el rango de fechas por defecto quedaba corrido
+   * un día en el horario típico de operación de un CAD.
+   */
+  private fechaLocalIso(d: Date): string {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  }
+
   private defaultDesde(): string {
     const d = new Date();
     d.setDate(d.getDate() - 30);
-    return d.toISOString().substring(0, 10);
+    return this.fechaLocalIso(d);
   }
 
   private defaultHasta(): string {
-    return new Date().toISOString().substring(0, 10);
+    return this.fechaLocalIso(new Date());
   }
 
   private metricasVacias(): DtoMetricasEstadisticas {

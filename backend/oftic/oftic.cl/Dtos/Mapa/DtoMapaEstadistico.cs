@@ -19,6 +19,12 @@ namespace Comun.Dtos.Mapa
         public string Barrio     { get; set; } = "";
         /// <summary>Canal de atención (0 = todos).</summary>
         public int    CanalCodigo{ get; set; }
+        /// <summary>
+        /// Fuerza propietaria del canal (0 = sin restringir). Obligatorio cuando
+        /// CanalCodigo &gt; 0: cad_canales.codigo no es único por sí solo (cada
+        /// fuerza numera sus canales desde 1).
+        /// </summary>
+        public int    CanalFuerzaId { get; set; }
         /// <summary>Sitio de grabación (0 = todos del tenant).</summary>
         public int    SitioGraba { get; set; }
         /// <summary>Solo incidentes cerrados (true) o todos (false).</summary>

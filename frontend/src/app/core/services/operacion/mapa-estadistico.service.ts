@@ -13,6 +13,8 @@ export interface DtoFiltroEstadistico {
   ciudad?:           string;
   barrio?:           string;
   canalCodigo?:      number;
+  /** Obligatorio cuando canalCodigo &gt; 0 — cad_canales.codigo no es único por sí solo. */
+  canalFuerzaId?:    number;
   sitioGraba?:       number;
   soloCerrados:      boolean;
   turnoVigilancia?:  number;   // 0=Todos, 1=Segundo(06-13h), 2=Tercer(14-21h), 3=Cuarto(22-05h)
@@ -78,19 +80,23 @@ export class MapaEstadisticoService {
     if (filtro.ciudad)      params = params.set('ciudad',      filtro.ciudad);
     if (filtro.barrio)      params = params.set('barrio',      filtro.barrio);
     if (filtro.canalCodigo)      params = params.set('canalCodigo',      filtro.canalCodigo.toString());
+    if (filtro.canalFuerzaId)    params = params.set('canalFuerzaId',    filtro.canalFuerzaId.toString());
     if (filtro.sitioGraba)       params = params.set('sitioGraba',       filtro.sitioGraba.toString());
     if (filtro.turnoVigilancia)  params = params.set('turnoVigilancia',  filtro.turnoVigilancia.toString());
 
     return this.http.get<DtoAnalisisEstadistico>(`${this.baseUrl}/analisis`, { params });
   }
 
-  getCiudades(): Observable<string[]> {
-    return this.http.get<string[]>(`${this.baseUrl}/ciudades`);
+  getCiudades(sitioGraba?: number): Observable<string[]> {
+    let params = new HttpParams();
+    if (sitioGraba) params = params.set('sitioGraba', sitioGraba.toString());
+    return this.http.get<string[]>(`${this.baseUrl}/ciudades`, { params });
   }
 
-  getBarrios(ciudad?: string): Observable<string[]> {
+  getBarrios(ciudad?: string, sitioGraba?: number): Observable<string[]> {
     let params = new HttpParams();
-    if (ciudad) params = params.set('ciudad', ciudad);
+    if (ciudad)     params = params.set('ciudad', ciudad);
+    if (sitioGraba) params = params.set('sitioGraba', sitioGraba.toString());
     return this.http.get<string[]>(`${this.baseUrl}/barrios`, { params });
   }
 }

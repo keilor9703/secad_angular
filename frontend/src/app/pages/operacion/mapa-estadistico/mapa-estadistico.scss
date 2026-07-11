@@ -499,3 +499,90 @@ $shadow:  0 2px 8px rgba(0,0,0,.10);
   width:       30px;
   text-align:  right;
 }
+
+// ══════════════════════════════════════════════════════════════
+//  DARK MODE  (html.dark-mode, NOT :host-context)
+// ══════════════════════════════════════════════════════════════
+// Antes este archivo no tenía ningún override de modo oscuro — a diferencia
+// de las demás páginas de Operación, quedaba con fondo/texto claros fijos.
+
+html.dark-mode {
+  .gis-wrapper { background: var(--ui-bg); }
+
+  .gis-filtros {
+    background:   var(--ui-surface);
+    border-color: var(--ui-border);
+    &::-webkit-scrollbar-thumb { background: var(--ui-border); }
+  }
+
+  .gis-label { color: var(--ui-text-muted); }
+
+  .gis-input {
+    background:   rgba(255,255,255,.04);
+    border-color: var(--ui-border);
+    color:        var(--ui-text);
+    &:disabled { background: rgba(255,255,255,.02); color: var(--ui-text-muted); }
+    option { background: var(--ui-surface); color: var(--ui-text); }
+  }
+
+  .gis-lista-cargando,
+  .gis-lista-hint { color: var(--ui-text-muted); }
+
+  .gis-ciudad-badge {
+    background:   rgba(8,166,203,.10);
+    border-color: rgba(8,166,203,.30);
+    color:        #8ec7ff;
+  }
+
+  .gis-check-label { color: var(--ui-text); }
+
+  .gis-btn--secundario {
+    background: rgba(255,255,255,.07); color: var(--ui-text);
+    &:hover:not(:disabled) { background: rgba(255,255,255,.12); }
+  }
+
+  .gis-error { background: rgba(239,68,68,.12); color: #f5b5bb; }
+
+  .gis-resumen {
+    background:   rgba(255,255,255,.03);
+    border-color: var(--ui-border);
+
+    &__titulo { color: #8ec7ff; }
+    &__fila   { color: var(--ui-text); border-bottom-color: var(--ui-border); }
+    &__insight { color: var(--ui-text-muted); strong { color: var(--ui-text); } }
+  }
+
+  .gis-mapa-overlay { background: rgba(10,15,27,.80); color: var(--ui-text-muted); }
+
+  .gis-capa-btn {
+    background:   var(--ui-surface);
+    border-color: var(--ui-border);
+    color:        var(--ui-text);
+    &:not(.activo):hover { background: rgba(255,255,255,.06); }
+  }
+
+  .gis-leyenda-calor,
+  .gis-leyenda-puntos {
+    background:   rgba(30,40,64,.95);
+    border-color: var(--ui-border);
+    &__titulo { color: #8ec7ff; }
+    &__labels { color: var(--ui-text-muted); }
+  }
+
+  .gis-lp-item { color: var(--ui-text); &--cluster { color: var(--ui-text-muted); } }
+  .gis-lp-sep  { background: var(--ui-border); }
+
+  .gis-stats {
+    background:   var(--ui-surface);
+    border-color: var(--ui-border);
+    &::-webkit-scrollbar-thumb { background: var(--ui-border); }
+  }
+
+  .gis-stats-vacio { color: var(--ui-text-muted); }
+
+  .gis-chart-card   { border-bottom-color: var(--ui-border); }
+  .gis-chart-titulo { color: #8ec7ff; }
+
+  .gis-ciudad-nombre      { color: var(--ui-text); }
+  .gis-ciudad-barra-track { background: rgba(255,255,255,.08); }
+}

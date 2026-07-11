@@ -10,27 +10,27 @@
 
     <!-- Fechas -->
     <div class="gis-filtros__grupo">
-      <label class="gis-label">Desde</label>
-      <input type="date" class="gis-input" [(ngModel)]="filtro.desde" />
+      <label class="gis-label" for="gisDesde">Desde</label>
+      <input id="gisDesde" type="date" class="gis-input" [(ngModel)]="filtro.desde" />
     </div>
     <div class="gis-filtros__grupo">
-      <label class="gis-label">Hasta</label>
-      <input type="date" class="gis-input" [(ngModel)]="filtro.hasta" />
+      <label class="gis-label" for="gisHasta">Hasta</label>
+      <input id="gisHasta" type="date" class="gis-input" [(ngModel)]="filtro.hasta" />
     </div>
 
     <!-- Tipo de caso -->
     <div class="gis-filtros__grupo">
-      <label class="gis-label">Código de caso</label>
-      <input type="text" class="gis-input" [(ngModel)]="filtro.codiPedido"
+      <label class="gis-label" for="gisCodiPedido">Código de caso</label>
+      <input id="gisCodiPedido" type="text" class="gis-input" [(ngModel)]="filtro.codiPedido"
              placeholder="Ej: 905, 120…" maxlength="20" />
     </div>
 
     <!-- Turno de vigilancia -->
     <div class="gis-filtros__grupo">
-      <label class="gis-label">
+      <label class="gis-label" for="gisTurno">
         <i class="fa-solid fa-shield-halved"></i> Turno
       </label>
-      <select class="gis-input" [(ngModel)]="filtro.turnoVigilancia">
+      <select id="gisTurno" class="gis-input" [(ngModel)]="filtro.turnoVigilancia">
         @for (t of turnos; track t.value) {
           <option [ngValue]="t.value">{{ t.label }}</option>
         }
@@ -45,8 +45,8 @@
 
     <!-- Prioridad -->
     <div class="gis-filtros__grupo">
-      <label class="gis-label">Prioridad</label>
-      <select class="gis-input" [(ngModel)]="filtro.prioridad">
+      <label class="gis-label" for="gisPrioridad">Prioridad</label>
+      <select id="gisPrioridad" class="gis-input" [(ngModel)]="filtro.prioridad">
         <option value="">Todas</option>
         <option value="FLASH">Flash</option>
         <option value="INMEDIATA">Inmediata</option>
@@ -57,8 +57,8 @@
     <!-- Ciudad — solo visible para SuperAdmin -->
     @if (esSuperAdmin) {
       <div class="gis-filtros__grupo">
-        <label class="gis-label">Ciudad / Municipio</label>
-        <select class="gis-input"
+        <label class="gis-label" for="gisCiudad">Ciudad / Municipio</label>
+        <select id="gisCiudad" class="gis-input"
                 [(ngModel)]="filtro.ciudad"
                 (ngModelChange)="onCiudadChange()"
                 [disabled]="cargandoListas">
@@ -87,8 +87,8 @@
 
     <!-- Barrio — dropdown -->
     <div class="gis-filtros__grupo">
-      <label class="gis-label">Barrio / Sector</label>
-      <select class="gis-input"
+      <label class="gis-label" for="gisBarrio">Barrio / Sector</label>
+      <select id="gisBarrio" class="gis-input"
               [(ngModel)]="filtro.barrio"
               [disabled]="cargandoListas || barrios.length === 0">
         <option value="">Todos los barrios</option>
@@ -307,7 +307,7 @@
             <i class="fa-solid fa-chart-pie"></i> Distribución por prioridad
           </div>
           <div class="gis-chart-wrap gis-chart-wrap--sm">
-            <canvas #chartPrioridad></canvas>
+            <canvas #chartPrioridad role="img" aria-label="Gráfica de distribución de incidentes por prioridad"></canvas>
           </div>
         </div>
 
@@ -319,7 +319,7 @@
           <div class="gis-chart-wrap"
                [style.height.px]="metricas.porTipoCaso.slice(0,12).length * 22 + 20"
                style="min-height:120px">
-            <canvas #chartTipo></canvas>
+            <canvas #chartTipo role="img" aria-label="Gráfica de los tipos de caso más frecuentes"></canvas>
           </div>
         </div>
 
@@ -329,7 +329,7 @@
             <i class="fa-solid fa-clock"></i> Incidentes por hora del día
           </div>
           <div class="gis-chart-wrap">
-            <canvas #chartHora></canvas>
+            <canvas #chartHora role="img" aria-label="Gráfica de incidentes por hora del día"></canvas>
           </div>
         </div>
 
@@ -339,7 +339,7 @@
             <i class="fa-solid fa-calendar-week"></i> Por día de la semana
           </div>
           <div class="gis-chart-wrap">
-            <canvas #chartDia></canvas>
+            <canvas #chartDia role="img" aria-label="Gráfica de incidentes por día de la semana"></canvas>
           </div>
         </div>
 
@@ -349,7 +349,7 @@
             <i class="fa-solid fa-arrow-trend-up"></i> Tendencia mensual
           </div>
           <div class="gis-chart-wrap">
-            <canvas #chartMes></canvas>
+            <canvas #chartMes role="img" aria-label="Gráfica de tendencia mensual de incidentes"></canvas>
           </div>
         </div>
 

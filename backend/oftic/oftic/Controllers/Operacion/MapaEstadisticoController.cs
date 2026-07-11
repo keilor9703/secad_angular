@@ -42,27 +42,35 @@ namespace Api.Controllers.Operacion
             [FromQuery] string? ciudad,
             [FromQuery] string? barrio,
             [FromQuery] int?    canalCodigo,
+            [FromQuery] int?    canalFuerzaId,
             [FromQuery] int?    sitioGraba,
             [FromQuery] bool    soloCerrados     = true,
             [FromQuery] int     turnoVigilancia  = 0,
             CancellationToken ct = default)
         {
+            // Superadmins pueden ver el sitio que pidan (o todos con sitioGraba=0);
+            // un operador SIEMPRE consulta su propio sitioGraba del JWT, sin importar
+            // lo que envíe el cliente (antes se asignaba primero el valor del cliente
+            // y solo se corregía si era admin, así que un operador normal nunca veía
+            // su propio valor sobrescrito — IDOR entre sitios/CADs del tenant).
+            var resolvedSitio = IsAdmin()
+                ? (sitioGraba ?? GetIntClaim("sitio_graba"))
+                : GetIntClaim("sitio_graba");
+
             var filtro = new DtoFiltroEstadistico
             {
-                Desde           = desde       ?? "",
-                Hasta           = hasta       ?? "",
-                CodiPedido      = codiPedido  ?? "",
-                Prioridad       = prioridad   ?? "",
-                Ciudad          = ciudad      ?? "",
-                Barrio          = barrio      ?? "",
-                CanalCodigo     = canalCodigo ?? 0,
-                SitioGraba      = sitioGraba  ?? GetIntClaim("sitio_graba"),
+                Desde           = desde         ?? "",
+                Hasta           = hasta         ?? "",
+                CodiPedido      = codiPedido    ?? "",
+                Prioridad       = prioridad     ?? "",
+                Ciudad          = ciudad        ?? "",
+                Barrio          = barrio        ?? "",
+                CanalCodigo     = canalCodigo   ?? 0,
+                CanalFuerzaId   = canalFuerzaId ?? 0,
+                SitioGraba      = resolvedSitio,
                 SoloCerrados    = soloCerrados,
                 TurnoVigilancia = turnoVigilancia
             };
-
-            // Superadmins pueden ver todos los sitios; operadores solo el suyo
-            if (IsAdmin()) filtro.SitioGraba = sitioGraba ?? 0;
 
             _logger.LogInformation(
                 "[GIS Estadístico] Análisis {D}→{H} | codi={C} prio={P} ciudad={Ci} solo_cerrados={S}",
@@ -78,9 +86,13 @@ namespace Api.Controllers.Operacion
         /// Para super-admin muestra todas; para operadores solo las del tenant actual.
         /// </summary>
         [HttpGet("ciudades")]
-        public async Task<ActionResult<List<string>>> GetCiudades(CancellationToken ct)
+        public async Task<ActionResult<List<string>>> GetCiudades(
+            [FromQuery] int? sitioGraba, CancellationToken ct)
         {
-            var list = await _repo.GetCiudadesAsync(ct);
+            var resolvedSitio = IsAdmin()
+                ? (sitioGraba ?? GetIntClaim("sitio_graba"))
+                : GetIntClaim("sitio_graba");
+            var list = await _repo.GetCiudadesAsync(resolvedSitio, ct);
             return Ok(list);
         }
 
@@ -89,9 +101,12 @@ namespace Api.Controllers.Operacion
         /// </summary>
         [HttpGet("barrios")]
         public async Task<ActionResult<List<string>>> GetBarrios(
-            [FromQuery] string? ciudad, CancellationToken ct)
+            [FromQuery] string? ciudad, [FromQuery] int? sitioGraba, CancellationToken ct)
         {
-            var list = await _repo.GetBarriosAsync(ciudad, ct);
+            var resolvedSitio = IsAdmin()
+                ? (sitioGraba ?? GetIntClaim("sitio_graba"))
+                : GetIntClaim("sitio_graba");
+            var list = await _repo.GetBarriosAsync(ciudad, resolvedSitio, ct);
             return Ok(list);
         }
 
