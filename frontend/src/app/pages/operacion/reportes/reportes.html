@@ -51,22 +51,22 @@
 
     <!-- Fecha desde -->
     <div class="rep-filtro-field">
-      <label class="rep-filtro-label">Desde</label>
-      <input class="ui-control rep-date-input" type="date"
+      <label class="rep-filtro-label" for="rep-filtro-desde">Desde</label>
+      <input id="rep-filtro-desde" class="ui-control rep-date-input" type="date"
              [(ngModel)]="desde" (change)="onFiltroChange()">
     </div>
 
     <!-- Fecha hasta -->
     <div class="rep-filtro-field">
-      <label class="rep-filtro-label">Hasta</label>
-      <input class="ui-control rep-date-input" type="date"
+      <label class="rep-filtro-label" for="rep-filtro-hasta">Hasta</label>
+      <input id="rep-filtro-hasta" class="ui-control rep-date-input" type="date"
              [(ngModel)]="hasta" (change)="onFiltroChange()">
     </div>
 
     <!-- Fuerza -->
     <div class="rep-filtro-field">
-      <label class="rep-filtro-label">Fuerza</label>
-      <select class="ui-control rep-date-input"
+      <label class="rep-filtro-label" for="rep-filtro-fuerza">Fuerza</label>
+      <select id="rep-filtro-fuerza" class="ui-control rep-date-input"
               [(ngModel)]="fuerzaId" (change)="onFiltroChange()">
         <option [ngValue]="0">Todas las fuerzas</option>
         @for (f of fuerzas; track f.id) {
@@ -77,11 +77,11 @@
 
     <!-- Turno de vigilancia -->
     <div class="rep-filtro-field">
-      <label class="rep-filtro-label">
+      <label class="rep-filtro-label" for="rep-filtro-turno">
         <i class="fa-solid fa-shield-halved" style="color:#7c3aed;margin-right:3px"></i>
         Turno
       </label>
-      <select class="ui-control rep-date-input rep-turno-select"
+      <select id="rep-filtro-turno" class="ui-control rep-date-input rep-turno-select"
               [(ngModel)]="turnoVigilancia" (change)="onFiltroChange()">
         @for (t of turnos; track t.value) {
           <option [ngValue]="t.value">{{ t.label }}</option>
@@ -234,7 +234,7 @@
         </div>
         <div class="rep-chart-container" style="height:260px">
           @if (porOrigen.length > 0) {
-            <canvas #canvasOrigen></canvas>
+            <canvas #canvasOrigen role="img" aria-label="Gráfico de incidentes por canal de origen"></canvas>
           } @else {
             <div class="rep-empty-chart">Sin datos</div>
           }
@@ -261,7 +261,7 @@
           Por Prioridad
         </div>
         <div class="rep-chart-container" style="height:180px">
-          <canvas #canvasPrio></canvas>
+          <canvas #canvasPrio role="img" aria-label="Gráfico de incidentes por prioridad"></canvas>
         </div>
         <div class="rep-prio-summary">
           <div class="rep-prio-item rep-prio-item--flash">
@@ -289,7 +289,7 @@
         <span class="rep-section__hint">🔴 Alta demanda · 🟡 Media · 🔵 Baja</span>
       </div>
       <div class="rep-chart-container" style="height:200px">
-        <canvas #canvasHoras></canvas>
+        <canvas #canvasHoras role="img" aria-label="Gráfico de distribución de incidentes por hora del día"></canvas>
       </div>
     </div>
 
@@ -522,12 +522,14 @@
             <div class="rep-pag-bar">
               <span class="rep-pag-info">{{ paginaInfo(efectivos!, paginaEfe, limitEfe) }}</span>
               <div class="rep-pag-btns">
-                <button class="ui-btn ghost xs" (click)="paginaAnteriorEfe()" [disabled]="paginaEfe <= 1">
+                <button class="ui-btn ghost xs" (click)="paginaAnteriorEfe()" [disabled]="paginaEfe <= 1"
+                        aria-label="Página anterior">
                   <i class="fa-solid fa-chevron-left"></i>
                 </button>
                 <span class="rep-pag-page">Pág. {{ paginaEfe }}</span>
                 <button class="ui-btn ghost xs" (click)="paginaSiguienteEfe()"
-                        [disabled]="paginaEfe * limitEfe >= (efectivos?.total ?? 0)">
+                        [disabled]="paginaEfe * limitEfe >= (efectivos?.total ?? 0)"
+                        aria-label="Página siguiente">
                   <i class="fa-solid fa-chevron-right"></i>
                 </button>
               </div>
@@ -621,12 +623,14 @@
             <div class="rep-pag-bar">
               <span class="rep-pag-info">{{ paginaInfo(tiemposDetalle!, paginaTieDet, limitTieDet) }}</span>
               <div class="rep-pag-btns">
-                <button class="ui-btn ghost xs" (click)="paginaAnteriorTie()" [disabled]="paginaTieDet <= 1">
+                <button class="ui-btn ghost xs" (click)="paginaAnteriorTie()" [disabled]="paginaTieDet <= 1"
+                        aria-label="Página anterior">
                   <i class="fa-solid fa-chevron-left"></i>
                 </button>
                 <span class="rep-pag-page">Pág. {{ paginaTieDet }}</span>
                 <button class="ui-btn ghost xs" (click)="paginaSiguienteTie()"
-                        [disabled]="paginaTieDet * limitTieDet >= (tiemposDetalle?.total ?? 0)">
+                        [disabled]="paginaTieDet * limitTieDet >= (tiemposDetalle?.total ?? 0)"
+                        aria-label="Página siguiente">
                   <i class="fa-solid fa-chevron-right"></i>
                 </button>
               </div>

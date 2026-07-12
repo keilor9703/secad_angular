@@ -164,8 +164,8 @@ namespace Datos.Gestion
                       AND  p.codi_pedido <> ''
                     """;
                 if (p.FuerzaId > 0) cmd.CommandText += "\n  AND  e.fuerza_id = @fuerza";
-                cmd.CommandText += "\nGROUP BY p.codi_pedido, c.descripcion ORDER BY total DESC LIMIT 10";
                 if (p.TurnoVigilancia > 0) cmd.CommandText += $"\n{TurnoSql(p.TurnoVigilancia)}";
+                cmd.CommandText += "\nGROUP BY p.codi_pedido, c.descripcion ORDER BY total DESC LIMIT 10";
                 AddParams(cmd, desde, hasta, p.FuerzaId);
 
                 await using var rdr = await cmd.ExecuteReaderAsync(ct);
@@ -282,6 +282,7 @@ namespace Datos.Gestion
                     """;
                 if (p.FuerzaId > 0)
                     cmd2.CommandText += "\n  AND EXISTS (SELECT 1 FROM cad_eventos ef WHERE ef.pedido_id = p.id AND ef.fuerza_id = @fuerza)";
+                if (p.TurnoVigilancia > 0) cmd2.CommandText += $"\n{TurnoSql(p.TurnoVigilancia)}";
                 AddParams(cmd2, desde, hasta, p.FuerzaId);
 
                 await using var rdr2 = await cmd2.ExecuteReaderAsync(ct);
@@ -316,8 +317,8 @@ namespace Datos.Gestion
                       AND  p.enviar = 'S'
                     """;
                 if (p.FuerzaId > 0) cmd.CommandText += "\n  AND  e.fuerza_id = @fuerza";
-                cmd.CommandText += "\nGROUP BY hora ORDER BY hora";
                 if (p.TurnoVigilancia > 0) cmd.CommandText += $"\n{TurnoSql(p.TurnoVigilancia)}";
+                cmd.CommandText += "\nGROUP BY hora ORDER BY hora";
                 AddParams(cmd, desde, hasta, p.FuerzaId);
 
                 await using var rdr = await cmd.ExecuteReaderAsync(ct);
@@ -367,6 +368,9 @@ namespace Datos.Gestion
                 ? hastaCol.Date                     // inicio del mismo día Colombia
                 : DateTime.ParseExact(p.Desde, "yyyy-MM-dd",
                       System.Globalization.CultureInfo.InvariantCulture).Date;
+
+            // Límite de rango: máximo 2 años, para evitar reportes que escaneen toda la tabla (DoS).
+            if (desdeCol < hastaCol.AddYears(-2)) desdeCol = hastaCol.AddYears(-2);
 
             // Convertir medianoche Colombia → UTC para comparar con timestamptz
             var desdeUtc = new DateTimeOffset(desdeCol, ColombiaOffset).UtcDateTime;
@@ -440,10 +444,9 @@ namespace Datos.Gestion
                 WHERE  p.fecha_creacion >= @fd
                   AND  p.fecha_creacion <= @fh
                   AND  p.enviar = 'S'
-                GROUP  BY calidad
-                ORDER  BY total DESC
                 """;
             if (p.TurnoVigilancia > 0) cmd.CommandText += $"\n{TurnoSql(p.TurnoVigilancia)}";
+            cmd.CommandText += "\nGROUP  BY calidad\nORDER  BY total DESC";
             AddParams(cmd, desde, hasta, 0);
 
             var rows = new List<(string cali, int total)>();
@@ -490,6 +493,8 @@ namespace Datos.Gestion
                       AND  p.enviar = 'S'
                     """;
                 if (filtroCalidad != null) cmdC.CommandText += "\n  AND  UPPER(TRIM(p.cali_pedido)) = @cali";
+                if (p.FuerzaId > 0) cmdC.CommandText += "\n  AND  EXISTS (SELECT 1 FROM cad_eventos ev WHERE ev.pedido_id = p.id AND ev.fuerza_id = @fuerza)";
+                if (p.TurnoVigilancia > 0) cmdC.CommandText += $"\n{TurnoSql(p.TurnoVigilancia)}";
                 AddParams(cmdC, desde, hasta, p.FuerzaId);
                 if (filtroCalidad != null) cmdC.Parameters.AddWithValue("@cali", filtroCalidad);
                 total = Convert.ToInt32(await cmdC.ExecuteScalarAsync(ct) ?? 0);
@@ -529,6 +534,10 @@ namespace Datos.Gestion
                         FROM   cad_actuaciones ac2
                         JOIN   cad_eventos     ev  ON ev.id = ac2.evento_id
                         WHERE  ev.pedido_id = p.id
+                    """;
+                if (p.FuerzaId > 0) cmdD.CommandText += "\n          AND    ev.fuerza_id = @fuerza";
+                cmdD.CommandText += """
+
                         ORDER  BY ac2.fecha_despacho ASC NULLS LAST
                         LIMIT  1
                     ) ac ON TRUE
@@ -537,6 +546,8 @@ namespace Datos.Gestion
                       AND  p.enviar = 'S'
                     """;
                 if (filtroCalidad != null) cmdD.CommandText += "\n  AND  UPPER(TRIM(p.cali_pedido)) = @cali";
+                if (p.FuerzaId > 0) cmdD.CommandText += "\n  AND  EXISTS (SELECT 1 FROM cad_eventos ev2 WHERE ev2.pedido_id = p.id AND ev2.fuerza_id = @fuerza)";
+                if (p.TurnoVigilancia > 0) cmdD.CommandText += $"\n{TurnoSql(p.TurnoVigilancia)}";
                 cmdD.CommandText += "\nORDER BY p.hora_caso DESC NULLS LAST\nLIMIT @lim OFFSET @off";
                 AddParams(cmdD, desde, hasta, p.FuerzaId);
                 if (filtroCalidad != null) cmdD.Parameters.AddWithValue("@cali", filtroCalidad);
@@ -606,6 +617,7 @@ namespace Datos.Gestion
                       AND  p.enviar = 'S'
                     """;
                 if (p.FuerzaId > 0) cmdC.CommandText += "\n  AND  ev.fuerza_id = @fuerza";
+                if (p.TurnoVigilancia > 0) cmdC.CommandText += $"\n{TurnoSql(p.TurnoVigilancia)}";
                 AddParams(cmdC, desde, hasta, p.FuerzaId);
                 total = Convert.ToInt32(await cmdC.ExecuteScalarAsync(ct) ?? 0);
             }
@@ -641,6 +653,7 @@ namespace Datos.Gestion
                       AND  p.enviar = 'S'
                     """;
                 if (p.FuerzaId > 0) cmdD.CommandText += "\n  AND  ev.fuerza_id = @fuerza";
+                if (p.TurnoVigilancia > 0) cmdD.CommandText += $"\n{TurnoSql(p.TurnoVigilancia)}";
                 cmdD.CommandText += "\nORDER BY p.hora_caso DESC NULLS LAST, ac.fecha_despacho ASC NULLS LAST\nLIMIT @lim OFFSET @off";
                 AddParams(cmdD, desde, hasta, p.FuerzaId);
                 cmdD.Parameters.AddWithValue("@lim", limit);
@@ -708,10 +721,10 @@ namespace Datos.Gestion
                   AND  p.enviar = 'S'
                   AND  ev.usuario_genera IS NOT NULL
                   AND  ev.usuario_genera <> ''
-                GROUP  BY ev.usuario_genera
-                ORDER  BY casos_recibidos DESC
                 """;
+            if (p.FuerzaId > 0) cmd.CommandText += "\n  AND  ev.fuerza_id = @fuerza";
             if (p.TurnoVigilancia > 0) cmd.CommandText += $"\n{TurnoSql(p.TurnoVigilancia)}";
+            cmd.CommandText += "\nGROUP  BY ev.usuario_genera\nORDER  BY casos_recibidos DESC";
             AddParams(cmd, desde, hasta, p.FuerzaId);
 
             var result = new List<DtoTrabajoOperador>();
@@ -746,22 +759,22 @@ namespace Datos.Gestion
             await using var conn = await _tenant.DataSource.OpenConnectionAsync(ct);
             await using var cmd  = conn.CreateCommand();
 
-            cmd.CommandText = $"""
+            cmd.CommandText = """
                 SELECT p.codi_pedido,
                        COALESCE(c.descripcion, p.codi_pedido, 'Sin código') AS descripcion,
                        COUNT(DISTINCT p.id) AS total
                 FROM   cad_pedidos p
-                LEFT   JOIN cad_casos c ON TRIM(UPPER(c.codigo)) = TRIM(UPPER(p.codi_pedido))
+                LEFT   JOIN cad_casos   c ON TRIM(UPPER(c.codigo)) = TRIM(UPPER(p.codi_pedido))
+                LEFT   JOIN cad_eventos e ON e.pedido_id = p.id
                 WHERE  p.fecha_creacion >= @fd
                   AND  p.fecha_creacion <= @fh
                   AND  p.enviar = 'S'
                   AND  p.codi_pedido IS NOT NULL
                   AND  p.codi_pedido <> ''
-                GROUP  BY p.codi_pedido, c.descripcion
-                ORDER  BY total DESC
-                LIMIT  {top}
                 """;
+            if (p.FuerzaId > 0) cmd.CommandText += "\n  AND  e.fuerza_id = @fuerza";
             if (p.TurnoVigilancia > 0) cmd.CommandText += $"\n{TurnoSql(p.TurnoVigilancia)}";
+            cmd.CommandText += $"\nGROUP  BY p.codi_pedido, c.descripcion\nORDER  BY total DESC\nLIMIT  {top}";
             AddParams(cmd, desde, hasta, p.FuerzaId);
 
             var rows = new List<(string cod, string desc, int total)>();

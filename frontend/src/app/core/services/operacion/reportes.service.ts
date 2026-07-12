@@ -256,7 +256,7 @@ export class ReportesService {
     const rows   = filas.map(f =>
       columnas.map(c => {
         const v = f[c.key] ?? '';
-        return `"${String(v).replace(/"/g, '""')}"`;
+        return `"${this.csvCelda(String(v))}"`;
       }).join(',')
     );
     const csv  = [header, ...rows].join('\r\n');
@@ -267,6 +267,16 @@ export class ReportesService {
     a.download = `${nombreArchivo}.csv`;
     a.click();
     URL.revokeObjectURL(url);
+  }
+
+  /**
+   * Neutraliza inyección de fórmulas CSV: Excel/Sheets interpretan celdas que
+   * empiezan con =, +, - o @ como fórmulas, lo que permite ejecutar comandos
+   * si el usuario abre el CSV exportado (p.ej. un código de caso malicioso).
+   */
+  private csvCelda(v: string): string {
+    const esc = v.replace(/"/g, '""');
+    return /^[=+\-@]/.test(esc) ? `'${esc}` : esc;
   }
 
   // ── Helpers de presentación ───────────────────────────────────────────────

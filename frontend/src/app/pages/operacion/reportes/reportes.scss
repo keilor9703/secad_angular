@@ -844,7 +844,7 @@
 
   td {
     padding:     8px 10px;
-    border-bottom:1px solid rgba(0,0,0,.04);
+    border-bottom:1px solid var(--ui-border, #e5e9f0);
     vertical-align: middle;
     color:       var(--ui-text);
   }

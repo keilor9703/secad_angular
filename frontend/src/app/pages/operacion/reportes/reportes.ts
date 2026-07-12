@@ -104,6 +104,7 @@ export class ReportesComponent implements OnInit, AfterViewInit, OnDestroy {
   private chartHoras:  any = null;
   private chartPrio:   any = null;
   private chartsListo  = false;
+  private chartsTimeoutId: ReturnType<typeof setTimeout> | null = null;
 
   private destroy$ = new Subject<void>();
 
@@ -119,9 +120,9 @@ export class ReportesComponent implements OnInit, AfterViewInit, OnDestroy {
     const claims = this.authSvc.getJwtClaims();
     this.fuerzaId = claims.fuerzaId;
     // Cargar lista de fuerzas para el filtro
-    this.fuerzaSvc.getFuerzas().subscribe({
+    this.fuerzaSvc.getFuerzas().pipe(takeUntil(this.destroy$)).subscribe({
       next: r => this.fuerzas = (r.data ?? []).filter(f => f.vigente === 'S'),
-      error: () => {}
+      error: () => this.toast.error('Error', 'No se pudo cargar la lista de fuerzas.')
     });
     this.cargar();
   }
@@ -134,12 +135,23 @@ export class ReportesComponent implements OnInit, AfterViewInit, OnDestroy {
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
+    if (this.chartsTimeoutId !== null) clearTimeout(this.chartsTimeoutId);
     this.destruirCharts();
   }
 
   // ── Carga ─────────────────────────────────────────────────────────────────
 
+  /** El backend ya valida, pero evitamos la llamada y avisamos de inmediato. */
+  private rangoValido(): boolean {
+    if (this.desde > this.hasta) {
+      this.toast.error('Rango inválido', 'La fecha "Desde" no puede ser posterior a "Hasta".');
+      return false;
+    }
+    return true;
+  }
+
   cargar(): void {
+    if (!this.rangoValido()) return;
     this.cargando = true;
     this.error    = '';
     this.svc.getReporte({ desde: this.desde, hasta: this.hasta, fuerzaId: this.fuerzaId, turnoVigilancia: this.turnoVigilancia || undefined })
@@ -185,8 +197,10 @@ export class ReportesComponent implements OnInit, AfterViewInit, OnDestroy {
   private renderCharts(): void {
     if (!this.datos) return;
     this.destruirCharts();
+    if (this.chartsTimeoutId !== null) clearTimeout(this.chartsTimeoutId);
     // Pequeño delay para asegurar que los canvas están en el DOM
-    setTimeout(() => {
+    this.chartsTimeoutId = setTimeout(() => {
+      this.chartsTimeoutId = null;
       this.renderChartOrigen();
       this.renderChartHoras();
       this.renderChartPrio();
@@ -321,8 +335,8 @@ export class ReportesComponent implements OnInit, AfterViewInit, OnDestroy {
 
   setSeccion(s: 'dashboard' | 'detallados'): void {
     this.seccion = s;
-    if (s === 'detallados' && this.calidad.length === 0)
-      this.cargarReporteActivo();
+    // Siempre se recarga: los filtros pudieron cambiar mientras se veía el dashboard.
+    if (s === 'detallados') this.cargarReporteActivo();
   }
 
   setReporteActivo(r: typeof this.reporteActivo): void {
@@ -331,6 +345,7 @@ export class ReportesComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   cargarReporteActivo(): void {
+    if (!this.rangoValido()) return;
     switch (this.reporteActivo) {
       case 'calidad':    this.cargarCalidad();    break;
       case 'efectivos':  this.cargarEfectivos();  break;
@@ -349,7 +364,12 @@ export class ReportesComponent implements OnInit, AfterViewInit, OnDestroy {
     this.svc.getPorCalidad({ desde: this.desde, hasta: this.hasta, turnoVigilancia: this.turnoVigilancia || undefined })
       .pipe(takeUntil(this.destroy$))
       .subscribe({
-        next:  r => { this.calidad = r.data ?? []; this.cargandoCal = false; this.cdr.detectChanges(); },
+        next:  r => {
+          this.calidad = r.data ?? [];
+          this._maxCalidad = Math.max(...this.calidad.map(c => c.total), 1);
+          this.cargandoCal = false;
+          this.cdr.detectChanges();
+        },
         error: () => { this.cargandoCal = false; this.toast.error('Error', 'No se pudo cargar el reporte de calidad.'); }
       });
   }
@@ -367,7 +387,8 @@ export class ReportesComponent implements OnInit, AfterViewInit, OnDestroy {
     );
   }
 
-  maxCalidad(): number  { return Math.max(...this.calidad.map(c => c.total), 1); }
+  private _maxCalidad = 1;
+  maxCalidad(): number  { return this._maxCalidad; }
   get totalCalidad(): number { return this.calidad.reduce((s, c) => s + c.total, 0); }
 
   // ── R2 — Pedidos efectivos ────────────────────────────────────────────────
@@ -507,7 +528,12 @@ export class ReportesComponent implements OnInit, AfterViewInit, OnDestroy {
       turnoVigilancia: this.turnoVigilancia || undefined,
     }).pipe(takeUntil(this.destroy$))
       .subscribe({
-        next:  r => { this.codigos = r.data ?? []; this.cargandoCod = false; this.cdr.detectChanges(); },
+        next:  r => {
+          this.codigos = r.data ?? [];
+          this._maxCodigo = Math.max(...this.codigos.map(c => c.total), 1);
+          this.cargandoCod = false;
+          this.cdr.detectChanges();
+        },
         error: () => { this.cargandoCod = false; this.toast.error('Error', 'No se pudo cargar el reporte.'); }
       });
   }
@@ -525,7 +551,8 @@ export class ReportesComponent implements OnInit, AfterViewInit, OnDestroy {
     );
   }
 
-  maxCodigo(): number { return Math.max(...this.codigos.map(c => c.total), 1); }
+  private _maxCodigo = 1;
+  maxCodigo(): number { return this._maxCodigo; }
 
   // ── Helpers comunes ───────────────────────────────────────────────────────
 
@@ -541,6 +568,9 @@ export class ReportesComponent implements OnInit, AfterViewInit, OnDestroy {
 
   private hoy(): string { return this.formatDate(new Date()); }
   private formatDate(d: Date): string {
-    return d.toISOString().slice(0, 10);
+    const y   = d.getFullYear();
+    const m   = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
   }
 }

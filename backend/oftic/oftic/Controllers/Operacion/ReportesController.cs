@@ -21,6 +21,20 @@ namespace Api.Controllers.Operacion
 
         private int FuerzaId => int.TryParse(User.FindFirstValue("fuerza_id"), out var v) ? v : 0;
 
+        private bool IsAdmin() =>
+            string.Equals(User.FindFirstValue("es_admin"), "true", StringComparison.OrdinalIgnoreCase);
+
+        /// <summary>
+        /// Resuelve la fuerza a consultar: un super-admin puede pedir cualquier fuerza
+        /// (o 0 = todas) vía query string; un operador normal SIEMPRE consulta su
+        /// propia fuerza (claim del JWT), sin importar lo que envíe el cliente.
+        /// Antes el parámetro del query string se usaba tal cual para cualquier
+        /// usuario — cualquier operador podía pedir fuerzaId=0 (o el de otra fuerza)
+        /// y ver datos operativos de todo el tenant, incluyendo PII (teléfonos de
+        /// llamantes) de fuerzas ajenas.
+        /// </summary>
+        private int ResolveFuerza(int fuerzaId) => IsAdmin() ? fuerzaId : FuerzaId;
+
         public ReportesController(IDbReporteService svc, ILogger<ReportesController> logger)
         {
             _svc    = svc;
@@ -66,7 +80,7 @@ namespace Api.Controllers.Operacion
         {
             try
             {
-                var data = await _svc.GetReporteCompletoAsync(BaseParams(desde, hasta, fuerzaId, turnoVigilancia), ct);
+                var data = await _svc.GetReporteCompletoAsync(BaseParams(desde, hasta, ResolveFuerza(fuerzaId), turnoVigilancia), ct);
                 return Ok(new { success = true, data });
             }
             catch (Exception ex)
@@ -118,7 +132,7 @@ namespace Api.Controllers.Operacion
         {
             try
             {
-                var data = await _svc.GetEfectivosAsync(ExtParams(desde, hasta, fuerzaId, page, limit, calidad, turnoVigilancia: turnoVigilancia), ct);
+                var data = await _svc.GetEfectivosAsync(ExtParams(desde, hasta, ResolveFuerza(fuerzaId), page, limit, calidad, turnoVigilancia: turnoVigilancia), ct);
                 return Ok(new { success = true, data });
             }
             catch (Exception ex)
@@ -145,7 +159,7 @@ namespace Api.Controllers.Operacion
         {
             try
             {
-                var data = await _svc.GetTiemposDetalleAsync(ExtParams(desde, hasta, fuerzaId, page, limit, turnoVigilancia: turnoVigilancia), ct);
+                var data = await _svc.GetTiemposDetalleAsync(ExtParams(desde, hasta, ResolveFuerza(fuerzaId), page, limit, turnoVigilancia: turnoVigilancia), ct);
                 return Ok(new { success = true, data });
             }
             catch (Exception ex)
@@ -170,7 +184,7 @@ namespace Api.Controllers.Operacion
         {
             try
             {
-                var data = await _svc.GetTrabajoOperadoresAsync(BaseParams(desde, hasta, fuerzaId, turnoVigilancia), ct);
+                var data = await _svc.GetTrabajoOperadoresAsync(BaseParams(desde, hasta, ResolveFuerza(fuerzaId), turnoVigilancia), ct);
                 return Ok(new { success = true, data });
             }
             catch (Exception ex)
@@ -196,7 +210,7 @@ namespace Api.Controllers.Operacion
         {
             try
             {
-                var data = await _svc.GetPorCodigoAsync(ExtParams(desde, hasta, fuerzaId, top: top, turnoVigilancia: turnoVigilancia), ct);
+                var data = await _svc.GetPorCodigoAsync(ExtParams(desde, hasta, ResolveFuerza(fuerzaId), top: top, turnoVigilancia: turnoVigilancia), ct);
                 return Ok(new { success = true, data });
             }
             catch (Exception ex)
