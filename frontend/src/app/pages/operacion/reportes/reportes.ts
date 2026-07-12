@@ -194,6 +194,14 @@ export class ReportesComponent implements OnInit, AfterViewInit, OnDestroy {
 
   // ── Chart.js ──────────────────────────────────────────────────────────────
 
+  /** Se lee en cada render (no cacheado) porque el usuario puede alternar modo oscuro sin recargar. */
+  private chartTextColor(): string {
+    return getComputedStyle(document.documentElement).getPropertyValue('--ui-text').trim() || '#0f172a';
+  }
+  private chartGridColor(): string {
+    return getComputedStyle(document.documentElement).getPropertyValue('--ui-border').trim() || 'rgba(21,27,59,.14)';
+  }
+
   private renderCharts(): void {
     if (!this.datos) return;
     this.destruirCharts();
@@ -226,7 +234,7 @@ export class ReportesComponent implements OnInit, AfterViewInit, OnDestroy {
         responsive: true,
         maintainAspectRatio: false,
         plugins: {
-          legend: { position: 'right', labels: { boxWidth: 12, font: { size: 12 } } },
+          legend: { position: 'right', labels: { boxWidth: 12, font: { size: 12 }, color: this.chartTextColor() } },
           tooltip: {
             callbacks: {
               label: (ctx: any) => {
@@ -267,8 +275,8 @@ export class ReportesComponent implements OnInit, AfterViewInit, OnDestroy {
         maintainAspectRatio: false,
         plugins: { legend: { display: false } },
         scales: {
-          x: { grid: { display: false }, ticks: { font: { size: 10 } } },
-          y: { beginAtZero: true, ticks: { stepSize: 1, font: { size: 11 } } }
+          x: { grid: { display: false }, ticks: { font: { size: 10 }, color: this.chartTextColor() } },
+          y: { beginAtZero: true, ticks: { stepSize: 1, font: { size: 11 }, color: this.chartTextColor() }, grid: { color: this.chartGridColor() } }
         }
       }
     });
@@ -295,8 +303,8 @@ export class ReportesComponent implements OnInit, AfterViewInit, OnDestroy {
         maintainAspectRatio: false,
         plugins: { legend: { display: false } },
         scales: {
-          x: { beginAtZero: true, ticks: { stepSize: 1, font: { size: 11 } } },
-          y: { grid: { display: false }, ticks: { font: { size: 12 } } }
+          x: { beginAtZero: true, ticks: { stepSize: 1, font: { size: 11 }, color: this.chartTextColor() }, grid: { color: this.chartGridColor() } },
+          y: { grid: { display: false }, ticks: { font: { size: 12 }, color: this.chartTextColor() } }
         }
       }
     });

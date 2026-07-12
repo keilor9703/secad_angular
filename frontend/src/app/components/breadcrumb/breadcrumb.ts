@@ -34,8 +34,8 @@ interface BreadcrumbItem {
   styles: [`
     .breadcrumb-nav {
       padding: 12px 20px;
-      background: rgba(21, 27, 59, 0.03);
-      border-bottom: 1px solid rgba(21, 27, 59, 0.08);
+      background: var(--ui-bg, rgba(21, 27, 59, 0.03));
+      border-bottom: 1px solid var(--ui-border, rgba(21, 27, 59, 0.08));
     }
     .breadcrumb-list {
       display: flex;
@@ -52,24 +52,24 @@ interface BreadcrumbItem {
       gap: 4px;
     }
     .breadcrumb-link {
-      color: var(--policia-medio, #002a66);
+      color: var(--ui-muted, #002a66);
       text-decoration: none;
       font-size: 13px;
       font-weight: 500;
       transition: color 0.2s;
     }
     .breadcrumb-link:hover {
-      color: var(--policia-oscuro, #0a1929);
+      color: var(--policia-cielo, #0a1929);
       text-decoration: underline;
     }
     .breadcrumb-current {
-      color: rgba(21, 27, 59, 0.7);
+      color: var(--ui-text, rgba(21, 27, 59, 0.7));
       font-size: 13px;
       font-weight: 600;
     }
     .breadcrumb-separator {
       font-size: 10px;
-      color: rgba(21, 27, 59, 0.4);
+      color: var(--ui-muted, rgba(21, 27, 59, 0.4));
       margin: 0 2px;
     }
   `]

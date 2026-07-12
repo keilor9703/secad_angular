@@ -1260,6 +1260,11 @@ html.dark-mode {
     background: var(--ui-bg) !important;
 
     &[data-tipo] { background: var(--ui-bg) !important; }
+
+    &__tipo   { color: var(--ui-muted, rgba(228,231,235,.7)); }
+    &__titulo { color: var(--ui-text, rgba(228,231,235,.95)); }
+    &__meta   { color: var(--ui-muted, rgba(228,231,235,.5)); }
+    &__text   { color: var(--ui-text, rgba(228,231,235,.85)); }
   }
 
   .ev-anot-empty { color: var(--ui-text-muted); }
@@ -2655,5 +2660,47 @@ html.dark-mode {
     background:   rgba(255,255,255,.06);
     border-color: rgba(255,255,255,.12);
   }
-  .ev-adjunto-card__nombre { color: rgba(228,231,235,.9); }
+  .ev-adjunto-card__nombre   { color: rgba(228,231,235,.9); }
+  .ev-adjunto-card__fallback { color: rgba(228,231,235,.3); }
+
+  .ev-search-icon { color: var(--ui-muted, rgba(228,231,235,.4)); }
+
+  .ev-pill {
+    color: var(--ui-muted, rgba(228,231,235,.6));
+    &:hover:not(.ev-pill--on) {
+      background:   rgba(255,255,255,.06);
+      border-color: rgba(255,255,255,.2);
+    }
+  }
+
+  .ev-back-btn {
+    color: var(--ui-muted, rgba(228,231,235,.55));
+    &:hover { background: rgba(255,255,255,.08); }
+  }
+
+  .ev-map { background: rgba(255,255,255,.04); }
+
+  .ev-dispatch-count {
+    background: rgba(255,255,255,.08);
+    color:      var(--ui-muted, rgba(228,231,235,.6));
+  }
+
+  .ev-btn-novedad {
+    color:        rgba(228,231,235,.75) !important;
+    border-color: rgba(255,255,255,.2)  !important;
+  }
+
+  .ev-sug-bien { color: var(--ui-muted, rgba(228,231,235,.45)); }
+
+  .ev-asistente__cat-row .ui-label { color: var(--ui-muted, rgba(228,231,235,.7)); }
+  .ev-asistente__resp label        { color: var(--ui-text, rgba(228,231,235,.85)); }
+
+  .ev-remitir-hint,
+  .ev-remitir-canal-grupo__head { color: var(--ui-muted, #94a3b8); }
+  .ev-remitir-tab               { color: var(--ui-muted, #94a3b8); }
+  .ev-remitir-tab:hover:not(.ev-remitir-tab--active) { color: var(--ui-text, #cbd5e1); }
+  .ev-remitir-error {
+    background: rgba(239,68,68,.15);
+    color:      #fca5a5;
+  }
 }

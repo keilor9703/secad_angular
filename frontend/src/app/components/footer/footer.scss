@@ -262,7 +262,7 @@
 
 /* --- POLICY TEXT (Optimized with existing typography) --- */
 .ui-policy {
-  color: var(--policia-neutral-medio);
+  color: var(--ui-muted, var(--policia-neutral-medio));
   font-size: calc(14px * var(--font-size-scale));
   line-height: 1.55;
 }
@@ -270,7 +270,7 @@
 .ui-policy h4 {
   margin: 14px 0 6px;
   font-weight: 900;
-  color: var(--policia-oscuro);
+  color: var(--ui-text, var(--policia-oscuro));
 }
 
 .ui-policy p {
@@ -286,7 +286,7 @@
 }
 
 .ui-policy code {
-  background: rgba(21, 27, 59, 0.06);
+  background: var(--ui-bg, rgba(21, 27, 59, 0.06));
   border: 1px solid var(--ui-border);
   padding: 2px 6px;
   border-radius: var(--ui-radius-sm);

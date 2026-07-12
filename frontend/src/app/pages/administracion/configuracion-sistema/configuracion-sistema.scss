@@ -84,7 +84,7 @@
   height: 72px;
   object-fit: cover;
   border-radius: 8px;
-  background: #e5e7eb;
+  background: var(--ui-bg, #e5e7eb);
 }
 
 .login-item__actions {

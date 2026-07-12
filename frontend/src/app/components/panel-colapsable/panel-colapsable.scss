@@ -6,7 +6,7 @@
 
 :host {
   display:       block;
-  background:    #fff;
+  background:    var(--ui-surface, #fff);
   border:        1px solid var(--ui-border, rgba(21, 27, 59, .14));
   border-radius: var(--ui-radius-sm, 10px);
 }

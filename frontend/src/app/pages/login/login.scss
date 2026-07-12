@@ -253,7 +253,15 @@ body, input, button, textarea, select, label, p, h1, h2, h3, h4, h5, h6, a, span
 // ── Tarjeta base — misma estructura que .ui-modal__dialog ────────────────────
 
 .mfa-card {
-    background:    var(--ui-surface, #fff);
+    // Fijo a blanco (no var(--ui-surface)): el login es una pantalla de tema fijo
+    // que no reacciona a dark-mode, pero --ui-surface SÍ es global y reactivo —
+    // si el usuario activó modo oscuro en la sesión anterior y la clase dark-mode
+    // queda pegada en <html> al cerrar sesión (sin recarga completa), esta tarjeta
+    // se volvía oscura mientras que todo su texto interno (.mfa-help, .mfa-otp-box,
+    // .mfa-step-label, etc., más abajo en este archivo) sigue diseñado en colores
+    // oscuros fijos asumiendo una tarjeta clara — el flujo de 2FA se volvía
+    // ilegible justo cuando el usuario intenta autenticarse.
+    background:    #fff;
     border:        1px solid rgba(255, 255, 255, .12);
     border-radius: 18px;
     box-shadow:    0 30px 80px rgba(2, 6, 23, .38);
@@ -437,7 +445,7 @@ body, input, button, textarea, select, label, p, h1, h2, h3, h4, h5, h6, a, span
     font-weight:  800;
     border-radius:12px;
     border:       1.5px solid rgba(21, 27, 59, .18);   // igual que .ui-control
-    background:   var(--ui-surface, #fff);
+    background:   #fff;   // fijo, no var(--ui-surface) — ver nota en .mfa-card
     color:        var(--policia-medio, #002a66);
     outline:      none;
     transition:   border-color .15s ease, box-shadow .15s ease;

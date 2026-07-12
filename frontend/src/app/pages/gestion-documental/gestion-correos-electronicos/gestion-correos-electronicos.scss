@@ -416,4 +416,16 @@ html.dark-mode {
     background: var(--ui-surface) !important;
     border-bottom-color: var(--ui-border) !important;
   }
+
+  .detail-info {
+    background: var(--ui-bg);
+    p strong { color: var(--ui-muted); }
+  }
+
+  .detail-body-container .NgxEditor {
+    background: var(--ui-bg);
+    color: var(--ui-text);
+  }
+
+  .ui-btn-icon { border-color: var(--ui-border); }
 }

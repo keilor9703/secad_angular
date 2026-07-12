@@ -683,24 +683,24 @@ export class MapaEstadisticoComponent implements OnInit, AfterViewInit, OnDestro
     const id          = this.escapeHtml(p.id);
     return `
       <div style="font-family:sans-serif;min-width:190px;font-size:12px">
-        <div style="font-weight:700;color:#003087;margin-bottom:5px;font-size:13px">
+        <div style="font-weight:700;color:var(--ui-text,#003087);margin-bottom:5px;font-size:13px">
           ${codiPedido} — ${descPedido}
         </div>
-        <div style="margin-bottom:2px">
+        <div style="margin-bottom:2px;color:var(--ui-text,#111)">
           <i class="fa-solid fa-location-dot" style="color:#cc0000"></i>
           <strong>${direCaso}</strong>
         </div>
-        ${barrio ? `<div style="color:#666;margin-bottom:2px">${barrio}${ciudad ? ', ' + ciudad : ''}</div>` : ''}
+        ${barrio ? `<div style="color:var(--ui-muted,#666);margin-bottom:2px">${barrio}${ciudad ? ', ' + ciudad : ''}</div>` : ''}
         <div style="margin-top:5px;margin-bottom:5px">
           <span style="background:${this.colorPrioridad(p.prioridad)};color:#fff;padding:2px 9px;
                        border-radius:10px;font-size:10px;font-weight:700;letter-spacing:.04em">
             ${this.labelPrioridad(p.prioridad)}
           </span>
-          <span style="color:#888;font-size:10px;margin-left:6px">
+          <span style="color:var(--ui-muted,#888);font-size:10px;margin-left:6px">
             <i class="fa-regular fa-clock"></i> ${horaCaso}
           </span>
         </div>
-        <div style="font-size:10px;color:#aaa">ID: ${id}</div>
+        <div style="font-size:10px;color:var(--ui-muted,#aaa)">ID: ${id}</div>
       </div>`;
   }
 
@@ -742,6 +742,15 @@ export class MapaEstadisticoComponent implements OnInit, AfterViewInit, OnDestro
   //  Gráficas Chart.js
   // ══════════════════════════════════════════════════════════════════════════
 
+  /** Color de texto/grilla de Chart.js según el tema activo (--ui-text/--ui-border no son
+   *  estáticos: se leen en cada render porque el usuario puede alternar modo oscuro sin recargar. */
+  private chartTextColor(): string {
+    return getComputedStyle(document.documentElement).getPropertyValue('--ui-text').trim() || '#0f172a';
+  }
+  private chartGridColor(): string {
+    return getComputedStyle(document.documentElement).getPropertyValue('--ui-border').trim() || 'rgba(21,27,59,.14)';
+  }
+
   private renderCharts(): void {
     if (typeof Chart === 'undefined') return;
     this.destroyCharts();
@@ -756,6 +765,7 @@ export class MapaEstadisticoComponent implements OnInit, AfterViewInit, OnDestro
     const ref = this.chartTipoRef?.nativeElement;
     if (!ref) return;
     const top = this.metricas.porTipoCaso.slice(0, 12);
+    const text = this.chartTextColor();
     this.charts.set('tipo', new Chart(ref, {
       type: 'bar',
       data: {
@@ -766,7 +776,10 @@ export class MapaEstadisticoComponent implements OnInit, AfterViewInit, OnDestro
       options: {
         indexAxis: 'y', responsive: true, maintainAspectRatio: false,
         plugins: { legend: { display: false } },
-        scales:  { x: { grid: { display: false } }, y: { ticks: { font: { size: 10 } } } }
+        scales:  {
+          x: { grid: { display: false }, ticks: { color: text } },
+          y: { ticks: { font: { size: 10 }, color: text } }
+        }
       }
     }));
   }
@@ -778,6 +791,8 @@ export class MapaEstadisticoComponent implements OnInit, AfterViewInit, OnDestro
       const found = this.metricas.porHora.find(h => h.clave === String(i));
       return found?.total ?? 0;
     });
+    const text = this.chartTextColor();
+    const grid = this.chartGridColor();
     this.charts.set('hora', new Chart(ref, {
       type: 'line',
       data: {
@@ -789,7 +804,10 @@ export class MapaEstadisticoComponent implements OnInit, AfterViewInit, OnDestro
       options: {
         responsive: true, maintainAspectRatio: false,
         plugins: { legend: { display: false } },
-        scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
+        scales: {
+          x: { ticks: { color: text }, grid: { color: grid } },
+          y: { beginAtZero: true, ticks: { stepSize: 1, color: text }, grid: { color: grid } }
+        }
       }
     }));
   }
@@ -801,6 +819,8 @@ export class MapaEstadisticoComponent implements OnInit, AfterViewInit, OnDestro
     const vals  = Array.from({ length: 7 }, (_, i) => {
       return this.metricas.porDiaSemana.find(d => d.clave === String(i))?.total ?? 0;
     });
+    const text = this.chartTextColor();
+    const grid = this.chartGridColor();
     this.charts.set('dia', new Chart(ref, {
       type: 'bar',
       data: {
@@ -811,7 +831,10 @@ export class MapaEstadisticoComponent implements OnInit, AfterViewInit, OnDestro
       options: {
         responsive: true, maintainAspectRatio: false,
         plugins: { legend: { display: false } },
-        scales: { y: { beginAtZero: true } }
+        scales: {
+          x: { ticks: { color: text }, grid: { color: grid } },
+          y: { beginAtZero: true, ticks: { color: text }, grid: { color: grid } }
+        }
       }
     }));
   }
@@ -820,6 +843,8 @@ export class MapaEstadisticoComponent implements OnInit, AfterViewInit, OnDestro
     const ref = this.chartMesRef?.nativeElement;
     if (!ref) return;
     const meses = this.metricas.porMes;
+    const text = this.chartTextColor();
+    const grid = this.chartGridColor();
     this.charts.set('mes', new Chart(ref, {
       type: 'line',
       data: {
@@ -831,7 +856,10 @@ export class MapaEstadisticoComponent implements OnInit, AfterViewInit, OnDestro
       options: {
         responsive: true, maintainAspectRatio: false,
         plugins: { legend: { display: false } },
-        scales: { y: { beginAtZero: true } }
+        scales: {
+          x: { ticks: { color: text }, grid: { color: grid } },
+          y: { beginAtZero: true, ticks: { color: text }, grid: { color: grid } }
+        }
       }
     }));
   }
@@ -850,7 +878,7 @@ export class MapaEstadisticoComponent implements OnInit, AfterViewInit, OnDestro
       },
       options: {
         responsive: true, maintainAspectRatio: false,
-        plugins: { legend: { position: 'bottom', labels: { font: { size: 11 } } } }
+        plugins: { legend: { position: 'bottom', labels: { font: { size: 11 }, color: this.chartTextColor() } } }
       }
     }));
   }

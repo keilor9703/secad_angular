@@ -654,6 +654,7 @@ html.dark-mode {
     &:hover   { border-color: var(--policia-acento, #08a6cb); }
     &.seleccionado { box-shadow: 0 0 0 2px rgba(8,166,203,0.3); }
 
+    .card-codigo { color: var(--policia-cielo, #08a6cb); }
     .card-desc { color: var(--ui-text); }
     .card-dir  { color: var(--ui-text-muted); i { color: var(--ui-text-muted); } }
     .card-footer { color: var(--ui-text-muted); }

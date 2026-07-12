@@ -609,4 +609,21 @@ html.dark-mode {
     border-color: #334155;
     color: #475569;
   }
+
+  .asis-count-badge { background: rgba(99,102,241,.18); color: #a5b4fc; }
+
+  .asis-badge {
+    background: rgba(34,197,94,.15); color: #4ade80;
+    &.is-inactive { background: rgba(239,68,68,.15); color: #f87171; }
+    &.is-count    { background: rgba(99,102,241,.18); color: #a5b4fc; }
+  }
+
+  .asis-tipo-badge { background: rgba(34,197,94,.12); color: #4ade80; border-color: rgba(74,222,128,.3); }
+
+  .asis-btn-danger:hover { background: rgba(239,68,68,.12) !important; }
+
+  .asis-loading, .asis-section-label, .asis-hint-field,
+  .asis-preg-subtitle, .asis-hint-text, .asis-empty {
+    color: var(--ui-muted, #94a3b8);
+  }
 }

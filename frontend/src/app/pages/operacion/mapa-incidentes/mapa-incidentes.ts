@@ -342,7 +342,7 @@ export class MapaIncidentesComponent implements OnInit, AfterViewInit, OnDestroy
       ? `<span style="color:#0a9242;font-weight:600">
            <i class="fa-solid fa-car-side"></i> ${inc.totalActuaciones} unidad(es)
          </span>`
-      : `<span style="color:#888">Sin unidades asignadas</span>`;
+      : `<span style="color:var(--ui-muted,#888)">Sin unidades asignadas</span>`;
 
     const codiPedido    = this.escapeHtml(inc.codiPedido);
     const descPedido    = this.escapeHtml(inc.descPedido) || 'Sin descripción';
@@ -358,23 +358,23 @@ export class MapaIncidentesComponent implements OnInit, AfterViewInit, OnDestroy
     const idSeguro = /^[0-9]+$/.test(inc.id) ? inc.id : '';
 
     const desc2 = inc.codiPedido2
-      ? `<div style="font-size:11px;color:#666;margin-top:2px">
+      ? `<div style="font-size:11px;color:var(--ui-muted,#666);margin-top:2px">
            ${codiPedido2} — ${descPedido2}
          </div>`
       : '';
 
     return `
       <div style="font-family:sans-serif;min-width:200px">
-        <div style="font-weight:700;font-size:13px;margin-bottom:4px;color:#1a1a2e">
+        <div style="font-weight:700;font-size:13px;margin-bottom:4px;color:var(--ui-text,#1a1a2e)">
           ${codiPedido} — ${descPedido}
         </div>
         ${desc2}
-        <div style="font-size:11px;color:#444;margin:6px 0 2px">
+        <div style="font-size:11px;color:var(--ui-text,#444);margin:6px 0 2px">
           <i class="fa-solid fa-location-dot"></i>
           ${direCaso}
           ${barrio ? ` · ${barrio}` : ''}
         </div>
-        <div style="font-size:11px;color:#555;margin-bottom:6px">
+        <div style="font-size:11px;color:var(--ui-muted,#555);margin-bottom:6px">
           <i class="fa-regular fa-clock"></i> ${horaCaso}
           &nbsp;|&nbsp;
           <i class="fa-solid fa-user"></i> ${usernameCreacion}

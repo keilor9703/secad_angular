@@ -15,7 +15,7 @@
 .page-title {
   font-size: calc(22px * var(--font-size-scale, 1));
   font-weight: 700;
-  color: var(--policia-oscuro, #151b3b);
+  color: var(--ui-text, #151b3b);
   display: flex;
   align-items: center;
   gap: 0.5rem;
@@ -24,7 +24,7 @@
 
 .page-subtitle {
   margin: 0;
-  color: #64748b;
+  color: var(--ui-muted, #64748b);
   font-size: calc(13px * var(--font-size-scale, 1));
 }
 
@@ -189,4 +189,14 @@ html.dark-mode {
     color: var(--ui-text-muted);
     border-color: var(--ui-border);
   }
+
+  .ui-badge {
+    background: rgba(255,255,255,.08); color: var(--ui-text);
+    &.success { background: rgba(22,163,74,.18);  color: #4ade80; }
+    &.warning { background: rgba(245,158,11,.18); color: #fbbf24; }
+    &.danger  { background: rgba(239,68,68,.18);  color: #f87171; }
+    &.info    { background: rgba(8,166,203,.18);  color: #67e8f9; }
+  }
+
+  .ui-loading, .ui-empty { color: var(--ui-muted, #94a3b8); }
 }

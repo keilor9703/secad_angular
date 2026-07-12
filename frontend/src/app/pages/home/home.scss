@@ -853,7 +853,7 @@ h3.title-cards {
     align-items: center;
     gap: 10px;
     margin: 6px 0 10px;
-    color: var(--policia-neutral-medio);
+    color: var(--ui-muted, var(--policia-neutral-medio));
     font-size: 12px;
 }
 
@@ -861,12 +861,12 @@ h3.title-cards {
     margin: 0 0 10px;
     font-size: 18px;
     font-weight: 1000;
-    color: var(--policia-oscuro);
+    color: var(--ui-text, var(--policia-oscuro));
 }
 
 .news-modal__text {
     margin: 0;
-    color: var(--policia-neutral-medio);
+    color: var(--ui-text, var(--policia-neutral-medio));
     line-height: 1.55;
     font-size: 13.5px;
 }
@@ -1187,4 +1187,14 @@ h3.title-cards {
         -webkit-box-orient: vertical;
         overflow: hidden;
     }
+}
+
+// ── Modo oscuro ───────────────────────────────────────────────────────────────
+// Los íconos de las tarjetas de estadísticas usan tonos oscuros fijos pensados
+// para el fondo traslúcido claro (.stat-icon.*); sobre la tarjeta oscura
+// (--ui-surface en dark-mode) pierden casi todo el contraste.
+html.dark-mode {
+  .stat-icon.blue   { color: var(--policia-cielo, #08a6cb); }
+  .stat-icon.green  { color: #4ade80; }
+  .stat-icon.orange { color: #fbbf24; }
 }

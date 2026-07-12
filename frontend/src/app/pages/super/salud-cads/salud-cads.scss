@@ -345,6 +345,8 @@ html.dark-mode {
 
   .cad-metric__value { color: var(--ui-text, #e2e8f0); }
   .cad-card__nombre  { color: var(--ui-text, #e2e8f0); }
+  .cad-card__obs     { color: var(--ui-muted, #94a3b8); background: transparent; }
+  .cad-card__dane, .cad-card__ubicacion { color: var(--ui-muted, #94a3b8); }
 
   .refresh-badge { color: var(--policia-acento, #cdff00); }
 
@@ -353,4 +355,33 @@ html.dark-mode {
     border-color: rgba(245, 158, 11, .35);
     color:        #fcd34d;
   }
+
+  .monitor-paused {
+    background: rgba(245, 158, 11, .18) !important;
+    color:      #fcd34d                !important;
+  }
+
+  // KPIs del resumen — los tonos "700/800" de Tailwind son casi ilegibles
+  // sobre la superficie oscura; se aclaran para mantener el código de color.
+  .summary-tile--ok   .summary-tile__count { color: #4ade80; }
+  .summary-tile--warn .summary-tile__count { color: #fbbf24; }
+  .summary-tile--err  .summary-tile__count { color: #f87171; }
+  .summary-tile__label { color: var(--ui-muted, #94a3b8); }
+
+  .historial-tbl {
+    thead tr {
+      background: rgba(255, 255, 255, .04);
+      th { color: var(--ui-muted, #94a3b8); }
+    }
+
+    tbody tr.historial-row {
+      &:hover { background: rgba(255, 255, 255, .04); }
+      td { color: var(--ui-text, #e2e8f0); }
+    }
+
+    .col-fecha { color: var(--ui-text, #e2e8f0); }
+    .col-obs   { color: var(--ui-muted, #94a3b8); }
+  }
+
+  .list-loading { color: var(--ui-muted, #94a3b8); }
 }

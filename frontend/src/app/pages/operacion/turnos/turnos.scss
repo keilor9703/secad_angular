@@ -869,7 +869,16 @@ html.dark-mode {
 
   .tr-modal-hint { color: var(--ui-text-muted); strong { color: var(--ui-text); } }
 
-  .tr-map { border-color: var(--ui-border); }
+  .tr-map { border-color: var(--ui-border); background: rgba(255,255,255,.04); }
+
+  .tr-estado-badge.tr-estado-c      { background: rgba(255,255,255,.08); color: var(--ui-muted, rgba(228,231,235,.55)); }
+  .tr-estado-medio-badge.badge-dark { background: rgba(255,255,255,.08); color: var(--ui-muted, rgba(228,231,235,.6)); }
+
+  .tr-error-banner, .tr-modal-error {
+    background: rgba(239,68,68,.15);
+    color:      #fca5a5;
+    border-bottom-color: rgba(239,68,68,.3);
+  }
 
   .tr-turno-info {
     background: rgba(255,255,255,.03);

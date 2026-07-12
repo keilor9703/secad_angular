@@ -537,6 +537,10 @@
 
 // ── Dark-mode overrides ───────────────────────────────────────────────────────
 html.dark-mode {
+  .rec-id-field     { color: var(--policia-cielo); }
+  .rec-device-badge { color: var(--policia-cielo); }
+  .rec-dupl-checking { color: var(--ui-muted, #94a3b8); }
+
   // ── Secciones ──────────────────────────────────────────────────────────────
   .rec-section {
     background:   var(--ui-surface);

@@ -391,6 +391,13 @@ html.dark-mode {
     border-color: var(--ui-border);
   }
 
+  .state-box__value          { color: #4ade80; }
+  .state-box__value.inactive { color: #f87171; }
+  .empty-state i              { color: var(--policia-cielo); }
+  .required                   { color: #f87171; }
+  .op-sep                     { color: var(--ui-muted, rgba(228,231,235,.5)); }
+  .ui-btn.danger              { color: #f87171; }
+
   .state-box__label { color: var(--ui-muted); }
 
   .tabs-shell {

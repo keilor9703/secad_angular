@@ -14,7 +14,7 @@
 .page-title {
   font-size: calc(22px * var(--font-size-scale, 1));
   font-weight: 700;
-  color: var(--policia-oscuro, #151b3b);
+  color: var(--ui-text, #151b3b);
   display: flex;
   align-items: center;
   gap: 0.5rem;
@@ -23,7 +23,7 @@
 
 .page-subtitle {
   margin: 0;
-  color: #64748b;
+  color: var(--ui-muted, #64748b);
   font-size: calc(13px * var(--font-size-scale, 1));
 }
 
@@ -64,7 +64,7 @@
 
 .sub-text {
   font-size: calc(11px * var(--font-size-scale, 1));
-  color: #94a3b8;
+  color: var(--ui-muted, #94a3b8);
   margin-top: 2px;
 }
 
@@ -100,7 +100,7 @@ code {
 .ui-loading, .ui-empty {
   padding: 2.5rem;
   text-align: center;
-  color: #64748b;
+  color: var(--ui-muted, #64748b);
   font-size: calc(13px * var(--font-size-scale, 1));
 
   p { margin-top: 0.75rem; }
@@ -197,4 +197,11 @@ html.dark-mode {
     tbody tr:hover { background: rgba(255,255,255,.03); }
   }
   code { background: rgba(255,255,255,.08); }
+
+  .ui-badge {
+    background: rgba(255,255,255,.08); color: var(--ui-text);
+    &.success { background: rgba(22,163,74,.18); color: #4ade80; }
+    &.danger  { background: rgba(239,68,68,.18); color: #f87171; }
+    &.info    { background: rgba(8,166,203,.18); color: #67e8f9; }
+  }
 }

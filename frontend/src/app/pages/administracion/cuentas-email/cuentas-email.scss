@@ -57,7 +57,7 @@
   width: 34px;
   height: 34px;
   border-radius: 50%;
-  border: 1px solid #d7e0ea;
+  border: 1px solid var(--ui-border, #d7e0ea);
   background: var(--ui-surface);
   color: var(--ui-text);
   display: inline-flex;
@@ -144,10 +144,10 @@
   align-items: center;
   gap: 8px;
   padding: 9px 18px;
-  border: 1px dashed rgba(var(--policia-oscuro-rgb), .35);
+  border: 1px dashed var(--ui-border);
   border-radius: var(--ui-radius);
-  background: rgba(var(--policia-oscuro-rgb), .03);
-  color: var(--policia-oscuro);
+  background: var(--ui-bg);
+  color: var(--ui-text);
   font-size: 0.875rem;
   font-weight: 600;
   cursor: pointer;
@@ -155,8 +155,8 @@
   width: fit-content;
 
   &:hover {
-    border-color: var(--policia-claro);
-    background: rgba(var(--policia-oscuro-rgb), .06);
+    border-color: var(--policia-cielo);
+    background: rgba(8, 166, 203, .08);
   }
 
   &.loading {

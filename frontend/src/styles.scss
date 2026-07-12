@@ -811,6 +811,27 @@ html.dark-mode {
   .asis-empty { border-color: #334155; }
   .asis-placeholder { border-color: #334155; color: #475569; }
 
+  /* Popups de Leaflet (mapa-incidentes, mapa-estadistico, eventos, turnos) —
+     Leaflet inyecta este markup fuera del árbol de Angular, así que no hay
+     conflicto de ViewEncapsulation; se centraliza aquí para las 4 pantallas
+     que usan mapas. */
+  .leaflet-popup-content-wrapper {
+    background: var(--ui-surface) !important;
+    color: var(--ui-text) !important;
+    box-shadow: 0 6px 20px rgba(0,0,0,.45) !important;
+  }
+  .leaflet-popup-tip { background: var(--ui-surface) !important; }
+  .leaflet-popup-content { color: var(--ui-text) !important; }
+  .leaflet-popup-close-button { color: var(--ui-muted) !important; }
+  .leaflet-container a.leaflet-popup-close-button:hover { color: var(--ui-text) !important; }
+  .leaflet-control-zoom a {
+    background: var(--ui-surface) !important;
+    color: var(--ui-text) !important;
+    border-color: var(--ui-border) !important;
+  }
+  .leaflet-control-attribution { background: rgba(30,40,64,.75) !important; color: var(--ui-muted) !important; }
+  .leaflet-control-attribution a { color: var(--policia-cielo) !important; }
+
 }
 /* --- FIN MODO OSCURO --- */
 

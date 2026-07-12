@@ -236,10 +236,10 @@
   top: calc(100% + 15px);
   right: -50px;
   width: 320px;
-  background: white;
+  background: var(--ui-surface, white);
   border-radius: 12px;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
-  border: 1px solid rgba(0, 0, 0, 0.08);
+  border: 1px solid var(--ui-border, rgba(0, 0, 0, 0.08));
   overflow: hidden;
   animation: slideDown 0.3s ease-out;
   z-index: 1000;
@@ -270,15 +270,15 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    border-bottom: 1px solid #f0f0f0;
+    border-bottom: 1px solid var(--ui-border, #f0f0f0);
     cursor: pointer;
     transition: background 0.2s;
 
     &:last-child { border-bottom: none; }
 
     &:hover {
-      background: #f8f9fa;
-      .event-item__name { color: var(--policia-claro); }
+      background: var(--ui-bg, #f8f9fa);
+      .event-item__name { color: var(--policia-cielo, var(--policia-claro)); }
     }
 
     &__info {
@@ -289,19 +289,19 @@
     }
 
     &__name {
-      color: #333;
+      color: var(--ui-text, #333);
       font-weight: 600;
       font-size: calc(13px * var(--font-size-scale));
       line-height: 1.2;
     }
 
     &__date {
-      color: #777;
+      color: var(--ui-muted, #777);
       font-size: calc(11px * var(--font-size-scale));
     }
 
     i {
-      color: #ccc;
+      color: var(--ui-muted, #ccc);
       font-size: 12px;
       margin-left: 10px;
     }
@@ -310,7 +310,7 @@
   .dropdown-empty {
     padding: 30px 20px;
     text-align: center;
-    color: #999;
+    color: var(--ui-muted, #999);
     font-size: calc(13px * var(--font-size-scale));
   }
 }
@@ -555,7 +555,7 @@
   align-items: center;
   gap: 12px;
   padding: 12px 20px;
-  color: var(--policia-oscuro);
+  color: var(--ui-text);
   text-decoration: none;
   font-size: calc(14px * var(--font-size-scale));
   transition: all 0.2s ease;
@@ -564,11 +564,11 @@
   i {
     width: 20px;
     text-align: center;
-    color: var(--policia-claro);
+    color: var(--policia-cielo);
   }
 
   &:hover {
-    background: var(--policia-neutral-claro);
+    background: var(--ui-bg, var(--policia-neutral-claro));
   }
 
   &.logout {
@@ -634,7 +634,7 @@
 }
 
 .menu-trigger span {
-  color: var(--policia-oscuro) !important;
+  color: #fff !important;
 }
 
 .menu-trigger:hover{

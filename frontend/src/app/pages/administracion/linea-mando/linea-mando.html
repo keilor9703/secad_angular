@@ -142,7 +142,7 @@
         <i class="fa-solid fa-spinner fa-spin"></i> Cargando...
       </div>
 
-      <div *ngIf="!loading && listaLineaMando.length === 0" style="text-align: center; padding: 40px; color: #666;">
+      <div *ngIf="!loading && listaLineaMando.length === 0" style="text-align: center; padding: 40px; color: var(--ui-muted, #666);">
         No hay registros de línea de mando. Busque un funcionario y agréguelo.
       </div>
 
@@ -166,10 +166,10 @@
               </td>
               <td>
                 <div style="display: flex; align-items: center; gap: 10px;">
-                  <img [src]="getFotoUrl(item)" alt="Foto" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 2px solid #ddd;">
+                  <img [src]="getFotoUrl(item)" alt="Foto" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 2px solid var(--ui-border, #ddd);">
                   <div>
                     <div style="font-weight: 600;">{{ item.grado }} {{ item.nombre }} {{ item.apellidos }}</div>
-                    <div style="font-size: 11px; color: #666;">{{ item.identificacion }}</div>
+                    <div style="font-size: 11px; color: var(--ui-muted, #666);">{{ item.identificacion }}</div>
                   </div>
                 </div>
               </td>
