@@ -15,9 +15,13 @@ COMMENT ON TABLE cad_plantatel IS
   'Cola de eventos de telefonía entrantes desde la central telefónica (PlantaTel/PBX). Antes: cad_interfaz_cti.';
 
 -- ── 2. Renombrar el valor 'CTI' → 'PLANTATEL' en cad_eventos.origen ────────
+-- El DROP va primero: el constraint original (V7b) solo admite 'CTI', no
+-- 'PLANTATEL' — si el UPDATE corriera antes de soltar ese constraint viejo,
+-- violaría chk_eventos_origen en cada fila con origen='CTI'.
+ALTER TABLE cad_eventos DROP CONSTRAINT IF EXISTS chk_eventos_origen;
+
 UPDATE cad_eventos SET origen = 'PLANTATEL' WHERE origen = 'CTI';
 
-ALTER TABLE cad_eventos DROP CONSTRAINT IF EXISTS chk_eventos_origen;
 ALTER TABLE cad_eventos
     ADD CONSTRAINT chk_eventos_origen
     CHECK (origen IN (
