@@ -263,8 +263,8 @@ JOIN   cad_turnos t ON t.id = m.turno_id
 LEFT   JOIN cad_canales c ON c.codigo = m.canal_codigo AND c.cadfuerz_id = m.canal_fuerza_id
 WHERE  m.canal_codigo     = @canal
   -- cad_canales.codigo no es único por sí solo — cada fuerza numera sus canales
-  -- desde 1, así que sin esta condición un canal "5" de una fuerza traía también
-  -- las patrullas, GPS y personal del canal "5" de OTRA fuerza.
+  -- desde 1, así que sin esta condición un canal 5 de una fuerza traía también
+  -- las patrullas, GPS y personal del canal 5 de OTRA fuerza.
   AND  (m.canal_fuerza_id = @canalFuerza OR @canalFuerza = 0)
   AND  t.estado       = 'A'
   AND  t.hora_inicia  <= (NOW() AT TIME ZONE 'America/Bogota')
@@ -592,7 +592,7 @@ FROM   cad_medios_disponibles WHERE turno_id = @tid";
                             rdr.IsDBNull(6) ? null : rdr.GetString(6),
                             rdr.IsDBNull(7) ? "" : rdr.GetString(7),
                             rdr.IsDBNull(8) ? null : rdr.GetString(8),
-                            rdr.IsDBNull(9) ? TipoMedio.Patrulla : rdr.GetInt16(9)));
+                            rdr.IsDBNull(9) ? (short)TipoMedio.Patrulla : rdr.GetInt16(9)));
                     }
                 }
 
