@@ -307,35 +307,42 @@ public class DtoCambiarEstadoMedioRequest
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// DTOs de integración SIVICC
+// DTOs de integración GESPO (minuta digital, antes "SIVICC")
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// <summary>
-/// Unidad disponible en la minuta SIVICC para el turno y fuerza indicados.
-/// Se obtiene consultando <c>v_unidades_minuta</c> (FDW → V_MINUTA_SIVICC_POST2).
+/// Unidad con minuta activa en GESPO para el turno y fuerza indicados.
+/// Se obtiene consultando GESPO directamente (VM_MINUTAS_ACTIVAS) vía
+/// IGespoMinutaReader — sin FDW, conexión directa desde el backend .NET.
 /// </summary>
 public class DtoUnidadSivicc
 {
-    /// <summary>ID de la minuta SIVICC (minutaid en v_unidades_minuta).</summary>
+    /// <summary>ID de la minuta en GESPO (VM_MINUTAS_ACTIVAS.MINUTA_ID).</summary>
     public int    MinutaId          { get; set; }
-    /// <summary>Consecutivo SIATH de la unidad (consec_siath).</summary>
+    /// <summary>Consecutivo de la unidad en GESPO (VM_MINUTAS_ACTIVAS.CONSECUTIVO).</summary>
     public int    Consecutivo       { get; set; }
-    /// <summary>Código SECAD de la unidad (ej. "EST-01").</summary>
+    /// <summary>Código SECAD de la unidad (ej. "EST-01") — hoy igual al Consecutivo.</summary>
     public string UnidadCodigo      { get; set; } = "";
-    /// <summary>Descripción / nombre de la unidad en SIVICC.</summary>
+    /// <summary>Descripción / nombre de la unidad en GESPO (columna UNIDAD).</summary>
     public string Descripcion       { get; set; } = "";
     /// <summary>true si ya tiene medios registrados en cad_medios_disponibles.</summary>
     public bool   ExisteEnCadMedios { get; set; }
 }
 
 /// <summary>
-/// Unidad seleccionada por el usuario para importar desde SIVICC.
+/// Unidad seleccionada por el usuario para importar desde GESPO.
 /// Contiene los identificadores obtenidos en el paso de consulta de unidades.
 /// </summary>
 public class DtoUnidadSiviccSeleccionada
 {
-    public int MinutaId    { get; set; }
-    public int Consecutivo { get; set; }
+    public int     MinutaId    { get; set; }
+    public int     Consecutivo { get; set; }
+    /// <summary>
+    /// Snapshot del nombre de la unidad (viene del paso 1, GET .../sivicc/unidades)
+    /// — se usa para poblar cad_turnos_unidades.unidad_desc al importar, sin
+    /// necesidad de otra consulta a GESPO.
+    /// </summary>
+    public string? Descripcion { get; set; }
 }
 
 /// <summary>
@@ -349,6 +356,26 @@ public class DtoGespoUbicacion
     public double? VelocidadKmh   { get; set; }
     public double? RumboGrados    { get; set; }
     public string  FechaGps       { get; set; } = "";   // ISO-8601
+}
+
+/// <summary>
+/// Un policía asignado a un cuadrante dentro de una minuta GESPO — resultado de
+/// unir MINUTA_EMPLEADO + VM_CUADRANTE + VM_PERSONAL_AGRUPADO (ver
+/// GespoMinutaReader.LeerMediosDeMinutaAsync). Varias filas comparten el mismo
+/// CuadranteId (hasta 2 se usan como personal del medio).
+/// </summary>
+public class DtoMinutaEmpleadoGespo
+{
+    /// <summary>MINUTA_EMPLEADO.CUADRANTE_ID = cad_medios_disponibles.patrulla_codigo.</summary>
+    public string CuadranteId    { get; set; } = "";
+    /// <summary>VM_CUADRANTE.CODIGO_ZONA — nombre/código del cuadrante.</summary>
+    public string PatrullaDesc   { get; set; } = "";
+    /// <summary>VM_PERSONAL_AGRUPADO.IDENTIFICACION — cédula del policía.</summary>
+    public string Identificacion { get; set; } = "";
+    /// <summary>VM_PERSONAL_AGRUPADO.FUNCIONARIO — grado + nombre completo.</summary>
+    public string NombreCompleto { get; set; } = "";
+    /// <summary>VM_PERSONAL_AGRUPADO.CARGO_ACTUAL.</summary>
+    public string Cargo          { get; set; } = "";
 }
 
 public class DtoTurnoResult

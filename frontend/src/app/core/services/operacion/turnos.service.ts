@@ -268,6 +268,8 @@ export interface DtoUnidadSivicc {
 export interface DtoUnidadSiviccSeleccionada {
   minutaId:    number;
   consecutivo: number;
+  /** Snapshot del nombre de la unidad (viene del paso 1) — evita otra consulta a GESPO. */
+  descripcion?: string;
 }
 
 /** Request: importar medios de las unidades SIVICC seleccionadas */

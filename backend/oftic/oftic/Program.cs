@@ -211,6 +211,12 @@ builder.Services.Configure<GespoOracleOptions>(
     builder.Configuration.GetSection(GespoOracleOptions.Section));
 builder.Services.AddSingleton<IGespoOracleReader, GespoOracleReader>();
 
+// Minuta digital (unidades/personal por cuadrante) — misma conexión Oracle
+// (GespoOracleOptions) que la lectura de GPS, sin polling: se consulta bajo
+// demanda desde el wizard de importación del módulo Turnos (reemplaza el
+// enfoque FDW anterior de V11, ya eliminado).
+builder.Services.AddSingleton<IGespoMinutaReader, GespoMinutaReader>();
+
 // ── Poller de ubicaciones GPS de GESPO ────────────────────────────────────────
 // BackgroundService que lee Oracle GESPO (vía IGespoOracleReader) cada pocos
 // segundos y sincroniza cad_medios_disponibles de cada tenant activo.

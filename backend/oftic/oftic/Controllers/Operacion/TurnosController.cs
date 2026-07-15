@@ -2,6 +2,7 @@ using Comun.Dtos.Turnos;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Negocio.Interfaz;
+using Oracle.ManagedDataAccess.Client;
 using System.Security.Claims;
 
 namespace Api.Controllers.Operacion
@@ -422,19 +423,20 @@ namespace Api.Controllers.Operacion
         }
 
         /// <summary>
-        /// PASO 1 del wizard SIVICC.
+        /// PASO 1 del wizard GESPO (minuta digital, antes "SIVICC").
         ///
-        /// Consulta las unidades disponibles en la minuta de SIVICC para el turno indicado.
-        /// Los filtros de búsqueda (sigla de la fuerza, clase de turno, fecha) se derivan
+        /// Consulta las unidades con minuta activa en GESPO para el turno indicado —
+        /// conexión directa a Oracle vía IGespoMinutaReader, sin FDW. Los filtros de
+        /// búsqueda (sigla de la fuerza, clase de turno, fecha) se derivan
         /// automáticamente del turno en BD — el usuario no introduce ningún ID manualmente.
         ///
         /// Retorna la lista de unidades con:
-        ///   · <c>minutaId</c>    — ID de la minuta SIVICC (necesario para el paso 3)
-        ///   · <c>consecutivo</c> — Consecutivo SIATH de la unidad
+        ///   · <c>minutaId</c>    — ID de la minuta en GESPO (necesario para el paso 3)
+        ///   · <c>consecutivo</c> — Consecutivo de la unidad en GESPO
         ///   · <c>descripcion</c> — Nombre de la unidad
         ///   · <c>existeEnCadMedios</c> — true si ya se importó antes
         ///
-        /// Requiere que la vista FDW <c>v_unidades_minuta</c> esté disponible.
+        /// Requiere GespoOracle:Enabled = true y ConnectionString configurados.
         /// </summary>
         /// <remarks>
         /// GET api/Turnos/{id}/sivicc/unidades
@@ -447,28 +449,40 @@ namespace Api.Controllers.Operacion
                 var data = await _svc.G_GetUnidadesSiviccAsync(id, ct);
                 return Ok(new { success = true, data });
             }
+            catch (OracleException ex)
+            {
+                _logger.LogWarning(ex, "GetUnidadesSivicc: error consultando GESPO turnoId={Id}", id);
+                return StatusCode(503, new
+                {
+                    success = false,
+                    message = "GESPO no está disponible en este momento. Intente más tarde o registre la unidad/medio manualmente."
+                });
+            }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "GetUnidadesSivicc error turnoId={Id}", id);
                 return StatusCode(500, new
                 {
                     success = false,
-                    message = "Error al consultar SIVICC: " + ex.Message
+                    message = "Error al consultar GESPO: " + ex.Message
                 });
             }
         }
 
         /// <summary>
-        /// PASO 3 del wizard SIVICC — Importa medios y personal de las unidades seleccionadas.
+        /// PASO 3 del wizard GESPO — Importa medios y personal de las unidades seleccionadas.
         ///
         /// Flujo correcto:
-        ///   1. GET  api/Turnos/{id}/sivicc/unidades  → obtiene lista de unidades SIVICC
+        ///   1. GET  api/Turnos/{id}/sivicc/unidades  → obtiene lista de unidades con minuta activa
         ///   2. El usuario selecciona cuáles importar
         ///   3. POST api/Turnos/{id}/sivicc           → envía las unidades seleccionadas
         ///
-        /// Para cada unidad seleccionada, lee v_personal_minuta (FDW) filtrando por
-        /// minutaId y consecutivo, crea o actualiza los medios en cad_medios_disponibles,
-        /// asigna personal (máx. 2) en cad_personal_disponible,
+        /// Para cada unidad seleccionada: crea/actualiza su fila en
+        /// cad_turnos_unidades (origen SIVICC), lee el personal por cuadrante
+        /// directo en Oracle (MINUTA_EMPLEADO + VM_CUADRANTE + VM_PERSONAL_AGRUPADO,
+        /// sin FDW), crea o actualiza los medios en cad_medios_disponibles con
+        /// turno_unidad_id y origen='SIVICC', asigna personal (máx. 2) en
+        /// cad_personal_disponible (se refresca por completo en cada reimportación),
         /// y marca el turno como sivicc_sincronizado = TRUE.
         ///
         /// Si el campo <c>unidades</c> está vacío, importa TODAS las unidades disponibles.
@@ -476,7 +490,7 @@ namespace Api.Controllers.Operacion
         /// <remarks>
         /// POST api/Turnos/{id}/sivicc
         /// Body: { "fuerzaId": 1, "sitioGraba": 1, "canalCodigo": 5,
-        ///         "unidades": [{ "minutaId": 456, "consecutivo": 1 }] }
+        ///         "unidades": [{ "minutaId": 456, "consecutivo": 1, "descripcion": "ESTACION SUR" }] }
         /// </remarks>
         [HttpPost("{id:long}/sivicc")]
         public async Task<IActionResult> ImportarSivicc(

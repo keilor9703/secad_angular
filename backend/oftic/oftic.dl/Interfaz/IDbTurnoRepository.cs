@@ -74,8 +74,8 @@ namespace Datos.Interfaz
             long medioId, DtoActualizarMedioRequest req, int fuerzaId, string usuario, CancellationToken ct);
 
         /// <summary>
-        /// Consulta las unidades disponibles en la minuta SIVICC para el turno indicado.
-        /// Usa la vista FDW <c>v_unidades_minuta</c> (equivale a V_MINUTA_SIVICC_POST2 en Oracle).
+        /// Consulta las unidades con minuta activa en GESPO para el turno indicado.
+        /// Lee VM_MINUTAS_ACTIVAS directo en Oracle vía IGespoMinutaReader (sin FDW).
         /// Los parámetros de filtro (sigla física, clase turno, fecha) se derivan del propio turno.
         /// </summary>
         Task<List<DtoUnidadSivicc>> G_GetUnidadesSiviccAsync(

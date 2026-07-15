@@ -906,7 +906,7 @@ export class TurnosComponent implements OnInit, OnDestroy, AfterViewChecked {
 
     const unidades = this.unidadesSivicc
       .filter(u => u.seleccionada)
-      .map(u => ({ minutaId: u.minutaId, consecutivo: u.consecutivo }));
+      .map(u => ({ minutaId: u.minutaId, consecutivo: u.consecutivo, descripcion: u.descripcion }));
 
     const req: DtoImportarSiviccRequest = {
       ...this.formSivicc,
