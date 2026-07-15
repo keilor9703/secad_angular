@@ -606,6 +606,12 @@
                         </span>
                       }
                       <span class="ev-rec-count">{{ recursos.length }} recurso(s)</span>
+                      <button type="button" class="ui-btn xs ghost ev-rec-btn"
+                              (click)="sugerirRecursoCercano()"
+                              title="Sugerir el cuadrante libre más cercano al sitio del hecho">
+                        <i class="fa-solid fa-location-crosshairs"></i>
+                        Cuadrante más cercano
+                      </button>
                       @if (errorRecursos) {
                         <span class="ev-err">
                           <i class="fa-solid fa-triangle-exclamation"></i>
@@ -613,6 +619,46 @@
                         </span>
                       }
                     </div>
+
+                    <!-- Sugerencia de cuadrante más cercano (PostGIS) -->
+                    @if (mostrarSugerencia) {
+                      <div class="ev-sugerencia-box">
+                        <div class="ev-sugerencia-box__head">
+                          <i class="fa-solid fa-location-crosshairs"></i>
+                          Recomendación — más cercano al hecho
+                          <button type="button" class="ev-sugerencia-box__close"
+                                  (click)="mostrarSugerencia = false">
+                            <i class="fa-solid fa-xmark"></i>
+                          </button>
+                        </div>
+                        @if (cargandoSugerencia) {
+                          <div class="ev-empty-state" style="padding:10px 0">
+                            <i class="fa-solid fa-spinner fa-spin"></i>
+                            <p>Buscando el más cercano…</p>
+                          </div>
+                        } @else if (errorSugerencia) {
+                          <div class="ev-sugerencia-box__empty">{{ errorSugerencia }}</div>
+                        } @else {
+                          @for (s of sugerenciasRecurso; track s.medioId; let i = $index) {
+                            <div class="ev-sugerencia-item" [class.ev-sugerencia-item--top]="i === 0">
+                              <span class="ev-sugerencia-item__rank">{{ i + 1 }}</span>
+                              <div class="ev-sugerencia-item__info">
+                                <strong>{{ s.patrullaCodigo }}</strong>
+                                <span>{{ s.patrullaDesc }}</span>
+                              </div>
+                              <span class="ev-sugerencia-item__dist">
+                                {{ s.distanciaM < 1000 ? (s.distanciaM + ' m') : ((s.distanciaM/1000 | number:'1.1-1') + ' km') }}
+                              </span>
+                              <button type="button" class="ui-btn xs primary"
+                                      [disabled]="!!asignandoMedioId"
+                                      (click)="asignarSugerido(s)">
+                                Asignar
+                              </button>
+                            </div>
+                          }
+                        }
+                      </div>
+                    }
 
                     <!-- Estado de carga inicial -->
                     @if (cargandoRecursos && recursos.length === 0) {

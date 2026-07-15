@@ -156,6 +156,24 @@ export interface DtoMedioDisponible {
 }
 
 /**
+ * Un medio Libre sugerido como candidato de asignación, rankeado por cercanía
+ * al punto consultado (búsqueda PostGIS en el backend). Solo sugerencia —
+ * nunca se asigna automáticamente.
+ */
+export interface DtoRecursoCercano {
+  medioId:        string;   // Snowflake
+  patrullaCodigo: string;
+  patrullaDesc:   string;
+  tipoMedio:      TipoMedio;
+  estado:         EstadoMedio;
+  estadoDesc:     string;
+  latitud:        number;
+  longitud:       number;
+  /** Distancia en línea recta al punto consultado, en metros. */
+  distanciaM:     number;
+}
+
+/**
  * Versión reducida para polling rápido desde el panel de despacho.
  * Minimiza el payload enviado al cliente.
  */
@@ -399,6 +417,29 @@ export class TurnosService {
     return this.http
       .get<{ success: boolean; data: DtoMedioDisponibleResumen[] }>(
         `${this.base}/canal/${canalCodigo}/recursos/resumen`, { params }
+      )
+      .pipe(map(r => r.data));
+  }
+
+  /**
+   * Sugiere los medios Libres más cercanos a un punto (p.ej. el sitio de un
+   * incidente), rankeados por distancia. Mismo alcance canal+fuerza+sitio que
+   * getResumenRecursosCanal. Solo sugerencia — el despachador decide.
+   */
+  getSugerenciaRecurso(
+    canalCodigo:    number,
+    lat:            number,
+    lng:            number,
+    sitioGraba:     number = 1,
+    canalFuerzaId?: number,
+    top:            number = 5
+  ): Observable<DtoRecursoCercano[]> {
+    let params = new HttpParams()
+      .set('lat', lat).set('lng', lng).set('sitioGraba', sitioGraba).set('top', top);
+    if (canalFuerzaId != null) params = params.set('canalFuerzaId', canalFuerzaId);
+    return this.http
+      .get<{ success: boolean; data: DtoRecursoCercano[] }>(
+        `${this.base}/canal/${canalCodigo}/sugerencia-recurso`, { params }
       )
       .pipe(map(r => r.data));
   }

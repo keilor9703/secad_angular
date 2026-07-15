@@ -73,5 +73,10 @@ namespace Negocio.Gestion
 
         public Task<int> P_SincronizarUbicacionesGespoAsync(CancellationToken ct)
             => _repo.P_SincronizarUbicacionesGespoAsync(ct);
+
+        public Task<List<DtoRecursoCercano>> G_GetRecursoMasCercanoAsync(
+            int canalCodigo, int canalFuerzaId, int sitioGraba,
+            double lat, double lng, int top, CancellationToken ct)
+            => _repo.G_GetRecursoMasCercanoAsync(canalCodigo, canalFuerzaId, sitioGraba, lat, lng, top, ct);
     }
 }

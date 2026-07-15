@@ -234,6 +234,43 @@ namespace Api.Controllers.Operacion
             }
         }
 
+        /// <summary>
+        /// Sugiere los medios Libres más cercanos a un punto (p.ej. el sitio de un
+        /// incidente), rankeados por distancia — usa PostGIS (índice GiST + operador
+        /// KNN, ver V40__postgis_medios_geo.sql). Mismo alcance canal+fuerza+sitio que
+        /// GetRecursosCanal/GetResumenRecursosCanal. Es solo una sugerencia para
+        /// asistir al despachador; la asignación real sigue siendo manual.
+        /// </summary>
+        /// <remarks>
+        /// GET api/Turnos/canal/{canalCodigo}/sugerencia-recurso?canalFuerzaId=1&amp;sitioGraba=1&amp;lat=4.71&amp;lng=-74.07&amp;top=5
+        /// </remarks>
+        [HttpGet("canal/{canalCodigo:int}/sugerencia-recurso")]
+        public async Task<IActionResult> GetSugerenciaRecurso(
+            int                canalCodigo,
+            [FromQuery] double lat,
+            [FromQuery] double lng,
+            [FromQuery] int?   canalFuerzaId = null,
+            [FromQuery] int    sitioGraba    = 1,
+            [FromQuery] int    top           = 5,
+            CancellationToken  ct            = default)
+        {
+            if (lat < -90 || lat > 90 || lng < -180 || lng > 180)
+                return BadRequest(new { success = false, message = "Coordenadas inválidas." });
+
+            try
+            {
+                var resolvedFuerza = canalFuerzaId ?? GetIntClaim("fuerza_id");
+                var data = await _svc.G_GetRecursoMasCercanoAsync(
+                    canalCodigo, resolvedFuerza, sitioGraba, lat, lng, top, ct);
+                return Ok(new { success = true, data });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "GetSugerenciaRecurso error canal={C}", canalCodigo);
+                return StatusCode(500, new { success = false, message = ex.Message });
+            }
+        }
+
         // ════════════════════════════════════════════════════════════════════════
         // CREACIÓN / EDICIÓN DE TURNOS
         // ════════════════════════════════════════════════════════════════════════

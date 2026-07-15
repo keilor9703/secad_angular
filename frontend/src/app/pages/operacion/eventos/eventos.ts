@@ -23,7 +23,8 @@ import {
 } from '../../../core/services/operacion/asistente.service';
 import {
   TurnosService,
-  DtoMedioDisponibleResumen
+  DtoMedioDisponibleResumen,
+  DtoRecursoCercano
 } from '../../../core/services/operacion/turnos.service';
 import {
   ActuacionesService,
@@ -193,6 +194,12 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
   /** patrullaCodigo → marker, para reusar/animar en vez de destruir y recrear cada 8s. */
   private recursoMarkersPorCodigo = new Map<string, any>();
   private recursosSub:      Subscription | null = null;
+
+  // ─── Sugerencia de cuadrante más cercano (PostGIS) ───────────────────────────
+  sugerenciasRecurso:  DtoRecursoCercano[] = [];
+  cargandoSugerencia = false;
+  mostrarSugerencia  = false;
+  errorSugerencia    = '';
 
   // ─── Actuaciones / timeline de despacho ──────────────────────────────────────
   actuaciones:              DtoActuacionListItem[] = [];
@@ -1130,6 +1137,53 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
         this.errorAsignacion  = e.error?.message ?? 'Error al asignar el recurso.';
       }
     });
+  }
+
+  // ─── Sugerencia de cuadrante más cercano (PostGIS) ───────────────────────────
+
+  /**
+   * Consulta el top de medios Libres más cercanos al sitio del incidente
+   * (búsqueda espacial indexada en el backend). Es solo una recomendación —
+   * el despachador sigue eligiendo y confirmando la asignación a mano.
+   */
+  sugerirRecursoCercano(): void {
+    if (!this.detalle || this.canalSeleccionado <= 0) return;
+    const lat = parseFloat(this.detalle.latitudCaso  || '');
+    const lng = parseFloat(this.detalle.longitudCaso || '');
+    if (!isFinite(lat) || !isFinite(lng)) {
+      this.errorSugerencia = 'El incidente no tiene coordenadas registradas.';
+      this.mostrarSugerencia = true;
+      return;
+    }
+
+    this.mostrarSugerencia = true;
+    this.cargandoSugerencia = true;
+    this.errorSugerencia    = '';
+    this.turnosSvc.getSugerenciaRecurso(
+      this.canalSeleccionado, lat, lng, this.sitioGraba || 1, this.fuerzaId || undefined, 5
+    ).subscribe({
+      next: (data) => {
+        this.sugerenciasRecurso = data;
+        this.cargandoSugerencia = false;
+        if (data.length === 0) this.errorSugerencia = 'No hay recursos libres con GPS reciente en este canal.';
+      },
+      error: () => {
+        this.cargandoSugerencia = false;
+        this.errorSugerencia    = 'No se pudo obtener la sugerencia.';
+      }
+    });
+  }
+
+  /** Asigna un recurso sugerido — reusa el mismo flujo que asignar desde la tabla completa. */
+  asignarSugerido(s: DtoRecursoCercano): void {
+    const match = this.recursos.find(r => r.id === s.medioId);
+    if (!match) {
+      this.errorSugerencia = 'El recurso ya no está disponible — actualizando lista…';
+      this.recargarRecursos();
+      return;
+    }
+    this.mostrarSugerencia = false;
+    this.asignarRecursoAlEvento(match);
   }
 
   // ─── Desasignar (solo estado P) ──────────────────────────────────────────────

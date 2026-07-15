@@ -357,3 +357,22 @@ public class DtoTurnoResult
     public string Message   { get; set; } = "";
     public long   Id        { get; set; }
 }
+
+/// <summary>
+/// Un medio/patrulla candidato a asignación, rankeado por cercanía al punto
+/// consultado (búsqueda KNN vía PostGIS — ver G_GetRecursoMasCercanoAsync).
+/// Es solo una sugerencia: el despachador decide, nunca se auto-asigna.
+/// </summary>
+public class DtoRecursoCercano
+{
+    public string  MedioId        { get; set; } = "";   // Snowflake
+    public string  PatrullaCodigo { get; set; } = "";
+    public string  PatrullaDesc   { get; set; } = "";
+    public int     TipoMedio      { get; set; }
+    public int     Estado         { get; set; }
+    public string  EstadoDesc     { get; set; } = "";
+    public double  Latitud        { get; set; }
+    public double  Longitud       { get; set; }
+    /// <summary>Distancia en línea recta al punto consultado, en metros.</summary>
+    public double  DistanciaM     { get; set; }
+}

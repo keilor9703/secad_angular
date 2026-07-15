@@ -1034,6 +1034,81 @@ html.dark-mode .ev-no-canal-banner {
   padding:       1px 8px;
 }
 
+// ── Sugerencia de cuadrante más cercano (PostGIS) ──────────────
+.ev-sugerencia-box {
+  margin-bottom: 10px;
+  border: 1px solid rgba(8,166,203,.3);
+  border-radius: 8px;
+  background: rgba(8,166,203,.05);
+  overflow: hidden;
+}
+
+.ev-sugerencia-box__head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 10px;
+  font-size: calc(11px * var(--font-size-scale));
+  font-weight: 700;
+  color: var(--policia-cielo, #08a6cb);
+  background: rgba(8,166,203,.08);
+}
+
+.ev-sugerencia-box__close {
+  margin-left: auto;
+  border: none;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  padding: 2px 4px;
+  opacity: .7;
+  &:hover { opacity: 1; }
+}
+
+.ev-sugerencia-box__empty {
+  padding: 10px;
+  font-size: calc(11px * var(--font-size-scale));
+  color: var(--ui-text-muted, rgba(21,27,59,.55));
+}
+
+.ev-sugerencia-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-top: 1px solid rgba(8,166,203,.15);
+  font-size: calc(11.5px * var(--font-size-scale));
+
+  &--top { background: rgba(8,166,203,.07); }
+
+  &__rank {
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    background: rgba(8,166,203,.15);
+    color: var(--policia-cielo, #08a6cb);
+    font-size: calc(10px * var(--font-size-scale));
+    font-weight: 800;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+
+  &__info {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.25;
+    flex: 1;
+    min-width: 0;
+
+    span { font-size: calc(10px * var(--font-size-scale)); color: var(--ui-text-muted, rgba(21,27,59,.5)); }
+  }
+
+  &__dist {
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+}
+
 // ── Tabla de recursos ─────────────────────────────────────────
 .ev-rec-table-wrap {
   overflow-x: auto;
@@ -1301,6 +1376,17 @@ html.dark-mode {
   .ev-rec-dist    { color: var(--ui-text-muted); &--near { color: #4ade80; } }
   .ev-rec-count   { background: rgba(255,255,255,.08); color: var(--ui-text-muted); }
   .ev-rec-meta    { color: var(--ui-text-muted); }
+
+  .ev-sugerencia-box {
+    background: rgba(8,166,203,.08);
+    border-color: rgba(8,166,203,.35);
+  }
+  .ev-sugerencia-box__head { background: rgba(8,166,203,.14); }
+  .ev-sugerencia-item {
+    border-top-color: rgba(8,166,203,.2);
+    &--top { background: rgba(8,166,203,.10); }
+    &__info span { color: var(--ui-text-muted); }
+  }
 
   .ev-datos-item {
     &__label { color: rgba(228,231,235,.45); i { color: rgba(228,231,235,.30); } }

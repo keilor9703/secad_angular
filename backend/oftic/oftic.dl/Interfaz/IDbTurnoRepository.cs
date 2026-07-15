@@ -113,5 +113,18 @@ namespace Datos.Interfaz
         /// vista — sin round-trip por C#. Llamado por GespoUbicacionPollerService.
         /// </summary>
         Task<int> P_SincronizarUbicacionesGespoAsync(CancellationToken ct);
+
+        /// <summary>
+        /// Sugiere los medios Libres más cercanos a un punto (lat, lng) dentro de un
+        /// canal de despacho activo, usando el operador KNN de PostGIS (índice GiST
+        /// sobre cad_medios_disponibles.ubicacion_geo — ver V40__postgis_medios_geo.sql).
+        /// Mismo alcance (canal + fuerza + sitio + turno activo) que
+        /// G_GetMediosActivosPorCanalAsync, para que el panel de despacho de Eventos
+        /// (que solo conoce el canal, no el turnoId) pueda consumirlo directamente.
+        /// Solo sugerencia: el llamador decide si asigna, nunca es automático.
+        /// </summary>
+        Task<List<DtoRecursoCercano>> G_GetRecursoMasCercanoAsync(
+            int canalCodigo, int canalFuerzaId, int sitioGraba,
+            double lat, double lng, int top, CancellationToken ct);
     }
 }
