@@ -202,12 +202,19 @@ builder.Services.Configure<CadHealthMonitorOptions>(
     builder.Configuration.GetSection(CadHealthMonitorOptions.Section));
 builder.Services.AddHostedService<CadHealthMonitorService>();
 
+// ── Lectura directa de GPS desde Oracle GESPO (sin FDW) ───────────────────────
+// Oracle.ManagedDataAccess.Core — driver 100% administrado, no requiere instalar
+// ninguna extensión de Postgres ni cliente nativo en el servidor de BD.
+// Deshabilitado por defecto — habilitar solo tras confirmar ConnectionString/
+// Schema/ViewName reales. Configuración: sección "GespoOracle" en appsettings.json.
+builder.Services.Configure<GespoOracleOptions>(
+    builder.Configuration.GetSection(GespoOracleOptions.Section));
+builder.Services.AddSingleton<IGespoOracleReader, GespoOracleReader>();
+
 // ── Poller de ubicaciones GPS de GESPO ────────────────────────────────────────
-// BackgroundService que sincroniza cad_medios_disponibles desde v_ubicacion_gespo
-// (vista FDW → Oracle GESPO/SIVICC) cada pocos segundos. Deshabilitado por
-// defecto — habilitar solo tras confirmar el FDW con el DBA
-// (ver docs/sql/master/V39__gespo_fdw_ubicacion.sql).
-// Configuración: sección "GespoUbicacionPoller" en appsettings.json.
+// BackgroundService que lee Oracle GESPO (vía IGespoOracleReader) cada pocos
+// segundos y sincroniza cad_medios_disponibles de cada tenant activo.
+// Deshabilitado por defecto. Configuración: sección "GespoUbicacionPoller".
 builder.Services.Configure<GespoUbicacionPollerOptions>(
     builder.Configuration.GetSection(GespoUbicacionPollerOptions.Section));
 builder.Services.AddHostedService<GespoUbicacionPollerService>();

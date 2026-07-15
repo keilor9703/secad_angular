@@ -1,54 +1,70 @@
 using Comun.Dtos.Tenant;
+using Comun.Dtos.Turnos;
+using Datos.Gestion;
 using Datos.Interfaz;
 using Datos.Tenant;
 using Microsoft.Extensions.Options;
 using Negocio.Interfaz;
 using Npgsql;
+using Oracle.ManagedDataAccess.Client;
 using System.Diagnostics;
 
 namespace Api.BackgroundServices
 {
     /// <summary>
     /// Servicio alojado que sincroniza periódicamente la georreferenciación GPS de
-    /// patrullas/cuadrantes desde GESPO (vista Oracle vía FDW, ver
-    /// V39__gespo_fdw_ubicacion.sql) hacia <c>cad_medios_disponibles</c> de cada CAD
-    /// activo — reemplaza (o complementa) el flujo push existente
+    /// patrullas/cuadrantes desde GESPO hacia <c>cad_medios_disponibles</c> de cada
+    /// CAD activo — reemplaza (o complementa) el flujo push existente
     /// (<c>POST api/Turnos/gespo/ubicaciones</c>) con un pull programado, para no
     /// depender de que GESPO llame proactivamente a SECAD.
     ///
+    /// <para><b>Conexión a Oracle:</b> lectura directa vía
+    /// <see cref="IGespoOracleReader"/> (driver Oracle.ManagedDataAccess.Core,
+    /// 100% administrado) — no usa Foreign Data Wrapper ni ninguna extensión de
+    /// Postgres, precisamente porque esas extensiones no son instalables en todos
+    /// los servidores Postgres de los tenants.</para>
+    ///
     /// <para><b>Ciclo:</b></para>
     /// <list type="number">
+    ///   <item>Lee Oracle UNA sola vez por ciclo (no una vez por tenant) — GESPO es
+    ///         una sola fuente compartida, así que el resultado (una posición por
+    ///         cuadrante) se reutiliza para todos los tenants.</item>
     ///   <item>Carga los tenants activos desde la BD maestra.</item>
     ///   <item>Para cada uno, en paralelo (máx. <see cref="GespoUbicacionPollerOptions.MaxParallelTenants"/>),
     ///         abre un scope de DI, fija el <see cref="TenantContext"/> manualmente
     ///         (igual que <c>TenantMiddleware</c> lo haría por request) y llama a
-    ///         <see cref="IDbTurnoService.P_SincronizarUbicacionesGespoAsync"/>.</item>
+    ///         <see cref="IDbTurnoService.P_ActualizarUbicacionesGespoAsync"/> — el
+    ///         mismo método bulk (UPDATE...unnest) que usa el endpoint de push.</item>
     /// </list>
     ///
-    /// El propio SQL de sincronización (<c>UPDATE ... FROM v_ubicacion_gespo</c>) ya
-    /// filtra por turnos activos y por <c>fecha_gps</c> más reciente que la última
-    /// posición guardada, así que un tenant sin FDW configurado o sin turnos activos
-    /// simplemente no actualiza filas — no genera error, solo trabajo de más.
+    /// El emparejamiento sigue siendo por <c>patrulla_codigo</c> y solo actualiza
+    /// filas de turnos activos en cada tenant, así que un tenant sin turnos activos
+    /// (o cuyo código de patrulla no aparece en el lote) simplemente no actualiza
+    /// filas — no genera error.
     ///
-    /// <para>Deshabilitado por defecto (<c>GespoUbicacionPoller:Enabled = false</c>)
-    /// hasta que el DBA confirme el FDW server y el esquema real de la vista Oracle
-    /// (ver comentarios en V39).</para>
+    /// <para>Deshabilitado por defecto (<c>GespoUbicacionPoller:Enabled = false</c>).
+    /// Además, aunque el poller esté habilitado, no escribe nada mientras
+    /// <c>GespoOracle:Enabled = false</c> o falte el ConnectionString — ver
+    /// <see cref="GespoOracleOptions"/>.</para>
     /// </summary>
     public sealed class GespoUbicacionPollerService : BackgroundService
     {
         private readonly IServiceScopeFactory                   _scopeFactory;
         private readonly ConnectionPoolManager                  _poolManager;
+        private readonly IGespoOracleReader                     _oracleReader;
         private readonly GespoUbicacionPollerOptions             _opts;
         private readonly ILogger<GespoUbicacionPollerService>   _logger;
 
         public GespoUbicacionPollerService(
             IServiceScopeFactory                     scopeFactory,
             ConnectionPoolManager                    poolManager,
+            IGespoOracleReader                        oracleReader,
             IOptions<GespoUbicacionPollerOptions>    opts,
             ILogger<GespoUbicacionPollerService>     logger)
         {
             _scopeFactory = scopeFactory;
             _poolManager  = poolManager;
+            _oracleReader = oracleReader;
             _opts         = opts.Value;
             _logger       = logger;
         }
@@ -58,8 +74,7 @@ namespace Api.BackgroundServices
             if (!_opts.Enabled)
             {
                 _logger.LogInformation(
-                    "[GespoPoller] Servicio deshabilitado (GespoUbicacionPoller:Enabled = false). " +
-                    "Habilitar solo tras confirmar el FDW hacia GESPO (V39__gespo_fdw_ubicacion.sql).");
+                    "[GespoPoller] Servicio deshabilitado (GespoUbicacionPoller:Enabled = false).");
                 return;
             }
 
@@ -100,6 +115,22 @@ namespace Api.BackgroundServices
 
         private async Task RunSyncCycleAsync(CancellationToken ct)
         {
+            List<DtoGespoUbicacion> ubicaciones;
+            try
+            {
+                ubicaciones = await _oracleReader.LeerUbicacionesActualesAsync(ct).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) { return; }
+            catch (OracleException ex)
+            {
+                // Común si Oracle GESPO está caído/inalcanzable en este ciclo — no debe
+                // tumbar el servicio, solo se reintenta en el siguiente ciclo.
+                _logger.LogWarning(ex, "[GespoPoller] Error consultando Oracle GESPO.");
+                return;
+            }
+
+            if (ubicaciones.Count == 0) return;
+
             List<DtoTenant> tenants;
             try
             {
@@ -119,11 +150,12 @@ namespace Api.BackgroundServices
             var maxParallel = Math.Min(tenants.Count, Math.Max(1, _opts.MaxParallelTenants));
             var semaphore    = new SemaphoreSlim(maxParallel);
 
-            var tasks = tenants.Select(t => SyncTenantAsync(t, semaphore, ct));
+            var tasks = tenants.Select(t => SyncTenantAsync(t, ubicaciones, semaphore, ct));
             await Task.WhenAll(tasks).ConfigureAwait(false);
         }
 
-        private async Task SyncTenantAsync(DtoTenant tenant, SemaphoreSlim semaphore, CancellationToken ct)
+        private async Task SyncTenantAsync(
+            DtoTenant tenant, List<DtoGespoUbicacion> ubicaciones, SemaphoreSlim semaphore, CancellationToken ct)
         {
             await semaphore.WaitAsync(ct).ConfigureAwait(false);
             try
@@ -138,7 +170,7 @@ namespace Api.BackgroundServices
                 tenantContext.Set(dataSource, tenant.CodDane, tenant.Nombre, tenant.SitioGraba);
 
                 var turnoService = scope.ServiceProvider.GetRequiredService<IDbTurnoService>();
-                var filas = await turnoService.P_SincronizarUbicacionesGespoAsync(ct).ConfigureAwait(false);
+                var filas = await turnoService.P_ActualizarUbicacionesGespoAsync(ubicaciones, ct).ConfigureAwait(false);
 
                 if (filas > 0)
                     _logger.LogDebug(
@@ -151,8 +183,6 @@ namespace Api.BackgroundServices
             }
             catch (NpgsqlException ex)
             {
-                // Común mientras el FDW no esté configurado en un tenant (relación
-                // v_ubicacion_gespo inexistente) — no debe tumbar el ciclo completo.
                 _logger.LogWarning(
                     "[GespoPoller] {CodDane} — error de BD sincronizando ubicaciones: {Msg}",
                     tenant.CodDane, ex.Message);

@@ -99,20 +99,14 @@ namespace Datos.Interfaz
             long medioId, DtoCambiarEstadoMedioRequest req, int fuerzaId, string usuario, CancellationToken ct);
 
         /// <summary>
-        /// Actualiza las posiciones GPS de múltiples medios en lote.
-        /// Llamado por el backend cada vez que GESPO provee nuevas posiciones.
+        /// Actualiza las posiciones GPS de múltiples medios en lote — un solo UPDATE
+        /// con unnest() del arreglo recibido. Llamado tanto por el endpoint de push
+        /// (POST api/Turnos/gespo/ubicaciones) como por GespoUbicacionPollerService
+        /// (pull directo a Oracle vía IGespoOracleReader, sin FDW/Postgres de por medio
+        /// — ver GespoOracleReader).
         /// </summary>
         Task<int> P_ActualizarUbicacionesGespoAsync(
             IEnumerable<DtoGespoUbicacion> ubicaciones, CancellationToken ct);
-
-        /// <summary>
-        /// Sincroniza cad_medios_disponibles directamente desde v_ubicacion_gespo
-        /// (vista FDW → Oracle GESPO, ver V39__gespo_fdw_ubicacion.sql). A diferencia
-        /// de P_ActualizarUbicacionesGespoAsync (que recibe el lote ya parseado desde
-        /// un POST externo), este método hace el UPDATE...FROM directamente contra la
-        /// vista — sin round-trip por C#. Llamado por GespoUbicacionPollerService.
-        /// </summary>
-        Task<int> P_SincronizarUbicacionesGespoAsync(CancellationToken ct);
 
         /// <summary>
         /// Sugiere los medios Libres más cercanos a un punto (lat, lng) dentro de un

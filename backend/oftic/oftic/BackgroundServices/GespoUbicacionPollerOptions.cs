@@ -9,10 +9,10 @@ namespace Api.BackgroundServices
         public const string Section = "GespoUbicacionPoller";
 
         /// <summary>
-        /// Habilita o deshabilita el poller completamente. Útil en ambientes donde
-        /// el FDW hacia GESPO/SIVICC aún no está configurado (ver V39__gespo_fdw_ubicacion.sql).
-        /// Valor por defecto: <c>false</c> — debe activarse explícitamente una vez
-        /// el DBA confirme el FDW server y el esquema real de la vista Oracle.
+        /// Habilita o deshabilita el poller completamente. Aunque esté en <c>true</c>,
+        /// no escribe nada mientras <c>GespoOracle:Enabled</c> sea <c>false</c> o falte
+        /// el ConnectionString (ver <see cref="Datos.Gestion.GespoOracleOptions"/>).
+        /// Valor por defecto: <c>false</c>.
         /// </summary>
         public bool Enabled { get; set; } = false;
 

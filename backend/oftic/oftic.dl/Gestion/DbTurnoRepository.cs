@@ -1300,6 +1300,8 @@ SELECT fn_cambiar_estado_medio(
 
         // ════════════════════════════════════════════════════════════════════════
         // ACTUALIZAR UBICACIONES GPS DESDE GESPO (lote)
+        // Usado tanto por el endpoint de push como por GespoUbicacionPollerService
+        // (lee Oracle directo vía IGespoOracleReader y llama a este mismo método).
         // ════════════════════════════════════════════════════════════════════════
 
         public async Task<int> P_ActualizarUbicacionesGespoAsync(
@@ -1362,42 +1364,6 @@ WHERE  m.patrulla_codigo = v.patcod
             cmd.Parameters.AddWithValue("vels",    vels);
             cmd.Parameters.AddWithValue("rums",    rums);
             cmd.Parameters.AddWithValue("fechas",  fechas);
-
-            return await cmd.ExecuteNonQueryAsync(ct);
-        }
-
-        // ════════════════════════════════════════════════════════════════════════
-        // SINCRONIZAR UBICACIONES GPS DESDE v_ubicacion_gespo (pull vía FDW)
-        // ════════════════════════════════════════════════════════════════════════
-
-        public async Task<int> P_SincronizarUbicacionesGespoAsync(CancellationToken ct)
-        {
-            await using var conn = await _tenant.DataSource.OpenConnectionAsync(ct);
-            await using var cmd  = conn.CreateCommand();
-            // Mismo guard y misma limitación conocida que P_ActualizarUbicacionesGespoAsync:
-            // el emparejamiento es solo por patrulla_codigo (v_ubicacion_gespo no trae
-            // fuerza_id/sitio_graba), así que si dos fuerzas activas simultáneas reutilizan
-            // el mismo código de patrulla, ambas filas reciben la misma posición — ver la
-            // nota extendida junto a P_ActualizarUbicacionesGespoAsync más arriba.
-            // El filtro por fecha_gps evita reescribir filas cuyo fix no cambió desde el
-            // último ciclo del poller (la vista Oracle se refresca cada ~15s, el poller
-            // corre cada ~12s — sin este filtro cada ciclo reescribiría todo sin necesidad).
-            cmd.CommandText = @"
-UPDATE cad_medios_disponibles m
-SET    latitud         = v.latitud,
-       longitud        = v.longitud,
-       velocidad_kmh   = v.velocidad_kmh,
-       rumbo_grados    = v.rumbo_grados,
-       fecha_ubicacion = v.fecha_gps
-FROM   v_ubicacion_gespo v
-WHERE  m.patrulla_codigo = v.patrulla_codigo
-  AND  m.turno_id IN (
-      SELECT id FROM cad_turnos
-      WHERE  estado = 'A'
-        AND  hora_inicia  <= NOW()
-        AND  hora_termina >= NOW()
-  )
-  AND  v.fecha_gps > COALESCE(m.fecha_ubicacion, '-infinity'::timestamptz)";
 
             return await cmd.ExecuteNonQueryAsync(ct);
         }
