@@ -116,8 +116,8 @@ namespace Datos.Interfaz
 
         /// <summary>
         /// Sugiere los medios Libres más cercanos a un punto (lat, lng) dentro de un
-        /// canal de despacho activo, usando el operador KNN de PostGIS (índice GiST
-        /// sobre cad_medios_disponibles.ubicacion_geo — ver V40__postgis_medios_geo.sql).
+        /// canal de despacho activo, calculando la distancia Haversine en SQL plano
+        /// sobre latitud/longitud (sin PostGIS — ver V40__postgis_medios_geo.sql).
         /// Mismo alcance (canal + fuerza + sitio + turno activo) que
         /// G_GetMediosActivosPorCanalAsync, para que el panel de despacho de Eventos
         /// (que solo conoce el canal, no el turnoId) pueda consumirlo directamente.

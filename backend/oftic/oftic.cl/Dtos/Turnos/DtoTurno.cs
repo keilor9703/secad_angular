@@ -360,7 +360,7 @@ public class DtoTurnoResult
 
 /// <summary>
 /// Un medio/patrulla candidato a asignación, rankeado por cercanía al punto
-/// consultado (búsqueda KNN vía PostGIS — ver G_GetRecursoMasCercanoAsync).
+/// consultado (distancia Haversine en SQL plano — ver G_GetRecursoMasCercanoAsync).
 /// Es solo una sugerencia: el despachador decide, nunca se auto-asigna.
 /// </summary>
 public class DtoRecursoCercano

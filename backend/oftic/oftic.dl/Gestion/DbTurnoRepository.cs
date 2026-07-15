@@ -1403,7 +1403,7 @@ WHERE  m.patrulla_codigo = v.patrulla_codigo
         }
 
         // ════════════════════════════════════════════════════════════════════════
-        // SUGERENCIA: RECURSO LIBRE MÁS CERCANO (PostGIS KNN)
+        // SUGERENCIA: RECURSO LIBRE MÁS CERCANO (Haversine en SQL plano)
         // ════════════════════════════════════════════════════════════════════════
 
         public async Task<List<DtoRecursoCercano>> G_GetRecursoMasCercanoAsync(
@@ -1415,9 +1415,11 @@ WHERE  m.patrulla_codigo = v.patrulla_codigo
             var result = new List<DtoRecursoCercano>();
             await using var conn = await _tenant.DataSource.OpenConnectionAsync(ct);
             await using var cmd  = conn.CreateCommand();
-            // El operador <-> usa el índice GiST sobre ubicacion_geo (columna generada
-            // desde latitud/longitud — ver V40) para resolver "los N más cercanos" sin
-            // recorrer toda la tabla. Mismo alcance canal+fuerza+sitio+turno-activo que
+            // Distancia calculada con la fórmula de Haversine directamente sobre
+            // latitud/longitud — sin PostGIS (no instalable a nivel de SO en todos los
+            // servidores de los tenants). A esta escala (decenas de medios por canal) un
+            // recorrido completo con ORDER BY es perfectamente suficiente, no hace falta
+            // índice espacial. Mismo alcance canal+fuerza+sitio+turno-activo que
             // G_GetMediosActivosPorCanalAsync (ver nota sobre cad_canales.codigo no ser
             // único por sí solo ahí). Solo medios Libres (27) con GPS reciente (<10 min,
             // mismo umbral que gps_activo) — un medio con GPS desactualizado podría ya
@@ -1425,7 +1427,11 @@ WHERE  m.patrulla_codigo = v.patrulla_codigo
             cmd.CommandText = @"
 SELECT m.id::text, m.patrulla_codigo, m.patrulla_desc, m.tipo_medio, m.estado,
        m.latitud, m.longitud,
-       ROUND((m.ubicacion_geo <-> ST_SetSRID(ST_MakePoint(@lng, @lat), 4326)::geography)::numeric, 0) AS distancia_m
+       ROUND((6371000 * 2 * ASIN(SQRT(
+           POWER(SIN(RADIANS((m.latitud - @lat) / 2.0)), 2) +
+           COS(RADIANS(@lat)) * COS(RADIANS(m.latitud)) *
+           POWER(SIN(RADIANS((m.longitud - @lng) / 2.0)), 2)
+       )))::numeric, 0) AS distancia_m
 FROM   cad_medios_disponibles m
 JOIN   cad_turnos t ON t.id = m.turno_id
 WHERE  m.canal_codigo    = @canal
@@ -1435,10 +1441,15 @@ WHERE  m.canal_codigo    = @canal
   AND  t.hora_termina    >= (NOW() AT TIME ZONE 'America/Bogota')
   AND  (m.sitio_graba = @sg OR m.sitio_graba = 0 OR @sg = 0)
   AND  m.estado           = 27
-  AND  m.ubicacion_geo    IS NOT NULL
+  AND  m.latitud          IS NOT NULL
+  AND  m.longitud         IS NOT NULL
   AND  m.fecha_ubicacion  IS NOT NULL
   AND  NOW() - m.fecha_ubicacion < INTERVAL '10 minutes'
-ORDER  BY m.ubicacion_geo <-> ST_SetSRID(ST_MakePoint(@lng, @lat), 4326)::geography
+ORDER  BY 6371000 * 2 * ASIN(SQRT(
+           POWER(SIN(RADIANS((m.latitud - @lat) / 2.0)), 2) +
+           COS(RADIANS(@lat)) * COS(RADIANS(m.latitud)) *
+           POWER(SIN(RADIANS((m.longitud - @lng) / 2.0)), 2)
+       ))
 LIMIT  @top";
             cmd.Parameters.AddWithValue("canal",       canalCodigo);
             cmd.Parameters.AddWithValue("canalFuerza", canalFuerzaId);

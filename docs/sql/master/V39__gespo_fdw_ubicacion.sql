@@ -1,7 +1,7 @@
 -- ══════════════════════════════════════════════════════════════════════════════
 -- V39 – Vista FDW: v_ubicacion_gespo
--- Propósito : Exponer la georreferenciación GPS en tiempo real de los
---             cuadrantes/patrullas desde GESPO (antes SIVICC) como una vista
+-- Propósito : Exponer la georreferenciación GPS en tiempo real de los policiales
+--             (celular/IMEI, agrupados por cuadrante) desde GESPO como una vista
 --             local de PostgreSQL a través de Foreign Data Wrapper, siguiendo
 --             el mismo patrón ya usado en V11 para v_unidades_minuta.
 --
@@ -10,16 +10,41 @@
 --             masivo hacia cad_medios_disponibles (ver
 --             P_SincronizarUbicacionesGespoAsync en DbTurnoRepository).
 --
--- ⚠️  IMPORTANTE — PENDIENTE DE CONFIRMAR CON EL DBA / EQUIPO GESPO:
---     A diferencia de V11 (cuyo esquema Oracle ya era conocido:
---     SIVICC_OWNER.V_MINUTA_SIVICC_POST2), el nombre exacto de la vista Oracle
---     de georreferenciación y sus columnas NO están confirmados en este
---     repositorio. Los valores de OPTIONS(schema, table) y los nombres de
---     columna de abajo son PLACEHOLDERS — deben ajustarse antes de ejecutar
---     esta migración en cualquier ambiente real. La vista local
---     v_ubicacion_gespo (más abajo) es el contrato real que consume el
---     backend — mientras sus columnas de salida no cambien, cualquier ajuste
---     al mapeo de la foreign table es transparente para el código .NET.
+-- Esquema real confirmado — vista Oracle GESPO: V_CONSULTA_GPS_SECAD
+--   FECHA                     -- fecha/hora del fix GPS (hora local Colombia,
+--                                sin offset — se interpreta explícitamente como
+--                                'America/Bogota' más abajo, igual que el resto
+--                                del sistema; ver ColombiaOffset en
+--                                DbReporteRepository).
+--   LATITUD, LONGITUD
+--   USUARIO_SESION            -- usuario del policial dueño del celular
+--   IMEI
+--   CUADRANTE_ID              -- = cad_medios_disponibles.patrulla_codigo
+--                                (mismo campo que cuadranteid en v_personal_minuta,
+--                                usado por el wizard SIVICC para poblar patrulla_codigo
+--                                — ver P_ImportarDesdeSiviccAsync).
+--   ESTA_DENTRO_CUADRANTE     -- 0/1, no se usa por ahora
+--   NOMBRES_APELLIDOS
+--   CODIGO_CUADRANTE          -- código largo del cuadrante/dependencia (no es
+--                                el mismo valor que CUADRANTE_ID — no se usa acá)
+--   NUMERO_CELULAR_CUADRANTE
+--   DEPENDENCIA_ID
+--   DESCRIPCION_UNIDAD
+--   SIGLA_PAPA_UNIDAD
+--
+-- ⚠️  IMPORTANTE: la vista trae UNA FILA POR POLICIAL (celular), no una por
+--     patrulla — varios policiales pueden compartir el mismo CUADRANTE_ID (ver
+--     ejemplo real: 8 filas con CUADRANTE_ID=2791, un policial por fila). Para
+--     obtener "la posición del cuadrante" se toma el fix más reciente entre
+--     todos los policiales de ese cuadrante (DISTINCT ON ... ORDER BY fecha DESC
+--     en la vista de abstracción, más abajo) — es una aproximación razonable
+--     (el celular de cualquier integrante de la patrulla sirve de proxy de dónde
+--     está la patrulla), no una medición del vehículo en sí.
+--
+-- La vista NO trae velocidad ni rumbo — DtoGespoUbicacion.VelocidadKmh/RumboGrados
+-- ya son nullable, así que P_ActualizarUbicacionesGespoAsync/
+-- P_SincronizarUbicacionesGespoAsync no necesitan cambios: simplemente
+-- guardarán NULL en esas dos columnas.
 --
 -- PRE-REQUISITOS (ejecutar una sola vez por DBA, fuera de este script):
 --   1. Extensión FDW habilitada (ya debería estar, reutiliza el server de V11):
@@ -39,6 +64,10 @@
 --
 --   ⚠️  Las credenciales se gestionan por el DBA y rotan cada 90 días.
 --       Nunca deben aparecer en código fuente ni en repositorios.
+--
+--   4. Ajustar abajo el nombre real del esquema Oracle donde vive la vista
+--      (OPTIONS schema '...') — el nombre de la vista (V_CONSULTA_GPS_SECAD)
+--      ya está confirmado, falta solo el esquema/owner.
 -- ══════════════════════════════════════════════════════════════════════════════
 
 DO $$ BEGIN
@@ -49,17 +78,23 @@ DO $$ BEGIN
   ) THEN
     EXECUTE $ft$
       CREATE FOREIGN TABLE ft_v_ubicacion_gespo (
-          -- ↓ PLACEHOLDER — ajustar nombres/tipos según el esquema real de la
-          --   vista Oracle de GESPO antes de ejecutar en un ambiente real.
-          cuadranteid    VARCHAR(30),    -- código de patrulla/cuadrante (= cad_medios_disponibles.patrulla_codigo)
-          latitud        NUMERIC(10,6),
-          longitud       NUMERIC(10,6),
-          velocidad_kmh  NUMERIC(6,2),
-          rumbo_grados   NUMERIC(6,2),
-          fecha_gps      TIMESTAMP       -- hora del último fix GPS reportado por GESPO
+          fecha                   TIMESTAMP,      -- hora local Colombia, sin offset
+          latitud                 NUMERIC(10,7),
+          longitud                NUMERIC(10,7),
+          usuario_sesion          VARCHAR(50),
+          imei                    VARCHAR(30),
+          cuadrante_id            INTEGER,        -- = patrulla_codigo
+          esta_dentro_cuadrante   SMALLINT,
+          nombres_apellidos       VARCHAR(200),
+          codigo_cuadrante        VARCHAR(50),
+          numero_celular_cuadrante VARCHAR(20),
+          dependencia_id          INTEGER,
+          descripcion_unidad      VARCHAR(200),
+          sigla_papa_unidad       VARCHAR(20)
       )
+      -- ⚠️ Ajustar 'GESPO_OWNER' al esquema real donde el DBA exponga la vista.
       SERVER gespo_fdw
-      OPTIONS (schema 'GESPO_OWNER', table 'V_UBICACION_CUADRANTES');
+      OPTIONS (schema 'GESPO_OWNER', table 'V_CONSULTA_GPS_SECAD');
     $ft$;
 
     RAISE NOTICE 'Foreign table ft_v_ubicacion_gespo creada.';
@@ -73,24 +108,32 @@ END $$;
 -- El backend consulta v_ubicacion_gespo; si cambia el origen (nombre de la
 -- vista Oracle, nuevo FDW server, columnas distintas) solo se ajusta este
 -- SELECT — P_SincronizarUbicacionesGespoAsync nunca se toca.
+--
+-- DISTINCT ON (cuadrante_id) ... ORDER BY cuadrante_id, fecha DESC: colapsa las
+-- N filas por cuadrante (una por policial) al fix más reciente de cualquiera
+-- de sus integrantes.
 
 CREATE OR REPLACE VIEW v_ubicacion_gespo AS
-SELECT
-    cuadranteid   AS patrulla_codigo,
-    latitud::float8  AS latitud,
-    longitud::float8 AS longitud,
-    velocidad_kmh::float8 AS velocidad_kmh,
-    rumbo_grados::float8  AS rumbo_grados,
-    fecha_gps::timestamptz AS fecha_gps
+SELECT DISTINCT ON (cuadrante_id)
+    cuadrante_id::text                                      AS patrulla_codigo,
+    latitud::float8                                         AS latitud,
+    longitud::float8                                        AS longitud,
+    NULL::float8                                             AS velocidad_kmh,   -- no viene en esta vista
+    NULL::float8                                             AS rumbo_grados,    -- no viene en esta vista
+    (fecha AT TIME ZONE 'America/Bogota')                   AS fecha_gps        -- naive → timestamptz asumiendo hora Colombia
 FROM ft_v_ubicacion_gespo
-WHERE cuadranteid IS NOT NULL
-  AND latitud  IS NOT NULL
-  AND longitud IS NOT NULL;
+WHERE cuadrante_id IS NOT NULL
+  AND latitud      IS NOT NULL
+  AND longitud     IS NOT NULL
+  AND fecha        IS NOT NULL
+ORDER BY cuadrante_id, fecha DESC;
 
 COMMENT ON VIEW v_ubicacion_gespo IS
-  'Vista de abstracción sobre ft_v_ubicacion_gespo (FDW → Oracle GESPO/SIVICC), '
-  'refrescada en origen cada ~15s. Consumida por GespoUbicacionPollerService via '
-  'P_SincronizarUbicacionesGespoAsync (DbTurnoRepository).';
+  'Vista de abstracción sobre ft_v_ubicacion_gespo (FDW → Oracle GESPO '
+  'V_CONSULTA_GPS_SECAD), colapsada a un fix por cuadrante (el más reciente '
+  'entre todos los policiales de ese cuadrante). Consumida por '
+  'GespoUbicacionPollerService via P_SincronizarUbicacionesGespoAsync '
+  '(DbTurnoRepository).';
 
 
 -- ── Verificación ───────────────────────────────────────────────────────────
@@ -102,19 +145,3 @@ FROM information_schema.tables
 WHERE table_name IN ('ft_v_ubicacion_gespo', 'v_ubicacion_gespo')
   AND table_schema = current_schema()
 ORDER BY table_name;
-
--- ══════════════════════════════════════════════════════════════════════════════
--- Opción B: Vista materializada con refresco periódico (si la latencia FDW
--- resulta inaceptable en producción, o si se prefiere desacoplar por completo
--- el poller de un query en vivo contra Oracle en cada ciclo).
--- Descomentar solo si el DBA lo decide; en ese caso el poller seguiría
--- consultando v_ubicacion_gespo sin cambios — solo redefinir la vista para
--- que apunte a mv_ubicacion_gespo en vez de ft_v_ubicacion_gespo.
--- ── ── ── ── ── ── ── ── ── ── ── ── ── ── ── ── ── ── ── ── ── ── ── ──
--- DROP MATERIALIZED VIEW IF EXISTS mv_ubicacion_gespo;
--- CREATE MATERIALIZED VIEW mv_ubicacion_gespo AS
--- SELECT * FROM ft_v_ubicacion_gespo;
--- CREATE UNIQUE INDEX idx_mv_ubicacion_gespo_cuadrante
---   ON mv_ubicacion_gespo (cuadranteid);
--- -- Refrescar con: REFRESH MATERIALIZED VIEW CONCURRENTLY mv_ubicacion_gespo;
--- ══════════════════════════════════════════════════════════════════════════════

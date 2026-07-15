@@ -236,10 +236,11 @@ namespace Api.Controllers.Operacion
 
         /// <summary>
         /// Sugiere los medios Libres más cercanos a un punto (p.ej. el sitio de un
-        /// incidente), rankeados por distancia — usa PostGIS (índice GiST + operador
-        /// KNN, ver V40__postgis_medios_geo.sql). Mismo alcance canal+fuerza+sitio que
-        /// GetRecursosCanal/GetResumenRecursosCanal. Es solo una sugerencia para
-        /// asistir al despachador; la asignación real sigue siendo manual.
+        /// incidente), rankeados por distancia — cálculo Haversine en SQL plano
+        /// sobre latitud/longitud (sin PostGIS, ver V40__postgis_medios_geo.sql).
+        /// Mismo alcance canal+fuerza+sitio que GetRecursosCanal/GetResumenRecursosCanal.
+        /// Es solo una sugerencia para asistir al despachador; la asignación real
+        /// sigue siendo manual.
         /// </summary>
         /// <remarks>
         /// GET api/Turnos/canal/{canalCodigo}/sugerencia-recurso?canalFuerzaId=1&amp;sitioGraba=1&amp;lat=4.71&amp;lng=-74.07&amp;top=5
