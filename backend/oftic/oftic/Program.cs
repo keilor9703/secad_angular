@@ -202,6 +202,16 @@ builder.Services.Configure<CadHealthMonitorOptions>(
     builder.Configuration.GetSection(CadHealthMonitorOptions.Section));
 builder.Services.AddHostedService<CadHealthMonitorService>();
 
+// ── Poller de ubicaciones GPS de GESPO ────────────────────────────────────────
+// BackgroundService que sincroniza cad_medios_disponibles desde v_ubicacion_gespo
+// (vista FDW → Oracle GESPO/SIVICC) cada pocos segundos. Deshabilitado por
+// defecto — habilitar solo tras confirmar el FDW con el DBA
+// (ver docs/sql/master/V39__gespo_fdw_ubicacion.sql).
+// Configuración: sección "GespoUbicacionPoller" en appsettings.json.
+builder.Services.Configure<GespoUbicacionPollerOptions>(
+    builder.Configuration.GetSection(GespoUbicacionPollerOptions.Section));
+builder.Services.AddHostedService<GespoUbicacionPollerService>();
+
 // Swagger
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>

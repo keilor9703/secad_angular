@@ -62,5 +62,7 @@ namespace Negocio.Interfaz
 
         Task<int> P_ActualizarUbicacionesGespoAsync(
             IEnumerable<DtoGespoUbicacion> ubicaciones, CancellationToken ct);
+
+        Task<int> P_SincronizarUbicacionesGespoAsync(CancellationToken ct);
     }
 }

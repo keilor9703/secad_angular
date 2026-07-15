@@ -70,5 +70,8 @@ namespace Negocio.Gestion
         public Task<int> P_ActualizarUbicacionesGespoAsync(
             IEnumerable<DtoGespoUbicacion> ubicaciones, CancellationToken ct)
             => _repo.P_ActualizarUbicacionesGespoAsync(ubicaciones, ct);
+
+        public Task<int> P_SincronizarUbicacionesGespoAsync(CancellationToken ct)
+            => _repo.P_SincronizarUbicacionesGespoAsync(ct);
     }
 }

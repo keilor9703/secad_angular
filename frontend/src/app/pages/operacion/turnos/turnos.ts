@@ -22,6 +22,7 @@ import { AuthService } from '../../../core/auth/auth.service';
 import { EventoService, DtoCanalItem } from '../../../core/services/operacion/evento.service';
 import { FuerzaService, DtoFuerza } from '../../../core/services/administracion/fuerza.service';
 import { ToastService } from '../../../core/services/toast.service';
+import { animateMarkerTo, stopMarkerAnimation } from '../../../shared/utils/leaflet-marker-animator';
 
 // Leaflet cargado vía CDN en index.html
 declare const L: any;
@@ -100,6 +101,9 @@ export class TurnosComponent implements OnInit, OnDestroy, AfterViewChecked {
   private mapaInit    = false;
   private pendingMap  = false;
   private medioMarkers: any[] = [];
+  /** patrullaCodigo → marker, para reusar/animar en vez de destruir y recrear en cada refresco. */
+  private medioMarkersPorCodigo = new Map<string, any>();
+  private boundsAjustadoUnaVez = false;
 
   // ── Modal: Crear turno ────────────────────────────────────────────────────────
   modalCrear       = false;
@@ -363,32 +367,70 @@ export class TurnosComponent implements OnInit, OnDestroy, AfterViewChecked {
 
   private actualizarMarcadoresMedios(): void {
     if (!this.mapaMedios) return;
-    // Limpiar marcadores anteriores
-    this.medioMarkers.forEach(m => { try { m.remove(); } catch { /**/ } });
-    this.medioMarkers = [];
 
     const mediosConGps = this.medios.filter(m => m.latitud && m.longitud);
+    const codigosVistos = new Set<string>();
+
     mediosConGps.forEach(m => {
-      const color = this.colorEstadoMedio(m.estado);
-      const icon  = L.divIcon({
-        className: '',
-        html: `<div style="width:14px;height:14px;border-radius:50%;
-                           background:${color};border:2px solid #fff;
-                           box-shadow:0 1px 4px rgba(0,0,0,.4)"></div>`,
-        iconSize: [14, 14]
-      });
-      const marker = L.marker([m.latitud!, m.longitud!], { icon })
+      const codigo = m.patrullaCodigo;
+      codigosVistos.add(codigo);
+      const popupHtml = `<b>${this.escapeHtmlMedio(codigo)}</b><br>
+          ${this.escapeHtmlMedio(m.estadoDesc)}<br>
+          ${m.personal.map(p => this.escapeHtmlMedio(p.ceduEmpleado)).join(' / ')}`;
+
+      const existente = this.medioMarkersPorCodigo.get(codigo);
+      if (existente) {
+        // Ya existe: deslizar suavemente a la nueva posición en vez de saltar
+        // (el GPS se refresca cada 10-15s — sin esto el marcador se ve a tirones).
+        existente.setIcon(this.iconoMedio(m.estado));
+        existente.setPopupContent(popupHtml);
+        animateMarkerTo(existente, m.latitud!, m.longitud!, 2500);
+        return;
+      }
+
+      const marker = L.marker([m.latitud!, m.longitud!], { icon: this.iconoMedio(m.estado) })
         .addTo(this.mapaMedios)
-        .bindPopup(`<b>${m.patrullaCodigo}</b><br>
-          ${m.estadoDesc}<br>
-          ${m.personal.map(p => p.ceduEmpleado).join(' / ')}`);
+        .bindPopup(popupHtml);
+      this.medioMarkersPorCodigo.set(codigo, marker);
       this.medioMarkers.push(marker);
     });
 
-    if (mediosConGps.length > 0) {
+    // Remover marcadores de patrullas que ya no están en la lista (fin de turno, etc.)
+    for (const [codigo, marker] of this.medioMarkersPorCodigo.entries()) {
+      if (!codigosVistos.has(codigo)) {
+        stopMarkerAnimation(marker);
+        try { marker.remove(); } catch { /**/ }
+        this.medioMarkersPorCodigo.delete(codigo);
+      }
+    }
+    this.medioMarkers = Array.from(this.medioMarkersPorCodigo.values());
+
+    // Encuadrar automáticamente solo la primera vez que hay marcadores — en
+    // refrescos posteriores re-centrar el mapa a cada rato interrumpe al
+    // operador si está mirando/interactuando con una zona específica.
+    if (!this.boundsAjustadoUnaVez && mediosConGps.length > 0) {
       const bounds = L.latLngBounds(mediosConGps.map(m => [m.latitud!, m.longitud!]));
       this.mapaMedios.fitBounds(bounds, { padding: [30, 30] });
+      this.boundsAjustadoUnaVez = true;
     }
+  }
+
+  private iconoMedio(estado: number): any {
+    const color = this.colorEstadoMedio(estado);
+    return L.divIcon({
+      className: '',
+      html: `<div style="width:14px;height:14px;border-radius:50%;
+                         background:${color};border:2px solid #fff;
+                         box-shadow:0 1px 4px rgba(0,0,0,.4)"></div>`,
+      iconSize: [14, 14]
+    });
+  }
+
+  private escapeHtmlMedio(value: unknown): string {
+    if (!value) return '';
+    return String(value)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   }
 
   private destruirMapa(): void {
@@ -397,7 +439,10 @@ export class TurnosComponent implements OnInit, OnDestroy, AfterViewChecked {
       this.mapaMedios = null;
       this.mapaInit   = false;
     }
+    this.medioMarkers.forEach(m => stopMarkerAnimation(m));
     this.medioMarkers = [];
+    this.medioMarkersPorCodigo.clear();
+    this.boundsAjustadoUnaVez = false;
   }
 
   private colorEstadoMedio(estado: number): string {

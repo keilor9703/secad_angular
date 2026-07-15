@@ -104,5 +104,14 @@ namespace Datos.Interfaz
         /// </summary>
         Task<int> P_ActualizarUbicacionesGespoAsync(
             IEnumerable<DtoGespoUbicacion> ubicaciones, CancellationToken ct);
+
+        /// <summary>
+        /// Sincroniza cad_medios_disponibles directamente desde v_ubicacion_gespo
+        /// (vista FDW → Oracle GESPO, ver V39__gespo_fdw_ubicacion.sql). A diferencia
+        /// de P_ActualizarUbicacionesGespoAsync (que recibe el lote ya parseado desde
+        /// un POST externo), este método hace el UPDATE...FROM directamente contra la
+        /// vista — sin round-trip por C#. Llamado por GespoUbicacionPollerService.
+        /// </summary>
+        Task<int> P_SincronizarUbicacionesGespoAsync(CancellationToken ct);
     }
 }

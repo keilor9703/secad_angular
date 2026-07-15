@@ -46,6 +46,7 @@ import {
   DtoAdjunto
 } from '../../../core/services/operacion/recepcion.service';
 import { PanelColapsableComponent } from '../../../components/panel-colapsable/panel-colapsable';
+import { animateMarkerTo, stopMarkerAnimation } from '../../../shared/utils/leaflet-marker-animator';
 
 // Leaflet is loaded via CDN (index.html) – type-only reference
 declare const L: any;
@@ -189,6 +190,8 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
   ultimaActRecursos:        Date | null = null;
   asignandoMedioId:         string | null = null;
   private recursoMarkers:   any[]  = [];
+  /** patrullaCodigo → marker, para reusar/animar en vez de destruir y recrear cada 8s. */
+  private recursoMarkersPorCodigo = new Map<string, any>();
   private recursosSub:      Subscription | null = null;
 
   // ─── Actuaciones / timeline de despacho ──────────────────────────────────────
@@ -1595,47 +1598,83 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
     return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   }
 
+  private escapeHtml(value: unknown): string {
+    if (!value) return '';
+    return String(value)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+
+  private static readonly COLORES_ESTADO_RECURSO: Record<number, string> = {
+    27: '#22c55e', 28: '#ef4444', 29: '#6b7280', 30: '#f59e0b', 31: '#3b82f6'
+  };
+
+  private iconoRecurso(r: DtoMedioDisponibleResumen): any {
+    const color = EventosComponent.COLORES_ESTADO_RECURSO[r.estado] ?? '#94a3b8';
+    return L.divIcon({
+      className: '',
+      html: `<div style="
+        width:16px;height:16px;border-radius:50%;
+        background:${color};border:2px solid #fff;
+        box-shadow:0 1px 5px rgba(0,0,0,.45);
+        display:flex;align-items:center;justify-content:center;">
+      </div>
+      <div style="
+        font-size:9px;font-weight:700;color:#fff;
+        text-shadow:0 0 4px rgba(0,0,0,.8);
+        margin-top:-12px;text-align:center;white-space:nowrap;">
+        ${this.escapeHtml(r.patrullaCodigo)}
+      </div>`,
+      iconSize:   [16, 28],
+      iconAnchor: [8, 8],
+      popupAnchor:[0, -10]
+    });
+  }
+
+  private popupRecurso(r: DtoMedioDisponibleResumen): string {
+    const dist = r.distanciaKm != null
+      ? `<br><b>${this.escapeHtml(this.turnosSvc.formatearDistancia(r.distanciaKm))}</b> al incidente` : '';
+    return `<b>${this.escapeHtml(r.patrullaCodigo)}</b><br>
+        ${this.escapeHtml(r.estadoDesc)}<br>
+        ${this.escapeHtml(r.personalResumen) || 'Sin personal'}${dist}`;
+  }
+
   /** Actualiza los marcadores de recursos en el mapa del evento. */
   private actualizarMarcadoresRecursos(): void {
     if (!this.mapaDetalle) return;
-    this.recursoMarkers.forEach(m => { try { m.remove(); } catch { /**/ } });
-    this.recursoMarkers = [];
 
-    const colores: Record<number, string> = {
-      27: '#22c55e', 28: '#ef4444', 29: '#6b7280', 30: '#f59e0b', 31: '#3b82f6'
-    };
+    const recursosConGps = this.recursos.filter(r => r.lat != null && r.lng != null);
+    const codigosVistos  = new Set<string>();
 
-    this.recursos
-      .filter(r => r.lat != null && r.lng != null)
-      .forEach(r => {
-        const color = colores[r.estado] ?? '#94a3b8';
-        const icon  = L.divIcon({
-          className: '',
-          html: `<div style="
-            width:16px;height:16px;border-radius:50%;
-            background:${color};border:2px solid #fff;
-            box-shadow:0 1px 5px rgba(0,0,0,.45);
-            display:flex;align-items:center;justify-content:center;">
-          </div>
-          <div style="
-            font-size:9px;font-weight:700;color:#fff;
-            text-shadow:0 0 4px rgba(0,0,0,.8);
-            margin-top:-12px;text-align:center;white-space:nowrap;">
-            ${r.patrullaCodigo}
-          </div>`,
-          iconSize:   [16, 28],
-          iconAnchor: [8, 8],
-          popupAnchor:[0, -10]
-        });
-        const dist = r.distanciaKm != null
-          ? `<br><b>${this.turnosSvc.formatearDistancia(r.distanciaKm)}</b> al incidente` : '';
-        const marker = L.marker([r.lat!, r.lng!], { icon })
-          .addTo(this.mapaDetalle)
-          .bindPopup(`<b>${r.patrullaCodigo}</b><br>
-            ${r.estadoDesc}<br>
-            ${r.personalResumen || 'Sin personal'}${dist}`);
-        this.recursoMarkers.push(marker);
-      });
+    recursosConGps.forEach(r => {
+      const codigo = r.patrullaCodigo;
+      codigosVistos.add(codigo);
+
+      const existente = this.recursoMarkersPorCodigo.get(codigo);
+      if (existente) {
+        // Deslizar a la nueva posición en vez de saltar — el GPS se refresca
+        // cada 10-15s, y este panel además hace polling cada 8s.
+        existente.setIcon(this.iconoRecurso(r));
+        existente.setPopupContent(this.popupRecurso(r));
+        animateMarkerTo(existente, r.lat!, r.lng!, 2500);
+        return;
+      }
+
+      const marker = L.marker([r.lat!, r.lng!], { icon: this.iconoRecurso(r) })
+        .addTo(this.mapaDetalle)
+        .bindPopup(this.popupRecurso(r));
+      this.recursoMarkersPorCodigo.set(codigo, marker);
+      this.recursoMarkers.push(marker);
+    });
+
+    for (const [codigo, marker] of this.recursoMarkersPorCodigo.entries()) {
+      if (!codigosVistos.has(codigo)) {
+        stopMarkerAnimation(marker);
+        try { marker.remove(); } catch { /**/ }
+        this.recursoMarkersPorCodigo.delete(codigo);
+      }
+    }
+    this.recursoMarkers = Array.from(this.recursoMarkersPorCodigo.values());
   }
 
   formatDistancia(km?: number): string {
@@ -1685,7 +1724,7 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
       if (hasCoords) {
         L.marker([lat, lng])
           .addTo(this.mapaDetalle)
-          .bindPopup(`<b>${this.detalle.direCaso ?? ''}</b>`)
+          .bindPopup(`<b>${this.escapeHtml(this.detalle.direCaso)}</b>`)
           .openPopup();
       }
 
@@ -1701,6 +1740,9 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
       this.mapaDetalle     = null;
       this.mapaInicializado = false;
     }
+    this.recursoMarkers.forEach(m => stopMarkerAnimation(m));
+    this.recursoMarkers = [];
+    this.recursoMarkersPorCodigo.clear();
   }
 
   // ─── §6.1 Modal Remitir a agencia ────────────────────────────────────────────
