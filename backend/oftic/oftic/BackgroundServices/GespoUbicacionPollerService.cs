@@ -1,6 +1,4 @@
 using Comun.Dtos.Tenant;
-using Comun.Dtos.Turnos;
-using Datos.Gestion;
 using Datos.Interfaz;
 using Datos.Tenant;
 using Microsoft.Extensions.Options;
@@ -24,28 +22,28 @@ namespace Api.BackgroundServices
     /// Postgres, precisamente porque esas extensiones no son instalables en todos
     /// los servidores Postgres de los tenants.</para>
     ///
+    /// <para><b>Filtrado por tenant:</b> la vista Oracle trae GPS de todo el país,
+    /// así que cada tenant consulta Oracle filtrando por
+    /// <c>secad_tenants.gespo_sigla_unidad</c> (columna SIGLA_PAPA_UNIDAD en
+    /// GESPO) — un tenant nunca recibe (ni carga en memoria) patrullas de otras
+    /// ciudades. Un tenant sin ese campo configurado simplemente se salta, sin
+    /// error.</para>
+    ///
     /// <para><b>Ciclo:</b></para>
     /// <list type="number">
-    ///   <item>Lee Oracle UNA sola vez por ciclo (no una vez por tenant) — GESPO es
-    ///         una sola fuente compartida, así que el resultado (una posición por
-    ///         cuadrante) se reutiliza para todos los tenants.</item>
     ///   <item>Carga los tenants activos desde la BD maestra.</item>
     ///   <item>Para cada uno, en paralelo (máx. <see cref="GespoUbicacionPollerOptions.MaxParallelTenants"/>),
-    ///         abre un scope de DI, fija el <see cref="TenantContext"/> manualmente
-    ///         (igual que <c>TenantMiddleware</c> lo haría por request) y llama a
+    ///         consulta Oracle filtrado por su sigla y, si trae resultados, abre un
+    ///         scope de DI, fija el <see cref="TenantContext"/> manualmente (igual
+    ///         que <c>TenantMiddleware</c> lo haría por request) y llama a
     ///         <see cref="IDbTurnoService.P_ActualizarUbicacionesGespoAsync"/> — el
     ///         mismo método bulk (UPDATE...unnest) que usa el endpoint de push.</item>
     /// </list>
     ///
-    /// El emparejamiento sigue siendo por <c>patrulla_codigo</c> y solo actualiza
-    /// filas de turnos activos en cada tenant, así que un tenant sin turnos activos
-    /// (o cuyo código de patrulla no aparece en el lote) simplemente no actualiza
-    /// filas — no genera error.
-    ///
     /// <para>Deshabilitado por defecto (<c>GespoUbicacionPoller:Enabled = false</c>).
     /// Además, aunque el poller esté habilitado, no escribe nada mientras
     /// <c>GespoOracle:Enabled = false</c> o falte el ConnectionString — ver
-    /// <see cref="GespoOracleOptions"/>.</para>
+    /// <see cref="Datos.Gestion.GespoOracleOptions"/>.</para>
     /// </summary>
     public sealed class GespoUbicacionPollerService : BackgroundService
     {
@@ -115,22 +113,6 @@ namespace Api.BackgroundServices
 
         private async Task RunSyncCycleAsync(CancellationToken ct)
         {
-            List<DtoGespoUbicacion> ubicaciones;
-            try
-            {
-                ubicaciones = await _oracleReader.LeerUbicacionesActualesAsync(ct).ConfigureAwait(false);
-            }
-            catch (OperationCanceledException) { return; }
-            catch (OracleException ex)
-            {
-                // Común si Oracle GESPO está caído/inalcanzable en este ciclo — no debe
-                // tumbar el servicio, solo se reintenta en el siguiente ciclo.
-                _logger.LogWarning(ex, "[GespoPoller] Error consultando Oracle GESPO.");
-                return;
-            }
-
-            if (ubicaciones.Count == 0) return;
-
             List<DtoTenant> tenants;
             try
             {
@@ -150,16 +132,26 @@ namespace Api.BackgroundServices
             var maxParallel = Math.Min(tenants.Count, Math.Max(1, _opts.MaxParallelTenants));
             var semaphore    = new SemaphoreSlim(maxParallel);
 
-            var tasks = tenants.Select(t => SyncTenantAsync(t, ubicaciones, semaphore, ct));
+            var tasks = tenants.Select(t => SyncTenantAsync(t, semaphore, ct));
             await Task.WhenAll(tasks).ConfigureAwait(false);
         }
 
-        private async Task SyncTenantAsync(
-            DtoTenant tenant, List<DtoGespoUbicacion> ubicaciones, SemaphoreSlim semaphore, CancellationToken ct)
+        private async Task SyncTenantAsync(DtoTenant tenant, SemaphoreSlim semaphore, CancellationToken ct)
         {
+            if (string.IsNullOrWhiteSpace(tenant.GespoSiglaUnidad))
+                return; // Sin sigla GESPO configurada — nada que sincronizar para este tenant.
+
             await semaphore.WaitAsync(ct).ConfigureAwait(false);
             try
             {
+                // Cada tenant consulta Oracle filtrado por su propia sigla — nunca trae
+                // (ni carga en memoria) patrullas de otras ciudades.
+                var ubicaciones = await _oracleReader
+                    .LeerUbicacionesActualesAsync(tenant.GespoSiglaUnidad, ct)
+                    .ConfigureAwait(false);
+
+                if (ubicaciones.Count == 0) return;
+
                 await using var scope = _scopeFactory.CreateAsyncScope();
 
                 // Fijar el TenantContext manualmente — fuera de un request HTTP no hay
@@ -174,12 +166,19 @@ namespace Api.BackgroundServices
 
                 if (filas > 0)
                     _logger.LogDebug(
-                        "[GespoPoller] {CodDane} — {Filas} posición(es) GPS actualizada(s).",
-                        tenant.CodDane, filas);
+                        "[GespoPoller] {CodDane} (sigla={Sigla}) — {Filas} posición(es) GPS actualizada(s).",
+                        tenant.CodDane, tenant.GespoSiglaUnidad, filas);
             }
             catch (OperationCanceledException) when (ct.IsCancellationRequested)
             {
                 /* Apagado ordenado */
+            }
+            catch (OracleException ex)
+            {
+                // Común si Oracle GESPO está caído/inalcanzable en este ciclo — no debe
+                // tumbar el ciclo completo, solo este tenant.
+                _logger.LogWarning(ex,
+                    "[GespoPoller] {CodDane} — error consultando Oracle GESPO.", tenant.CodDane);
             }
             catch (NpgsqlException ex)
             {

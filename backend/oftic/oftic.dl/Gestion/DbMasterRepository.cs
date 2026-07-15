@@ -22,7 +22,8 @@ namespace Datos.Gestion
             await using var cmd = conn.CreateCommand();
             cmd.CommandText = @"
                                 SELECT id, cod_dane, cod_unidad, nombre, departamento, municipio,
-                                       db_host, db_port, db_name, db_username, db_password, sitio_graba
+                                       db_host, db_port, db_name, db_username, db_password, sitio_graba,
+                                       gespo_sigla_unidad
                                 FROM secad_tenants
                                 WHERE cod_dane = @codDane AND activo = true
                                 LIMIT 1";
@@ -42,7 +43,8 @@ namespace Datos.Gestion
             await using var cmd = conn.CreateCommand();
             cmd.CommandText = @"
                                 SELECT id, cod_dane, cod_unidad, nombre, departamento, municipio,
-                                       db_host, db_port, db_name, db_username, db_password, sitio_graba
+                                       db_host, db_port, db_name, db_username, db_password, sitio_graba,
+                                       gespo_sigla_unidad
                                 FROM secad_tenants
                                 WHERE UPPER(cod_unidad) = UPPER(@codUnidad) AND activo = true
                                 LIMIT 1";
@@ -296,7 +298,8 @@ ON CONFLICT (username) DO UPDATE SET
             await using var cmd  = conn.CreateCommand();
             cmd.CommandText = @"
                 SELECT id, cod_dane, cod_unidad, nombre, departamento, municipio,
-                       db_host, db_port, db_name, db_username, db_password, sitio_graba
+                       db_host, db_port, db_name, db_username, db_password, sitio_graba,
+                       gespo_sigla_unidad
                 FROM secad_tenants
                 WHERE activo = true
                 ORDER BY cod_dane";
@@ -394,18 +397,19 @@ ON CONFLICT (username) DO UPDATE SET
         //                  db_host, db_port, db_name, db_username, db_password, sitio_graba
         private static DtoTenant MapTenant(NpgsqlDataReader r) => new()
         {
-            Id           = r.GetInt32(0),
-            CodDane      = r.GetString(1),
-            CodUnidad    = r.IsDBNull(2)  ? null : r.GetString(2),
-            Nombre       = r.GetString(3),
-            Departamento = r.IsDBNull(4)  ? null : r.GetString(4),
-            Municipio    = r.IsDBNull(5)  ? null : r.GetString(5),
-            DbHost       = r.GetString(6),
-            DbPort       = r.GetInt32(7),
-            DbName       = r.GetString(8),
-            DbUsername   = r.GetString(9),
-            DbPassword   = r.GetString(10),
-            SitioGraba   = r.IsDBNull(11) ? null : r.GetInt32(11)
+            Id               = r.GetInt32(0),
+            CodDane          = r.GetString(1),
+            CodUnidad        = r.IsDBNull(2)  ? null : r.GetString(2),
+            Nombre           = r.GetString(3),
+            Departamento     = r.IsDBNull(4)  ? null : r.GetString(4),
+            Municipio        = r.IsDBNull(5)  ? null : r.GetString(5),
+            DbHost           = r.GetString(6),
+            DbPort           = r.GetInt32(7),
+            DbName           = r.GetString(8),
+            DbUsername       = r.GetString(9),
+            DbPassword       = r.GetString(10),
+            SitioGraba       = r.IsDBNull(11) ? null : r.GetInt32(11),
+            GespoSiglaUnidad = r.IsDBNull(12) ? null : r.GetString(12)
         };
 
         // Columnas (0-16): id, cod_dane, cod_unidad, nombre, departamento, municipio, categoria,
