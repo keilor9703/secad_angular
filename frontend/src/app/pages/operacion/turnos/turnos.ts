@@ -777,7 +777,7 @@ export class TurnosComponent implements OnInit, OnDestroy, AfterViewChecked {
     this.formEditarMedio.canalFuerzaId = fuerzaId;
   }
 
-  /** Handler del canal en el wizard de importación SIVICC. */
+  /** Handler del canal por defecto en el wizard de importación SIVICC. */
   onCanalChangeSivicc(key: string | undefined): void {
     if (!key) {
       this.siviccCanalCodigo   = undefined;
@@ -787,6 +787,23 @@ export class TurnosComponent implements OnInit, OnDestroy, AfterViewChecked {
     const [codigo, fuerzaId] = key.split('::').map(Number);
     this.siviccCanalCodigo   = codigo;
     this.siviccCanalFuerzaId = fuerzaId;
+  }
+
+  /**
+   * Handler del canal PROPIO de una unidad en el wizard SIVICC — cada unidad
+   * puede necesitar un canal distinto (no todas comparten el mismo radio).
+   * Si se deja "— Usar canal por defecto —" se limpia y al importar se usa
+   * el canal por defecto del modal (si hay alguno).
+   */
+  onCanalChangeSiviccUnidad(u: DtoUnidadSivicc, key: string | undefined): void {
+    if (!key) {
+      u.canalCodigo   = undefined;
+      u.canalFuerzaId = undefined;
+      return;
+    }
+    const [codigo, fuerzaId] = key.split('::').map(Number);
+    u.canalCodigo   = codigo;
+    u.canalFuerzaId = fuerzaId;
   }
 
   guardarMedio(): void {
@@ -906,7 +923,13 @@ export class TurnosComponent implements OnInit, OnDestroy, AfterViewChecked {
 
     const unidades = this.unidadesSivicc
       .filter(u => u.seleccionada)
-      .map(u => ({ minutaId: u.minutaId, consecutivo: u.consecutivo, descripcion: u.descripcion }));
+      .map(u => ({
+        minutaId:      u.minutaId,
+        consecutivo:   u.consecutivo,
+        descripcion:   u.descripcion,
+        canalCodigo:   u.canalCodigo,
+        canalFuerzaId: u.canalFuerzaId
+      }));
 
     const req: DtoImportarSiviccRequest = {
       ...this.formSivicc,

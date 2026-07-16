@@ -270,7 +270,11 @@ public class DtoAgregarMedioRequest
 public class DtoImportarSiviccRequest
 {
     public long   TurnoId       { get; set; }
-    public int?   CanalCodigo   { get; set; }   // canal de radio (opcional)
+    /// <summary>
+    /// Canal de radio POR DEFECTO — se usa solo para las unidades que no
+    /// traigan su propio CanalCodigo en <see cref="DtoUnidadSiviccSeleccionada"/>.
+    /// </summary>
+    public int?   CanalCodigo   { get; set; }
     public int?   CanalFuerzaId { get; set; }
     public int    FuerzaId      { get; set; }
     public int    SitioGraba    { get; set; }
@@ -343,6 +347,13 @@ public class DtoUnidadSiviccSeleccionada
     /// necesidad de otra consulta a GESPO.
     /// </summary>
     public string? Descripcion { get; set; }
+    /// <summary>
+    /// Canal de radio propio de esta unidad — cada unidad puede necesitar uno
+    /// distinto (no todas comparten el mismo). Si viene null, se usa el canal
+    /// por defecto de <see cref="DtoImportarSiviccRequest.CanalCodigo"/>.
+    /// </summary>
+    public int? CanalCodigo   { get; set; }
+    public int? CanalFuerzaId { get; set; }
 }
 
 /// <summary>

@@ -867,33 +867,13 @@
             </button>
           </div>
 
-          <!-- Lista de unidades -->
-          <div class="tr-sivicc-list">
-            @for (u of unidadesSivicc; track u.consecutivo) {
-              <label class="tr-sivicc-item" [class.tr-sivicc-item--exists]="u.existeEnCadMedios">
-                <input type="checkbox" [(ngModel)]="u.seleccionada">
-                <span class="tr-sivicc-item__info">
-                  <span class="tr-sivicc-item__cod">{{ u.unidadCodigo }}</span>
-                  <span class="tr-sivicc-item__desc">{{ u.descripcion }}</span>
-                </span>
-                @if (u.existeEnCadMedios) {
-                  <span class="tr-sivicc-badge tr-sivicc-badge--update">
-                    <i class="fa-solid fa-rotate"></i> Ya existe
-                  </span>
-                } @else {
-                  <span class="tr-sivicc-badge tr-sivicc-badge--new">
-                    <i class="fa-solid fa-plus"></i> Nueva
-                  </span>
-                }
-              </label>
-            }
-          </div>
-
-          <!-- Canal radio opcional -->
-          <div class="ui-field" style="margin-top:16px">
+          <!-- Canal radio por defecto — se usa solo para las unidades que no -->
+          <!-- tengan su propio canal elegido más abajo. Cada unidad puede    -->
+          <!-- necesitar un canal distinto (no todas comparten el mismo).    -->
+          <div class="ui-field">
             <label class="ui-label">
               Canal radio por defecto
-              <span class="tr-optional">(opcional)</span>
+              <span class="tr-optional">(opcional — aplica solo a las unidades sin canal propio)</span>
             </label>
             <select class="ui-control"
                     [ngModel]="canalKey(siviccCanalCodigo, siviccCanalFuerzaId)"
@@ -904,6 +884,41 @@
                 <option [ngValue]="c.codigo + '::' + c.fuerzaId">{{ c.descripcion }}</option>
               }
             </select>
+          </div>
+
+          <!-- Lista de unidades — cada una con su propio canal de radio -->
+          <div class="tr-sivicc-list">
+            @for (u of unidadesSivicc; track u.consecutivo) {
+              <div class="tr-sivicc-item" [class.tr-sivicc-item--exists]="u.existeEnCadMedios"
+                   (click)="u.seleccionada = !u.seleccionada">
+                <input type="checkbox" [(ngModel)]="u.seleccionada"
+                       [attr.aria-label]="'Importar unidad ' + u.unidadCodigo"
+                       (click)="$event.stopPropagation()">
+                <span class="tr-sivicc-item__info">
+                  <span class="tr-sivicc-item__cod">{{ u.unidadCodigo }}</span>
+                  <span class="tr-sivicc-item__desc">{{ u.descripcion }}</span>
+                </span>
+                <select class="ui-control tr-sivicc-item__canal"
+                        [attr.aria-label]="'Canal de radio para ' + u.unidadCodigo"
+                        [ngModel]="canalKey(u.canalCodigo, u.canalFuerzaId)"
+                        (ngModelChange)="onCanalChangeSiviccUnidad(u, $event)"
+                        (click)="$event.stopPropagation()">
+                  <option [ngValue]="undefined">— Canal por defecto —</option>
+                  @for (c of canales; track c.codigo + '::' + c.fuerzaId) {
+                    <option [ngValue]="c.codigo + '::' + c.fuerzaId">{{ c.descripcion }}</option>
+                  }
+                </select>
+                @if (u.existeEnCadMedios) {
+                  <span class="tr-sivicc-badge tr-sivicc-badge--update">
+                    <i class="fa-solid fa-rotate"></i> Ya existe
+                  </span>
+                } @else {
+                  <span class="tr-sivicc-badge tr-sivicc-badge--new">
+                    <i class="fa-solid fa-plus"></i> Nueva
+                  </span>
+                }
+              </div>
+            }
           </div>
         }
 

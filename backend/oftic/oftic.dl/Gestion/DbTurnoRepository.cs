@@ -1063,6 +1063,11 @@ RETURNING id";
                         turnoUnidadId = Convert.ToInt64(await upsertUnidad.ExecuteScalarAsync(ct));
                     }
 
+                    // Canal efectivo de esta unidad: el propio si vino, si no el de
+                    // defecto del request — cada unidad puede necesitar uno distinto.
+                    int? canalCodigo   = unidad.CanalCodigo   ?? req.CanalCodigo;
+                    int? canalFuerzaId = unidad.CanalFuerzaId ?? req.CanalFuerzaId;
+
                     // Leer personal/patrullas de la minuta directo en Oracle GESPO
                     var filas = await _gespoMinuta.LeerMediosDeMinutaAsync(unidad.MinutaId, ct);
                     if (filas.Count == 0)
@@ -1116,10 +1121,10 @@ SET    canal_codigo     = COALESCE(@canal, canal_codigo),
        origen            = 'SIVICC',
        fecha_modificacion = NOW(), usuario_modifica = @usuario
 WHERE  id = @mid";
-                                upd.Parameters.AddWithValue("canal",    req.CanalCodigo.HasValue
-                                                                        ? (object)req.CanalCodigo.Value : DBNull.Value);
-                                upd.Parameters.AddWithValue("cfuerza",  req.CanalFuerzaId.HasValue
-                                                                        ? (object)req.CanalFuerzaId.Value : DBNull.Value);
+                                upd.Parameters.AddWithValue("canal",    canalCodigo.HasValue
+                                                                        ? (object)canalCodigo.Value : DBNull.Value);
+                                upd.Parameters.AddWithValue("cfuerza",  canalFuerzaId.HasValue
+                                                                        ? (object)canalFuerzaId.Value : DBNull.Value);
                                 upd.Parameters.AddWithValue("uid",      turnoUnidadId);
                                 upd.Parameters.AddWithValue("usuario",  usuario);
                                 upd.Parameters.AddWithValue("mid",      medioExistenteId);
@@ -1180,10 +1185,10 @@ VALUES
                                 ins.Parameters.AddWithValue("ucod",    unidad.Consecutivo.ToString());
                                 ins.Parameters.AddWithValue("fuerza",  req.FuerzaId == 0
                                                                        ? (object)DBNull.Value : req.FuerzaId);
-                                ins.Parameters.AddWithValue("cfuerza", req.CanalFuerzaId.HasValue
-                                                                       ? (object)req.CanalFuerzaId.Value : DBNull.Value);
-                                ins.Parameters.AddWithValue("canal",   req.CanalCodigo.HasValue
-                                                                       ? (object)req.CanalCodigo.Value : DBNull.Value);
+                                ins.Parameters.AddWithValue("cfuerza", canalFuerzaId.HasValue
+                                                                       ? (object)canalFuerzaId.Value : DBNull.Value);
+                                ins.Parameters.AddWithValue("canal",   canalCodigo.HasValue
+                                                                       ? (object)canalCodigo.Value : DBNull.Value);
                                 ins.Parameters.AddWithValue("patcod",  patCod);
                                 ins.Parameters.AddWithValue("patdesc", NullOrString(patDesc));
                                 await ins.ExecuteNonQueryAsync(ct);

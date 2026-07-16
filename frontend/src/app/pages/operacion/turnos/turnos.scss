@@ -804,6 +804,14 @@ $clase3: #8b5cf6;   // 3° turno — violeta noche
     overflow:      hidden;
     text-overflow: ellipsis;
   }
+
+  // Canal de radio propio de la unidad — cada una puede necesitar uno distinto
+  &__canal {
+    flex-shrink: 0;
+    width:       160px;
+    font-size:   calc(11px * var(--font-size-scale));
+    padding:     4px 8px;
+  }
 }
 
 // New / exists badge

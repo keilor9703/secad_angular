@@ -262,6 +262,12 @@ export interface DtoUnidadSivicc {
   existeEnCadMedios: boolean;
   /** Marcado por el usuario en el checkbox del modal (solo UI). */
   seleccionada: boolean;
+  /**
+   * Canal de radio elegido para ESTA unidad (solo UI, poblado en el modal).
+   * Cada unidad puede tener un canal distinto — no todas comparten el mismo.
+   */
+  canalCodigo?:   number;
+  canalFuerzaId?: number;
 }
 
 /** Unidad seleccionada para importar (enviada en el body del POST). */
@@ -270,6 +276,9 @@ export interface DtoUnidadSiviccSeleccionada {
   consecutivo: number;
   /** Snapshot del nombre de la unidad (viene del paso 1) — evita otra consulta a GESPO. */
   descripcion?: string;
+  /** Canal de radio propio de esta unidad. Si se omite, se usa el canal por defecto del request. */
+  canalCodigo?:   number;
+  canalFuerzaId?: number;
 }
 
 /** Request: importar medios de las unidades SIVICC seleccionadas */
