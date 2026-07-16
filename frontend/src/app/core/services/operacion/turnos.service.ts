@@ -563,6 +563,22 @@ export class TurnosService {
     );
   }
 
+  /**
+   * Sincroniza el GPS del tenant actual bajo demanda (pull directo a Oracle
+   * GESPO para el turno en curso, sin ningún proceso de fondo permanente).
+   * Pensado para llamarse desde el mismo tick de polling que ya existe
+   * mientras el operador tiene abierto Turnos o Eventos — nunca desde un
+   * timer aparte. Nunca falla de forma visible: el backend responde 200 con
+   * actualizados=0 si GESPO no está configurado, si otra sincronización
+   * corrió hace muy poco, o si Oracle está lento/caído.
+   */
+  sincronizarGps(): Observable<{ success: boolean; actualizados: number }> {
+    return this.http.post<{ success: boolean; actualizados: number }>(
+      `${this.base}/gespo/sincronizar`,
+      {}
+    );
+  }
+
   // ── Helpers UI ────────────────────────────────────────────────────────────────
 
   /** Etiqueta legible para la clase de turno */

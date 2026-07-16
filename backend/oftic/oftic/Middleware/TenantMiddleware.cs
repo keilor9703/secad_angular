@@ -47,7 +47,8 @@ namespace Api.Middleware
 
             if (!string.IsNullOrWhiteSpace(codDane))
             {
-                int? sitioGrabaTenant = null;   // sitio DEFAULT del tenant (de secad_tenants)
+                int?    sitioGrabaTenant = null;   // sitio DEFAULT del tenant (de secad_tenants)
+                string? gespoSigla       = null;
 
                 if (!poolManager.TryGet(codDane, out var dataSource) || dataSource is null)
                 {
@@ -63,21 +64,24 @@ namespace Api.Middleware
                     }
                     dataSource       = poolManager.GetOrCreate(tenant);
                     sitioGrabaTenant = tenant.SitioGraba;
+                    gespoSigla       = tenant.GespoSiglaUnidad;
 
-                    // Cachear el sitio_graba del tenant junto con el DataSource
+                    // Cachear sitio_graba y sigla GESPO del tenant junto con el DataSource
                     poolManager.SetSitioGraba(codDane, tenant.SitioGraba);
+                    poolManager.SetGespoSigla(codDane, tenant.GespoSiglaUnidad);
                 }
                 else
                 {
-                    // Cache hit: recuperar el sitio_graba ya almacenado
+                    // Cache hit: recuperar lo ya almacenado
                     sitioGrabaTenant = poolManager.GetSitioGraba(codDane);
+                    gespoSigla       = poolManager.GetGespoSigla(codDane);
                 }
 
                 // En rutas JWT: el sitio del contexto es el del usuario (JWT claim).
                 // En rutas externas sin JWT: usamos el sitio por defecto del tenant.
                 var sitioEfectivo = sitioGrabaJwt ?? sitioGrabaTenant;
 
-                tenantContext.Set(dataSource, codDane, nombreCad, sitioEfectivo);
+                tenantContext.Set(dataSource, codDane, nombreCad, sitioEfectivo, gespoSigla);
             }
 
             await _next(context);

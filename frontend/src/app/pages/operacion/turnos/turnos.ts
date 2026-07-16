@@ -288,6 +288,11 @@ export class TurnosComponent implements OnInit, OnDestroy, AfterViewChecked {
   // Refresca silenciosamente los medios de la unidad activa cada 15 s, para que
   // el operador vea libres/GPS activo actualizados sin tener que reabrir la
   // unidad. Se pausa cuando la pestaña está oculta para no gastar red/CPU.
+  //
+  // Este mismo tick dispara la sincronización de GPS con GESPO (bajo demanda,
+  // sin ningún proceso de fondo permanente en el backend) — solo corre
+  // mientras el operador tiene una unidad abierta en Turnos, y se detiene solo
+  // en cuanto sale (detenerReadiness cancela la suscripción).
   // ═══════════════════════════════════════════════════════════════════════════
 
   private iniciarReadiness(): void {
@@ -295,6 +300,7 @@ export class TurnosComponent implements OnInit, OnDestroy, AfterViewChecked {
     this.readinessSub = interval(15_000).subscribe(() => {
       if (document.hidden || !this.unidadActiva) return;
       this.cargarMedios(this.unidadActiva.turnoId, this.unidadActiva.id);
+      this.turnosSvc.sincronizarGps().subscribe({ error: () => { /* silencioso — no es crítico para la UI */ } });
     });
   }
 

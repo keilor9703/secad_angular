@@ -14,6 +14,8 @@ namespace Datos.Gestion
         private readonly ILogger<DbTurnoRepository> _logger;
         private readonly ISnowflakeGenerator         _snowflake;
         private readonly IGespoMinutaReader          _gespoMinuta;
+        private readonly IGespoOracleReader          _gespoGps;
+        private readonly GespoSyncCooldown           _gespoCooldown;
 
         private const string TsFormat  = "DD/MM/YYYY HH24:MI";
         private const string DateFormat = "DD/MM/YYYY";
@@ -23,12 +25,16 @@ namespace Datos.Gestion
             TenantContext tenant,
             ILogger<DbTurnoRepository> logger,
             ISnowflakeGenerator snowflake,
-            IGespoMinutaReader gespoMinuta)
+            IGespoMinutaReader gespoMinuta,
+            IGespoOracleReader gespoGps,
+            GespoSyncCooldown gespoCooldown)
         {
-            _tenant      = tenant;
-            _logger      = logger;
-            _snowflake   = snowflake;
-            _gespoMinuta = gespoMinuta;
+            _tenant        = tenant;
+            _logger        = logger;
+            _snowflake     = snowflake;
+            _gespoMinuta   = gespoMinuta;
+            _gespoGps      = gespoGps;
+            _gespoCooldown = gespoCooldown;
         }
 
         // ════════════════════════════════════════════════════════════════════════
@@ -1311,8 +1317,9 @@ SELECT fn_cambiar_estado_medio(
 
         // ════════════════════════════════════════════════════════════════════════
         // ACTUALIZAR UBICACIONES GPS DESDE GESPO (lote)
-        // Usado tanto por el endpoint de push como por GespoUbicacionPollerService
-        // (lee Oracle directo vía IGespoOracleReader y llama a este mismo método).
+        // Usado tanto por el endpoint de push como por
+        // P_SincronizarGpsBajoDemandaAsync (lee Oracle directo vía
+        // IGespoOracleReader y llama a este mismo método).
         // ════════════════════════════════════════════════════════════════════════
 
         public async Task<int> P_ActualizarUbicacionesGespoAsync(
@@ -1377,6 +1384,51 @@ WHERE  m.patrulla_codigo = v.patcod
             cmd.Parameters.AddWithValue("fechas",  fechas);
 
             return await cmd.ExecuteNonQueryAsync(ct);
+        }
+
+        // ════════════════════════════════════════════════════════════════════════
+        // SINCRONIZAR GPS BAJO DEMANDA (sin BackgroundService/polling permanente)
+        //
+        // Se llama desde un tick del polling que YA existe en el frontend mientras
+        // el operador tiene abierto Turnos (readiness de medios, cada 15s) o
+        // Eventos (recursos del canal, cada 8s) — nunca corre si nadie está viendo
+        // esas pantallas, y se detiene solo cuando el operador sale de ellas
+        // (Angular cancela la suscripción). No hay ningún proceso en segundo plano
+        // consultando Oracle de forma indefinida.
+        //
+        // GespoSyncCooldown evita que varios operadores del mismo tenant, con la
+        // pantalla abierta al mismo tiempo, disparen consultas a Oracle repetidas
+        // o simultáneas.
+        // ════════════════════════════════════════════════════════════════════════
+
+        public async Task<int> P_SincronizarGpsBajoDemandaAsync(CancellationToken ct)
+        {
+            var sigla = _tenant.GespoSiglaUnidad;
+            if (string.IsNullOrWhiteSpace(sigla) || string.IsNullOrWhiteSpace(_tenant.CodDane))
+                return 0; // GPS no configurado para este tenant — no hay nada que hacer.
+
+            if (!_gespoCooldown.TryEntrar(_tenant.CodDane, TimeSpan.FromSeconds(6)))
+                return 0; // Otra sincronización de este tenant corrió hace muy poco.
+
+            List<DtoGespoUbicacion> ubicaciones;
+            try
+            {
+                ubicaciones = await _gespoGps.LeerUbicacionesActualesAsync(sigla, ct);
+            }
+            catch (OracleException ex)
+            {
+                // Degradación silenciosa — es un tick de polling en segundo plano del
+                // frontend, no debe mostrarle un error intrusivo al operador solo
+                // porque Oracle GESPO esté lento/caído en este momento puntual.
+                _logger.LogWarning(ex,
+                    "P_SincronizarGpsBajoDemanda: error consultando Oracle GESPO (tenant={CodDane}).",
+                    _tenant.CodDane);
+                return 0;
+            }
+
+            if (ubicaciones.Count == 0) return 0;
+
+            return await P_ActualizarUbicacionesGespoAsync(ubicaciones, ct);
         }
 
         // ════════════════════════════════════════════════════════════════════════

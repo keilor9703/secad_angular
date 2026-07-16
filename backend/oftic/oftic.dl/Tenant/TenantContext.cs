@@ -16,6 +16,13 @@ namespace Datos.Tenant
         /// </summary>
         public int? SitioGraba    { get; private set; }
 
+        /// <summary>
+        /// Sigla de la unidad tal como aparece en GESPO (secad_tenants.gespo_sigla_unidad)
+        /// — filtra las consultas a Oracle GESPO para este tenant. Null si no está
+        /// configurada (GPS/minuta deshabilitados para el tenant hasta que se configure).
+        /// </summary>
+        public string? GespoSiglaUnidad { get; private set; }
+
         public NpgsqlDataSource DataSource =>
             _dataSource ?? throw new InvalidOperationException(
                 "TenantContext no ha sido inicializado. Asegúrese de que TenantMiddleware esté configurado " +
@@ -24,13 +31,15 @@ namespace Datos.Tenant
         public void Set(
             NpgsqlDataSource dataSource,
             string           codDane,
-            string?          nombreCad  = null,
-            int?             sitioGraba = null)
+            string?          nombreCad        = null,
+            int?             sitioGraba       = null,
+            string?          gespoSiglaUnidad = null)
         {
-            _dataSource = dataSource;
-            CodDane     = codDane;
-            NombreCad   = nombreCad;
-            SitioGraba  = sitioGraba;
+            _dataSource      = dataSource;
+            CodDane          = codDane;
+            NombreCad        = nombreCad;
+            SitioGraba       = sitioGraba;
+            GespoSiglaUnidad = gespoSiglaUnidad;
         }
 
         public bool IsInitialized => _dataSource is not null;

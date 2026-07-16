@@ -17,7 +17,7 @@ namespace Datos.Interfaz
         /// deshabilitada o sin configurar (GespoOracle:Enabled = false o sin
         /// ConnectionString), o si <paramref name="siglaUnidad"/> viene vacío. Si la
         /// consulta a Oracle falla, la excepción se propaga — el llamador
-        /// (GespoUbicacionPollerService) la captura y loguea.
+        /// (DbTurnoRepository.P_SincronizarGpsBajoDemandaAsync) la captura y loguea.
         /// </summary>
         Task<List<DtoGespoUbicacion>> LeerUbicacionesActualesAsync(string siglaUnidad, CancellationToken ct);
     }

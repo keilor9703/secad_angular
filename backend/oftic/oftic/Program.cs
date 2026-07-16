@@ -202,28 +202,25 @@ builder.Services.Configure<CadHealthMonitorOptions>(
     builder.Configuration.GetSection(CadHealthMonitorOptions.Section));
 builder.Services.AddHostedService<CadHealthMonitorService>();
 
-// ── Lectura directa de GPS desde Oracle GESPO (sin FDW) ───────────────────────
+// ── Lectura directa de GPS/minuta desde Oracle GESPO (sin FDW) ────────────────
 // Oracle.ManagedDataAccess.Core — driver 100% administrado, no requiere instalar
 // ninguna extensión de Postgres ni cliente nativo en el servidor de BD.
 // Deshabilitado por defecto — habilitar solo tras confirmar ConnectionString/
 // Schema/ViewName reales. Configuración: sección "GespoOracle" en appsettings.json.
+//
+// NO hay ningún BackgroundService consultando Oracle en segundo plano de forma
+// permanente — GPS y minuta se consultan bajo demanda: GPS desde
+// P_SincronizarGpsBajoDemandaAsync (llamado por TurnosController.SincronizarGps,
+// que el frontend dispara solo mientras el operador tiene Turnos o Eventos
+// abierto — ver el tick de polling ya existente en turnos.ts/eventos.ts), y
+// minuta desde el wizard de importación SIVICC (un clic del usuario).
+// GespoSyncCooldown evita ráfagas de consultas si varios operadores del mismo
+// tenant tienen la pantalla abierta a la vez.
 builder.Services.Configure<GespoOracleOptions>(
     builder.Configuration.GetSection(GespoOracleOptions.Section));
 builder.Services.AddSingleton<IGespoOracleReader, GespoOracleReader>();
-
-// Minuta digital (unidades/personal por cuadrante) — misma conexión Oracle
-// (GespoOracleOptions) que la lectura de GPS, sin polling: se consulta bajo
-// demanda desde el wizard de importación del módulo Turnos (reemplaza el
-// enfoque FDW anterior de V11, ya eliminado).
 builder.Services.AddSingleton<IGespoMinutaReader, GespoMinutaReader>();
-
-// ── Poller de ubicaciones GPS de GESPO ────────────────────────────────────────
-// BackgroundService que lee Oracle GESPO (vía IGespoOracleReader) cada pocos
-// segundos y sincroniza cad_medios_disponibles de cada tenant activo.
-// Deshabilitado por defecto. Configuración: sección "GespoUbicacionPoller".
-builder.Services.Configure<GespoUbicacionPollerOptions>(
-    builder.Configuration.GetSection(GespoUbicacionPollerOptions.Section));
-builder.Services.AddHostedService<GespoUbicacionPollerService>();
+builder.Services.AddSingleton<GespoSyncCooldown>();
 
 // Swagger
 builder.Services.AddEndpointsApiExplorer();

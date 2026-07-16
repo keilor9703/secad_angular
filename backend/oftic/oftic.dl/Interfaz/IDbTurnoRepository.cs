@@ -101,12 +101,25 @@ namespace Datos.Interfaz
         /// <summary>
         /// Actualiza las posiciones GPS de múltiples medios en lote — un solo UPDATE
         /// con unnest() del arreglo recibido. Llamado tanto por el endpoint de push
-        /// (POST api/Turnos/gespo/ubicaciones) como por GespoUbicacionPollerService
-        /// (pull directo a Oracle vía IGespoOracleReader, sin FDW/Postgres de por medio
-        /// — ver GespoOracleReader).
+        /// (POST api/Turnos/gespo/ubicaciones) como por
+        /// P_SincronizarGpsBajoDemandaAsync (pull directo a Oracle vía
+        /// IGespoOracleReader, sin FDW/Postgres de por medio).
         /// </summary>
         Task<int> P_ActualizarUbicacionesGespoAsync(
             IEnumerable<DtoGespoUbicacion> ubicaciones, CancellationToken ct);
+
+        /// <summary>
+        /// Sincroniza el GPS del tenant actual (TenantContext.GespoSiglaUnidad)
+        /// bajo demanda — pull directo a Oracle GESPO, sin ningún
+        /// BackgroundService de fondo. Pensado para llamarse desde un tick del
+        /// polling que ya existe en el frontend mientras el operador tiene
+        /// abierto Turnos o Eventos; nunca corre si nadie está viendo esas
+        /// pantallas. Devuelve 0 (sin error) si el tenant no tiene GESPO
+        /// configurado, si otra sincronización de este tenant corrió hace muy
+        /// poco (ver GespoSyncCooldown), o si Oracle falla — la consulta a
+        /// Oracle nunca propaga la excepción, solo loguea un warning.
+        /// </summary>
+        Task<int> P_SincronizarGpsBajoDemandaAsync(CancellationToken ct);
 
         /// <summary>
         /// Sugiere los medios Libres más cercanos a un punto (lat, lng) dentro de un

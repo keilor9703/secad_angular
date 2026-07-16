@@ -637,5 +637,34 @@ namespace Api.Controllers.Operacion
                 return StatusCode(500, new { success = false, message = ex.Message });
             }
         }
+
+        /// <summary>
+        /// Sincroniza el GPS del tenant actual bajo demanda — pull directo a
+        /// Oracle GESPO para el turno en curso, sin ningún proceso de fondo
+        /// permanente. Pensado para llamarse desde el frontend solo mientras el
+        /// operador tiene abierto Turnos o Eventos (mismo tick que ya refresca
+        /// medios/recursos); deja de llamarse en cuanto sale de esas pantallas.
+        ///
+        /// Nunca falla de forma visible: si GESPO no está configurado para este
+        /// tenant, si otra sincronización corrió hace muy poco (throttle interno),
+        /// o si Oracle está lento/caído, responde 200 con actualizados=0.
+        /// </summary>
+        /// <remarks>
+        /// POST api/Turnos/gespo/sincronizar
+        /// </remarks>
+        [HttpPost("gespo/sincronizar")]
+        public async Task<IActionResult> SincronizarGps(CancellationToken ct)
+        {
+            try
+            {
+                var actualizados = await _svc.P_SincronizarGpsBajoDemandaAsync(ct);
+                return Ok(new { success = true, actualizados });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "SincronizarGps error");
+                return StatusCode(500, new { success = false, message = ex.Message });
+            }
+        }
     }
 }

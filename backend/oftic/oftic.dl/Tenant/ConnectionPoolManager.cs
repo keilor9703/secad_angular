@@ -13,6 +13,8 @@ namespace Datos.Tenant
         private readonly ConcurrentDictionary<string, NpgsqlDataSource> _pools       = new(StringComparer.OrdinalIgnoreCase);
         /// <summary>Sitio de grabación principal por tenant (de secad_tenants.sitio_graba).</summary>
         private readonly ConcurrentDictionary<string, int?>             _sitiosGraba = new(StringComparer.OrdinalIgnoreCase);
+        /// <summary>Sigla GESPO del tenant (de secad_tenants.gespo_sigla_unidad).</summary>
+        private readonly ConcurrentDictionary<string, string?>          _gespoSiglas = new(StringComparer.OrdinalIgnoreCase);
 
         public NpgsqlDataSource GetOrCreate(DtoTenant tenant)
         {
@@ -32,6 +34,14 @@ namespace Datos.Tenant
         public int? GetSitioGraba(string codDane)
             => _sitiosGraba.TryGetValue(codDane, out var sg) ? sg : null;
 
+        /// <summary>Almacena la sigla GESPO del tenant para recuperarla en cache hits.</summary>
+        public void SetGespoSigla(string codDane, string? gespoSigla)
+            => _gespoSiglas[codDane] = gespoSigla;
+
+        /// <summary>Recupera la sigla GESPO del tenant (null si no está cacheada/configurada).</summary>
+        public string? GetGespoSigla(string codDane)
+            => _gespoSiglas.TryGetValue(codDane, out var sigla) ? sigla : null;
+
         /// <summary>
         /// Removes a cached DataSource for the given tenant, forcing reconnection on next request.
         /// Call this after updating tenant credentials.
@@ -43,6 +53,7 @@ namespace Datos.Tenant
                 try { ds.Dispose(); } catch { /* best-effort */ }
             }
             _sitiosGraba.TryRemove(codDane, out _);
+            _gespoSiglas.TryRemove(codDane, out _);
         }
 
         private static NpgsqlDataSource BuildDataSource(DtoTenant tenant)
