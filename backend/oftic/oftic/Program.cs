@@ -27,6 +27,14 @@ using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Config local opcional, SIEMPRE cargada sin importar el ambiente
+// (ASPNETCORE_ENVIRONMENT) — para secretos que no deben ir al repo
+// (ej. GespoOracle:ConnectionString) sin depender de si se corre en modo
+// Development o Production. Se carga al final para que gane sobre
+// appsettings.json y appsettings.{Environment}.json. Ignorado en git
+// (ver .gitignore) — cada quien lo crea localmente, nunca se commitea.
+builder.Configuration.AddJsonFile("appsettings.Local.json", optional: true, reloadOnChange: true);
+
 // Kestrel: aumentar límite para videos (150 MB)
 builder.WebHost.ConfigureKestrel(options =>
 {

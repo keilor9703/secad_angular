@@ -37,6 +37,7 @@ backend/**/*.user
 backend/**/*.suo
 backend/**/.vs/
 backend/**/appsettings.Development.json
+backend/**/appsettings.Local.json
 backend/publish/
 backend/*.zip
 
