@@ -105,7 +105,6 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
 
   // ─── Paneles colapsables del detalle (todos abiertos por defecto) ────────────
   datosAbierto            = true;
-  ubicacionAbierto        = true;
   recursosAbierto         = true;
   despachoAbierto         = true;
   fotosAbierto            = true;
@@ -1679,29 +1678,75 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
     return L.divIcon({
       className: '',
       html: `<div style="
-        width:16px;height:16px;border-radius:50%;
-        background:${color};border:2px solid #fff;
-        box-shadow:0 1px 5px rgba(0,0,0,.45);
+        width:34px;height:34px;border-radius:50%;
+        background:${color};border:3px solid #fff;
+        box-shadow:0 2px 8px rgba(0,0,0,.5);
         display:flex;align-items:center;justify-content:center;">
+        <i class="${this.iconoTipo(r.tipoMedio)}" style="color:#fff;font-size:15px;"></i>
       </div>
       <div style="
-        font-size:9px;font-weight:700;color:#fff;
-        text-shadow:0 0 4px rgba(0,0,0,.8);
-        margin-top:-12px;text-align:center;white-space:nowrap;">
+        font-size:11px;font-weight:800;color:#fff;
+        background:rgba(21,27,59,.78);padding:1px 7px;border-radius:5px;
+        margin-top:3px;text-align:center;white-space:nowrap;
+        box-shadow:0 1px 3px rgba(0,0,0,.4);">
         ${this.escapeHtml(r.patrullaCodigo)}
       </div>`,
-      iconSize:   [16, 28],
-      iconAnchor: [8, 8],
-      popupAnchor:[0, -10]
+      iconSize:   [34, 56],
+      iconAnchor: [17, 17],
+      popupAnchor:[0, -20]
     });
   }
 
-  private popupRecurso(r: DtoMedioDisponibleResumen): string {
-    const dist = r.distanciaKm != null
-      ? `<br><b>${this.escapeHtml(this.turnosSvc.formatearDistancia(r.distanciaKm))}</b> al incidente` : '';
-    return `<b>${this.escapeHtml(r.patrullaCodigo)}</b><br>
-        ${this.escapeHtml(r.estadoDesc)}<br>
-        ${this.escapeHtml(r.personalResumen) || 'Sin personal'}${dist}`;
+  /** Contenido del popup del marcador — incluye asignación rápida desde el mapa. */
+  private popupContentRecurso(r: DtoMedioDisponibleResumen): HTMLElement {
+    const box = document.createElement('div');
+    box.className = 'ev-map-popup';
+
+    const titulo = document.createElement('div');
+    titulo.className = 'ev-map-popup__title';
+    titulo.textContent = r.patrullaCodigo;
+    box.appendChild(titulo);
+
+    const estado = document.createElement('div');
+    estado.className = 'ev-map-popup__estado';
+    estado.textContent = r.estadoDesc;
+    box.appendChild(estado);
+
+    const personal = document.createElement('div');
+    personal.className = 'ev-map-popup__personal';
+    personal.textContent = r.personalResumen || 'Sin personal asignado';
+    box.appendChild(personal);
+
+    if (r.distanciaKm != null) {
+      const dist = document.createElement('div');
+      dist.className = 'ev-map-popup__dist';
+      dist.textContent = `${this.turnosSvc.formatearDistancia(r.distanciaKm)} al incidente`;
+      box.appendChild(dist);
+    }
+
+    const puedeAsignar = r.estado === 27 && !r.eventoId && !this.medioAsignadoAEsteEvento(r)
+                       && this.detalle?.estado !== 'C';
+    if (this.medioAsignadoAEsteEvento(r)) {
+      const badge = document.createElement('div');
+      badge.className = 'ev-map-popup__badge';
+      badge.textContent = 'Asignado a este evento';
+      box.appendChild(badge);
+    } else if (puedeAsignar) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'ev-map-popup__btn';
+      btn.disabled = !!this.asignandoMedioId;
+      btn.textContent = this.asignandoMedioId === r.id ? 'Asignando…' : 'Asignar a este evento';
+      btn.addEventListener('click', () => this.asignarRecursoAlEvento(r));
+      box.appendChild(btn);
+    } else if (r.eventoId) {
+      const otro = document.createElement('div');
+      otro.className = 'ev-map-popup__badge ev-map-popup__badge--otro';
+      otro.textContent = 'Vinculado a otro caso';
+      box.appendChild(otro);
+    }
+
+    return box;
   }
 
   /** Actualiza los marcadores de recursos en el mapa del evento. */
@@ -1720,14 +1765,14 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
         // Deslizar a la nueva posición en vez de saltar — el GPS se refresca
         // cada 10-15s, y este panel además hace polling cada 8s.
         existente.setIcon(this.iconoRecurso(r));
-        existente.setPopupContent(this.popupRecurso(r));
+        existente.setPopupContent(this.popupContentRecurso(r));
         animateMarkerTo(existente, r.lat!, r.lng!, 2500);
         return;
       }
 
       const marker = L.marker([r.lat!, r.lng!], { icon: this.iconoRecurso(r) })
         .addTo(this.mapaDetalle)
-        .bindPopup(this.popupRecurso(r));
+        .bindPopup(this.popupContentRecurso(r));
       this.recursoMarkersPorCodigo.set(codigo, marker);
       this.recursoMarkers.push(marker);
     });
@@ -1740,6 +1785,13 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
       }
     }
     this.recursoMarkers = Array.from(this.recursoMarkersPorCodigo.values());
+  }
+
+  /** Centra el mapa en la patrulla y abre su popup — usado desde la lista lateral. */
+  centrarEnRecurso(r: DtoMedioDisponibleResumen): void {
+    if (!this.mapaDetalle || r.lat == null || r.lng == null) return;
+    this.mapaDetalle.flyTo([r.lat, r.lng], 16, { duration: 0.6 });
+    this.recursoMarkersPorCodigo.get(r.patrullaCodigo)?.openPopup();
   }
 
   formatDistancia(km?: number): string {

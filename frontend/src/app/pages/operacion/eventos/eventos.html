@@ -564,31 +564,9 @@
                 </app-panel-colapsable>
               }
 
-              <!-- MAPA DE UBICACIÓN -->
-              @if (detalle.latitudCaso || detalle.longitudCaso) {
-                <app-panel-colapsable titulo="Ubicación del incidente" icono="fa-solid fa-map-location-dot"
-                                      [(abierto)]="ubicacionAbierto">
-                  <div style="padding:12px 14px;">
-                    <div id="mapaEvento" class="ev-map"></div>
-                    <div class="ui-grid" style="padding:8px 0 0; gap:10px;">
-                      <div class="ui-field ui-col-6">
-                        <label class="ui-label">Latitud</label>
-                        <input class="ui-control" type="text" readonly
-                               [value]="detalle.latitudCaso || '—'">
-                      </div>
-                      <div class="ui-field ui-col-6">
-                        <label class="ui-label">Longitud</label>
-                        <input class="ui-control" type="text" readonly
-                               [value]="detalle.longitudCaso || '—'">
-                      </div>
-                    </div>
-                  </div>
-                </app-panel-colapsable>
-              }
-
-              <!-- RECURSOS EN TURNO (panel de despacho) -->
+              <!-- RECURSOS Y UBICACIÓN EN TIEMPO REAL (mapa + despacho) -->
               @if (canalSeleccionado > 0) {
-                <app-panel-colapsable titulo="Recursos disponibles en turno" icono="fa-solid fa-car-side"
+                <app-panel-colapsable titulo="Recursos y ubicación en tiempo real" icono="fa-solid fa-map-location-dot"
                                       [(abierto)]="recursosAbierto" [sticky]="true">
                   <span extra class="ev-rec-live">
                     <span class="ev-live-dot"></span>
@@ -612,6 +590,12 @@
                         <i class="fa-solid fa-location-crosshairs"></i>
                         Cuadrante más cercano
                       </button>
+                      @if (detalle.latitudCaso || detalle.longitudCaso) {
+                        <span class="ev-recmap-ubicacion" title="Coordenadas del incidente">
+                          <i class="fa-solid fa-location-dot"></i>
+                          {{ detalle.latitudCaso || '—' }}, {{ detalle.longitudCaso || '—' }}
+                        </span>
+                      }
                       @if (errorRecursos) {
                         <span class="ev-err">
                           <i class="fa-solid fa-triangle-exclamation"></i>
@@ -620,7 +604,8 @@
                       }
                     </div>
 
-                    <!-- Sugerencia de cuadrante más cercano (PostGIS) -->
+                    <!-- Sugerencia de cuadrante más cercano (PostGIS) — visible arriba,
+                         antes de la fila lista+mapa, para que nunca requiera scroll. -->
                     @if (mostrarSugerencia) {
                       <div class="ev-sugerencia-box">
                         <div class="ev-sugerencia-box__head">
@@ -660,32 +645,64 @@
                       </div>
                     }
 
-                    <!-- Estado de carga inicial -->
-                    @if (cargandoRecursos && recursos.length === 0) {
-                      <div class="ev-empty-state" style="padding:20px 0">
-                        <i class="fa-solid fa-hourglass-half fa-spin"></i>
-                        <p>Consultando recursos en turno…</p>
-                      </div>
-                    } @else if (recursos.length === 0 && !cargandoRecursos) {
-                      <div class="ev-empty-state" style="padding:16px 0">
-                        <i class="fa-solid fa-car-side"></i>
-                        <p>Sin recursos activos en turno para este canal.</p>
-                      </div>
-                    } @else {
+                    <!-- Fila principal: lista de patrullas (izq.) + mapa grande (der.) —
+                         el mapa vive fuera de cualquier @if de "recursos.length" para que
+                         el div #mapaEvento siempre exista en el DOM y initMapaDetalle()
+                         no se quede esperando un elemento que nunca aparece. -->
+                    <div class="ev-recmap-main">
 
-                      <!-- Error de asignación -->
-                      @if (errorAsignacion) {
-                        <div class="ev-assign-error">
-                          <i class="fa-solid fa-triangle-exclamation"></i>
-                          {{ errorAsignacion }}
-                          <button class="ev-assign-error__close" type="button"
-                                  (click)="errorAsignacion = ''">
-                            <i class="fa-solid fa-xmark"></i>
-                          </button>
-                        </div>
-                      }
+                      <!-- Lista lateral: solo identificación — nombre de patrulla + personal -->
+                      <div class="ev-recmap-list">
+                        @if (cargandoRecursos && recursos.length === 0) {
+                          <div class="ev-empty-state" style="padding:20px 0">
+                            <i class="fa-solid fa-hourglass-half fa-spin"></i>
+                            <p>Consultando…</p>
+                          </div>
+                        } @else if (recursos.length === 0) {
+                          <div class="ev-empty-state" style="padding:16px 0">
+                            <i class="fa-solid fa-car-side"></i>
+                            <p>Sin recursos activos en turno para este canal.</p>
+                          </div>
+                        } @else {
+                          @for (r of recursos; track r.id) {
+                            <button type="button" class="ev-recmap-item"
+                                    [class.ev-recmap-item--ocupado]="r.estado === 28 || r.estado === 30"
+                                    [disabled]="r.lat == null || r.lng == null"
+                                    (click)="centrarEnRecurso(r)"
+                                    [title]="r.lat != null && r.lng != null ? 'Centrar en el mapa' : 'Sin señal GPS'">
+                              <i [class]="iconoTipo(r.tipoMedio) + ' ev-recmap-item__icon'"></i>
+                              <div class="ev-recmap-item__info">
+                                <strong class="ev-recmap-item__codigo">{{ r.patrullaCodigo }}</strong>
+                                <span class="ev-recmap-item__personal">{{ r.personalResumen || 'Sin personal asignado' }}</span>
+                              </div>
+                              <span class="ev-gps-dot" [class.ev-gps-dot--on]="r.gpsActivo"
+                                    [title]="r.gpsActivo ? 'GPS activo' : 'Sin señal GPS'"></span>
+                            </button>
+                          }
+                        }
+                      </div>
 
-                      <!-- Tabla de recursos -->
+                      <!-- Mapa — el centro de atención del panel -->
+                      <div class="ev-recmap-mapwrap">
+                        <div id="mapaEvento" class="ev-map ev-map--lg"></div>
+                      </div>
+
+                    </div><!-- /ev-recmap-main -->
+
+                    <!-- Error de asignación -->
+                    @if (errorAsignacion) {
+                      <div class="ev-assign-error">
+                        <i class="fa-solid fa-triangle-exclamation"></i>
+                        {{ errorAsignacion }}
+                        <button class="ev-assign-error__close" type="button"
+                                (click)="errorAsignacion = ''">
+                          <i class="fa-solid fa-xmark"></i>
+                        </button>
+                      </div>
+                    }
+
+                    <!-- Detalle y acciones de asignación — debajo del mapa -->
+                    @if (recursos.length > 0) {
                       <div class="ev-rec-table-wrap">
                         <table class="ev-rec-table">
                           <thead>
@@ -784,7 +801,6 @@
                           </tbody>
                         </table>
                       </div>
-
                     }
                   </div>
                 </app-panel-colapsable>

@@ -201,7 +201,7 @@ public class DtoMedioDisponibleResumen
     public long?   EventoId       { get; set; }
     public double? DistanciaKm    { get; set; }
     // Personal resumido
-    public string  PersonalResumen { get; set; } = "";  // "Cédula1 / Cédula2"
+    public string  PersonalResumen { get; set; } = "";  // "Nombre1 / Nombre2" (cédula solo si no hay nombre)
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -308,8 +308,11 @@ ORDER  BY m.estado ASC, m.patrulla_codigo ASC";
                 Lng            = m.Longitud,
                 GpsActivo      = m.GpsActivo,
                 EventoId       = m.EventoId,
+                // Nombre del funcionario, no la cédula — la lista de recursos del
+                // despachador debe identificar personas, no números de identificación.
                 PersonalResumen = string.Join(" / ",
-                    m.Personal.Select(p => p.CeduEmpleado))
+                    m.Personal.Select(p => !string.IsNullOrWhiteSpace(p.NombrePolicial)
+                        ? p.NombrePolicial : p.CeduEmpleado))
             }).ToList();
         }
 
