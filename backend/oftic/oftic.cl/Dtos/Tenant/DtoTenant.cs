@@ -27,7 +27,7 @@ namespace Comun.Dtos.Tenant
         public string DbPassword { get; set; } = string.Empty;
         /// <summary>
         /// Sigla de la unidad tal como aparece en GESPO (columna SIGLA_PAPA_UNIDAD de
-        /// V_CONSULTA_GPS_SECAD) — permite filtrar la consulta a Oracle para que este
+        /// VW_CONSULTA_ACTUAL_GPS) — permite filtrar la consulta a Oracle para que este
         /// tenant reciba solo sus propias patrullas, no las de todo el país. Es un
         /// campo distinto de CodUnidad (que viene de la integración OUD/login), aunque
         /// coincida en valor para algunos tenants — se define aparte para no acoplar

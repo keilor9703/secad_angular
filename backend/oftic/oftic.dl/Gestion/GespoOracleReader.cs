@@ -9,7 +9,7 @@ namespace Datos.Gestion
 {
     /// <summary>
     /// Lee la georreferenciación GPS actual directamente desde la vista Oracle de
-    /// GESPO (V_CONSULTA_GPS_SECAD) usando el driver 100% administrado
+    /// GESPO (VW_CONSULTA_ACTUAL_GPS) usando el driver 100% administrado
     /// Oracle.ManagedDataAccess.Core — sin FDW, sin extensiones ni clientes
     /// nativos que instalar en el servidor de Postgres (enfoque descartado por
     /// no ser instalable en varios de los servidores de los tenants).
@@ -21,6 +21,10 @@ namespace Datos.Gestion
     /// La vista trae una fila por policía/celular; varios pueden compartir el
     /// mismo CUADRANTE_ID (=patrulla_codigo). Se colapsa aquí en memoria al fix
     /// más reciente por cuadrante.
+    ///
+    /// A diferencia de la vista anterior, esta sí trae VELOCIDAD (se asume
+    /// km/h — no confirmado con GESPO, ajustar si resulta ser otra unidad).
+    /// Sigue sin traer rumbo/dirección, así que RumboGrados queda en null.
     /// </summary>
     public sealed class GespoOracleReader : IGespoOracleReader
     {
@@ -52,7 +56,7 @@ namespace Datos.Gestion
             // igual que el resto de sentencias de esquema en el proyecto. El filtro por
             // sigla sí es un bind parameter (viene de secad_tenants, dato de negocio).
             cmd.CommandText = $@"
-SELECT cuadrante_id, latitud, longitud, fecha
+SELECT cuadrante_id, latitud, longitud, fecha, velocidad
 FROM   {_opts.Schema}.{_opts.ViewName}
 WHERE  sigla_papa_unidad = :sigla
   AND  cuadrante_id IS NOT NULL
@@ -61,7 +65,7 @@ WHERE  sigla_papa_unidad = :sigla
   AND  fecha        IS NOT NULL";
             cmd.Parameters.Add(new OracleParameter("sigla", siglaUnidad));
 
-            var masRecientePorCuadrante = new Dictionary<string, (double Lat, double Lng, DateTime Fecha)>();
+            var masRecientePorCuadrante = new Dictionary<string, (double Lat, double Lng, double? Velocidad, DateTime Fecha)>();
 
             using (var rdr = await cmd.ExecuteReaderAsync(ct))
             {
@@ -71,9 +75,10 @@ WHERE  sigla_papa_unidad = :sigla
                     var lat         = Convert.ToDouble(rdr.GetValue(1));
                     var lng         = Convert.ToDouble(rdr.GetValue(2));
                     var fecha       = rdr.GetDateTime(3);
+                    var velocidad   = rdr.IsDBNull(4) ? (double?)null : Convert.ToDouble(rdr.GetValue(4));
 
                     if (!masRecientePorCuadrante.TryGetValue(cuadranteId, out var actual) || fecha > actual.Fecha)
-                        masRecientePorCuadrante[cuadranteId] = (lat, lng, fecha);
+                        masRecientePorCuadrante[cuadranteId] = (lat, lng, velocidad, fecha);
                 }
             }
 
@@ -85,7 +90,7 @@ WHERE  sigla_papa_unidad = :sigla
                     PatrullaCodigo = cuadranteId,
                     Latitud        = v.Lat,
                     Longitud       = v.Lng,
-                    VelocidadKmh   = null,
+                    VelocidadKmh   = v.Velocidad,
                     RumboGrados    = null,
                     FechaGps       = fechaGps.ToString("o", CultureInfo.InvariantCulture),
                 });

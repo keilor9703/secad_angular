@@ -4,7 +4,7 @@ namespace Datos.Interfaz
 {
     /// <summary>
     /// Lee la georreferenciación GPS actual de las patrullas directamente desde
-    /// Oracle (vista GESPO V_CONSULTA_GPS_SECAD), sin pasar por Postgres/FDW.
+    /// Oracle (vista GESPO VW_CONSULTA_ACTUAL_GPS), sin pasar por Postgres/FDW.
     /// </summary>
     public interface IGespoOracleReader
     {
