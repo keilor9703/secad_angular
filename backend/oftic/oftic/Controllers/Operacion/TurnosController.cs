@@ -628,7 +628,8 @@ namespace Api.Controllers.Operacion
                 return BadRequest(new { success = false, message = "Se requiere al menos una ubicación." });
             try
             {
-                var actualizados = await _svc.P_ActualizarUbicacionesGespoAsync(ubicaciones, ct);
+                // Sin contexto de canal (payload externo genérico) — 0/0 no restringe por canal.
+                var actualizados = await _svc.P_ActualizarUbicacionesGespoAsync(ubicaciones, 0, 0, ct);
                 return Ok(new { success = true, actualizados, total = ubicaciones.Count });
             }
             catch (Exception ex)
@@ -639,30 +640,41 @@ namespace Api.Controllers.Operacion
         }
 
         /// <summary>
-        /// Sincroniza el GPS del tenant actual bajo demanda — pull directo a
-        /// Oracle GESPO para el turno en curso, sin ningún proceso de fondo
-        /// permanente. Pensado para llamarse desde el frontend solo mientras el
-        /// operador tiene abierto Turnos o Eventos (mismo tick que ya refresca
-        /// medios/recursos); deja de llamarse en cuanto sale de esas pantallas.
+        /// Sincroniza el GPS de las patrullas activas de un canal bajo demanda —
+        /// pull directo a Oracle GESPO solo para los medios de ese canal/fuerza en
+        /// turno, sin ningún proceso de fondo permanente. Pensado para llamarse
+        /// desde el frontend de Eventos, en el mismo tick que ya refresca los
+        /// recursos del canal (mientras el operador tiene un canal seleccionado);
+        /// deja de llamarse en cuanto sale de esa pantalla o cambia de canal.
+        /// Turnos no llama a este endpoint — ese módulo no hace georreferenciación.
         ///
-        /// Nunca falla de forma visible: si GESPO no está configurado para este
-        /// tenant, si otra sincronización corrió hace muy poco (throttle interno),
-        /// o si Oracle está lento/caído, responde 200 con actualizados=0.
+        /// Nunca falla de forma visible: si el canal no tiene medios activos ahora
+        /// mismo, si otra sincronización de este canal corrió hace muy poco
+        /// (throttle interno), o si Oracle está lento/caído, responde 200 con
+        /// actualizados=0.
         /// </summary>
         /// <remarks>
-        /// POST api/Turnos/gespo/sincronizar
+        /// POST api/Turnos/gespo/sincronizar?canalCodigo=5&amp;canalFuerzaId=1
+        ///
+        /// canalFuerzaId es obligatorio para evitar mezclar canales homónimos de otra
+        /// fuerza (cad_canales.codigo no es único por sí solo). Si se omite, se resuelve
+        /// desde el claim "fuerza_id" del JWT del usuario autenticado.
         /// </remarks>
         [HttpPost("gespo/sincronizar")]
-        public async Task<IActionResult> SincronizarGps(CancellationToken ct)
+        public async Task<IActionResult> SincronizarGps(
+            [FromQuery] int  canalCodigo,
+            [FromQuery] int? canalFuerzaId = null,
+            CancellationToken ct           = default)
         {
             try
             {
-                var actualizados = await _svc.P_SincronizarGpsBajoDemandaAsync(ct);
+                var resolvedFuerza = canalFuerzaId ?? GetIntClaim("fuerza_id");
+                var actualizados = await _svc.P_SincronizarGpsBajoDemandaAsync(canalCodigo, resolvedFuerza, ct);
                 return Ok(new { success = true, actualizados });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "SincronizarGps error");
+                _logger.LogError(ex, "SincronizarGps error canal={C}", canalCodigo);
                 return StatusCode(500, new { success = false, message = ex.Message });
             }
         }

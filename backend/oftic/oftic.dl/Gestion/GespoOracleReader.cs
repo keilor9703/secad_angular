@@ -14,9 +14,12 @@ namespace Datos.Gestion
     /// nativos que instalar en el servidor de Postgres (enfoque descartado por
     /// no ser instalable en varios de los servidores de los tenants).
     ///
-    /// La vista trae GPS de TODO el país; siempre se filtra por
-    /// SIGLA_PAPA_UNIDAD (un tenant/CAD = una sigla) para que cada tenant
-    /// consulte y reciba solo sus propias patrullas, no las de todo el país.
+    /// La vista trae GPS de TODO el país. En vez de filtrar por SIGLA_PAPA_UNIDAD
+    /// (que trae TODAS las patrullas de la fuerza/ciudad completa), se filtra por
+    /// la lista explícita de CUADRANTE_ID (=patrulla_codigo) que el llamador ya
+    /// sabe que le interesan — los medios del canal/unidad en cuestión, ya
+    /// resueltos en Postgres. Así cada consulta a Oracle trae solo lo que hace
+    /// falta para esa unidad/canal, no toda la ciudad.
     ///
     /// La vista trae una fila por policía/celular; varios pueden compartir el
     /// mismo CUADRANTE_ID (=patrulla_codigo). Se colapsa aquí en memoria al fix
@@ -41,7 +44,8 @@ namespace Datos.Gestion
             _logger = logger;
         }
 
-        public async Task<List<DtoGespoUbicacion>> LeerUbicacionesActualesAsync(string siglaUnidad, CancellationToken ct)
+        public async Task<List<DtoGespoUbicacion>> LeerUbicacionesActualesAsync(
+            IReadOnlyCollection<string> cuadranteIds, CancellationToken ct)
         {
             var result = new List<DtoGespoUbicacion>();
             if (!_opts.Enabled || string.IsNullOrWhiteSpace(_opts.ConnectionString))
@@ -51,11 +55,11 @@ namespace Datos.Gestion
                     "(GespoOracle:Enabled={Enabled}) — no se consulta Oracle.", _opts.Enabled);
                 return result;
             }
-            if (string.IsNullOrWhiteSpace(siglaUnidad))
+            if (cuadranteIds is null || cuadranteIds.Count == 0)
             {
                 _logger.LogInformation(
-                    "[GespoOracleReader] siglaUnidad vacía — probablemente " +
-                    "secad_tenants.gespo_sigla_unidad no está configurada para este tenant.");
+                    "[GespoOracleReader] Sin cuadrante_id que consultar (canal/unidad sin medios " +
+                    "activos en este momento) — no se llama a Oracle.");
                 return result;
             }
 
@@ -64,22 +68,28 @@ namespace Datos.Gestion
 
             using var cmd = conn.CreateCommand();
             cmd.CommandTimeout = _opts.TimeoutSeconds;
+
+            // Bind por posición (:c0, :c1, ...) en vez de literales concatenados —
+            // sigue siendo una consulta parametrizada, solo con tantos parámetros
+            // como cuadrante_id se necesiten (a esta escala, medios de un solo
+            // canal/unidad, siempre muy por debajo del límite práctico de Oracle).
+            var ids = cuadranteIds.ToArray();
+            var nombresParam = new string[ids.Length];
+            for (int i = 0; i < ids.Length; i++)
+            {
+                nombresParam[i] = $":c{i}";
+                cmd.Parameters.Add(new OracleParameter($"c{i}", ids[i]));
+            }
+
             // Nombres de esquema/vista vienen de configuración (no de input de usuario),
-            // igual que el resto de sentencias de esquema en el proyecto. El filtro por
-            // sigla sí es un bind parameter (viene de secad_tenants, dato de negocio).
-            // UPPER() en ambos lados: la comparación en Oracle es sensible a
-            // mayúsculas/minúsculas por defecto — sin esto, una sigla guardada en
-            // secad_tenants con un case distinto al de SIGLA_PAPA_UNIDAD en Oracle
-            // no matchea NUNCA y la consulta siempre vuelve vacía sin ningún error.
+            // igual que el resto de sentencias de esquema en el proyecto.
             cmd.CommandText = $@"
 SELECT cuadrante_id, latitud, longitud, fecha, velocidad
 FROM   {_opts.Schema}.{_opts.ViewName}
-WHERE  UPPER(sigla_papa_unidad) = UPPER(:sigla)
-  AND  cuadrante_id IS NOT NULL
+WHERE  cuadrante_id IN ({string.Join(",", nombresParam)})
   AND  latitud      IS NOT NULL
   AND  longitud     IS NOT NULL
   AND  fecha        IS NOT NULL";
-            cmd.Parameters.Add(new OracleParameter("sigla", siglaUnidad));
 
             var masRecientePorCuadrante = new Dictionary<string, (double Lat, double Lng, double? Velocidad, DateTime Fecha)>();
 
@@ -117,8 +127,8 @@ WHERE  UPPER(sigla_papa_unidad) = UPPER(:sigla)
             }
 
             _logger.LogInformation(
-                "[GespoOracleReader] sigla={Sigla} — {Cantidad} cuadrante(s) leído(s) de Oracle.",
-                siglaUnidad, result.Count);
+                "[GespoOracleReader] {Solicitados} cuadrante(s) solicitados — {Cantidad} leído(s) de Oracle.",
+                ids.Length, result.Count);
             return result;
         }
     }

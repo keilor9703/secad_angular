@@ -1,8 +1,8 @@
 /**
  * Anima marcadores de Leaflet entre fixes GPS sucesivos en vez de teletransportarlos.
  *
- * El GPS de patrullas se refresca cada 10-15s (ver GespoUbicacionPollerService en el
- * backend y el polling de 8-15s en turnos.ts/eventos.ts). Si el marker simplemente
+ * El GPS de patrullas se refresca cada 8-15s (ver P_SincronizarGpsBajoDemandaAsync en
+ * el backend y el polling de recursos del canal en eventos.ts). Si el marker simplemente
  * "salta" a la nueva coordenada en cada refresco se ve a tirones; acá se desliza
  * suavemente durante la ventana entre refrescos, dando la sensación de movimiento
  * continuo aunque el dato subyacente solo llegue cada tantos segundos.

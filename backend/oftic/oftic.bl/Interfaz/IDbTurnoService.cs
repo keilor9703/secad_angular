@@ -61,9 +61,11 @@ namespace Negocio.Interfaz
             long medioId, DtoCambiarEstadoMedioRequest req, int fuerzaId, string usuario, CancellationToken ct);
 
         Task<int> P_ActualizarUbicacionesGespoAsync(
-            IEnumerable<DtoGespoUbicacion> ubicaciones, CancellationToken ct);
+            IEnumerable<DtoGespoUbicacion> ubicaciones,
+            int canalCodigo, int canalFuerzaId,
+            CancellationToken ct);
 
-        Task<int> P_SincronizarGpsBajoDemandaAsync(CancellationToken ct);
+        Task<int> P_SincronizarGpsBajoDemandaAsync(int canalCodigo, int canalFuerzaId, CancellationToken ct);
 
         Task<List<DtoRecursoCercano>> G_GetRecursoMasCercanoAsync(
             int canalCodigo, int canalFuerzaId, int sitioGraba,

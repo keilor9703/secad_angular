@@ -243,13 +243,6 @@
                       title="Agregar medio manualmente">
                 <i class="fa-solid fa-plus"></i> Agregar
               </button>
-              <button class="ui-btn xs tr-head-btn-ghost" type="button"
-                      [class.tr-map-btn--on]="mapaVisible"
-                      (click)="toggleMapa()"
-                      title="Ver mapa de posiciones GPS">
-                <i class="fa-solid fa-map-location-dot"></i>
-                {{ mapaVisible ? 'Ocultar' : 'Mapa' }}
-              </button>
             </div>
           </div>
 
@@ -260,19 +253,9 @@
               <span class="tr-readiness-item">
                 <i class="fa-solid fa-car-side"></i> {{ resumenLibres }} libres
               </span>
-              <span class="tr-readiness-item">
-                <i class="fa-solid fa-satellite-dish"></i> {{ resumenGpsActivo }} con GPS
-              </span>
               @if (readinessHaceTexto) {
                 <span class="tr-readiness-hace">actualizado {{ readinessHaceTexto }}</span>
               }
-            </div>
-          }
-
-          <!-- Mini-mapa GPS -->
-          @if (mapaVisible) {
-            <div class="tr-map-container">
-              <div id="mapaMedios" class="tr-map"></div>
             </div>
           }
 
@@ -329,21 +312,6 @@
                       </div>
                     }
 
-                    <!-- GPS -->
-                    <div class="tr-medio-item__gps">
-                      <span class="tr-gps-dot" [class.tr-gps-dot--on]="m.gpsActivo"
-                            [title]="m.gpsActivo ? 'GPS activo · ' + m.fechaUbicacion : 'GPS inactivo'">
-                      </span>
-                      <span class="tr-gps-label">
-                        {{ m.gpsActivo ? 'GPS activo' : 'Sin señal GPS' }}
-                      </span>
-                      @if (m.latitud && m.longitud) {
-                        <span class="tr-gps-coords">
-                          {{ m.latitud | number:'1.4-4' }},
-                          {{ m.longitud | number:'1.4-4' }}
-                        </span>
-                      }
-                    </div>
                   </div>
 
                 </div>

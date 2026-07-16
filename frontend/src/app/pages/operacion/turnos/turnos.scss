@@ -155,12 +155,6 @@ $clase3: #8b5cf6;   // 3° turno — violeta noche
   color:        rgba(255,255,255,.90) !important;
 
   &:hover { background: rgba(255,255,255,.18) !important; }
-
-  &.tr-map-btn--on {
-    background:   rgba(8,166,203,.28) !important;
-    border-color: rgba(8,166,203,.60) !important;
-    color:        #5ee4ff !important;
-  }
 }
 
 .tr-col-head-actions {
@@ -471,32 +465,6 @@ $clase3: #8b5cf6;   // 3° turno — violeta noche
 }
 
 // ══════════════════════════════════════════════════════════════
-//  MAPA DE MEDIOS
-// ══════════════════════════════════════════════════════════════
-
-.tr-map-container {
-  padding:     8px 10px;
-  flex-shrink: 0;
-  border-bottom: 1px solid var(--ui-border, rgba(21,27,59,.12));
-}
-
-.tr-map {
-  width:         100%;
-  height:        200px;
-  border-radius: 8px;
-  overflow:      hidden;
-  border:        1px solid rgba(21,27,59,.12);
-  background:    #e8eff8;
-}
-
-// ── Toggle map button "on" state ──────────────────────────────
-.tr-map-btn--on {
-  background:   rgba(8,166,203,.12) !important;
-  border-color: rgba(8,166,203,.40) !important;
-  color:        var(--policia-acento, #08a6cb) !important;
-}
-
-// ══════════════════════════════════════════════════════════════
 //  ITEM DE MEDIO
 // ══════════════════════════════════════════════════════════════
 
@@ -599,37 +567,6 @@ $clase3: #8b5cf6;   // 3° turno — violeta noche
   &.badge-warning   { background: #fef9c3; color: #d97706; }
   &.badge-dark      { background: rgba(21,27,59,.10); color: rgba(21,27,59,.60); }
   &.badge-secondary { background: #f1f5f9; color: #64748b; }
-}
-
-// ── GPS dot indicator ─────────────────────────────────────────
-.tr-gps-dot {
-  width:        8px;
-  height:       8px;
-  border-radius: 50%;
-  background:   rgba(21,27,59,.22);
-  flex-shrink:  0;
-
-  &--on {
-    background: #22c55e;
-    box-shadow: 0 0 0 2px rgba(34,197,94,.3);
-    animation:  tr-gps-pulse 2s ease-in-out infinite;
-  }
-}
-
-@keyframes tr-gps-pulse {
-  0%, 100% { transform: scale(1);   }
-  50%      { transform: scale(1.3); }
-}
-
-.tr-gps-label {
-  font-size:   calc(10px * var(--font-size-scale));
-  color:       rgba(21,27,59,.45);
-}
-
-.tr-gps-coords {
-  font-size:   calc(9px * var(--font-size-scale));
-  color:       rgba(21,27,59,.35);
-  font-family: monospace;
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -867,8 +804,6 @@ html.dark-mode {
 
   .tr-turno-info { background: rgba(255,255,255,.03); border-color: var(--ui-border); color: var(--ui-text); &__horario { color: var(--ui-text); } }
 
-  .tr-gps-label  { color: var(--ui-text-muted); }
-
   .tr-unidad-item__icon { background: rgba(255,255,255,.07); i { color: rgba(255,255,255,.45); } }
 
   .tr-medio-item__tipo  { background: rgba(255,255,255,.06); }
@@ -876,8 +811,6 @@ html.dark-mode {
   .tr-personal-row { background: rgba(255,255,255,.04); border-color: var(--ui-border); }
 
   .tr-modal-hint { color: var(--ui-text-muted); strong { color: var(--ui-text); } }
-
-  .tr-map { border-color: var(--ui-border); background: rgba(255,255,255,.04); }
 
   .tr-estado-badge.tr-estado-c      { background: rgba(255,255,255,.08); color: var(--ui-muted, rgba(228,231,235,.55)); }
   .tr-estado-medio-badge.badge-dark { background: rgba(255,255,255,.08); color: var(--ui-muted, rgba(228,231,235,.6)); }
@@ -946,8 +879,6 @@ html.dark-mode {
   }
 
   .tr-medio-icono { color: var(--ui-text-muted); }
-  .tr-gps-coords  { color: rgba(255,255,255,.35); }
-  .tr-gps-dot     { background: rgba(255,255,255,.20); }
 
   .tr-readiness {
     background:   rgba(255,255,255,.03);

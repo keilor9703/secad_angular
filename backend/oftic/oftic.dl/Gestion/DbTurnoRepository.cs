@@ -1323,7 +1323,9 @@ SELECT fn_cambiar_estado_medio(
         // ════════════════════════════════════════════════════════════════════════
 
         public async Task<int> P_ActualizarUbicacionesGespoAsync(
-            IEnumerable<DtoGespoUbicacion> ubicaciones, CancellationToken ct)
+            IEnumerable<DtoGespoUbicacion> ubicaciones,
+            int canalCodigo, int canalFuerzaId,
+            CancellationToken ct)
         {
             // Filtra valores fuera del rango físico real (y del rango que las
             // columnas NUMERIC pueden almacenar: latitud/longitud NUMERIC(10,7),
@@ -1381,15 +1383,18 @@ SELECT fn_cambiar_estado_medio(
 
             await using var conn = await _tenant.DataSource.OpenConnectionAsync(ct);
             await using var cmd  = conn.CreateCommand();
-            // ⚠️ El emparejamiento sigue siendo solo por patrulla_codigo — el payload
-            // de GESPO (DtoGespoUbicacion) no trae fuerza_id ni sitio_graba, y
-            // patrulla_codigo NO es único globalmente (solo lo es dentro de un mismo
-            // turno: UNIQUE(turno_id, patrulla_codigo)). Si dos fuerzas activas al
-            // mismo tiempo reutilizan el mismo código de patrulla, esta actualización
-            // escribe la posición en AMBAS filas — no se puede resolver sin que GESPO
-            // incluya un identificador de fuerza/sitio en cada posición del lote;
-            // coordinar con el equipo de integración de GESPO antes de asumir que
-            // esto no puede ocurrir en producción.
+            // ⚠️ patrulla_codigo NO es único globalmente (solo lo es dentro de un
+            // mismo turno: UNIQUE(turno_id, patrulla_codigo)) — el payload de GESPO
+            // (DtoGespoUbicacion) tampoco trae fuerza_id ni sitio_graba. Antes esta
+            // actualización solo exigía "algún turno activo", así que una reutilización
+            // del mismo código de patrulla entre dos fuerzas/canales activos al mismo
+            // tiempo escribía la posición en ambas filas. Ahora, como el llamador
+            // (P_SincronizarGpsBajoDemandaAsync) ya resolvió qué canal/unidad pidió esta
+            // sincronización, se añade ese mismo filtro acá — así el UPDATE solo puede
+            // tocar medios de ese canal/fuerza puntual, no cualquier medio del tenant
+            // cuyo patrulla_codigo coincida. canalCodigo=0 (usado por el endpoint de
+            // push, que no tiene contexto de canal) deshabilita el filtro, igual que en
+            // G_GetMediosActivosPorCanalAsync.
             cmd.CommandText = @"
 UPDATE cad_medios_disponibles m
 SET    latitud         = v.lat,
@@ -1400,60 +1405,112 @@ SET    latitud         = v.lat,
 FROM   unnest(@patcods, @lats, @lngs, @vels, @rums, @fechas)
        AS v(patcod, lat, lng, vel, rum, fecha)
 WHERE  m.patrulla_codigo = v.patcod
+  AND  (m.canal_codigo    = @canal       OR @canal       = 0)
+  AND  (m.canal_fuerza_id = @canalFuerza OR @canalFuerza = 0)
   AND  m.turno_id IN (
       SELECT id FROM cad_turnos
       WHERE  estado = 'A'
         AND  hora_inicia  <= NOW()
         AND  hora_termina >= NOW()
   )";
-            cmd.Parameters.AddWithValue("patcods", patcods);
-            cmd.Parameters.AddWithValue("lats",    lats);
-            cmd.Parameters.AddWithValue("lngs",    lngs);
-            cmd.Parameters.AddWithValue("vels",    vels);
-            cmd.Parameters.AddWithValue("rums",    rums);
-            cmd.Parameters.AddWithValue("fechas",  fechas);
+            cmd.Parameters.AddWithValue("patcods",     patcods);
+            cmd.Parameters.AddWithValue("lats",        lats);
+            cmd.Parameters.AddWithValue("lngs",        lngs);
+            cmd.Parameters.AddWithValue("vels",        vels);
+            cmd.Parameters.AddWithValue("rums",        rums);
+            cmd.Parameters.AddWithValue("fechas",      fechas);
+            cmd.Parameters.AddWithValue("canal",       canalCodigo);
+            cmd.Parameters.AddWithValue("canalFuerza", canalFuerzaId);
 
             return await cmd.ExecuteNonQueryAsync(ct);
         }
 
         // ════════════════════════════════════════════════════════════════════════
+        // PATRULLA_CODIGO ACTIVOS DE UN CANAL (helper interno de la sincronización GPS)
+        // Mismo alcance que G_GetMediosActivosPorCanalAsync (canal+fuerza+turno
+        // activo), pero solo trae la columna que hace falta para pedirle a Oracle
+        // exactamente esas patrullas — nunca las de todo el canal general/fuerza.
+        // ════════════════════════════════════════════════════════════════════════
+
+        private async Task<List<string>> G_GetPatrullaCodigosPorCanalAsync(
+            int canalCodigo, int canalFuerzaId, CancellationToken ct)
+        {
+            var result = new List<string>();
+            await using var conn = await _tenant.DataSource.OpenConnectionAsync(ct);
+            await using var cmd  = conn.CreateCommand();
+            cmd.CommandText = @"
+SELECT DISTINCT m.patrulla_codigo
+FROM   cad_medios_disponibles m
+JOIN   cad_turnos t ON t.id = m.turno_id
+WHERE  m.canal_codigo     = @canal
+  AND  (m.canal_fuerza_id = @canalFuerza OR @canalFuerza = 0)
+  AND  t.estado       = 'A'
+  AND  t.hora_inicia  <= (NOW() AT TIME ZONE 'America/Bogota')
+  AND  t.hora_termina >= (NOW() AT TIME ZONE 'America/Bogota')";
+            cmd.Parameters.AddWithValue("canal",       canalCodigo);
+            cmd.Parameters.AddWithValue("canalFuerza", canalFuerzaId);
+
+            await using var rdr = await cmd.ExecuteReaderAsync(ct);
+            while (await rdr.ReadAsync(ct))
+                result.Add(rdr.GetString(0));
+            return result;
+        }
+
+        // ════════════════════════════════════════════════════════════════════════
         // SINCRONIZAR GPS BAJO DEMANDA (sin BackgroundService/polling permanente)
         //
-        // Se llama desde un tick del polling que YA existe en el frontend mientras
-        // el operador tiene abierto Turnos (readiness de medios, cada 15s) o
-        // Eventos (recursos del canal, cada 8s) — nunca corre si nadie está viendo
-        // esas pantallas, y se detiene solo cuando el operador sale de ellas
-        // (Angular cancela la suscripción). No hay ningún proceso en segundo plano
-        // consultando Oracle de forma indefinida.
+        // Se llama desde el mismo tick de polling que YA existe en el frontend de
+        // Eventos (recursos del canal, cada 8s) mientras el operador tiene un canal
+        // seleccionado — nunca corre si no hay canal abierto, y se detiene solo
+        // cuando el operador cambia de canal o sale de la pantalla (Angular cancela
+        // la suscripción). No hay ningún proceso en segundo plano consultando
+        // Oracle de forma indefinida, y Turnos ya no dispara esta sincronización en
+        // absoluto (ese módulo solo administra turnos/unidades/medios, no
+        // georreferenciación).
         //
-        // GespoSyncCooldown evita que varios operadores del mismo tenant, con la
+        // Se resuelve primero el conjunto de patrulla_codigo de ESE canal/fuerza en
+        // turno activo, y solo esas se piden a Oracle — nunca las de toda la fuerza
+        // ni las de otro canal/unidad, que era el comportamiento anterior (filtraba
+        // por sigla_papa_unidad = fuerza completa).
+        //
+        // GespoSyncCooldown evita que varios operadores del mismo canal, con la
         // pantalla abierta al mismo tiempo, disparen consultas a Oracle repetidas
         // o simultáneas.
         // ════════════════════════════════════════════════════════════════════════
 
-        public async Task<int> P_SincronizarGpsBajoDemandaAsync(CancellationToken ct)
+        public async Task<int> P_SincronizarGpsBajoDemandaAsync(
+            int canalCodigo, int canalFuerzaId, CancellationToken ct)
         {
-            var sigla = _tenant.GespoSiglaUnidad;
-            if (string.IsNullOrWhiteSpace(sigla) || string.IsNullOrWhiteSpace(_tenant.CodDane))
+            if (canalCodigo <= 0 || string.IsNullOrWhiteSpace(_tenant.CodDane))
             {
                 _logger.LogInformation(
-                    "P_SincronizarGpsBajoDemanda: tenant {CodDane} sin gespo_sigla_unidad configurada — no se sincroniza.",
-                    _tenant.CodDane ?? "?");
-                return 0; // GPS no configurado para este tenant — no hay nada que hacer.
+                    "P_SincronizarGpsBajoDemanda: canalCodigo inválido ({Canal}) o tenant sin resolver " +
+                    "(tenant={CodDane}) — no se sincroniza.", canalCodigo, _tenant.CodDane ?? "?");
+                return 0;
             }
 
-            if (!_gespoCooldown.TryEntrar(_tenant.CodDane, TimeSpan.FromSeconds(6)))
+            var cooldownKey = $"{_tenant.CodDane}:{canalFuerzaId}:{canalCodigo}";
+            if (!_gespoCooldown.TryEntrar(cooldownKey, TimeSpan.FromSeconds(6)))
             {
                 _logger.LogDebug(
-                    "P_SincronizarGpsBajoDemanda: tenant {CodDane} — sincronización omitida (cooldown).",
-                    _tenant.CodDane);
-                return 0; // Otra sincronización de este tenant corrió hace muy poco.
+                    "P_SincronizarGpsBajoDemanda: canal {Canal}/{Fuerza} (tenant {CodDane}) — " +
+                    "sincronización omitida (cooldown).", canalCodigo, canalFuerzaId, _tenant.CodDane);
+                return 0; // Otra sincronización de este mismo canal corrió hace muy poco.
+            }
+
+            var patrullas = await G_GetPatrullaCodigosPorCanalAsync(canalCodigo, canalFuerzaId, ct);
+            if (patrullas.Count == 0)
+            {
+                _logger.LogInformation(
+                    "P_SincronizarGpsBajoDemanda: canal {Canal}/{Fuerza} (tenant {CodDane}) sin medios " +
+                    "activos en turno — no se sincroniza.", canalCodigo, canalFuerzaId, _tenant.CodDane);
+                return 0;
             }
 
             List<DtoGespoUbicacion> ubicaciones;
             try
             {
-                ubicaciones = await _gespoGps.LeerUbicacionesActualesAsync(sigla, ct);
+                ubicaciones = await _gespoGps.LeerUbicacionesActualesAsync(patrullas, ct);
             }
             catch (OracleException ex)
             {
@@ -1461,23 +1518,24 @@ WHERE  m.patrulla_codigo = v.patcod
                 // frontend, no debe mostrarle un error intrusivo al operador solo
                 // porque Oracle GESPO esté lento/caído en este momento puntual.
                 _logger.LogWarning(ex,
-                    "P_SincronizarGpsBajoDemanda: error consultando Oracle GESPO (tenant={CodDane}).",
-                    _tenant.CodDane);
+                    "P_SincronizarGpsBajoDemanda: error consultando Oracle GESPO (tenant={CodDane}, canal={Canal}).",
+                    _tenant.CodDane, canalCodigo);
                 return 0;
             }
 
             if (ubicaciones.Count == 0)
             {
                 _logger.LogInformation(
-                    "P_SincronizarGpsBajoDemanda: tenant {CodDane} sigla={Sigla} — Oracle no devolvió ubicaciones.",
-                    _tenant.CodDane, sigla);
+                    "P_SincronizarGpsBajoDemanda: tenant {CodDane} canal {Canal}/{Fuerza} — Oracle no " +
+                    "devolvió ubicaciones para {N} patrulla(s) solicitada(s).",
+                    _tenant.CodDane, canalCodigo, canalFuerzaId, patrullas.Count);
                 return 0;
             }
 
             int actualizados;
             try
             {
-                actualizados = await P_ActualizarUbicacionesGespoAsync(ubicaciones, ct);
+                actualizados = await P_ActualizarUbicacionesGespoAsync(ubicaciones, canalCodigo, canalFuerzaId, ct);
             }
             catch (Exception ex)
             {
@@ -1487,17 +1545,16 @@ WHERE  m.patrulla_codigo = v.patcod
                 // P_ActualizarUbicacionesGespoAsync, pero por si acaso) no debe
                 // mostrarle un error 500 crudo al operador.
                 _logger.LogWarning(ex,
-                    "P_SincronizarGpsBajoDemanda: error escribiendo ubicaciones en Postgres (tenant={CodDane}).",
-                    _tenant.CodDane);
+                    "P_SincronizarGpsBajoDemanda: error escribiendo ubicaciones en Postgres (tenant={CodDane}, canal={Canal}).",
+                    _tenant.CodDane, canalCodigo);
                 return 0;
             }
 
             if (actualizados == 0)
                 _logger.LogInformation(
-                    "P_SincronizarGpsBajoDemanda: tenant {CodDane} — Oracle devolvió {N} cuadrante(s) pero " +
-                    "0 medios se actualizaron (¿turno sin actividad ahora mismo, o patrulla_codigo no " +
-                    "coincide con CUADRANTE_ID de ningún medio ya importado?).",
-                    _tenant.CodDane, ubicaciones.Count);
+                    "P_SincronizarGpsBajoDemanda: tenant {CodDane} canal {Canal}/{Fuerza} — Oracle devolvió " +
+                    "{N} cuadrante(s) pero 0 medios se actualizaron.",
+                    _tenant.CodDane, canalCodigo, canalFuerzaId, ubicaciones.Count);
 
             return actualizados;
         }

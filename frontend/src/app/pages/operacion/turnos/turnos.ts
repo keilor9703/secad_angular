@@ -2,7 +2,6 @@ import {
   Component,
   OnInit,
   OnDestroy,
-  AfterViewChecked,
   ChangeDetectorRef,
   inject
 } from '@angular/core';
@@ -22,10 +21,6 @@ import { AuthService } from '../../../core/auth/auth.service';
 import { EventoService, DtoCanalItem } from '../../../core/services/operacion/evento.service';
 import { FuerzaService, DtoFuerza } from '../../../core/services/administracion/fuerza.service';
 import { ToastService } from '../../../core/services/toast.service';
-import { animateMarkerTo, stopMarkerAnimation } from '../../../shared/utils/leaflet-marker-animator';
-
-// Leaflet cargado vía CDN en index.html
-declare const L: any;
 
 /** Formulario de crear/copiar turno — extiende el DTO con campos de fecha datetime-local */
 interface FormTurnoConFecha extends DtoCrearTurnoRequest {
@@ -52,7 +47,7 @@ interface FormMedio extends DtoAgregarMedioRequest {
   templateUrl: './turnos.html',
   styleUrls:   ['./turnos.scss']
 })
-export class TurnosComponent implements OnInit, OnDestroy, AfterViewChecked {
+export class TurnosComponent implements OnInit, OnDestroy {
 
   // ── Services ─────────────────────────────────────────────────────────────────
   private turnosSvc  = inject(TurnosService);
@@ -94,16 +89,6 @@ export class TurnosComponent implements OnInit, OnDestroy, AfterViewChecked {
   // ── Medios ────────────────────────────────────────────────────────────────────
   medios:          DtoMedioDisponible[] = [];
   cargandoMedios = false;
-
-  // ── Mapa de medios ────────────────────────────────────────────────────────────
-  mapaVisible         = false;
-  private mapaMedios: any = null;
-  private mapaInit    = false;
-  private pendingMap  = false;
-  private medioMarkers: any[] = [];
-  /** patrullaCodigo → marker, para reusar/animar en vez de destruir y recrear en cada refresco. */
-  private medioMarkersPorCodigo = new Map<string, any>();
-  private boundsAjustadoUnaVez = false;
 
   // ── Modal: Crear turno ────────────────────────────────────────────────────────
   modalCrear       = false;
@@ -197,14 +182,6 @@ export class TurnosComponent implements OnInit, OnDestroy, AfterViewChecked {
   ngOnDestroy(): void {
     this.subs.unsubscribe();
     this.detenerReadiness();
-    this.destruirMapa();
-  }
-
-  ngAfterViewChecked(): void {
-    if (this.pendingMap && this.mapaVisible) {
-      this.initMapaMedios();
-      this.pendingMap = false;
-    }
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -235,8 +212,6 @@ export class TurnosComponent implements OnInit, OnDestroy, AfterViewChecked {
     this.unidades          = [];
     this.unidadActiva      = null;
     this.medios            = [];
-    this.mapaVisible       = false;
-    this.destruirMapa();
     this.detenerReadiness();
 
     // Detalle completo del turno
@@ -261,8 +236,6 @@ export class TurnosComponent implements OnInit, OnDestroy, AfterViewChecked {
     if (this.unidadActiva?.id === u.id) return;
     this.unidadActiva  = u;
     this.medios        = [];
-    this.mapaVisible   = false;
-    this.destruirMapa();
     this.cargarMedios(u.turnoId, u.id);
     this.iniciarReadiness();
   }
@@ -276,7 +249,6 @@ export class TurnosComponent implements OnInit, OnDestroy, AfterViewChecked {
           this.medios              = m;
           this.cargandoMedios      = false;
           this.ultimaActualizacionMedios = new Date();
-          if (this.mapaVisible) this.actualizarMarcadoresMedios();
         },
         error: () => { this.cargandoMedios = false; this.error = 'No se pudieron cargar los medios.'; }
       })
@@ -286,13 +258,12 @@ export class TurnosComponent implements OnInit, OnDestroy, AfterViewChecked {
   // ═══════════════════════════════════════════════════════════════════════════
   // RESUMEN DE DISPONIBILIDAD EN VIVO ("Shift Readiness")
   // Refresca silenciosamente los medios de la unidad activa cada 15 s, para que
-  // el operador vea libres/GPS activo actualizados sin tener que reabrir la
-  // unidad. Se pausa cuando la pestaña está oculta para no gastar red/CPU.
+  // el operador vea libres actualizados sin tener que reabrir la unidad. Se
+  // pausa cuando la pestaña está oculta para no gastar red/CPU.
   //
-  // Este mismo tick dispara la sincronización de GPS con GESPO (bajo demanda,
-  // sin ningún proceso de fondo permanente en el backend) — solo corre
-  // mientras el operador tiene una unidad abierta en Turnos, y se detiene solo
-  // en cuanto sale (detenerReadiness cancela la suscripción).
+  // Turnos NO sincroniza GPS ni consulta georreferenciación — este módulo solo
+  // administra turnos/unidades/medios. La sincronización con GESPO vive
+  // únicamente en Eventos, durante la gestión de un caso.
   // ═══════════════════════════════════════════════════════════════════════════
 
   private iniciarReadiness(): void {
@@ -300,7 +271,6 @@ export class TurnosComponent implements OnInit, OnDestroy, AfterViewChecked {
     this.readinessSub = interval(15_000).subscribe(() => {
       if (document.hidden || !this.unidadActiva) return;
       this.cargarMedios(this.unidadActiva.turnoId, this.unidadActiva.id);
-      this.turnosSvc.sincronizarGps().subscribe({ error: () => { /* silencioso — no es crítico para la UI */ } });
     });
   }
 
@@ -317,13 +287,6 @@ export class TurnosComponent implements OnInit, OnDestroy, AfterViewChecked {
     return `${libres}/${this.medios.length}`;
   }
 
-  /** Medios con GPS activo sobre el total de la unidad activa. */
-  get resumenGpsActivo(): string {
-    if (this.medios.length === 0) return '—';
-    const activos = this.medios.filter(m => m.gpsActivo).length;
-    return `${activos}/${this.medios.length}`;
-  }
-
   /** Color del punto de disponibilidad: verde si hay medios libres, rojo si no queda ninguno. */
   get readinessColor(): 'ok' | 'warn' | 'none' {
     if (this.medios.length === 0) return 'none';
@@ -336,123 +299,6 @@ export class TurnosComponent implements OnInit, OnDestroy, AfterViewChecked {
     const seg = Math.max(0, Math.round((Date.now() - this.ultimaActualizacionMedios.getTime()) / 1000));
     if (seg < 60) return `hace ${seg}s`;
     return `hace ${Math.round(seg / 60)}m`;
-  }
-
-  // ═══════════════════════════════════════════════════════════════════════════
-  // MAPA DE MEDIOS
-  // ═══════════════════════════════════════════════════════════════════════════
-
-  toggleMapa(): void {
-    this.mapaVisible = !this.mapaVisible;
-    if (this.mapaVisible) {
-      if (!this.mapaInit) {
-        this.pendingMap = true;
-        this.cdr.detectChanges();
-      } else {
-        this.actualizarMarcadoresMedios();
-      }
-    }
-  }
-
-  private initMapaMedios(): void {
-    if (this.mapaInit) return;
-    const el = document.getElementById('mapaMedios');
-    if (!el) return;
-    try {
-      const center: [number, number] = [4.711, -74.0721];
-      this.mapaMedios = L.map('mapaMedios', { zoomControl: true }).setView(center, 13);
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        maxZoom: 19, attribution: '© OpenStreetMap'
-      }).addTo(this.mapaMedios);
-      this.mapaInit = true;
-      this.actualizarMarcadoresMedios();
-    } catch (e) {
-      console.warn('[Turnos] Mapa error:', e);
-    }
-  }
-
-  private actualizarMarcadoresMedios(): void {
-    if (!this.mapaMedios) return;
-
-    const mediosConGps = this.medios.filter(m => m.latitud && m.longitud);
-    const codigosVistos = new Set<string>();
-
-    mediosConGps.forEach(m => {
-      const codigo = m.patrullaCodigo;
-      codigosVistos.add(codigo);
-      const popupHtml = `<b>${this.escapeHtmlMedio(codigo)}</b><br>
-          ${this.escapeHtmlMedio(m.estadoDesc)}<br>
-          ${m.personal.map(p => this.escapeHtmlMedio(p.ceduEmpleado)).join(' / ')}`;
-
-      const existente = this.medioMarkersPorCodigo.get(codigo);
-      if (existente) {
-        // Ya existe: deslizar suavemente a la nueva posición en vez de saltar
-        // (el GPS se refresca cada 10-15s — sin esto el marcador se ve a tirones).
-        existente.setIcon(this.iconoMedio(m.estado));
-        existente.setPopupContent(popupHtml);
-        animateMarkerTo(existente, m.latitud!, m.longitud!, 2500);
-        return;
-      }
-
-      const marker = L.marker([m.latitud!, m.longitud!], { icon: this.iconoMedio(m.estado) })
-        .addTo(this.mapaMedios)
-        .bindPopup(popupHtml);
-      this.medioMarkersPorCodigo.set(codigo, marker);
-      this.medioMarkers.push(marker);
-    });
-
-    // Remover marcadores de patrullas que ya no están en la lista (fin de turno, etc.)
-    for (const [codigo, marker] of this.medioMarkersPorCodigo.entries()) {
-      if (!codigosVistos.has(codigo)) {
-        stopMarkerAnimation(marker);
-        try { marker.remove(); } catch { /**/ }
-        this.medioMarkersPorCodigo.delete(codigo);
-      }
-    }
-    this.medioMarkers = Array.from(this.medioMarkersPorCodigo.values());
-
-    // Encuadrar automáticamente solo la primera vez que hay marcadores — en
-    // refrescos posteriores re-centrar el mapa a cada rato interrumpe al
-    // operador si está mirando/interactuando con una zona específica.
-    if (!this.boundsAjustadoUnaVez && mediosConGps.length > 0) {
-      const bounds = L.latLngBounds(mediosConGps.map(m => [m.latitud!, m.longitud!]));
-      this.mapaMedios.fitBounds(bounds, { padding: [30, 30] });
-      this.boundsAjustadoUnaVez = true;
-    }
-  }
-
-  private iconoMedio(estado: number): any {
-    const color = this.colorEstadoMedio(estado);
-    return L.divIcon({
-      className: '',
-      html: `<div style="width:14px;height:14px;border-radius:50%;
-                         background:${color};border:2px solid #fff;
-                         box-shadow:0 1px 4px rgba(0,0,0,.4)"></div>`,
-      iconSize: [14, 14]
-    });
-  }
-
-  private escapeHtmlMedio(value: unknown): string {
-    if (!value) return '';
-    return String(value)
-      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-  }
-
-  private destruirMapa(): void {
-    if (this.mapaMedios) {
-      try { this.mapaMedios.remove(); } catch { /**/ }
-      this.mapaMedios = null;
-      this.mapaInit   = false;
-    }
-    this.medioMarkers.forEach(m => stopMarkerAnimation(m));
-    this.medioMarkers = [];
-    this.medioMarkersPorCodigo.clear();
-    this.boundsAjustadoUnaVez = false;
-  }
-
-  private colorEstadoMedio(estado: number): string {
-    return this.turnosSvc.colorEstadoMedio(estado as EstadoMedio);
   }
 
   // ═══════════════════════════════════════════════════════════════════════════

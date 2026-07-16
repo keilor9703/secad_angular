@@ -68,11 +68,13 @@ namespace Negocio.Gestion
             => _repo.P_CambiarEstadoMedioAsync(medioId, req, fuerzaId, usuario, ct);
 
         public Task<int> P_ActualizarUbicacionesGespoAsync(
-            IEnumerable<DtoGespoUbicacion> ubicaciones, CancellationToken ct)
-            => _repo.P_ActualizarUbicacionesGespoAsync(ubicaciones, ct);
+            IEnumerable<DtoGespoUbicacion> ubicaciones,
+            int canalCodigo, int canalFuerzaId,
+            CancellationToken ct)
+            => _repo.P_ActualizarUbicacionesGespoAsync(ubicaciones, canalCodigo, canalFuerzaId, ct);
 
-        public Task<int> P_SincronizarGpsBajoDemandaAsync(CancellationToken ct)
-            => _repo.P_SincronizarGpsBajoDemandaAsync(ct);
+        public Task<int> P_SincronizarGpsBajoDemandaAsync(int canalCodigo, int canalFuerzaId, CancellationToken ct)
+            => _repo.P_SincronizarGpsBajoDemandaAsync(canalCodigo, canalFuerzaId, ct);
 
         public Task<List<DtoRecursoCercano>> G_GetRecursoMasCercanoAsync(
             int canalCodigo, int canalFuerzaId, int sitioGraba,

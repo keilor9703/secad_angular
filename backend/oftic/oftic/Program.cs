@@ -219,11 +219,13 @@ builder.Services.AddHostedService<CadHealthMonitorService>();
 // NO hay ningún BackgroundService consultando Oracle en segundo plano de forma
 // permanente — GPS y minuta se consultan bajo demanda: GPS desde
 // P_SincronizarGpsBajoDemandaAsync (llamado por TurnosController.SincronizarGps,
-// que el frontend dispara solo mientras el operador tiene Turnos o Eventos
-// abierto — ver el tick de polling ya existente en turnos.ts/eventos.ts), y
-// minuta desde el wizard de importación SIVICC (un clic del usuario).
-// GespoSyncCooldown evita ráfagas de consultas si varios operadores del mismo
-// tenant tienen la pantalla abierta a la vez.
+// que el frontend de EVENTOS dispara solo mientras el operador tiene un canal
+// seleccionado — ver el tick de polling ya existente en eventos.ts — y solo para
+// las patrullas de ese canal/fuerza, no las de toda la fuerza. Turnos no hace
+// georreferenciación ni llama a este endpoint), y minuta desde el wizard de
+// importación SIVICC (un clic del usuario). GespoSyncCooldown evita ráfagas de
+// consultas si varios operadores del mismo canal tienen la pantalla abierta a
+// la vez.
 builder.Services.Configure<GespoOracleOptions>(
     builder.Configuration.GetSection(GespoOracleOptions.Section));
 builder.Services.AddSingleton<IGespoOracleReader, GespoOracleReader>();

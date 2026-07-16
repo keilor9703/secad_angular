@@ -564,18 +564,23 @@ export class TurnosService {
   }
 
   /**
-   * Sincroniza el GPS del tenant actual bajo demanda (pull directo a Oracle
-   * GESPO para el turno en curso, sin ningún proceso de fondo permanente).
-   * Pensado para llamarse desde el mismo tick de polling que ya existe
-   * mientras el operador tiene abierto Turnos o Eventos — nunca desde un
-   * timer aparte. Nunca falla de forma visible: el backend responde 200 con
-   * actualizados=0 si GESPO no está configurado, si otra sincronización
-   * corrió hace muy poco, o si Oracle está lento/caído.
+   * Sincroniza el GPS de las patrullas activas de un canal bajo demanda (pull
+   * directo a Oracle GESPO solo para los medios de ese canal/fuerza en turno,
+   * sin ningún proceso de fondo permanente). Pensado para llamarse desde el
+   * mismo tick de polling que ya existe en Eventos mientras el operador tiene
+   * un canal seleccionado — nunca desde un timer aparte, y nunca desde
+   * Turnos (ese módulo no hace georreferenciación). Nunca falla de forma
+   * visible: el backend responde 200 con actualizados=0 si el canal no tiene
+   * medios activos ahora mismo, si otra sincronización corrió hace muy poco,
+   * o si Oracle está lento/caído.
    */
-  sincronizarGps(): Observable<{ success: boolean; actualizados: number }> {
+  sincronizarGps(canalCodigo: number, canalFuerzaId?: number): Observable<{ success: boolean; actualizados: number }> {
+    let params = new HttpParams().set('canalCodigo', canalCodigo);
+    if (canalFuerzaId != null) params = params.set('canalFuerzaId', canalFuerzaId);
     return this.http.post<{ success: boolean; actualizados: number }>(
       `${this.base}/gespo/sincronizar`,
-      {}
+      {},
+      { params }
     );
   }
 
@@ -617,18 +622,6 @@ export class TurnosService {
       31: 'En base'
     };
     return map[estado] ?? `Estado ${estado}`;
-  }
-
-  /** Color hex del estado de un medio (marcadores del mapa Leaflet). */
-  colorEstadoMedio(estado: EstadoMedio): string {
-    const map: Record<EstadoMedio, string> = {
-      27: '#22c55e',  // Libre — verde
-      28: '#ef4444',  // Ocupado — rojo
-      29: '#6b7280',  // Fuera servicio — gris oscuro
-      30: '#f59e0b',  // En ruta — ámbar
-      31: '#3b82f6'   // En base — azul
-    };
-    return map[estado] ?? '#94a3b8';
   }
 
   /** Clase CSS (badge/chip) para el estado de un medio */

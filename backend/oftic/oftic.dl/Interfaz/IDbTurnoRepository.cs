@@ -101,25 +101,31 @@ namespace Datos.Interfaz
         /// <summary>
         /// Actualiza las posiciones GPS de múltiples medios en lote — un solo UPDATE
         /// con unnest() del arreglo recibido. Llamado tanto por el endpoint de push
-        /// (POST api/Turnos/gespo/ubicaciones) como por
+        /// (POST api/Turnos/gespo/ubicaciones, sin contexto de canal — pasa
+        /// canalCodigo=0/canalFuerzaId=0 para no restringir) como por
         /// P_SincronizarGpsBajoDemandaAsync (pull directo a Oracle vía
-        /// IGespoOracleReader, sin FDW/Postgres de por medio).
+        /// IGespoOracleReader, sin FDW/Postgres de por medio), que sí conoce el
+        /// canal/fuerza y lo usa para no escribir en medios de otro canal que
+        /// coincidan por patrulla_codigo.
         /// </summary>
         Task<int> P_ActualizarUbicacionesGespoAsync(
-            IEnumerable<DtoGespoUbicacion> ubicaciones, CancellationToken ct);
+            IEnumerable<DtoGespoUbicacion> ubicaciones,
+            int canalCodigo, int canalFuerzaId,
+            CancellationToken ct);
 
         /// <summary>
-        /// Sincroniza el GPS del tenant actual (TenantContext.GespoSiglaUnidad)
-        /// bajo demanda — pull directo a Oracle GESPO, sin ningún
-        /// BackgroundService de fondo. Pensado para llamarse desde un tick del
-        /// polling que ya existe en el frontend mientras el operador tiene
-        /// abierto Turnos o Eventos; nunca corre si nadie está viendo esas
-        /// pantallas. Devuelve 0 (sin error) si el tenant no tiene GESPO
-        /// configurado, si otra sincronización de este tenant corrió hace muy
-        /// poco (ver GespoSyncCooldown), o si Oracle falla — la consulta a
-        /// Oracle nunca propaga la excepción, solo loguea un warning.
+        /// Sincroniza el GPS de las patrullas activas del canal/fuerza indicados
+        /// bajo demanda — pull directo a Oracle GESPO, sin ningún BackgroundService
+        /// de fondo. Pensado para llamarse desde el tick de polling que ya existe
+        /// en Eventos mientras el operador tiene un canal seleccionado; nunca corre
+        /// si no hay canal abierto. Turnos NO llama a este método — ese módulo no
+        /// hace georreferenciación. Devuelve 0 (sin error) si canalCodigo es
+        /// inválido, si el canal no tiene medios activos en turno en este momento,
+        /// si otra sincronización de este mismo canal corrió hace muy poco (ver
+        /// GespoSyncCooldown), o si Oracle falla — la consulta a Oracle nunca
+        /// propaga la excepción, solo loguea un warning.
         /// </summary>
-        Task<int> P_SincronizarGpsBajoDemandaAsync(CancellationToken ct);
+        Task<int> P_SincronizarGpsBajoDemandaAsync(int canalCodigo, int canalFuerzaId, CancellationToken ct);
 
         /// <summary>
         /// Sugiere los medios Libres más cercanos a un punto (lat, lng) dentro de un

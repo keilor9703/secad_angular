@@ -1054,7 +1054,9 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
    * Este mismo tick dispara la sincronización de GPS con GESPO (bajo demanda,
    * sin ningún proceso de fondo permanente en el backend) — solo corre
    * mientras el operador tiene un canal seleccionado en Eventos, y se detiene
-   * solo en cuanto sale (detenerPollingRecursos cancela la suscripción).
+   * solo en cuanto sale (detenerPollingRecursos cancela la suscripción). Se
+   * pide únicamente el GPS de las patrullas de ESTE canal/fuerza, no las de
+   * toda la fuerza — Turnos no dispara esta sincronización en absoluto.
    */
   private iniciarPollingRecursos(): void {
     this.detenerPollingRecursos();
@@ -1063,7 +1065,8 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
     this.recursosSub = interval(8_000)
       .pipe(startWith(0), switchMap(() => {
         this.cargandoRecursos = true;
-        this.turnosSvc.sincronizarGps().subscribe({ error: () => { /* silencioso — no es crítico para la UI */ } });
+        this.turnosSvc.sincronizarGps(this.canalSeleccionado, this.fuerzaId || undefined)
+          .subscribe({ error: () => { /* silencioso — no es crítico para la UI */ } });
         return this.turnosSvc.getResumenRecursosCanal(
           this.canalSeleccionado, this.sitioGraba || 1, this.fuerzaId || undefined
         );
