@@ -29,7 +29,14 @@ namespace Datos.Gestion
         /// <summary>Nombre de la vista Oracle a consultar.</summary>
         public string ViewName { get; set; } = "V_CONSULTA_GPS_SECAD";
 
-        /// <summary>Timeout en segundos para la consulta a Oracle.</summary>
-        public int TimeoutSeconds { get; set; } = 15;
+        /// <summary>
+        /// Timeout en segundos para la consulta a Oracle. V_CONSULTA_GPS_SECAD trae
+        /// GPS de todo el país filtrado por sigla — sin un índice sobre esa columna
+        /// en Oracle, la consulta puede tardar bastante más que un timeout corto
+        /// (visto en la práctica: 15s no alcanza y produce ORA-01013 "el usuario ha
+        /// solicitado la cancelación de la operación actual", que es justamente lo
+        /// que ODP.NET genera cuando cancela por CommandTimeout).
+        /// </summary>
+        public int TimeoutSeconds { get; set; } = 30;
     }
 }
