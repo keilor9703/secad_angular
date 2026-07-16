@@ -770,7 +770,7 @@ html.dark-mode .ev-no-canal-banner {
 
 .ev-recmap-main {
   display:               grid;
-  grid-template-columns: 300px 1fr;
+  grid-template-columns: 340px 1fr;
   gap:                   12px;
   margin-bottom:         10px;
 
@@ -796,28 +796,33 @@ html.dark-mode .ev-no-canal-banner {
 }
 
 .ev-recmap-item {
-  display:       flex;
-  align-items:   center;
-  gap:           9px;
-  width:         100%;
-  padding:       8px 9px;
-  border:        1px solid transparent;
-  border-radius: 8px;
-  background:    #fff;
-  cursor:        pointer;
-  text-align:    left;
-  font-family:   inherit;
-  transition:    background .12s, border-color .12s;
+  display:        flex;
+  flex-direction: column;
+  gap:            7px;
+  width:          100%;
+  padding:        9px 10px;
+  border:         1px solid var(--ui-border, rgba(21,27,59,.10));
+  border-radius:  9px;
+  background:     #fff;
+  transition:     border-color .12s, box-shadow .12s;
 
-  &:hover      { background: rgba(8,166,203,.06); border-color: rgba(8,166,203,.25); }
-  &:disabled   { cursor: default; opacity: .7; }
-  &--ocupado   { background: rgba(239,68,68,.04); }
+  &:hover      { border-color: rgba(8,166,203,.35); box-shadow: 0 1px 6px rgba(21,27,59,.06); }
+  &--ocupado   { background: rgba(239,68,68,.035); }
+  &--asignado  { border-color: rgba(34,197,94,.45); background: rgba(34,197,94,.05); }
+
+  // Encabezado (nombre + gps) — clic para centrar en el mapa
+  &__head {
+    display:     flex;
+    align-items: center;
+    gap:         9px;
+    cursor:      pointer;
+  }
 
   &__icon {
     flex-shrink: 0;
     width:       26px;
     text-align:  center;
-    font-size:   14px;
+    font-size:   15px;
     color:       rgba(21,27,59,.55);
   }
 
@@ -829,10 +834,20 @@ html.dark-mode .ev-no-canal-banner {
     min-width:      0;
   }
 
-  &__codigo {
-    font-size:   calc(12px * var(--font-size-scale));
-    font-weight: 900;
-    color:       rgba(21,27,59,.88);
+  // Nombre de la patrulla — mismo identificador que en el mapa (patrullaCodigo)
+  &__nombre {
+    font-size:     calc(12.5px * var(--font-size-scale));
+    font-weight:   900;
+    color:         rgba(21,27,59,.90);
+    white-space:   nowrap;
+    overflow:      hidden;
+    text-overflow: ellipsis;
+    letter-spacing: .02em;
+  }
+
+  &__desc {
+    font-size:   calc(10px * var(--font-size-scale));
+    color:       rgba(21,27,59,.5);
     white-space: nowrap;
     overflow:    hidden;
     text-overflow: ellipsis;
@@ -844,6 +859,36 @@ html.dark-mode .ev-no-canal-banner {
     white-space:   normal;
     word-break:    break-word;
     line-height:   1.3;
+  }
+
+  // Meta: estado + distancia/ETA
+  &__meta {
+    display:     flex;
+    align-items: center;
+    flex-wrap:   wrap;
+    gap:         6px 10px;
+  }
+
+  &__dist {
+    display:     inline-flex;
+    align-items: center;
+    gap:         5px;
+    font-size:   calc(11px * var(--font-size-scale));
+    font-weight: 700;
+    color:       rgba(21,27,59,.7);
+    i { color: rgba(21,27,59,.4); font-size: calc(10px * var(--font-size-scale)); }
+
+    &--near   { color: #16a34a; i { color: #16a34a; } }
+    &--nogps  { color: rgba(21,27,59,.38); font-weight: 600; i { color: inherit; } }
+  }
+
+  // Acciones (asignar / badges de estado)
+  &__actions {
+    display:     flex;
+    align-items: center;
+    flex-wrap:   wrap;
+    gap:         6px;
+    &:empty { display: none; }
   }
 }
 
@@ -2873,13 +2918,17 @@ html.dark-mode {
   }
 
   .ev-recmap-item {
-    background: rgba(255,255,255,.03);
-    &:hover     { background: rgba(8,166,203,.10); }
+    background:   rgba(255,255,255,.03);
+    border-color: rgba(255,255,255,.08);
+    &:hover     { border-color: rgba(8,166,203,.35); box-shadow: none; }
     &--ocupado  { background: rgba(239,68,68,.08); }
+    &--asignado { border-color: rgba(34,197,94,.45); background: rgba(34,197,94,.08); }
 
     &__icon    { color: var(--ui-text-muted); }
-    &__codigo  { color: var(--ui-text); }
+    &__nombre  { color: var(--ui-text); }
+    &__desc    { color: var(--ui-text-muted); }
     &__personal{ color: var(--ui-text-muted); }
+    &__dist    { color: rgba(228,231,235,.7); i { color: rgba(228,231,235,.45); } }
   }
 
   .ev-dispatch-count {

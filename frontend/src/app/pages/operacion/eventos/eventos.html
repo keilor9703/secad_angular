@@ -825,19 +825,80 @@
                           </div>
                         } @else {
                           @for (r of recursos; track r.id) {
-                            <button type="button" class="ev-recmap-item"
-                                    [class.ev-recmap-item--ocupado]="r.estado === 28 || r.estado === 30"
-                                    [disabled]="r.lat == null || r.lng == null"
-                                    (click)="centrarEnRecurso(r)"
-                                    [title]="r.lat != null && r.lng != null ? 'Centrar en el mapa' : 'Sin señal GPS'">
-                              <i [class]="iconoTipo(r.tipoMedio) + ' ev-recmap-item__icon'"></i>
-                              <div class="ev-recmap-item__info">
-                                <strong class="ev-recmap-item__codigo">{{ r.patrullaCodigo }}</strong>
-                                <span class="ev-recmap-item__personal">{{ r.personalResumen || 'Sin personal asignado' }}</span>
+                            <div class="ev-recmap-item"
+                                 [class.ev-recmap-item--ocupado]="r.estado === 28 || r.estado === 30"
+                                 [class.ev-recmap-item--asignado]="medioAsignadoAEsteEvento(r)">
+
+                              <!-- Encabezado: nombre (igual que en el mapa) + GPS. Clic → centrar. -->
+                              <div class="ev-recmap-item__head"
+                                   (click)="centrarEnRecurso(r)"
+                                   [title]="r.lat != null && r.lng != null ? 'Centrar en el mapa' : 'Sin señal GPS'">
+                                <i [class]="iconoTipo(r.tipoMedio) + ' ev-recmap-item__icon'"
+                                   [title]="etiquetaTipoMedio(r.tipoMedio)"></i>
+                                <div class="ev-recmap-item__info">
+                                  <strong class="ev-recmap-item__nombre">{{ r.patrullaCodigo }}</strong>
+                                  @if (r.patrullaDesc && r.patrullaDesc !== r.patrullaCodigo) {
+                                    <span class="ev-recmap-item__desc">{{ r.patrullaDesc }}</span>
+                                  }
+                                  <span class="ev-recmap-item__personal">{{ r.personalResumen || 'Sin personal asignado' }}</span>
+                                </div>
+                                <span class="ev-gps-dot" [class.ev-gps-dot--on]="r.gpsActivo"
+                                      [title]="r.gpsActivo ? 'GPS activo' : 'Sin señal GPS'"></span>
                               </div>
-                              <span class="ev-gps-dot" [class.ev-gps-dot--on]="r.gpsActivo"
-                                    [title]="r.gpsActivo ? 'GPS activo' : 'Sin señal GPS'"></span>
-                            </button>
+
+                              <!-- Meta: estado + distancia al incidente + ETA -->
+                              <div class="ev-recmap-item__meta">
+                                <span class="ev-rec-estado-badge" [ngClass]="claseEstadoMedio(r.estado)">
+                                  {{ r.estadoDesc }}
+                                </span>
+                                @if (r.distanciaKm != null) {
+                                  <span class="ev-recmap-item__dist"
+                                        [class.ev-recmap-item__dist--near]="r.distanciaKm < 1"
+                                        title="Distancia en línea recta al incidente">
+                                    <i class="fa-solid fa-route"></i>
+                                    {{ formatDistancia(r.distanciaKm) }}
+                                    @if (etaMin(r.distanciaKm, r.tipoMedio) !== null) {
+                                      <span class="ev-eta" title="Tiempo estimado de llegada">~{{ etaMin(r.distanciaKm, r.tipoMedio) }} min</span>
+                                    }
+                                  </span>
+                                } @else {
+                                  <span class="ev-recmap-item__dist ev-recmap-item__dist--nogps"
+                                        title="Sin señal GPS para calcular distancia">
+                                    <i class="fa-solid fa-location-crosshairs"></i> Sin GPS
+                                  </span>
+                                }
+                              </div>
+
+                              <!-- Acciones -->
+                              <div class="ev-recmap-item__actions">
+                                @if (r.estado === 27 && !medioAsignadoAEsteEvento(r) && !r.eventoId) {
+                                  <button class="ui-btn xs primary" type="button"
+                                          [disabled]="!!asignandoMedioId || detalle!.estado === 'C'"
+                                          (click)="asignarRecursoAlEvento(r)"
+                                          title="Paso 1: Asignar recurso a este incidente">
+                                    <i class="fa-solid fa-plus"></i>
+                                    {{ asignandoMedioId === r.id ? '…' : 'Asignar' }}
+                                  </button>
+                                }
+                                @if (r.estado === 27 && r.eventoId && !medioAsignadoAEsteEvento(r)) {
+                                  <span class="ev-rec-otro-evento" title="Este recurso ya está vinculado a otro caso">
+                                    <i class="fa-solid fa-link"></i> Otro caso
+                                  </span>
+                                }
+                                @if (medioAsignadoAEsteEvento(r)) {
+                                  <span class="ev-rec-asignado-badge">
+                                    <i class="fa-solid fa-link"></i> Asignado a este evento
+                                  </span>
+                                }
+                                @if (r.estado === 30 || r.estado === 28) {
+                                  <span class="ev-rec-ocupado-badge" [title]="'Estado: ' + etiquetaEstadoMedio(r.estado)">
+                                    <i class="fa-solid fa-circle-dot"></i>
+                                    {{ etiquetaEstadoMedio(r.estado) }}
+                                  </span>
+                                }
+                              </div>
+
+                            </div>
                           }
                         }
                       </div>
@@ -858,111 +919,6 @@
                                 (click)="errorAsignacion = ''">
                           <i class="fa-solid fa-xmark"></i>
                         </button>
-                      </div>
-                    }
-
-                    <!-- Detalle y acciones de asignación — debajo del mapa -->
-                    @if (recursos.length > 0) {
-                      <div class="ev-rec-table-wrap">
-                        <table class="ev-rec-table">
-                          <thead>
-                            <tr>
-                              <th>Tipo</th>
-                              <th>Patrulla</th>
-                              <th>Estado</th>
-                              <th>Personal</th>
-                              <th title="GPS activo (< 10 min)">GPS</th>
-                              <th title="Distancia al incidente">Dist.</th>
-                              <th>Acciones</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            @for (r of recursos; track r.id) {
-                              <tr [class.ev-rec-row--ocupado]="r.estado === 28 || r.estado === 30">
-                                <!-- Tipo -->
-                                <td>
-                                  <i [class]="iconoTipo(r.tipoMedio) + ' ev-rec-tipo-icon'"
-                                     [title]="etiquetaTipoMedio(r.tipoMedio)"></i>
-                                </td>
-                                <!-- Patrulla -->
-                                <td>
-                                  <strong class="ev-rec-codigo">{{ r.patrullaCodigo }}</strong>
-                                  @if (r.patrullaDesc) {
-                                    <span class="ev-rec-desc">{{ r.patrullaDesc }}</span>
-                                  }
-                                  @if (r.canalDesc) {
-                                    <span class="ev-rec-canal">
-                                      <i class="fa-solid fa-tower-broadcast"></i>
-                                      {{ r.canalDesc }}
-                                    </span>
-                                  }
-                                </td>
-                                <!-- Estado -->
-                                <td>
-                                  <span class="ev-rec-estado-badge"
-                                        [ngClass]="claseEstadoMedio(r.estado)">
-                                    {{ r.estadoDesc }}
-                                  </span>
-                                </td>
-                                <!-- Personal -->
-                                <td class="ev-rec-personal">
-                                  {{ r.personalResumen || '—' }}
-                                </td>
-                                <!-- GPS -->
-                                <td style="text-align:center">
-                                  <span class="ev-gps-dot"
-                                        [class.ev-gps-dot--on]="r.gpsActivo"
-                                        [title]="r.gpsActivo ? 'GPS activo' : 'Sin señal GPS'">
-                                  </span>
-                                </td>
-                                <!-- Distancia + ETA estimado -->
-                                <td class="ev-rec-dist"
-                                    [class.ev-rec-dist--near]="r.distanciaKm != null && r.distanciaKm < 1">
-                                  {{ formatDistancia(r.distanciaKm) }}
-                                  @if (etaMin(r.distanciaKm, r.tipoMedio) !== null) {
-                                    <span class="ev-eta" title="Tiempo estimado de llegada">~{{ etaMin(r.distanciaKm, r.tipoMedio) }} min</span>
-                                  }
-                                </td>
-                                <!-- Acciones -->
-                                <td>
-                                  <div class="ev-rec-actions">
-                                    @if (r.estado === 27 && !medioAsignadoAEsteEvento(r) && !r.eventoId) {
-                                      <!-- Libre y sin evento → Asignar -->
-                                      <button class="ui-btn xs primary ev-rec-btn"
-                                              type="button"
-                                              [disabled]="!!asignandoMedioId || detalle!.estado === 'C'"
-                                              (click)="asignarRecursoAlEvento(r)"
-                                              title="Paso 1: Asignar recurso a este incidente">
-                                        <i class="fa-solid fa-plus"></i>
-                                        {{ asignandoMedioId === r.id ? '…' : 'Asignar' }}
-                                      </button>
-                                    }
-                                    @if (r.estado === 27 && r.eventoId && !medioAsignadoAEsteEvento(r)) {
-                                      <!-- Libre pero asignado a otro evento → indicar -->
-                                      <span class="ev-rec-otro-evento" title="Este recurso ya está vinculado a otro caso">
-                                        <i class="fa-solid fa-link"></i> Otro caso
-                                      </span>
-                                    }
-                                    @if (medioAsignadoAEsteEvento(r)) {
-                                      <!-- Ya asignado a este evento -->
-                                      <span class="ev-rec-asignado-badge">
-                                        <i class="fa-solid fa-link"></i> Asignado
-                                      </span>
-                                    }
-                                    @if (r.estado === 30 || r.estado === 28) {
-                                      <!-- En ruta / Atendiendo → sin acción en tabla (gestionar desde DESPACHO) -->
-                                      <span class="ev-rec-ocupado-badge"
-                                            [title]="'Estado: ' + etiquetaEstadoMedio(r.estado)">
-                                        <i class="fa-solid fa-circle-dot"></i>
-                                        {{ etiquetaEstadoMedio(r.estado) }}
-                                      </span>
-                                    }
-                                  </div>
-                                </td>
-                              </tr>
-                            }
-                          </tbody>
-                        </table>
                       </div>
                     }
                   </div>
@@ -1005,7 +961,7 @@
                     <div class="ev-empty-state" style="padding:14px 0">
                       <i class="fa-solid fa-route"></i>
                       <p>Sin recursos asignados a este evento.<br>
-                         Use el botón <strong>Asignar</strong> en la tabla de recursos.</p>
+                         Use el botón <strong>Asignar</strong> en la lista de recursos junto al mapa.</p>
                     </div>
                   } @else {
 
