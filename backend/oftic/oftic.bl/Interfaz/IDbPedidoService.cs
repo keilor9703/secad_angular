@@ -26,13 +26,21 @@ namespace Negocio.Interfaz
             int canalCodigo, int fuerzaId,
             long usuarioId, string username, string maquina, CancellationToken ct);
 
-        Task<DtoPedidoResult> SetEstadoAsync(long id, string estado, long usuarioAuditoria, string maquinaAuditoria, CancellationToken ct);
+        Task<DtoPedidoResult> SetEstadoAsync(
+            long id, string estado, long usuarioAuditoria, string usernameAuditoria,
+            string maquinaAuditoria, string? motivo, CancellationToken ct);
+        Task<List<DtoEstadoHistorialItem>> GetEstadoHistorialAsync(long pedidoId, CancellationToken ct);
+        /// <summary>Vincula (sitioGraba+numeLlamada no nulos) o desvincula (ambos null) este pedido de un caso padre.</summary>
+        Task<DtoPedidoResult> VincularPedidoAsync(
+            long id, int? sitioGraba, long? numeLlamada, long usuarioAuditoria, string maquinaAuditoria, CancellationToken ct);
         Task<List<DtoAnotacion>> GetAnotacionesAsync(long idPedido, CancellationToken ct);
         Task<DtoPedidoResult> CreateAnotacionAsync(long idPedido, DtoAnotacionRequest request, long usuarioAuditoria, string usernameAuditoria, string maquinaAuditoria, CancellationToken ct);
         Task<List<DtoPedidoAsociar>> BuscarParaAsociarAsync(int sitioGraba, CancellationToken ct);
 
         // ─── Eventos (dispatcher queue) ──────────────────────────────────────
         Task<List<DtoEventoListItem>> GetEventosByCanalAsync(int canalCodigo, int fuerzaId, string? estado, CancellationToken ct);
+        Task<List<DtoEventoListItem>> G_BuscarEventosAsync(string texto, int fuerzaId, int sitioGraba, CancellationToken ct);
+        Task<List<string>> G_GetPresenciaAsync(long pedidoId, long usuarioActual, CancellationToken ct);
         Task<List<DtoCanalItem>> GetCanalesPorSitioAsync(int sitioGraba, CancellationToken ct);
         Task<Ev.DtoCanalesAsignadosResult> G_GetCanalesAsignadosAsync(long pedidoId, CancellationToken ct);
 

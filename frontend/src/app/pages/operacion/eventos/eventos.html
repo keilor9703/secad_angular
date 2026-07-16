@@ -112,11 +112,18 @@
             <div class="ev-search-wrap">
               <i class="fa-solid fa-magnifying-glass ev-search-icon"></i>
               <input
+                id="ev-filtro-texto"
                 class="ui-control ev-search-input"
                 type="text"
-                placeholder="Dirección, caso, llamante, teléfono, ID evento/llamada…"
+                placeholder="Dirección, caso, llamante, teléfono, ID evento/llamada…  ( / para enfocar )"
                 [(ngModel)]="filtroTexto"
+                (ngModelChange)="onFiltroTextoChange()"
               />
+              <button class="ev-sound-toggle" type="button"
+                      (click)="toggleSonido()"
+                      [title]="sonidoActivo ? 'Alerta sonora activada — clic para silenciar' : 'Alerta sonora silenciada — clic para activar'">
+                <i class="fa-solid" [ngClass]="sonidoActivo ? 'fa-volume-high' : 'fa-volume-xmark'"></i>
+              </button>
             </div>
 
             <div class="ev-pills">
@@ -210,8 +217,50 @@
             }
           </div>
 
-          <!-- Lista scrollable -->
-          <div class="ev-list">
+          <!-- Banner de escalamiento SLA: casos activos sin recurso que superaron el umbral -->
+          @if (eventosEscalados.length && !mostrarResultadosBusqueda) {
+            <div class="ev-sla-banner">
+              <i class="fa-solid fa-bell ev-sla-banner__icon"></i>
+              <span class="ev-sla-banner__text">
+                <strong>{{ eventosEscalados.length }}</strong> caso(s) abierto(s) sin recurso asignado
+                superan {{ slaUmbralCritico }} min — requieren despacho.
+              </span>
+            </div>
+          }
+
+          <!-- Resultados de búsqueda backend (incluye cerrados / históricos) -->
+          @if (mostrarResultadosBusqueda) {
+            <div class="ev-search-results">
+              <div class="ev-search-results__head">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                @if (buscandoBackend) { Buscando… }
+                @else { {{ resultadosBusqueda.length }} resultado(s) en todo el histórico }
+              </div>
+              @if (!buscandoBackend && resultadosBusqueda.length === 0) {
+                <div class="ev-empty-state">
+                  <i class="fa-solid fa-inbox"></i>
+                  <p>Sin coincidencias en el histórico.</p>
+                </div>
+              }
+              @for (ev of resultadosBusqueda; track ev.id) {
+                <div class="ev-search-item" (click)="abrirDetalle(ev)">
+                  <span class="ev-estado-badge sm" [ngClass]="getEstadoClase(ev.estado)">{{ getEstadoLabel(ev.estado) }}</span>
+                  <span class="ev-search-item__main">
+                    <strong>{{ ev.direCaso || 'Sin dirección' }}</strong>
+                    <span class="ev-search-item__meta">
+                      @if (ev.numeEvento) { Evento {{ ev.numeEvento }} · }
+                      @if (ev.codiPedido) { {{ ev.codiPedido }} · }
+                      {{ getFechaCreacionLabel(ev) }}
+                    </span>
+                  </span>
+                  <i class="fa-solid fa-chevron-right"></i>
+                </div>
+              }
+            </div>
+          }
+
+          <!-- Lista scrollable (cola en vivo) — se oculta durante la búsqueda backend -->
+          <div class="ev-list" [class.ev-list--oculta]="mostrarResultadosBusqueda">
 
             @if (cargando && eventos.length === 0) {
               <div class="ev-empty-state">
@@ -356,6 +405,25 @@
                     @if (detalle.ultimoAccesoFecha) { a las {{ detalle.ultimoAccesoFecha | date:'HH:mm' }} }
                   }
                 </span>
+                <!-- Presencia: otros despachadores viendo el mismo caso ahora -->
+                @if (presenciaUsuarios.length) {
+                  <span class="ev-presencia" title="Otros despachadores viendo este caso en los últimos 5 minutos">
+                    <i class="fa-solid fa-user-group"></i>
+                    También lo está viendo: {{ presenciaUsuarios.join(', ') }}
+                  </span>
+                }
+                <!-- Caso vinculado (mismo incidente reportado por otra llamada) -->
+                @if (detalle.pedidoPadreNum) {
+                  <span class="ev-vinculo-badge" title="Este caso está vinculado a otro como duplicado del mismo incidente">
+                    <i class="fa-solid fa-link"></i>
+                    Vinculado al caso #{{ detalle.pedidoPadreNum }}
+                    <button class="ev-vinculo-quitar" type="button"
+                            [disabled]="vinculandoId"
+                            (click)="desvincularCaso()" title="Quitar vínculo">
+                      <i class="fa-solid fa-xmark"></i>
+                    </button>
+                  </span>
+                }
               </div>
               <div class="ev-detail-head__badges">
                 <span class="ev-prio-badge" [ngClass]="getPrioridadClass(detalle.prioridad)">
@@ -370,17 +438,28 @@
             <!-- ── Barra de acciones ────────────────────────────────────── -->
             <div class="ev-actions-bar">
               <div class="ev-actions-bar__left">
-                <span class="ev-actions-bar__label">Cambiar estado:</span>
-                @for (est of ESTADOS; track est.valor) {
-                  @if (est.valor !== 'C' && est.valor !== detalle.estado) {
-                    <button class="ui-btn sm ghost ev-est-btn"
-                            [ngClass]="est.clase"
-                            type="button"
-                            [disabled]="cambiandoEstado"
-                            (click)="cambiarEstado(est.valor)">
-                      {{ est.label }}
-                    </button>
+                @if (detalle.estado !== 'C') {
+                  <span class="ev-actions-bar__label">Cambiar estado:</span>
+                  @for (est of ESTADOS; track est.valor) {
+                    @if (est.valor !== 'C' && est.valor !== detalle.estado) {
+                      <button class="ui-btn sm ghost ev-est-btn"
+                              [ngClass]="est.clase"
+                              type="button"
+                              [disabled]="cambiandoEstado"
+                              (click)="abrirModalCambiarEstado(est.valor)">
+                        {{ est.label }}
+                      </button>
+                    }
                   }
+                }
+                <!-- Historial de cambios de estado (auditoría) -->
+                @if (estadoHistorial.length) {
+                  <button class="ui-btn sm ghost ev-hist-btn" type="button"
+                          (click)="historialEstadoAbierto = !historialEstadoAbierto"
+                          title="Ver el historial de cambios de estado de este caso">
+                    <i class="fa-solid fa-clock-rotate-left"></i>
+                    Historial ({{ estadoHistorial.length }})
+                  </button>
                 }
               </div>
               @if (detalle.estado !== 'C') {
@@ -396,14 +475,90 @@
                   <i class="fa-solid fa-lock"></i>
                   Cerrar evento
                 </button>
+              } @else {
+                <!-- Evento cerrado → permitir reabrir (con motivo obligatorio) -->
+                <button class="ui-btn sm warning" type="button"
+                        [disabled]="cambiandoEstado"
+                        (click)="reabrirEvento()"
+                        title="Reabrir este caso cerrado (requiere motivo)">
+                  <i class="fa-solid fa-lock-open"></i>
+                  Reabrir evento
+                </button>
               }
             </div>
+
+            <!-- ── Historial de estado (desplegable) ─────────────────────── -->
+            @if (historialEstadoAbierto && estadoHistorial.length) {
+              <div class="ev-hist-panel">
+                <div class="ev-hist-panel__head">
+                  <i class="fa-solid fa-clock-rotate-left"></i>
+                  Historial de cambios de estado
+                </div>
+                <ul class="ev-hist-list">
+                  @for (h of estadoHistorial; track $index) {
+                    <li class="ev-hist-item">
+                      <span class="ev-hist-item__estados">
+                        @if (h.estadoAnterior) {
+                          <span class="ev-estado-badge sm" [ngClass]="getEstadoClase(h.estadoAnterior)">{{ getEstadoLabel(h.estadoAnterior) }}</span>
+                          <i class="fa-solid fa-arrow-right-long"></i>
+                        }
+                        <span class="ev-estado-badge sm" [ngClass]="getEstadoClase(h.estadoNuevo)">{{ getEstadoLabel(h.estadoNuevo) }}</span>
+                      </span>
+                      <span class="ev-hist-item__meta">
+                        {{ h.username || '—' }} · {{ h.fecha | date:'dd/MM HH:mm' }}
+                      </span>
+                      @if (h.motivo) { <span class="ev-hist-item__motivo">"{{ h.motivo }}"</span> }
+                    </li>
+                  }
+                </ul>
+              </div>
+            }
 
             <!-- Cargando detalle -->
             @if (cargandoDetalle) {
               <div class="ev-empty-state" style="padding:24px 0">
                 <i class="fa-solid fa-hourglass-half fa-spin"></i>
                 <p>Cargando detalle…</p>
+              </div>
+            }
+
+            <!-- ── Banner: duplicados / contexto histórico de dirección ──── -->
+            @if (!duplicadosDescartados && duplicados.length && detalle.estado !== 'C') {
+              <div class="ev-dup-banner">
+                <div class="ev-dup-banner__head">
+                  <span class="ev-dup-banner__title">
+                    <i class="fa-solid fa-triangle-exclamation"></i>
+                    {{ duplicados.length }} caso(s) reciente(s) en la misma zona — posible duplicado o reincidencia
+                  </span>
+                  <button class="ev-dup-banner__close" type="button"
+                          (click)="descartarDuplicados()" title="Descartar aviso">
+                    <i class="fa-solid fa-xmark"></i>
+                  </button>
+                </div>
+                <ul class="ev-dup-list">
+                  @for (d of duplicados; track d.id) {
+                    <li class="ev-dup-item">
+                      <span class="ev-dup-item__info">
+                        <span class="ev-estado-badge sm" [ngClass]="getEstadoClase(d.estado || '')">{{ getEstadoLabel(d.estado || '') }}</span>
+                        <strong>{{ d.direCaso || 'Sin dirección' }}</strong>
+                        <span class="ev-dup-item__meta">
+                          {{ d.distanciaMetros | number:'1.0-0' }} m ·
+                          hace {{ d.minutosAtras }} min
+                          @if (d.codiPedido) { · {{ d.codiPedido }} }
+                        </span>
+                      </span>
+                      @if (!detalle.pedidoPadreNum) {
+                        <button class="ui-btn xs ghost" type="button"
+                                [disabled]="vinculandoId === d.id"
+                                (click)="vincularCaso(d)"
+                                title="Marcar este caso como el mismo incidente (vincular)">
+                          <i class="fa-solid fa-link"></i>
+                          {{ vinculandoId === d.id ? '…' : 'Vincular' }}
+                        </button>
+                      }
+                    </li>
+                  }
+                </ul>
               </div>
             }
 
@@ -633,6 +788,11 @@
                               </div>
                               <span class="ev-sugerencia-item__dist">
                                 {{ s.distanciaM < 1000 ? (s.distanciaM + ' m') : ((s.distanciaM/1000 | number:'1.1-1') + ' km') }}
+                                @if (etaMin(s.distanciaM / 1000, s.tipoMedio) !== null) {
+                                  <span class="ev-eta" title="Tiempo estimado de llegada (estimación por distancia y tipo de recurso)">
+                                    · ~{{ etaMin(s.distanciaM / 1000, s.tipoMedio) }} min
+                                  </span>
+                                }
                               </span>
                               <button type="button" class="ui-btn xs primary"
                                       [disabled]="!!asignandoMedioId"
@@ -755,10 +915,13 @@
                                         [title]="r.gpsActivo ? 'GPS activo' : 'Sin señal GPS'">
                                   </span>
                                 </td>
-                                <!-- Distancia -->
+                                <!-- Distancia + ETA estimado -->
                                 <td class="ev-rec-dist"
                                     [class.ev-rec-dist--near]="r.distanciaKm != null && r.distanciaKm < 1">
                                   {{ formatDistancia(r.distanciaKm) }}
+                                  @if (etaMin(r.distanciaKm, r.tipoMedio) !== null) {
+                                    <span class="ev-eta" title="Tiempo estimado de llegada">~{{ etaMin(r.distanciaKm, r.tipoMedio) }} min</span>
+                                  }
                                 </td>
                                 <!-- Acciones -->
                                 <td>
@@ -937,6 +1100,22 @@
                                 </span>
                               </div>
                             } @else {
+
+                            <!-- Timer de tiempo en estado + solicitud de apoyo activa -->
+                            <div class="ev-dispatch-row__status">
+                              <span class="ev-time-en-estado"
+                                    [class.ev-time-en-estado--alerta]="minutosEnEstadoActual(act) >= slaUmbralCritico">
+                                <i class="fa-regular fa-clock"></i>
+                                {{ minutosEnEstadoActual(act) }} min en {{ act.estado === 'P' ? 'asignado' : act.estado === 'D' ? 'ruta' : 'sitio' }}
+                              </span>
+                              @if (act.solicitaApoyo) {
+                                <span class="ev-apoyo-badge" title="Solicitud de apoyo urgente activa">
+                                  <i class="fa-solid fa-tower-broadcast"></i>
+                                  ¡APOYO SOLICITADO!
+                                </span>
+                              }
+                            </div>
+
                             <div class="ev-dispatch-row__actions">
 
                               @if (act.estado === 'P') {
@@ -949,26 +1128,21 @@
                                   <i class="fa-solid fa-truck-fast"></i>
                                   {{ operandoActuacionId === act.id ? '…' : 'Salió en ruta' }}
                                 </button>
-                                <!-- Desasignar: solo disponible en estado P -->
-                                <button class="ui-btn xs danger ev-dispatch-btn"
-                                        type="button"
-                                        [disabled]="operandoActuacionId === act.id"
-                                        (click)="abrirModalDesasignar(act)"
-                                        title="Desasignar recurso (solo si aún no ha salido en ruta)">
-                                  <i class="fa-solid fa-link-slash"></i>
-                                  Desasignar
-                                </button>
                               }
 
                               @if (act.estado === 'D') {
-                                <!-- Paso 3: En sitio → llegó al lugar -->
-                                <button class="ui-btn xs warning ev-dispatch-btn"
+                                <!-- Paso 3: En sitio → llegó al lugar. Se resalta si el GPS
+                                     ya ubica al recurso a <100m del incidente. -->
+                                <button class="ui-btn xs ev-dispatch-btn"
+                                        [class.warning]="!sugiereLlegada(act)"
+                                        [class.success]="sugiereLlegada(act)"
+                                        [class.ev-dispatch-btn--sugerido]="sugiereLlegada(act)"
                                         type="button"
                                         [disabled]="operandoActuacionId === act.id"
                                         (click)="marcarEnSitio(act)"
-                                        title="Paso 3: Marcar que el recurso llegó al lugar">
+                                        [title]="sugiereLlegada(act) ? 'El GPS indica que el recurso ya llegó al lugar' : 'Paso 3: Marcar que el recurso llegó al lugar'">
                                   <i class="fa-solid fa-map-pin"></i>
-                                  {{ operandoActuacionId === act.id ? '…' : 'Llegó al lugar' }}
+                                  {{ operandoActuacionId === act.id ? '…' : (sugiereLlegada(act) ? '¿Llegó? (GPS cerca)' : 'Llegó al lugar') }}
                                 </button>
                               }
 
@@ -981,6 +1155,37 @@
                                         title="Paso 4: Marcar que el recurso atendió el incidente">
                                   <i class="fa-solid fa-circle-check"></i>
                                   {{ operandoActuacionId === act.id ? '…' : 'Atendió' }}
+                                </button>
+                              }
+
+                              <!-- Cancelar recurso: en P sin motivo; en D/A con motivo obligatorio -->
+                              <button class="ui-btn xs danger ev-dispatch-btn"
+                                      type="button"
+                                      [disabled]="operandoActuacionId === act.id"
+                                      (click)="abrirModalDesasignar(act)"
+                                      [title]="act.estado === 'P' ? 'Desasignar recurso' : 'Cancelar recurso ya despachado (requiere motivo)'">
+                                <i class="fa-solid fa-link-slash"></i>
+                                {{ act.estado === 'P' ? 'Desasignar' : 'Cancelar' }}
+                              </button>
+
+                              <!-- Seguridad del funcionario: solicitar / atender apoyo -->
+                              @if (act.solicitaApoyo) {
+                                <button class="ui-btn xs success ev-dispatch-btn"
+                                        type="button"
+                                        [disabled]="solicitandoApoyoId === act.id"
+                                        (click)="atenderApoyo(act)"
+                                        title="Marcar la solicitud de apoyo como atendida">
+                                  <i class="fa-solid fa-check-double"></i>
+                                  Apoyo atendido
+                                </button>
+                              } @else {
+                                <button class="ui-btn xs ev-dispatch-btn ev-btn-apoyo"
+                                        type="button"
+                                        [disabled]="solicitandoApoyoId === act.id"
+                                        (click)="solicitarApoyo(act)"
+                                        title="Solicitar apoyo urgente para este recurso (seguridad del funcionario)">
+                                  <i class="fa-solid fa-tower-broadcast"></i>
+                                  Solicitar apoyo
                                 </button>
                               }
 
@@ -1199,6 +1404,16 @@
                                     [(ngModel)]="nuevaAnotacion.anotacion"
                                     placeholder="Registre la novedad o información relevante…">
                           </textarea>
+                          <!-- Plantillas rápidas: rellenan/anexan texto frecuente -->
+                          <div class="ev-anot-plantillas">
+                            @for (p of plantillasAnotacion; track p.label) {
+                              <button class="ev-anot-chip" type="button"
+                                      (click)="aplicarPlantillaAnotacion(p.texto)"
+                                      [title]="p.texto">
+                                <i class="fa-solid fa-bolt"></i> {{ p.label }}
+                              </button>
+                            }
+                          </div>
                         </div>
                       </div>
                       <div class="ev-anot-actions">
@@ -1509,7 +1724,60 @@
 }
 
 <!-- ══════════════════════════════════════════════════════════════
-     MODAL: Desasignar recurso (solo estado P)
+     MODAL: Cambiar estado del evento (motivo obligatorio)
+     ══════════════════════════════════════════════════════════════ -->
+@if (modalCambiarEstadoVisible) {
+  <div class="ui-modal" (click)="cancelarCambiarEstado()">
+    <div class="ui-modal__dialog ev-modal-cambiar-estado" (click)="$event.stopPropagation()">
+
+      <div class="ui-modal__head">
+        <div class="ui-modal__title">
+          <i class="fa-solid fa-arrows-rotate"></i>
+          Cambiar estado a "{{ getEstadoLabel(estadoNuevoPendiente) }}"
+        </div>
+        <button class="ui-icon-btn" type="button"
+                title="Cancelar" (click)="cancelarCambiarEstado()">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <div class="ui-modal__body">
+        <p class="ev-modal-hint">
+          <i class="fa-solid fa-circle-info"></i>
+          El cambio de estado queda registrado en la trazabilidad del caso con su motivo.
+        </p>
+        <div class="ui-field ui-col-12">
+          <label class="ui-label">Motivo del cambio <span class="ev-req">*</span></label>
+          <textarea class="ui-control" rows="3"
+                    [(ngModel)]="motivoCambioEstado"
+                    placeholder="Explique brevemente por qué cambia el estado del caso…"></textarea>
+        </div>
+        @if (errorCambioEstado) {
+          <p class="ev-err" style="margin-top:10px">
+            <i class="fa-solid fa-triangle-exclamation"></i>
+            {{ errorCambioEstado }}
+          </p>
+        }
+      </div>
+
+      <div class="ui-modal__foot">
+        <button class="ui-btn sm ghost" type="button" (click)="cancelarCambiarEstado()">
+          <i class="fa-solid fa-xmark"></i> Cancelar
+        </button>
+        <button class="ui-btn sm primary" type="button"
+                [disabled]="cambiandoEstado || !motivoCambioEstado.trim()"
+                (click)="confirmarCambiarEstado()">
+          <i class="fa-solid fa-check"></i>
+          {{ cambiandoEstado ? 'Guardando…' : 'Confirmar cambio' }}
+        </button>
+      </div>
+
+    </div>
+  </div>
+}
+
+<!-- ══════════════════════════════════════════════════════════════
+     MODAL: Desasignar recurso
      ══════════════════════════════════════════════════════════════ -->
 @if (modalDesasignarVisible) {
   <div class="ui-modal" (click)="cancelarDesasignar()">
@@ -1518,7 +1786,7 @@
       <div class="ui-modal__head">
         <div class="ui-modal__title ev-modal-title-danger">
           <i class="fa-solid fa-link-slash"></i>
-          Desasignar recurso
+          {{ actuacionADesasignar && actuacionADesasignar.estado !== 'P' ? 'Cancelar recurso despachado' : 'Desasignar recurso' }}
         </div>
         <button class="ui-icon-btn" type="button"
                 title="Cancelar" (click)="cancelarDesasignar()">
@@ -1536,19 +1804,32 @@
               Asignado: {{ actuacionADesasignar.fechaCreacion }}
             </span>
           </div>
-          <p class="ev-modal-desasignar-aviso">
-            <i class="fa-solid fa-triangle-exclamation"></i>
-            Esta acción <strong>anulará</strong> el despacho y devolverá el recurso al estado
-            <strong>Libre</strong>. Solo disponible si el recurso aún <strong>no ha salido en ruta</strong>.
-          </p>
+          @if (actuacionADesasignar.estado === 'P') {
+            <p class="ev-modal-desasignar-aviso">
+              <i class="fa-solid fa-triangle-exclamation"></i>
+              Esta acción <strong>anulará</strong> el despacho y devolverá el recurso al estado
+              <strong>Libre</strong>. El recurso aún no ha salido en ruta.
+            </p>
+          } @else {
+            <p class="ev-modal-desasignar-aviso ev-modal-desasignar-aviso--fuerte">
+              <i class="fa-solid fa-triangle-exclamation"></i>
+              El recurso <strong>ya salió en ruta o está en sitio</strong>. Cancelarlo anulará el
+              despacho y lo liberará. <strong>Debe indicar el motivo</strong> — queda registrado en
+              la trazabilidad del caso.
+            </p>
+          }
         }
 
         <div class="ui-grid" style="gap:12px; margin-top:12px">
           <div class="ui-field ui-col-12">
-            <label class="ui-label">Motivo del desasignado (opcional)</label>
+            <label class="ui-label">
+              Motivo
+              @if (actuacionADesasignar && actuacionADesasignar.estado !== 'P') { <span class="ev-req">*</span> (obligatorio) }
+              @else { (opcional) }
+            </label>
             <input class="ui-control" type="text"
                    [(ngModel)]="desasignarMotivo"
-                   placeholder="Ej: Asignado por error, recurso no disponible…">
+                   placeholder="Ej: Asignado por error, recurso no disponible, reasignación…">
           </div>
         </div>
 
@@ -1568,7 +1849,7 @@
                 [disabled]="desasignando"
                 (click)="confirmarDesasignar()">
           <i class="fa-solid fa-link-slash"></i>
-          {{ desasignando ? 'Desasignando…' : 'Confirmar desasignado' }}
+          {{ desasignando ? 'Procesando…' : (actuacionADesasignar && actuacionADesasignar.estado !== 'P' ? 'Confirmar cancelación' : 'Confirmar desasignado') }}
         </button>
       </div>
 
@@ -1745,6 +2026,12 @@
           </textarea>
         </div>
 
+        <!-- Confirmación reforzada — el cierre no se puede deshacer sin reabrir -->
+        <label class="ev-confirm-check">
+          <input type="checkbox" [(ngModel)]="cierreConfirmado">
+          <span>Confirmo que el evento debe cerrarse. Entiendo que esta acción finaliza el caso.</span>
+        </label>
+
       </div>
 
       <div class="ui-modal__foot">
@@ -1752,7 +2039,7 @@
           <i class="fa-solid fa-xmark"></i> Cancelar
         </button>
         <button class="ui-btn sm danger" type="button"
-                [disabled]="cerrandoEvento || (!cerrarComentario.trim() && !eventoCodsSelec.length)"
+                [disabled]="cerrandoEvento || !cierreConfirmado || (!cerrarComentario.trim() && !eventoCodsSelec.length)"
                 (click)="confirmarCierre()">
           <i class="fa-solid fa-lock"></i>
           {{ cerrandoEvento ? 'Cerrando…' : 'Confirmar cierre' }}
@@ -1905,6 +2192,14 @@
           </div>
         }
 
+        <!-- Confirmación reforzada antes de remitir a otro canal/agencia -->
+        @if (remitirTotalSelec > 0) {
+          <label class="ev-confirm-check">
+            <input type="checkbox" [(ngModel)]="remitirConfirmado">
+            <span>Confirmo la remisión de este caso a {{ remitirTotalSelec }} destino(s).</span>
+          </label>
+        }
+
       </div>
 
       <div class="ui-modal__foot">
@@ -1912,7 +2207,7 @@
           <i class="fa-solid fa-xmark"></i> Cancelar
         </button>
         <button class="ui-btn sm primary" type="button"
-                [disabled]="remitirEnviando || remitirTotalSelec === 0"
+                [disabled]="remitirEnviando || remitirTotalSelec === 0 || !remitirConfirmado"
                 (click)="confirmarRemitir()">
           <i class="fa-solid" [ngClass]="remitirEnviando ? 'fa-spinner fa-spin' : 'fa-share-from-square'"></i>
           {{ remitirEnviando ? 'Enviando...' : 'Remitir (' + remitirTotalSelec + ')' }}

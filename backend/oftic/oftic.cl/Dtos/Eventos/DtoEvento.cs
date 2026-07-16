@@ -167,6 +167,18 @@ public class DtoCerrarEventoDespachoRequest
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Request: vincular un caso a otro (padre) — mismo incidente real reportado
+// por llamadas/canales distintos. Identifica al padre por su clave de negocio
+// (sitio_graba + nume_llamada), no por cad_pedidos.id — es la misma clave que
+// ya usa DtoPedidoCercano al listar candidatos de duplicado.
+// ─────────────────────────────────────────────────────────────────────────────
+public class DtoVincularPedidoRequest
+{
+    public int  SitioGraba  { get; set; }
+    public long NumeLlamada { get; set; }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Request: actualizar el estado de ciclo operativo (despacho / llegada).
 // ─────────────────────────────────────────────────────────────────────────────
 public class DtoActualizarEstadoEventoRequest

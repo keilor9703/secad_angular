@@ -78,7 +78,7 @@ namespace Negocio.Gestion
 
         public Task<List<DtoRecursoCercano>> G_GetRecursoMasCercanoAsync(
             int canalCodigo, int canalFuerzaId, int sitioGraba,
-            double lat, double lng, int top, CancellationToken ct)
-            => _repo.G_GetRecursoMasCercanoAsync(canalCodigo, canalFuerzaId, sitioGraba, lat, lng, top, ct);
+            double lat, double lng, int top, bool prioridadAlta, CancellationToken ct)
+            => _repo.G_GetRecursoMasCercanoAsync(canalCodigo, canalFuerzaId, sitioGraba, lat, lng, top, prioridadAlta, ct);
     }
 }

@@ -69,15 +69,21 @@ namespace Negocio.Interfaz
             CancellationToken ct);
 
         /// <summary>
-        /// Desasigna un recurso de una actuación en estado P.
-        /// Solo aplicable cuando el recurso aún no ha salido en ruta.
+        /// Desasigna/cancela un recurso de una actuación en P, D o A.
+        /// En D/A el motivo es obligatorio (lo valida el repositorio).
         /// </summary>
         Task<DtoActuacionResult> P_DesasignarActuacionAsync(
             long actuacionId,
-            string motivo,
+            string? motivo,
             int canalCodigo, int fuerzaId,
             string usuario,
             CancellationToken ct);
+
+        Task<DtoActuacionResult> P_SolicitarApoyoActuacionAsync(
+            long actuacionId, int canalCodigo, int fuerzaId, string usuario, CancellationToken ct);
+
+        Task<DtoActuacionResult> P_AtenderApoyoActuacionAsync(
+            long actuacionId, int canalCodigo, int fuerzaId, string usuario, CancellationToken ct);
 
         /// <summary>Catálogo de actividades policiales. tipo = O/P/null (todas).</summary>
         Task<List<DtoActividadPolicial>> G_GetActividadesPolicialesAsync(

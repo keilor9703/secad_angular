@@ -28,7 +28,13 @@ namespace Datos.Interfaz
             int canalCodigo, int fuerzaId,
             long usuarioId, string username, string maquina, CancellationToken ct);
 
-        Task<DtoPedidoResult> SetEstadoAsync(long id, string estado, long usuarioAuditoria, string maquinaAuditoria, CancellationToken ct);
+        Task<DtoPedidoResult> SetEstadoAsync(
+            long id, string estado, long usuarioAuditoria, string usernameAuditoria,
+            string maquinaAuditoria, string? motivo, CancellationToken ct);
+        /// <summary>Historial de cambios de cad_pedidos.estado (cad_pedidos_estado_historial), más reciente primero.</summary>
+        Task<List<DtoEstadoHistorialItem>> GetEstadoHistorialAsync(long pedidoId, CancellationToken ct);
+        Task<DtoPedidoResult> VincularPedidoAsync(
+            long id, int? sitioGraba, long? numeLlamada, long usuarioAuditoria, string maquinaAuditoria, CancellationToken ct);
         Task<List<DtoAnotacion>> GetAnotacionesAsync(long idPedido, CancellationToken ct);
         Task<DtoPedidoResult> CreateAnotacionAsync(long idPedido, DtoAnotacionRequest request, long usuarioAuditoria, string usernameAuditoria, string maquinaAuditoria, CancellationToken ct);
         Task<List<DtoPedidoAsociar>> BuscarParaAsociarAsync(int sitioGraba, CancellationToken ct);
@@ -39,6 +45,9 @@ namespace Datos.Interfaz
         /// then oldest-first within each priority group.
         /// </summary>
         Task<List<DtoEventoListItem>> GetEventosByCanalAsync(int canalCodigo, int fuerzaId, string? estado, CancellationToken ct);
+        Task<List<DtoEventoListItem>> G_BuscarEventosAsync(string texto, int fuerzaId, int sitioGraba, CancellationToken ct);
+        /// <summary>Usernames que vieron este caso en los últimos 5 minutos, excluyendo al usuario actual.</summary>
+        Task<List<string>> G_GetPresenciaAsync(long pedidoId, long usuarioActual, CancellationToken ct);
 
         /// <summary>
         /// Returns the dispatch channels available for a given recording site.

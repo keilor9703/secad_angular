@@ -115,19 +115,28 @@ namespace Datos.Interfaz
             CancellationToken ct);
 
         /// <summary>
-        /// Desasigna un recurso de una actuación que aún no ha salido en ruta (estado P).
+        /// Desasigna/cancela un recurso de una actuación en estado P, D o A.
         /// Pasa la actuación a estado V (Anulada), libera el medio (estado=27, evento_id=NULL)
         /// y recalcula el estado global del evento.
-        /// Solo funciona si la actuación está en estado P; si ya salió en ruta, rechaza.
-        /// Rechaza también si canalCodigo/fuerzaId no coincide con el canal que
-        /// asignó la actuación (ver P_ActualizarEstadoActuacionAsync).
+        /// En P el motivo es opcional (se usa un texto por defecto); en D/A
+        /// (ya en ruta o en sitio) el motivo es OBLIGATORIO — se rechaza si viene
+        /// vacío. Rechaza también si canalCodigo/fuerzaId no coincide con el canal
+        /// que asignó la actuación (ver P_ActualizarEstadoActuacionAsync).
         /// </summary>
         Task<DtoActuacionResult> P_DesasignarActuacionAsync(
             long actuacionId,
-            string motivo,
+            string? motivo,
             int canalCodigo, int fuerzaId,
             string usuario,
             CancellationToken ct);
+
+        /// <summary>Marca una solicitud de apoyo urgente activa sobre la actuación (seguridad del funcionario).</summary>
+        Task<DtoActuacionResult> P_SolicitarApoyoActuacionAsync(
+            long actuacionId, int canalCodigo, int fuerzaId, string usuario, CancellationToken ct);
+
+        /// <summary>Marca como atendida una solicitud de apoyo urgente activa.</summary>
+        Task<DtoActuacionResult> P_AtenderApoyoActuacionAsync(
+            long actuacionId, int canalCodigo, int fuerzaId, string usuario, CancellationToken ct);
 
         // ── Catálogos ───────────────────────────────────────────────────────────
 

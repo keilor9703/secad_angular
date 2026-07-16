@@ -154,8 +154,8 @@ namespace Api.Controllers.Operacion
 
             try
             {
-                var (usuario, _, maquina) = ObtenerAuditoria();
-                var result = await _service.SetEstadoAsync(id, request.Estado, usuario, maquina, ct);
+                var (usuario, username, maquina) = ObtenerAuditoria();
+                var result = await _service.SetEstadoAsync(id, request.Estado, usuario, username, maquina, request.Motivo, ct);
                 if (!result.Success)
                     return BadRequest(new { success = false, message = result.Message });
                 return Ok(new { success = true, message = result.Message });

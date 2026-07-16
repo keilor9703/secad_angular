@@ -244,7 +244,9 @@ namespace Api.Controllers.Operacion
         /// sigue siendo manual.
         /// </summary>
         /// <remarks>
-        /// GET api/Turnos/canal/{canalCodigo}/sugerencia-recurso?canalFuerzaId=1&amp;sitioGraba=1&amp;lat=4.71&amp;lng=-74.07&amp;top=5
+        /// GET api/Turnos/canal/{canalCodigo}/sugerencia-recurso?canalFuerzaId=1&amp;sitioGraba=1&amp;lat=4.71&amp;lng=-74.07&amp;top=5&amp;prioridadAlta=true
+        /// prioridadAlta (incidentes de prioridad 01/02) da preferencia suave a
+        /// unidades de más capacidad (patrulla/ambulancia) sobre motos/bicicletas.
         /// </remarks>
         [HttpGet("canal/{canalCodigo:int}/sugerencia-recurso")]
         public async Task<IActionResult> GetSugerenciaRecurso(
@@ -254,6 +256,7 @@ namespace Api.Controllers.Operacion
             [FromQuery] int?   canalFuerzaId = null,
             [FromQuery] int    sitioGraba    = 1,
             [FromQuery] int    top           = 5,
+            [FromQuery] bool   prioridadAlta = false,
             CancellationToken  ct            = default)
         {
             if (lat < -90 || lat > 90 || lng < -180 || lng > 180)
@@ -263,7 +266,7 @@ namespace Api.Controllers.Operacion
             {
                 var resolvedFuerza = canalFuerzaId ?? GetIntClaim("fuerza_id");
                 var data = await _svc.G_GetRecursoMasCercanoAsync(
-                    canalCodigo, resolvedFuerza, sitioGraba, lat, lng, top, ct);
+                    canalCodigo, resolvedFuerza, sitioGraba, lat, lng, top, prioridadAlta, ct);
                 return Ok(new { success = true, data });
             }
             catch (Exception ex)

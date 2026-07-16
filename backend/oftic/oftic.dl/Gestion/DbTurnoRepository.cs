@@ -1568,7 +1568,7 @@ WHERE  m.canal_codigo     = @canal
 
         public async Task<List<DtoRecursoCercano>> G_GetRecursoMasCercanoAsync(
             int canalCodigo, int canalFuerzaId, int sitioGraba,
-            double lat, double lng, int top, CancellationToken ct)
+            double lat, double lng, int top, bool prioridadAlta, CancellationToken ct)
         {
             top = Math.Clamp(top, 1, 20);
 
@@ -1584,6 +1584,15 @@ WHERE  m.canal_codigo     = @canal
             // único por sí solo ahí). Solo medios Libres (27) con GPS reciente (<10 min,
             // mismo umbral que gps_activo) — un medio con GPS desactualizado podría ya
             // no estar donde dice la última posición conocida.
+            //
+            // Asignación inteligente — heurística de desempate: para incidentes de
+            // prioridad alta (@prioridadAlta), se le suma una "penalización" de 1500m
+            // a motos/bicicletas (20/21) al ordenar — no las descarta ni las bloquea,
+            // solo hace que un vehículo de más capacidad (patrulla/ambulancia) gane el
+            // primer lugar cuando está razonablemente cerca, aunque una moto esté un
+            // poco más cerca en línea recta. Si la moto está MUY cerca (la diferencia
+            // supera los 1500m), sigue ganando ella — la distancia real nunca deja de
+            // pesar. Para prioridad normal, se ordena únicamente por distancia, como antes.
             cmd.CommandText = @"
 SELECT m.id::text, m.patrulla_codigo, m.patrulla_desc, m.tipo_medio, m.estado,
        m.latitud, m.longitud,
@@ -1605,18 +1614,21 @@ WHERE  m.canal_codigo    = @canal
   AND  m.longitud         IS NOT NULL
   AND  m.fecha_ubicacion  IS NOT NULL
   AND  NOW() - m.fecha_ubicacion < INTERVAL '10 minutes'
-ORDER  BY 6371000 * 2 * ASIN(SQRT(
+ORDER  BY
+    6371000 * 2 * ASIN(SQRT(
            POWER(SIN(RADIANS((m.latitud - @lat) / 2.0)), 2) +
            COS(RADIANS(@lat)) * COS(RADIANS(m.latitud)) *
            POWER(SIN(RADIANS((m.longitud - @lng) / 2.0)), 2)
        ))
+    + (CASE WHEN @prioridadAlta AND m.tipo_medio IN (20,21) THEN 1500.0 ELSE 0.0 END)
 LIMIT  @top";
-            cmd.Parameters.AddWithValue("canal",       canalCodigo);
-            cmd.Parameters.AddWithValue("canalFuerza", canalFuerzaId);
-            cmd.Parameters.AddWithValue("sg",          sitioGraba);
-            cmd.Parameters.AddWithValue("lat", lat);
-            cmd.Parameters.AddWithValue("lng", lng);
-            cmd.Parameters.AddWithValue("top", top);
+            cmd.Parameters.AddWithValue("canal",         canalCodigo);
+            cmd.Parameters.AddWithValue("canalFuerza",   canalFuerzaId);
+            cmd.Parameters.AddWithValue("sg",            sitioGraba);
+            cmd.Parameters.AddWithValue("lat",           lat);
+            cmd.Parameters.AddWithValue("lng",           lng);
+            cmd.Parameters.AddWithValue("top",           top);
+            cmd.Parameters.AddWithValue("prioridadAlta", prioridadAlta);
 
             await using var rdr = await cmd.ExecuteReaderAsync(ct);
             while (await rdr.ReadAsync(ct))

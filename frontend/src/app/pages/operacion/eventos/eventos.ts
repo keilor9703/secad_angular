@@ -4,6 +4,7 @@ import {
   OnDestroy,
   AfterViewChecked,
   ChangeDetectorRef,
+  HostListener,
   inject
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
@@ -11,7 +12,7 @@ import { FormsModule } from '@angular/forms';
 import { Subscription, Subject, interval } from 'rxjs';
 import { switchMap, startWith, debounceTime, distinctUntilChanged } from 'rxjs/operators';
 
-import { EventoService, DtoEventoListItem, DtoCanalItem, DtoSlaConfig, DtoEventoConteos, DtoCanalesAsignadosResult } from '../../../core/services/operacion/evento.service';
+import { EventoService, DtoEventoListItem, DtoCanalItem, DtoSlaConfig, DtoEventoConteos, DtoCanalesAsignadosResult, DtoEstadoHistorialItem, DtoPedidoCercano } from '../../../core/services/operacion/evento.service';
 import { DtoAnotacionRequest, DtoPedidoDetalle, DtoAnotacion } from '../../../core/services/operacion/pedido.service';
 import { ToastService } from '../../../core/services/toast.service';
 import { AuthService } from '../../../core/auth/auth.service';
@@ -153,6 +154,8 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
   modalCerrarVisible   = false;
   cerrarComentario     = '';
   cerrandoEvento       = false;
+  /** Confirmación explícita — el operador debe marcarla antes de cerrar (acción sin deshacer). */
+  cierreConfirmado     = false;
   // Multi-code para cierre de evento
   private eventoCodSubj        = new Subject<string>();
   eventoCodBusqueda            = '';
@@ -162,6 +165,49 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
 
   // ─── Estado change ───────────────────────────────────────────────────────────
   cambiandoEstado = false;
+  modalCambiarEstadoVisible = false;
+  estadoNuevoPendiente = '';
+  motivoCambioEstado   = '';
+  errorCambioEstado    = '';
+
+  /** Historial de cambios de estado del caso — quién, cuándo y por qué. */
+  estadoHistorial:       DtoEstadoHistorialItem[] = [];
+  historialEstadoAbierto = false;
+
+  // ─── Duplicados / contexto histórico de dirección ────────────────────────────
+  duplicados:           DtoPedidoCercano[] = [];
+  cargandoDuplicados    = false;
+  duplicadosDescartados = false;   // banner cerrado manualmente para este evento
+  vinculandoId:          string | null = null;
+
+  // ─── Presencia — quién más está viendo este caso ─────────────────────────────
+  presenciaUsuarios: string[] = [];
+  private presenciaSub: Subscription | null = null;
+
+  // ─── Apoyo urgente (seguridad del funcionario) ───────────────────────────────
+  solicitandoApoyoId: string | null = null;
+
+  // ─── Plantillas rápidas de anotaciones ───────────────────────────────────────
+  readonly plantillasAnotacion: { label: string; texto: string }[] = [
+    { label: 'Sin novedad',        texto: 'Sin novedad en el sitio.' },
+    { label: 'No se ubica dirección', texto: 'El recurso no logra ubicar la dirección reportada.' },
+    { label: 'Sitio abandonado',   texto: 'Al llegar al sitio no se encontró a nadie / novedad no verificada.' },
+    { label: 'Requiere apoyo',     texto: 'Se requiere apoyo de otra unidad para atender el caso.' },
+    { label: 'Vía obstruida',      texto: 'Demora por vía obstruida / tráfico en la ruta al sitio.' }
+  ];
+
+  // ─── Búsqueda backend (más allá de la cola cargada) ──────────────────────────
+  private busquedaSubj = new Subject<string>();
+  resultadosBusqueda:   DtoEventoListItem[] = [];
+  buscandoBackend       = false;
+  get mostrarResultadosBusqueda(): boolean {
+    return this.filtroTexto.trim().length >= 3;
+  }
+
+  // ─── Alerta sonora para casos nuevos ─────────────────────────────────────────
+  private readonly SONIDO_KEY = 'ev_sonido_activo';
+  sonidoActivo = true;
+  private audioCtx: AudioContext | null = null;
 
   // ─── Semáforo reactive tick ──────────────────────────────────────────────────
   tick = 0;
@@ -199,6 +245,9 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
   cargandoSugerencia = false;
   mostrarSugerencia  = false;
   errorSugerencia    = '';
+
+  /** ids de actuación en 'D' cuyo recurso ya está a <100m del incidente — sugiere confirmar llegada. */
+  sugerenciasLlegada = new Set<string>();
 
   // ─── Actuaciones / timeline de despacho ──────────────────────────────────────
   actuaciones:              DtoActuacionListItem[] = [];
@@ -282,6 +331,8 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
    * incorrecto y solo debe gestionarse en el destino).
    */
   remitirMantenerCanalOrigen = true;
+  /** Confirmación explícita antes de remitir el caso a otro canal/agencia. */
+  remitirConfirmado          = false;
 
   // ─── Adjuntos (fotos del pedido) ──────────────────────────────────────────────
   adjuntos: DtoAdjunto[] = [];
@@ -346,6 +397,24 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
 
     // Load available channels for the selector
     this.cargarCanales();
+
+    // ── Preferencia de alerta sonora (persistida por navegador) ───────────────
+    const sonidoGuardado = localStorage.getItem(this.SONIDO_KEY);
+    if (sonidoGuardado != null) this.sonidoActivo = sonidoGuardado === '1';
+
+    // ── Búsqueda backend (§ más allá de la cola cargada — incluye cerrados) ───
+    this.subs.add(
+      this.busquedaSubj.pipe(debounceTime(400), distinctUntilChanged())
+        .subscribe(texto => {
+          const q = texto.trim();
+          if (q.length < 3) { this.resultadosBusqueda = []; this.buscandoBackend = false; return; }
+          this.buscandoBackend = true;
+          this.eventoSvc.buscar(q, this.fuerzaId || undefined, this.sitioGraba || undefined).subscribe({
+            next: r  => { this.resultadosBusqueda = r; this.buscandoBackend = false; },
+            error: () => { this.resultadosBusqueda = []; this.buscandoBackend = false; }
+          });
+        })
+    );
 
     // ── Autocomplete: códigos de cierre (modal Atendió) ───────────────────────
     this.subs.add(
@@ -436,6 +505,7 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
                   this.idsRecienLlegados = new Set();
                   this.cdr.markForCheck();
                 }, 6000);
+                this.reproducirAlertaSonora();
               }
             } else {
               this.primerPollCompletado = true;
@@ -460,6 +530,7 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
     this.destroyMapaDetalle();
     this.detenerPollingRecursos();
     this.detenerPollingActuaciones();
+    this.detenerPollingPresencia();
     clearTimeout(this.limpiarRecienLlegadosTimer);
   }
 
@@ -621,8 +692,12 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
     this.detenerPollingActuaciones();  // detener polling del evento anterior AHORA
     this.resetAsistente();
 
-    this.adjuntos         = [];
-    this.canalesAsignados = null;
+    this.adjuntos              = [];
+    this.canalesAsignados      = null;
+    this.estadoHistorial       = [];
+    this.duplicados            = [];
+    this.duplicadosDescartados = false;
+    this.detenerPollingPresencia();
     this.eventoSvc.getById(evento.id).subscribe({
       next: (d) => {
         this.detalle         = d;
@@ -638,6 +713,9 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
         this.iniciarPollingRecursos();
         this.iniciarPollingActuaciones(evento.id);
         this.cargarCanalesAsignados();
+        this.cargarHistorialEstado();
+        this.cargarDuplicados();
+        this.iniciarPollingPresencia(evento.id);
       },
       error: () => {
         this.cargandoDetalle = false;
@@ -664,32 +742,83 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
     this.destroyMapaDetalle();
     this.detenerPollingRecursos();
     this.detenerPollingActuaciones();
+    this.detenerPollingPresencia();
     this.panelMode          = 'list';
     this.detalle            = null;
     this.eventoSeleccionado = null;
     this.actuaciones        = [];
     this.adjuntos           = [];
     this.canalesAsignados   = null;
+    this.estadoHistorial    = [];
+    this.duplicados         = [];
     this.resetAsistente();
   }
 
   // ─── Estado change ────────────────────────────────────────────────────────────
 
-  cambiarEstado(nuevoEstado: string): void {
+  /** Abre el modal que exige un motivo antes de aplicar el cambio de estado. */
+  abrirModalCambiarEstado(nuevoEstado: string): void {
     if (!this.detalle || this.cambiandoEstado) return;
-    if (!confirm(`¿Cambiar el estado del evento a "${this.getEstadoLabel(nuevoEstado)}"?`)) return;
-    this.cambiandoEstado = true;
+    this.estadoNuevoPendiente     = nuevoEstado;
+    this.motivoCambioEstado       = '';
+    this.errorCambioEstado        = '';
+    this.modalCambiarEstadoVisible = true;
+    this.toggleBodyModalClass(true);
+  }
 
-    this.eventoSvc.setEstado(this.detalle.id, nuevoEstado).subscribe({
+  cancelarCambiarEstado(): void {
+    this.modalCambiarEstadoVisible = false;
+    this.estadoNuevoPendiente      = '';
+    this.toggleBodyModalClass(false);
+  }
+
+  confirmarCambiarEstado(): void {
+    if (!this.detalle || this.cambiandoEstado || !this.estadoNuevoPendiente) return;
+    if (!this.motivoCambioEstado.trim()) {
+      this.errorCambioEstado = 'Ingrese el motivo del cambio de estado.';
+      return;
+    }
+    this.cambiandoEstado   = true;
+    this.errorCambioEstado = '';
+    const nuevoEstado = this.estadoNuevoPendiente;
+
+    this.eventoSvc.setEstado(this.detalle.id, nuevoEstado, this.motivoCambioEstado.trim()).subscribe({
       next: (r) => {
         this.cambiandoEstado = false;
         if (r.success && this.detalle) {
           this.aplicarEstadoActualizado(this.detalle.id, nuevoEstado);
+          this.modalCambiarEstadoVisible = false;
+          this.estadoNuevoPendiente      = '';
+          this.toggleBodyModalClass(false);
+          this.cargarHistorialEstado();
           this.recargarAhora();
+        } else {
+          this.errorCambioEstado = r.message ?? 'No se pudo cambiar el estado.';
         }
       },
-      error: () => { this.cambiandoEstado = false; }
+      error: (e) => {
+        this.cambiandoEstado   = false;
+        this.errorCambioEstado = e.error?.message ?? 'Error al cambiar el estado.';
+      }
     });
+  }
+
+  /** Carga el historial de cambios de estado del caso (motivo, autor, fecha). */
+  cargarHistorialEstado(): void {
+    if (!this.detalle) return;
+    this.eventoSvc.getEstadoHistorial(this.detalle.id).subscribe({
+      next: h  => { this.estadoHistorial = h; },
+      error: () => { this.estadoHistorial = []; }
+    });
+  }
+
+  /**
+   * Reabre un evento cerrado — lo devuelve a Seguimiento ('T') con motivo
+   * obligatorio, reusando el mismo flujo de cambio de estado con auditoría.
+   */
+  reabrirEvento(): void {
+    if (!this.detalle || this.detalle.estado !== 'C') return;
+    this.abrirModalCambiarEstado('T');
   }
 
   /**
@@ -712,6 +841,203 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
 
   getEstadoClase(estado: string): string {
     return this.ESTADOS.find(e => e.valor === estado)?.clase ?? '';
+  }
+
+  // ─── Duplicados / contexto histórico de dirección ────────────────────────────
+
+  /**
+   * Busca casos posiblemente duplicados o con historial reciente en la misma
+   * zona geográfica — no bloquea nada, es solo contexto para el despachador.
+   */
+  cargarDuplicados(): void {
+    this.duplicados = [];
+    if (!this.detalle?.latitudCaso || !this.detalle?.longitudCaso) return;
+    const lat = parseFloat(this.detalle.latitudCaso);
+    const lng = parseFloat(this.detalle.longitudCaso);
+    if (!isFinite(lat) || !isFinite(lng)) return;
+
+    this.cargandoDuplicados = true;
+    this.eventoSvc.getDuplicados(this.detalle.id, lat, lng).subscribe({
+      next: r  => { this.cargandoDuplicados = false; this.duplicados = r; },
+      error: () => { this.cargandoDuplicados = false; }
+    });
+  }
+
+  descartarDuplicados(): void {
+    this.duplicadosDescartados = true;
+  }
+
+  /** Vincula el caso abierto a otro caso (padre) — mismo incidente real, llamadas distintas. */
+  vincularCaso(candidato: DtoPedidoCercano): void {
+    if (!this.detalle || this.vinculandoId) return;
+    this.vinculandoId = candidato.id;
+    this.eventoSvc.vincular(this.detalle.id, candidato.sitioGraba, Number(candidato.id)).subscribe({
+      next: r => {
+        this.vinculandoId = null;
+        if (r.success && this.detalle) {
+          this.detalle.pedidoPadreSitio = candidato.sitioGraba;
+          this.detalle.pedidoPadreNum   = Number(candidato.id);
+          this.toast.success('Vinculación', 'Caso vinculado correctamente.');
+        } else {
+          this.toast.error('Vinculación', r.message ?? 'No se pudo vincular el caso.');
+        }
+      },
+      error: e => {
+        this.vinculandoId = null;
+        this.toast.error('Vinculación', e.error?.message ?? 'Error al vincular el caso.');
+      }
+    });
+  }
+
+  desvincularCaso(): void {
+    if (!this.detalle || this.vinculandoId) return;
+    this.vinculandoId = this.detalle.id;
+    this.eventoSvc.desvincular(this.detalle.id).subscribe({
+      next: r => {
+        this.vinculandoId = null;
+        if (r.success && this.detalle) {
+          this.detalle.pedidoPadreSitio = null;
+          this.detalle.pedidoPadreNum   = null;
+        }
+      },
+      error: () => { this.vinculandoId = null; }
+    });
+  }
+
+  // ─── Presencia — quién más está viendo este caso ─────────────────────────────
+
+  private iniciarPollingPresencia(eventoId: string): void {
+    this.detenerPollingPresencia();
+    this.presenciaSub = interval(30_000)
+      .pipe(startWith(0), switchMap(() => this.eventoSvc.getPresencia(eventoId)))
+      .subscribe({
+        next: usuarios => { this.presenciaUsuarios = usuarios; },
+        error: () => { /* no crítico */ }
+      });
+  }
+
+  private detenerPollingPresencia(): void {
+    if (this.presenciaSub) {
+      this.presenciaSub.unsubscribe();
+      this.presenciaSub = null;
+    }
+    this.presenciaUsuarios = [];
+  }
+
+  // ─── Apoyo urgente (seguridad del funcionario) ───────────────────────────────
+
+  solicitarApoyo(act: DtoActuacionListItem): void {
+    if (this.solicitandoApoyoId) return;
+    this.solicitandoApoyoId = act.id;
+    this.actuacionSvc.solicitarApoyo(act.id).subscribe({
+      next: r => {
+        this.solicitandoApoyoId = null;
+        if (r.success) { this.recargarActuaciones(); }
+        else { this.toast.error('Apoyo', r.message ?? 'No se pudo registrar la solicitud de apoyo.'); }
+      },
+      error: e => {
+        this.solicitandoApoyoId = null;
+        this.toast.error('Apoyo', e.error?.message ?? 'Error al solicitar apoyo.');
+      }
+    });
+  }
+
+  atenderApoyo(act: DtoActuacionListItem): void {
+    if (this.solicitandoApoyoId) return;
+    this.solicitandoApoyoId = act.id;
+    this.actuacionSvc.atenderApoyo(act.id).subscribe({
+      next: r => {
+        this.solicitandoApoyoId = null;
+        if (r.success) { this.recargarActuaciones(); }
+      },
+      error: () => { this.solicitandoApoyoId = null; }
+    });
+  }
+
+  /** Minutos transcurridos desde que el recurso entró en su estado actual — para el timer visual. */
+  minutosEnEstadoActual(act: DtoActuacionListItem): number {
+    const ref = act.estado === 'A' ? act.fechaLlegada
+              : act.estado === 'D' ? act.fechaDespacho
+              : act.fechaCreacion;
+    if (!ref) return 0;
+    const ms = Date.now() - new Date(ref).getTime();
+    return ms > 0 ? Math.floor(ms / 60000) : 0;
+  }
+
+  // ─── Plantillas rápidas de anotaciones ───────────────────────────────────────
+
+  aplicarPlantillaAnotacion(texto: string): void {
+    this.nuevaAnotacion.anotacion = this.nuevaAnotacion.anotacion
+      ? `${this.nuevaAnotacion.anotacion} ${texto}`
+      : texto;
+  }
+
+  // ─── Búsqueda backend ─────────────────────────────────────────────────────────
+
+  onFiltroTextoChange(): void {
+    this.busquedaSubj.next(this.filtroTexto);
+  }
+
+  // ─── Alerta sonora ─────────────────────────────────────────────────────────────
+
+  toggleSonido(): void {
+    this.sonidoActivo = !this.sonidoActivo;
+    localStorage.setItem(this.SONIDO_KEY, this.sonidoActivo ? '1' : '0');
+  }
+
+  /** Beep corto vía Web Audio — no requiere ningún archivo de audio externo. */
+  private reproducirAlertaSonora(): void {
+    if (!this.sonidoActivo) return;
+    try {
+      if (!this.audioCtx) this.audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const ctx = this.audioCtx;
+      if (ctx.state === 'suspended') return;   // política de autoplay del navegador — requiere interacción previa
+      const osc  = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(880, ctx.currentTime);
+      gain.gain.setValueAtTime(0.15, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.35);
+      osc.connect(gain).connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.35);
+    } catch { /* silencioso — la alerta visual sigue funcionando */ }
+  }
+
+  // ─── Banner de escalamiento SLA ───────────────────────────────────────────────
+
+  /** Eventos activos, sin ningún recurso asignado, que superaron el umbral crítico de gestión. */
+  get eventosEscalados(): DtoEventoListItem[] {
+    const umbral = this.slaUmbralCritico;
+    return this.eventos.filter(ev => {
+      if (ev.estado === 'C') return false;
+      if (ev.totalActuacionesActivas > 0) return false;
+      if (!ev.fechaPrimerAcceso) return false;
+      const minutos = (Date.now() - new Date(ev.fechaPrimerAcceso).getTime()) / 60000;
+      return minutos >= umbral;
+    });
+  }
+
+  // ─── Atajos de teclado ─────────────────────────────────────────────────────────
+
+  @HostListener('window:keydown', ['$event'])
+  onKeydown(ev: KeyboardEvent): void {
+    const target = ev.target as HTMLElement;
+    const enCampo = ['INPUT', 'TEXTAREA', 'SELECT'].includes(target?.tagName) || target?.isContentEditable;
+    if (enCampo) return;
+
+    if (ev.key === 'Escape' && this.panelMode === 'detail') {
+      this.volverLista();
+      return;
+    }
+    if (this.panelMode === 'list') {
+      if (ev.key === '/') {
+        ev.preventDefault();
+        document.getElementById('ev-filtro-texto')?.focus();
+      } else if (ev.key === 'r' || ev.key === 'R') {
+        this.recargarAhora();
+      }
+    }
   }
 
   // ─── Annotation ──────────────────────────────────────────────────────────────
@@ -813,6 +1139,7 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
     this.eventoCodBusqueda       = '';
     this.eventoSugerencias       = [];
     this.mostrarSugerenciasEvento = false;
+    this.cierreConfirmado        = false;
     this.modalCerrarVisible      = true;
     this.toggleBodyModalClass(true);
   }
@@ -860,6 +1187,7 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
 
   confirmarCierre(): void {
     if (!this.detalle || this.cerrandoEvento) return;
+    if (!this.cierreConfirmado) return;   // confirmación reforzada — acción sin deshacer
 
     this.cerrandoEvento = true;
     this.eventoSvc.cerrar(this.detalle.id, {
@@ -1045,6 +1373,17 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
     return map[p?.toUpperCase()] ?? 'prio-default';
   }
 
+  /** true si el evento abierto tiene prioridad alta — usado para la sugerencia de recurso. */
+  get prioridadAltaActual(): boolean {
+    const p = this.detalle?.prioridad?.toUpperCase();
+    return p === 'FLASH' || p === 'INMEDIATA';
+  }
+
+  /** ETA estimado (min) — cálculo local a partir de la distancia y el tipo de medio. */
+  etaMin(distanciaKm: number | undefined | null, tipoMedio: number): number | null {
+    return this.turnosSvc.estimarEtaMin(distanciaKm, tipoMedio as any);
+  }
+
   // ─── Recursos en turno ───────────────────────────────────────────────────────
 
   /**
@@ -1092,6 +1431,7 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
               return (a.distanciaKm ?? 9999) - (b.distanciaKm ?? 9999);
             });
           }
+          this.actualizarSugerenciasLlegada();
           this.actualizarMarcadoresRecursos();
           this.cdr.markForCheck();
         },
@@ -1170,7 +1510,8 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
     this.cargandoSugerencia = true;
     this.errorSugerencia    = '';
     this.turnosSvc.getSugerenciaRecurso(
-      this.canalSeleccionado, lat, lng, this.sitioGraba || 1, this.fuerzaId || undefined, 5
+      this.canalSeleccionado, lat, lng, this.sitioGraba || 1, this.fuerzaId || undefined, 5,
+      this.prioridadAltaActual
     ).subscribe({
       next: (data) => {
         this.sugerenciasRecurso = data;
@@ -1215,12 +1556,20 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
 
   confirmarDesasignar(): void {
     if (!this.actuacionADesasignar || this.desasignando) return;
+    // En P el motivo es opcional (el backend lo rellena); en D/A (recurso ya en
+    // ruta o en sitio) es OBLIGATORIO — no se sustituye por un texto genérico
+    // acá, para que el operador realmente explique por qué cancela un recurso
+    // que ya está actuando.
+    if (this.actuacionADesasignar.estado !== 'P' && !this.desasignarMotivo.trim()) {
+      this.errorDesasignar = 'Indique el motivo para cancelar un recurso que ya salió en ruta o está en sitio.';
+      return;
+    }
     this.desasignando    = true;
     this.errorDesasignar = '';
 
     this.actuacionSvc.desasignarActuacion(
       this.actuacionADesasignar.id,
-      this.desasignarMotivo.trim() || 'Desasignado por operador'
+      this.desasignarMotivo.trim() || undefined
     ).subscribe({
       next: (res) => {
         this.desasignando = false;
@@ -1304,6 +1653,34 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
     if (act.canalCodigo == null || act.fuerzaId == null) return true;
     if (!this.canalSeleccionado || !this.fuerzaId) return true;
     return act.canalCodigo === this.canalSeleccionado && act.fuerzaId === this.fuerzaId;
+  }
+
+  /**
+   * Auto-sugerencia "En sitio" por proximidad GPS: si el medio asignado a una
+   * actuación 'D' (en ruta) ya está a menos de 100 m del incidente, se ofrece
+   * un botón de confirmación rápida en vez de esperar a que el operador lo
+   * marque manualmente. Nunca cambia el estado solo — siempre requiere el
+   * clic explícito del despachador.
+   */
+  private actualizarSugerenciasLlegada(): void {
+    if (!this.detalle?.latitudCaso || !this.detalle?.longitudCaso) return;
+    const lat0 = parseFloat(this.detalle.latitudCaso);
+    const lng0 = parseFloat(this.detalle.longitudCaso);
+    if (!isFinite(lat0) || !isFinite(lng0)) return;
+
+    const nuevas = new Set<string>();
+    for (const act of this.actuaciones) {
+      if (act.estado !== 'D' || !act.unidadAsignada) continue;
+      const recurso = this.recursos.find(r => r.patrullaCodigo === act.unidadAsignada);
+      if (recurso?.lat == null || recurso?.lng == null) continue;
+      const distKm = this.haversineKm(lat0, lng0, recurso.lat, recurso.lng);
+      if (distKm <= 0.1) nuevas.add(act.id);
+    }
+    this.sugerenciasLlegada = nuevas;
+  }
+
+  sugiereLlegada(act: DtoActuacionListItem): boolean {
+    return this.sugerenciasLlegada.has(act.id);
   }
 
   /**
@@ -1871,6 +2248,7 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
     this.remitirEnviando            = false;
     this.remitirTab                 = 'secad';
     this.remitirMantenerCanalOrigen = true;
+    this.remitirConfirmado          = false;
 
     // Cargar canales SECAD (agrupados por fuerza)
     this.recepcionSvc.getCanales(this.sitioGraba).subscribe({
@@ -1926,6 +2304,10 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
 
   confirmarRemitir(): void {
     if (!this.detalle || this.remitirEnviando) return;
+    if (!this.remitirConfirmado) {
+      this.remitirError = 'Confirma la remisión marcando la casilla antes de enviar.';
+      return;
+    }
     this.remitirEnviando = true;
     this.remitirError    = '';
 

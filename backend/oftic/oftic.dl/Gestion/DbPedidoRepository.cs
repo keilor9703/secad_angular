@@ -625,7 +625,9 @@ WHERE  id = @pedidoId";
             return result;
         }
 
-        public async Task<DtoPedidoResult> SetEstadoAsync(long id, string estado, long usuario, string maquina, CancellationToken ct)
+        public async Task<DtoPedidoResult> SetEstadoAsync(
+            long id, string estado, long usuario, string username,
+            string maquina, string? motivo, CancellationToken ct)
         {
             var result = new DtoPedidoResult();
             await using var conn = await _tenant.DataSource.OpenConnectionAsync(ct);
@@ -633,6 +635,25 @@ WHERE  id = @pedidoId";
 
             try
             {
+                // Estado anterior — para el historial y para no insertar una fila
+                // de "cambio" cuando en realidad no cambió nada.
+                string? estadoAnterior = null;
+                await using (var qOld = conn.CreateCommand())
+                {
+                    qOld.Transaction = tx;
+                    qOld.CommandText = "SELECT estado FROM cad_pedidos WHERE id = @id FOR UPDATE";
+                    qOld.Parameters.AddWithValue("id", id);
+                    var raw = await qOld.ExecuteScalarAsync(ct);
+                    if (raw is null or DBNull)
+                    {
+                        await tx.RollbackAsync(ct);
+                        result.Success = false;
+                        result.Message = "Caso no encontrado.";
+                        return result;
+                    }
+                    estadoAnterior = (string)raw;
+                }
+
                 await using var cmd = conn.CreateCommand();
                 cmd.Transaction = tx;
                 cmd.CommandText = @"
@@ -653,6 +674,27 @@ WHERE id = @id";
                 result.Message = rows > 0 ? "Estado actualizado." : "Caso no encontrado.";
                 result.Id = id;
 
+                // Historial de auditoría — solo si el estado realmente cambió.
+                // No bloquea el cambio de estado si algo raro pasa acá (ej. motivo
+                // demasiado largo ya truncado); es trazabilidad, no una regla de
+                // negocio que deba poder tumbar la operación principal.
+                if (result.Success && !string.Equals(estadoAnterior, estado, StringComparison.Ordinal))
+                {
+                    await using var hist = conn.CreateCommand();
+                    hist.Transaction = tx;
+                    hist.CommandText = @"
+INSERT INTO cad_pedidos_estado_historial
+    (pedido_id, estado_anterior, estado_nuevo, motivo, usuario, username, fecha)
+VALUES (@pedidoId, @estadoAnterior, @estadoNuevo, @motivo, @usuario, @username, NOW())";
+                    hist.Parameters.AddWithValue("pedidoId",       id);
+                    hist.Parameters.AddWithValue("estadoAnterior", (object?)estadoAnterior ?? DBNull.Value);
+                    hist.Parameters.AddWithValue("estadoNuevo",    Truncate(estado, 20));
+                    hist.Parameters.AddWithValue("motivo",         NullOrString(motivo?.Length > 500 ? motivo[..500] : motivo));
+                    hist.Parameters.AddWithValue("usuario",        usuario);
+                    hist.Parameters.AddWithValue("username",       Truncate(username, 100));
+                    await hist.ExecuteNonQueryAsync(ct);
+                }
+
                 if (result.Success) await tx.CommitAsync(ct);
                 else await tx.RollbackAsync(ct);
             }
@@ -662,6 +704,73 @@ WHERE id = @id";
                 result.Success = false;
                 result.Message = $"Error: {ex.Message}";
                 _logger.LogError(ex, "Error actualizando estado pedido id={Id}", id);
+            }
+
+            return result;
+        }
+
+        public async Task<List<DtoEstadoHistorialItem>> GetEstadoHistorialAsync(long pedidoId, CancellationToken ct)
+        {
+            var result = new List<DtoEstadoHistorialItem>();
+            await using var conn = await _tenant.DataSource.OpenConnectionAsync(ct);
+            await using var cmd  = conn.CreateCommand();
+            cmd.CommandText = @"
+SELECT estado_anterior, estado_nuevo, motivo, username,
+       TO_CHAR(fecha AT TIME ZONE 'America/Bogota','YYYY-MM-DD""T""HH24:MI:SS')
+FROM   cad_pedidos_estado_historial
+WHERE  pedido_id = @pedidoId
+ORDER  BY fecha DESC";
+            cmd.Parameters.AddWithValue("pedidoId", pedidoId);
+
+            await using var reader = await cmd.ExecuteReaderAsync(ct);
+            while (await reader.ReadAsync(ct))
+            {
+                result.Add(new DtoEstadoHistorialItem
+                {
+                    EstadoAnterior = reader.IsDBNull(0) ? null : reader.GetString(0),
+                    EstadoNuevo    = reader.GetString(1),
+                    Motivo         = reader.IsDBNull(2) ? null : reader.GetString(2),
+                    Username       = reader.IsDBNull(3) ? null : reader.GetString(3),
+                    Fecha          = reader.GetString(4)
+                });
+            }
+            return result;
+        }
+
+        public async Task<DtoPedidoResult> VincularPedidoAsync(
+            long id, int? sitioGraba, long? numeLlamada, long usuario, string maquina, CancellationToken ct)
+        {
+            var result = new DtoPedidoResult();
+            await using var conn = await _tenant.DataSource.OpenConnectionAsync(ct);
+            await using var cmd  = conn.CreateCommand();
+            cmd.CommandText = @"
+UPDATE cad_pedidos SET
+    pedido_padre_sitio = @sitio,
+    pedido_padre_num   = @num,
+    usuario_modifica    = @usuario,
+    fecha_modifica       = NOW(),
+    maquina_modifica     = @maquina
+WHERE id = @id";
+            cmd.Parameters.AddWithValue("sitio",   (object?)sitioGraba  ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("num",     (object?)numeLlamada ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("usuario", usuario);
+            cmd.Parameters.AddWithValue("maquina", Truncate(maquina, 100));
+            cmd.Parameters.AddWithValue("id",      id);
+
+            try
+            {
+                var rows = await cmd.ExecuteNonQueryAsync(ct);
+                result.Success = rows > 0;
+                result.Message = rows > 0
+                    ? (sitioGraba.HasValue ? "Caso vinculado." : "Vínculo removido.")
+                    : "Caso no encontrado.";
+                result.Id = id;
+            }
+            catch (Exception ex)
+            {
+                result.Success = false;
+                result.Message = $"Error: {ex.Message}";
+                _logger.LogError(ex, "Error vinculando pedido id={Id}", id);
             }
 
             return result;
@@ -864,6 +973,105 @@ LIMIT 300";
             await using var reader = await cmd.ExecuteReaderAsync(ct);
             while (await reader.ReadAsync(ct))
                 result.Add(MapEventoListItem(reader));
+
+            return result;
+        }
+
+        // ─── Búsqueda server-side (más allá de la cola de 300 cargados) ───────────
+
+        /// <summary>
+        /// Busca eventos por dirección, código de caso, nombre del llamante, teléfono
+        /// o número de evento/llamada/pedido — sin el LIMIT 300 ni el filtro de
+        /// "excluir cerrados" de GetEventosByCanalAsync. A diferencia de la cola en
+        /// vivo (scopeada por canal), esto busca en TODA la fuerza del operador,
+        /// incluyendo casos ya cerrados o remitidos a otro canal — para que un caso
+        /// que salió de la vista activa siga siendo encontrable.
+        /// </summary>
+        public async Task<List<DtoEventoListItem>> G_BuscarEventosAsync(
+            string texto, int fuerzaId, int sitioGraba, CancellationToken ct)
+        {
+            var result = new List<DtoEventoListItem>();
+            var t = texto?.Trim() ?? "";
+            if (t.Length < 3) return result;
+
+            await using var conn = await _tenant.DataSource.OpenConnectionAsync(ct);
+            await using var cmd  = conn.CreateCommand();
+            cmd.CommandText = @"
+SELECT p.id, p.sitio_graba, p.nume_llamada, p.hora_caso,
+       p.nume_telefono, p.dire_caso, p.estado, p.enviar,
+       p.codi_pedido, p.codi_pedido2, p.comentario,
+       COALESCE(p.prioridad, '')   AS prioridad,
+       COALESCE(p.cali_pedido, '') AS cali_pedido,
+       COALESCE(p.ciudad, '')      AS ciudad,
+       COALESCE(NULLIF(p.username_creacion,''), NULLIF(p.cadusua_usuario,''), u.username, 'sin usuario') AS username_creacion,
+       p.fecha_creacion,
+       COALESCE(c1.descripcion, '') AS desc_pedido,
+       p.fecha_primer_acceso,
+       (SELECT COUNT(*) FROM cad_actuaciones a
+        WHERE a.pedido_id = p.id AND a.estado NOT IN ('C','V'))::int AS total_actuaciones_activas,
+       e.id                         AS evento_id,
+       COALESCE(e.origen, 'MANUAL') AS origen,
+       COALESCE(p.nomb_llamante, '') AS nomb_llamante
+FROM   cad_pedidos p
+LEFT   JOIN ctr_usuarios u  ON u.id_usuario         = p.usuario_creacion
+LEFT   JOIN cad_casos    c1 ON TRIM(UPPER(c1.codigo)) = TRIM(UPPER(p.codi_pedido))
+LEFT   JOIN cad_eventos  e  ON e.pedido_id          = p.id
+WHERE  p.enviar = 'S'
+  AND  (p.sitio_graba = @sitioGraba OR @sitioGraba = 0)
+  -- Scoping por fuerza — igual intención que el resto del módulo: un operador
+  -- de una fuerza no debe poder buscar/encontrar casos de otra.
+  AND  (
+      @fuerzaId = 0
+      OR e.fuerza_id = @fuerzaId
+      OR EXISTS (
+          SELECT 1 FROM cad_pedidos_canales pc
+          WHERE pc.cadpedi_sitiograba  = p.sitio_graba
+            AND pc.cadpedi_numellamada = p.nume_llamada
+            AND pc.cadcana_fuerz_id    = @fuerzaId
+      )
+  )
+  AND (
+      p.dire_caso        ILIKE @like
+      OR p.codi_pedido    ILIKE @like
+      OR p.codi_pedido2   ILIKE @like
+      OR p.nomb_llamante  ILIKE @like
+      OR CAST(p.nume_telefono AS TEXT) = @textoExacto
+      OR CAST(p.id             AS TEXT) = @textoExacto
+      OR CAST(e.id             AS TEXT) = @textoExacto
+      OR CAST(p.nume_llamada   AS TEXT) = @textoExacto
+  )
+ORDER  BY p.hora_caso DESC
+LIMIT  50";
+            cmd.Parameters.AddWithValue("sitioGraba",  sitioGraba);
+            cmd.Parameters.AddWithValue("fuerzaId",    fuerzaId);
+            cmd.Parameters.AddWithValue("like",        "%" + t + "%");
+            cmd.Parameters.AddWithValue("textoExacto", t);
+
+            await using var reader = await cmd.ExecuteReaderAsync(ct);
+            while (await reader.ReadAsync(ct))
+                result.Add(MapEventoListItem(reader));
+
+            return result;
+        }
+
+        public async Task<List<string>> G_GetPresenciaAsync(long pedidoId, long usuarioActual, CancellationToken ct)
+        {
+            var result = new List<string>();
+            await using var conn = await _tenant.DataSource.OpenConnectionAsync(ct);
+            await using var cmd  = conn.CreateCommand();
+            cmd.CommandText = @"
+SELECT DISTINCT username
+FROM   cad_auditoria_acceso_evento
+WHERE  pedido_id  = @pedidoId
+  AND  usuario_id <> @usuarioActual
+  AND  fecha_acceso > NOW() - INTERVAL '5 minutes'
+  AND  username IS NOT NULL AND username <> ''";
+            cmd.Parameters.AddWithValue("pedidoId",      pedidoId);
+            cmd.Parameters.AddWithValue("usuarioActual", usuarioActual);
+
+            await using var reader = await cmd.ExecuteReaderAsync(ct);
+            while (await reader.ReadAsync(ct))
+                result.Add(reader.GetString(0));
 
             return result;
         }

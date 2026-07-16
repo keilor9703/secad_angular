@@ -135,9 +135,12 @@ namespace Datos.Interfaz
         /// G_GetMediosActivosPorCanalAsync, para que el panel de despacho de Eventos
         /// (que solo conoce el canal, no el turnoId) pueda consumirlo directamente.
         /// Solo sugerencia: el llamador decide si asigna, nunca es automático.
+        /// prioridadAlta (incidentes de prioridad 01/02) le da preferencia suave a
+        /// unidades de más capacidad (patrulla/ambulancia) sobre motos/bicicletas
+        /// cuando están razonablemente cerca — ver comentario en la implementación.
         /// </summary>
         Task<List<DtoRecursoCercano>> G_GetRecursoMasCercanoAsync(
             int canalCodigo, int canalFuerzaId, int sitioGraba,
-            double lat, double lng, int top, CancellationToken ct);
+            double lat, double lng, int top, bool prioridadAlta, CancellationToken ct);
     }
 }

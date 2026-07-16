@@ -58,7 +58,9 @@ SELECT a.id, a.evento_id,
        a.placa_unidad,         -- col 13
        a.despachador_usuario,  -- col 14: quien despachó el recurso
        a.canal_codigo,         -- col 15
-       a.fuerza_id             -- col 16
+       a.fuerza_id,            -- col 16
+       a.solicita_apoyo,       -- col 17
+       TO_CHAR(a.fecha_solicita_apoyo AT TIME ZONE 'America/Bogota','{TsFormat}')  -- col 18
 FROM   cad_actuaciones a
 LEFT   JOIN cad_fuerzas f ON f.id     = a.fuerza_id
 LEFT   JOIN cad_canales c ON c.codigo = a.canal_codigo AND c.cadfuerz_id = a.fuerza_id
@@ -67,7 +69,9 @@ WHERE  a.pedido_id = @eid
 -- NO usar a.evento_id aquí porque ese campo almacena cad_eventos.id
 -- (tabla distinta con su propio espacio de Snowflake IDs).
 ORDER  BY
-    -- Activos primero (P→D→A), luego cerrados (C), anuladas al final (V)
+    -- Solicitud de apoyo urgente siempre primero — seguridad del funcionario.
+    a.solicita_apoyo DESC,
+    -- Luego activos (P→D→A), luego cerrados (C), anuladas al final (V)
     CASE a.estado
         WHEN 'P' THEN 0
         WHEN 'D' THEN 1
@@ -98,7 +102,9 @@ ORDER  BY
                     PlacaUnidad         = rdr.IsDBNull(13) ? null : rdr.GetString(13),
                     DespachadorUsuario  = rdr.IsDBNull(14) ? null : rdr.GetString(14),
                     CanalCodigo         = rdr.IsDBNull(15) ? null : rdr.GetInt32(15),
-                    FuerzaId            = rdr.IsDBNull(16) ? null : rdr.GetInt32(16)
+                    FuerzaId            = rdr.IsDBNull(16) ? null : rdr.GetInt32(16),
+                    SolicitaApoyo       = !rdr.IsDBNull(17) && rdr.GetBoolean(17),
+                    FechaSolicitaApoyo  = rdr.IsDBNull(18) ? null : rdr.GetString(18)
                 });
             return result;
         }
@@ -853,7 +859,7 @@ WHERE  id = @medioId";
 
         public async Task<DtoActuacionResult> P_DesasignarActuacionAsync(
             long actuacionId,
-            string motivo,
+            string? motivo,
             int canalCodigo, int fuerzaId,
             string usuario,
             CancellationToken ct)
@@ -870,29 +876,43 @@ WHERE  id = @medioId";
                     return new DtoActuacionResult { Success = false, ActuacionId = actuacionId, Message = errorCanal };
                 }
 
-                // ── 1. Verificar que existe y está en estado P ────────────────
+                // ── 1. Verificar que existe y sigue activa (P/D/A) ─────────────
+                // Cancelar en D (en ruta) o A (en sitio) exige motivo explícito —
+                // a diferencia de P, donde el recurso nunca llegó a moverse.
                 long eventoId = 0;
+                string estadoActual;
                 await using (var qChk = conn.CreateCommand())
                 {
                     qChk.Transaction = tx;
                     qChk.CommandText = @"
-SELECT evento_id FROM cad_actuaciones
-WHERE  id = @id AND estado = 'P'";
+SELECT evento_id, estado FROM cad_actuaciones
+WHERE  id = @id AND estado IN ('P','D','A')";
                     qChk.Parameters.AddWithValue("id", actuacionId);
-                    var raw = await qChk.ExecuteScalarAsync(ct);
-                    if (raw is null or DBNull)
+                    await using var rChk = await qChk.ExecuteReaderAsync(ct);
+                    if (!await rChk.ReadAsync(ct))
                     {
+                        await rChk.CloseAsync();
                         await tx.RollbackAsync(ct);
                         return new DtoActuacionResult
                         {
                             Success     = false,
                             ActuacionId = actuacionId,
-                            Message     = "Solo se puede desasignar un recurso que aún no ha " +
-                                          "salido en ruta (estado Pendiente). " +
-                                          "Si el recurso ya está en camino, registre una novedad."
+                            Message     = "La actuación no existe o ya está cerrada/anulada."
                         };
                     }
-                    eventoId = Convert.ToInt64(raw);
+                    eventoId     = rChk.GetInt64(0);
+                    estadoActual = rChk.GetString(1);
+                }
+
+                if (estadoActual != "P" && string.IsNullOrWhiteSpace(motivo))
+                {
+                    await tx.RollbackAsync(ct);
+                    return new DtoActuacionResult
+                    {
+                        Success     = false,
+                        ActuacionId = actuacionId,
+                        Message     = "Debe indicar el motivo para cancelar un recurso que ya salió en ruta o está en sitio."
+                    };
                 }
 
                 // ── 2. Anular la actuación ────────────────────────────────────
@@ -959,6 +979,73 @@ WHERE  actuacion_id = @actId";
                     Message     = ex.Message
                 };
             }
+        }
+
+        // ════════════════════════════════════════════════════════════════════════
+        // SOLICITUD DE APOYO URGENTE (seguridad del funcionario)
+        // ════════════════════════════════════════════════════════════════════════
+
+        public async Task<DtoActuacionResult> P_SolicitarApoyoActuacionAsync(
+            long actuacionId, int canalCodigo, int fuerzaId, string usuario, CancellationToken ct)
+        {
+            await using var conn = await _tenant.DataSource.OpenConnectionAsync(ct);
+
+            var errorCanal = await VerificarCanalPropietarioAsync(conn, null, actuacionId, canalCodigo, fuerzaId, ct);
+            if (errorCanal is not null)
+                return new DtoActuacionResult { Success = false, ActuacionId = actuacionId, Message = errorCanal };
+
+            await using var cmd = conn.CreateCommand();
+            cmd.CommandText = @"
+UPDATE cad_actuaciones
+SET    solicita_apoyo       = TRUE,
+       fecha_solicita_apoyo = NOW(),
+       apoyo_atendido_por   = NULL,
+       fecha_apoyo_atendido = NULL
+WHERE  id = @id AND estado NOT IN ('C','V')";
+            cmd.Parameters.AddWithValue("id", actuacionId);
+            var rows = await cmd.ExecuteNonQueryAsync(ct);
+
+            if (rows > 0)
+                _logger.LogWarning("⚠ Solicitud de apoyo urgente — actuación {Id}, reportado por {U}.", actuacionId, usuario);
+
+            return new DtoActuacionResult
+            {
+                Success     = rows > 0,
+                ActuacionId = actuacionId,
+                Message     = rows > 0
+                    ? "Solicitud de apoyo registrada."
+                    : "Actuación no encontrada o ya cerrada/anulada."
+            };
+        }
+
+        public async Task<DtoActuacionResult> P_AtenderApoyoActuacionAsync(
+            long actuacionId, int canalCodigo, int fuerzaId, string usuario, CancellationToken ct)
+        {
+            await using var conn = await _tenant.DataSource.OpenConnectionAsync(ct);
+
+            var errorCanal = await VerificarCanalPropietarioAsync(conn, null, actuacionId, canalCodigo, fuerzaId, ct);
+            if (errorCanal is not null)
+                return new DtoActuacionResult { Success = false, ActuacionId = actuacionId, Message = errorCanal };
+
+            await using var cmd = conn.CreateCommand();
+            cmd.CommandText = @"
+UPDATE cad_actuaciones
+SET    solicita_apoyo       = FALSE,
+       apoyo_atendido_por   = @usuario,
+       fecha_apoyo_atendido = NOW()
+WHERE  id = @id AND solicita_apoyo = TRUE";
+            cmd.Parameters.AddWithValue("id",      actuacionId);
+            cmd.Parameters.AddWithValue("usuario", usuario);
+            var rows = await cmd.ExecuteNonQueryAsync(ct);
+
+            return new DtoActuacionResult
+            {
+                Success     = rows > 0,
+                ActuacionId = actuacionId,
+                Message     = rows > 0
+                    ? "Apoyo marcado como atendido."
+                    : "No hay una solicitud de apoyo activa para esta actuación."
+            };
         }
 
         // ════════════════════════════════════════════════════════════════════════

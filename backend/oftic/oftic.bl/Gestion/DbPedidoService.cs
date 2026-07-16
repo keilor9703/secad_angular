@@ -66,15 +66,24 @@ namespace Negocio.Gestion
             return _repository.CerrarEventoDesdeDespachoAsync(pedidoId, request, canalCodigo, fuerzaId, usuarioId, username, maquina, ct);
         }
 
-        public Task<DtoPedidoResult> SetEstadoAsync(long id, string estado, long usuario, string maquina, CancellationToken ct)
+        public Task<DtoPedidoResult> SetEstadoAsync(
+            long id, string estado, long usuario, string username,
+            string maquina, string? motivo, CancellationToken ct)
         {
             if (id <= 0)
                 return Task.FromResult(new DtoPedidoResult { Success = false, Message = "ID invalido." });
             if (string.IsNullOrWhiteSpace(estado))
                 return Task.FromResult(new DtoPedidoResult { Success = false, Message = "Estado requerido." });
 
-            return _repository.SetEstadoAsync(id, estado, usuario, maquina, ct);
+            return _repository.SetEstadoAsync(id, estado, usuario, username, maquina, motivo, ct);
         }
+
+        public Task<List<DtoEstadoHistorialItem>> GetEstadoHistorialAsync(long pedidoId, CancellationToken ct)
+            => _repository.GetEstadoHistorialAsync(pedidoId, ct);
+
+        public Task<DtoPedidoResult> VincularPedidoAsync(
+            long id, int? sitioGraba, long? numeLlamada, long usuario, string maquina, CancellationToken ct)
+            => _repository.VincularPedidoAsync(id, sitioGraba, numeLlamada, usuario, maquina, ct);
 
         public Task<List<DtoAnotacion>> GetAnotacionesAsync(long idPedido, CancellationToken ct)
         {
@@ -103,6 +112,12 @@ namespace Negocio.Gestion
                 return Task.FromResult(new List<DtoEventoListItem>());
             return _repository.GetEventosByCanalAsync(canalCodigo, fuerzaId, estado, ct);
         }
+
+        public Task<List<DtoEventoListItem>> G_BuscarEventosAsync(string texto, int fuerzaId, int sitioGraba, CancellationToken ct)
+            => _repository.G_BuscarEventosAsync(texto, fuerzaId, sitioGraba, ct);
+
+        public Task<List<string>> G_GetPresenciaAsync(long pedidoId, long usuarioActual, CancellationToken ct)
+            => _repository.G_GetPresenciaAsync(pedidoId, usuarioActual, ct);
 
         public Task<List<DtoCanalItem>> GetCanalesPorSitioAsync(int sitioGraba, CancellationToken ct)
             => _repository.GetCanalesPorSitioAsync(sitioGraba, ct);

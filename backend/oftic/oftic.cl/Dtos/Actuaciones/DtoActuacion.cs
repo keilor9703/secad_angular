@@ -102,6 +102,9 @@ public class DtoActuacionListItem
     public string? PlacaUnidad         { get; set; }
     /// <summary>Username del despachador que asignó el recurso (auditoría del Jefe de Turno).</summary>
     public string? DespachadorUsuario  { get; set; }
+    /// <summary>Solicitud de apoyo urgente activa sobre este recurso (seguridad del funcionario).</summary>
+    public bool    SolicitaApoyo       { get; set; }
+    public string? FechaSolicitaApoyo  { get; set; }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -266,11 +269,13 @@ public class DtoAgregarUnidadActuacionRequest
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Request: desasignar un recurso de una actuación (solo si estado = P).
+// Request: desasignar/cancelar un recurso de una actuación.
+// En estado P el motivo es opcional (por defecto "Desasignado por operador").
+// En D/A (ya salió en ruta o está en sitio) el motivo es OBLIGATORIO — cancelar
+// un despacho ya en curso es una decisión operativa que debe quedar justificada.
 // ─────────────────────────────────────────────────────────────────────────────
 public class DtoDesasignarActuacionRequest
 {
-    /// <summary>Razón del desasignado (opcional, por defecto "Desasignado por operador").</summary>
     public string? Motivo { get; set; }
 }
 

@@ -69,6 +69,6 @@ namespace Negocio.Interfaz
 
         Task<List<DtoRecursoCercano>> G_GetRecursoMasCercanoAsync(
             int canalCodigo, int canalFuerzaId, int sitioGraba,
-            double lat, double lng, int top, CancellationToken ct);
+            double lat, double lng, int top, bool prioridadAlta, CancellationToken ct);
     }
 }

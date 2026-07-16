@@ -98,6 +98,9 @@ export interface DtoActuacionListItem {
   placaUnidad?:         string;
   /** Username de quien despachó el recurso — auditoría para el Jefe de Turno. */
   despachadorUsuario?:  string;
+  /** Solicitud de apoyo urgente activa sobre este recurso (seguridad del funcionario). */
+  solicitaApoyo?:       boolean;
+  fechaSolicitaApoyo?:  string;
 }
 
 /** Request: crear nueva actuación (primer paso del flujo de despacho) */
@@ -291,9 +294,11 @@ export class ActuacionesService {
   }
 
   /**
-   * Desasigna un recurso de una actuación en estado P (aún no salió en ruta).
-   * Anula la actuación (→V) y libera el medio (→Libre 27).
-   * Falla si la actuación ya avanzó a estado D, A o C.
+   * Cancela/desasigna un recurso de una actuación en P, D o A. Anula la
+   * actuación (→V) y libera el medio (→Libre 27). En P el motivo es opcional
+   * (el backend usa un texto por defecto); en D/A (ya en ruta o en sitio) el
+   * motivo es OBLIGATORIO — no se rellena con un texto genérico acá para que
+   * el backend lo rechace de verdad si el operador no explicó por qué.
    */
   desasignarActuacion(
     id: string,
@@ -301,8 +306,18 @@ export class ActuacionesService {
   ): Observable<{ success: boolean; message: string; actuacionId: string }> {
     return this.http.post<{ success: boolean; message: string; actuacionId: string }>(
       `${this.base}/${id}/desasignar`,
-      { motivo: motivo ?? 'Desasignado por operador' }
+      { motivo }
     );
+  }
+
+  /** Marca una solicitud de apoyo urgente activa sobre el recurso (seguridad del funcionario). */
+  solicitarApoyo(id: string): Observable<{ success: boolean; message: string }> {
+    return this.http.post<{ success: boolean; message: string }>(`${this.base}/${id}/apoyo/solicitar`, {});
+  }
+
+  /** Marca como atendida una solicitud de apoyo urgente activa. */
+  atenderApoyo(id: string): Observable<{ success: boolean; message: string }> {
+    return this.http.post<{ success: boolean; message: string }>(`${this.base}/${id}/apoyo/atender`, {});
   }
 
   // ── Helpers UI ────────────────────────────────────────────────────────────────

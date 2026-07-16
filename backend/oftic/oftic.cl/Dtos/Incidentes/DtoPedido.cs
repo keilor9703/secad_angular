@@ -56,6 +56,22 @@ namespace Comun.Dtos.Incidentes
     public class DtoEstadoPedidoRequest
     {
         public string Estado { get; set; } = string.Empty;
+        /// <summary>
+        /// Motivo del cambio de estado — obligatorio desde Eventos (EventoController
+        /// lo valida), opcional desde el dashboard de Jefe de Turno (PedidoController).
+        /// Queda registrado en cad_pedidos_estado_historial.
+        /// </summary>
+        public string? Motivo { get; set; }
+    }
+
+    /// <summary>Una fila del historial de cambios de estado de un pedido/evento.</summary>
+    public class DtoEstadoHistorialItem
+    {
+        public string? EstadoAnterior { get; set; }
+        public string  EstadoNuevo    { get; set; } = "";
+        public string? Motivo         { get; set; }
+        public string? Username       { get; set; }
+        public string  Fecha          { get; set; } = "";  // ISO-8601
     }
 
     // ─── Response DTOs ─────────────────────────────────────────────────────────

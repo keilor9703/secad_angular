@@ -61,11 +61,19 @@ namespace Negocio.Gestion
 
         public Task<DtoActuacionResult> P_DesasignarActuacionAsync(
             long actuacionId,
-            string motivo,
+            string? motivo,
             int canalCodigo, int fuerzaId,
             string usuario,
             CancellationToken ct)
             => _repo.P_DesasignarActuacionAsync(actuacionId, motivo, canalCodigo, fuerzaId, usuario, ct);
+
+        public Task<DtoActuacionResult> P_SolicitarApoyoActuacionAsync(
+            long actuacionId, int canalCodigo, int fuerzaId, string usuario, CancellationToken ct)
+            => _repo.P_SolicitarApoyoActuacionAsync(actuacionId, canalCodigo, fuerzaId, usuario, ct);
+
+        public Task<DtoActuacionResult> P_AtenderApoyoActuacionAsync(
+            long actuacionId, int canalCodigo, int fuerzaId, string usuario, CancellationToken ct)
+            => _repo.P_AtenderApoyoActuacionAsync(actuacionId, canalCodigo, fuerzaId, usuario, ct);
 
         public Task<List<DtoActividadPolicial>> G_GetActividadesPolicialesAsync(
             string? tipo, CancellationToken ct)

@@ -249,15 +249,15 @@ namespace Api.Controllers.Operacion
         }
 
         /// <summary>
-        /// Desasigna el recurso de una actuación que aún no ha salido en ruta (estado P).
-        /// Anula la actuación (estado → V), libera el medio (estado → 27 Libre) y
-        /// recalcula el estado global del evento.
-        ///
-        /// Solo funciona en estado P. Si el recurso ya salió en ruta, use novedad.
+        /// Cancela/desasigna el recurso de una actuación. En estado P (aún no salió
+        /// en ruta) el motivo es opcional. En D (en ruta) o A (en sitio) el motivo
+        /// es OBLIGATORIO — el repositorio lo valida y rechaza la solicitud si viene
+        /// vacío. Siempre anula la actuación (estado → V), libera el medio
+        /// (estado → 27 Libre) y recalcula el estado global del evento.
         /// </summary>
         /// <remarks>
         /// POST api/Actuaciones/{id}/desasignar
-        /// Body (opcional): { "motivo": "Asignado por error" }
+        /// Body: { "motivo": "Unidad redirigida a caso de mayor prioridad" }
         /// </remarks>
         [HttpPost("{id:long}/desasignar")]
         public async Task<IActionResult> DesasignarActuacion(
@@ -267,8 +267,7 @@ namespace Api.Controllers.Operacion
         {
             try
             {
-                var motivo = req?.Motivo?.Trim() is { Length: > 0 } m ? m : "Desasignado por operador";
-                var result = await _svc.P_DesasignarActuacionAsync(id, motivo, CanalIdClaim, FuerzaIdClaim, UsuarioClaim, ct);
+                var result = await _svc.P_DesasignarActuacionAsync(id, req?.Motivo?.Trim(), CanalIdClaim, FuerzaIdClaim, UsuarioClaim, ct);
                 return result.Success
                     ? Ok(new { success = true, message = result.Message, actuacionId = id })
                     : BadRequest(new { success = false, message = result.Message });
@@ -276,6 +275,53 @@ namespace Api.Controllers.Operacion
             catch (Exception ex)
             {
                 _logger.LogError(ex, "DesasignarActuacion error id={Id}", id);
+                return StatusCode(500, new { success = false, message = ex.Message });
+            }
+        }
+
+        // ════════════════════════════════════════════════════════════════════════
+        // SOLICITUD DE APOYO URGENTE (seguridad del funcionario)
+        // ════════════════════════════════════════════════════════════════════════
+
+        /// <summary>
+        /// Marca una solicitud de apoyo urgente activa sobre el recurso de esta
+        /// actuación (código de auxilio). Queda visible en el timeline de despacho
+        /// con prioridad sobre cualquier otra actuación del evento hasta que se
+        /// marque como atendida.
+        /// </summary>
+        /// <remarks>POST api/Actuaciones/{id}/apoyo/solicitar</remarks>
+        [HttpPost("{id:long}/apoyo/solicitar")]
+        public async Task<IActionResult> SolicitarApoyo(long id, CancellationToken ct)
+        {
+            try
+            {
+                var result = await _svc.P_SolicitarApoyoActuacionAsync(id, CanalIdClaim, FuerzaIdClaim, UsuarioClaim, ct);
+                return result.Success
+                    ? Ok(new { success = true, message = result.Message })
+                    : BadRequest(new { success = false, message = result.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "SolicitarApoyo error id={Id}", id);
+                return StatusCode(500, new { success = false, message = ex.Message });
+            }
+        }
+
+        /// <summary>Marca como atendida una solicitud de apoyo urgente activa.</summary>
+        /// <remarks>POST api/Actuaciones/{id}/apoyo/atender</remarks>
+        [HttpPost("{id:long}/apoyo/atender")]
+        public async Task<IActionResult> AtenderApoyo(long id, CancellationToken ct)
+        {
+            try
+            {
+                var result = await _svc.P_AtenderApoyoActuacionAsync(id, CanalIdClaim, FuerzaIdClaim, UsuarioClaim, ct);
+                return result.Success
+                    ? Ok(new { success = true, message = result.Message })
+                    : BadRequest(new { success = false, message = result.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "AtenderApoyo error id={Id}", id);
                 return StatusCode(500, new { success = false, message = ex.Message });
             }
         }

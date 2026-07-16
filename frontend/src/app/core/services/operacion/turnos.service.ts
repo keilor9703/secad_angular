@@ -443,16 +443,39 @@ export class TurnosService {
     lng:            number,
     sitioGraba:     number = 1,
     canalFuerzaId?: number,
-    top:            number = 5
+    top:            number = 5,
+    prioridadAlta:  boolean = false
   ): Observable<DtoRecursoCercano[]> {
     let params = new HttpParams()
-      .set('lat', lat).set('lng', lng).set('sitioGraba', sitioGraba).set('top', top);
+      .set('lat', lat).set('lng', lng).set('sitioGraba', sitioGraba).set('top', top)
+      .set('prioridadAlta', prioridadAlta);
     if (canalFuerzaId != null) params = params.set('canalFuerzaId', canalFuerzaId);
     return this.http
       .get<{ success: boolean; data: DtoRecursoCercano[] }>(
         `${this.base}/canal/${canalCodigo}/sugerencia-recurso`, { params }
       )
       .pipe(map(r => r.data));
+  }
+
+  /**
+   * Estima el tiempo de llegada a partir de la distancia en línea recta y una
+   * velocidad promedio urbana por tipo de medio — no es routing real (no hay
+   * API de mapas/tráfico disponible), es una aproximación honesta para darle
+   * al despachador una referencia de "cuánto tarda", no solo "cuánto dista".
+   */
+  estimarEtaMin(distanciaKm: number | undefined | null, tipoMedio: TipoMedio): number | null {
+    if (distanciaKm == null || !isFinite(distanciaKm)) return null;
+    const velocidadKmh: Record<TipoMedio, number> = {
+      20: 30,  // Motocicleta — ágil en tráfico urbano
+      21: 15,  // Bicicleta
+      22: 28,  // Patrulla
+      23: 32,  // Ambulancia — asume prioridad de paso
+      24: 25,  // Camión de bomberos
+      25: 90,  // Helicóptero
+      26: 20   // Lancha
+    };
+    const v = velocidadKmh[tipoMedio] ?? 25;
+    return Math.max(1, Math.round((distanciaKm / v) * 60));
   }
 
   // ── Creación / edición de turnos ──────────────────────────────────────────────

@@ -2906,3 +2906,353 @@ html.dark-mode {
     color:      #fca5a5;
   }
 }
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  MEJORAS OPERADOR DE DESPACHO — nuevos elementos
+//  (auditoría de estado, apoyo, duplicados, presencia, ETA, plantillas,
+//   búsqueda backend, alerta sonora, escalamiento SLA, atajos)
+// ═══════════════════════════════════════════════════════════════════════════
+
+$ev-acc-azul:   #3b82f6;
+$ev-acc-morado: #8b5cf6;
+
+// ── Presencia + vínculo en el header del detalle ──────────────────────────────
+.ev-presencia {
+  display:      inline-flex;
+  align-items:  center;
+  gap:          6px;
+  margin-top:   4px;
+  font-size:    calc(11px * var(--font-size-scale));
+  font-weight:  600;
+  color:        $ev-acc-morado;
+  i { font-size: calc(11px * var(--font-size-scale)); }
+}
+
+.ev-vinculo-badge {
+  display:      inline-flex;
+  align-items:  center;
+  gap:          6px;
+  margin-top:   4px;
+  padding:      2px 8px;
+  border-radius: 999px;
+  background:    rgba(59,130,246,.12);
+  color:        $ev-acc-azul;
+  font-size:    calc(11px * var(--font-size-scale));
+  font-weight:  700;
+
+  .ev-vinculo-quitar {
+    background: none;
+    border:     none;
+    color:      inherit;
+    cursor:     pointer;
+    padding:    0 2px;
+    opacity:    .7;
+    &:hover { opacity: 1; }
+  }
+}
+
+// ── Botón de historial + panel desplegable ───────────────────────────────────
+.ev-hist-btn { margin-left: 4px; }
+
+.ev-hist-panel {
+  margin:       8px 0 4px;
+  padding:      10px 12px;
+  border:       1px solid var(--ui-border, rgba(21,27,59,.14));
+  border-radius: 8px;
+  background:   var(--ui-surface-2, rgba(15,23,42,.03));
+
+  &__head {
+    display:     flex;
+    align-items: center;
+    gap:         8px;
+    font-size:   calc(12px * var(--font-size-scale));
+    font-weight: 800;
+    margin-bottom: 8px;
+    color:       var(--ui-text, #1e293b);
+  }
+}
+
+.ev-hist-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+
+.ev-hist-item {
+  display:       flex;
+  flex-wrap:     wrap;
+  align-items:   center;
+  gap:           8px;
+  font-size:     calc(11px * var(--font-size-scale));
+  padding-bottom: 6px;
+  border-bottom: 1px dashed var(--ui-border, rgba(21,27,59,.10));
+
+  &:last-child { border-bottom: none; padding-bottom: 0; }
+
+  &__estados { display: inline-flex; align-items: center; gap: 6px; }
+  &__meta    { color: var(--ui-muted, #64748b); font-weight: 600; }
+  &__motivo  { flex-basis: 100%; color: var(--ui-text, #334155); font-style: italic; }
+}
+
+.ev-estado-badge.sm { font-size: calc(9px * var(--font-size-scale)); padding: 1px 6px; }
+
+// ── Banner de duplicados / contexto histórico ────────────────────────────────
+.ev-dup-banner {
+  margin:        10px 0;
+  border:        1px solid $sem-amarillo;
+  border-radius: 10px;
+  background:    rgba(245,158,11,.08);
+  overflow:      hidden;
+
+  &__head {
+    display:         flex;
+    align-items:     center;
+    justify-content: space-between;
+    gap:             8px;
+    padding:         8px 12px;
+    background:      rgba(245,158,11,.14);
+  }
+  &__title {
+    display:     inline-flex;
+    align-items: center;
+    gap:         8px;
+    font-size:   calc(12px * var(--font-size-scale));
+    font-weight: 800;
+    color:       #92400e;
+    i { color: $sem-amarillo; }
+  }
+  &__close {
+    background: none; border: none; cursor: pointer;
+    color: #92400e; opacity: .7;
+    &:hover { opacity: 1; }
+  }
+}
+
+.ev-dup-list { list-style: none; margin: 0; padding: 6px 12px 10px; display: flex; flex-direction: column; gap: 6px; }
+
+.ev-dup-item {
+  display:         flex;
+  align-items:     center;
+  justify-content: space-between;
+  gap:             10px;
+  font-size:       calc(11px * var(--font-size-scale));
+
+  &__info { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  &__meta { color: var(--ui-muted, #64748b); }
+}
+
+// ── Estado del recurso: timer + solicitud de apoyo ───────────────────────────
+.ev-dispatch-row__status {
+  display:     flex;
+  align-items: center;
+  gap:         10px;
+  flex-wrap:   wrap;
+  margin:      6px 0;
+}
+
+.ev-time-en-estado {
+  display:     inline-flex;
+  align-items: center;
+  gap:         5px;
+  font-size:   calc(11px * var(--font-size-scale));
+  font-weight: 700;
+  color:       var(--ui-muted, #64748b);
+
+  &--alerta {
+    color: $sem-rojo;
+    animation: ev-pulse-text 1.4s ease-in-out infinite;
+  }
+}
+
+@keyframes ev-pulse-text { 0%,100% { opacity: 1; } 50% { opacity: .45; } }
+
+.ev-apoyo-badge {
+  display:       inline-flex;
+  align-items:   center;
+  gap:           6px;
+  padding:       2px 10px;
+  border-radius: 999px;
+  background:    $sem-rojo;
+  color:         #fff;
+  font-size:     calc(11px * var(--font-size-scale));
+  font-weight:   800;
+  letter-spacing: .3px;
+  animation:     ev-blink-apoyo 1s steps(2, start) infinite;
+}
+
+@keyframes ev-blink-apoyo { 0%,100% { box-shadow: 0 0 0 0 rgba(239,68,68,.6); } 50% { box-shadow: 0 0 0 6px rgba(239,68,68,0); } }
+
+.ev-btn-apoyo {
+  color:        $sem-rojo !important;
+  border-color: rgba(239,68,68,.4) !important;
+  &:hover { background: rgba(239,68,68,.10) !important; }
+}
+
+.ev-dispatch-btn--sugerido {
+  animation: ev-blink-apoyo 1.4s ease-in-out infinite;
+}
+
+// ── ETA estimado ─────────────────────────────────────────────────────────────
+.ev-eta {
+  color:       $ev-acc-azul;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+// ── Modal cambiar estado + confirmaciones reforzadas ─────────────────────────
+.ev-modal-cambiar-estado { max-width: 460px; }
+
+.ev-modal-hint {
+  display:     flex;
+  align-items: flex-start;
+  gap:         8px;
+  font-size:   calc(11px * var(--font-size-scale));
+  color:       var(--ui-muted, #64748b);
+  margin-bottom: 10px;
+  i { color: $ev-acc-azul; margin-top: 2px; }
+}
+
+.ev-confirm-check {
+  display:     flex;
+  align-items: flex-start;
+  gap:         8px;
+  margin-top:  14px;
+  padding:     10px;
+  border-radius: 8px;
+  background:  rgba(239,68,68,.06);
+  border:      1px solid rgba(239,68,68,.2);
+  font-size:   calc(12px * var(--font-size-scale));
+  font-weight: 600;
+  cursor:      pointer;
+  input { margin-top: 2px; cursor: pointer; }
+}
+
+.ev-modal-desasignar-aviso--fuerte {
+  background:    rgba(239,68,68,.08);
+  border-radius: 8px;
+  padding:       8px 10px;
+}
+
+// ── Plantillas rápidas de anotación ──────────────────────────────────────────
+.ev-anot-plantillas {
+  display:   flex;
+  flex-wrap: wrap;
+  gap:       6px;
+  margin-top: 8px;
+}
+
+.ev-anot-chip {
+  display:       inline-flex;
+  align-items:   center;
+  gap:           5px;
+  padding:       3px 10px;
+  border-radius: 999px;
+  border:        1px solid var(--ui-border, rgba(21,27,59,.18));
+  background:    var(--ui-surface, #fff);
+  color:        var(--ui-text, #334155);
+  font-size:     calc(10px * var(--font-size-scale));
+  font-weight:   600;
+  cursor:        pointer;
+  transition:    background .15s, border-color .15s;
+  i { color: $sem-amarillo; font-size: calc(9px * var(--font-size-scale)); }
+  &:hover { background: var(--policia-gradiente-soft, rgba(59,130,246,.08)); border-color: $ev-acc-azul; }
+}
+
+// ── Toggle de alerta sonora ──────────────────────────────────────────────────
+.ev-sound-toggle {
+  position:      absolute;
+  right:         6px;
+  top:           50%;
+  transform:     translateY(-50%);
+  background:    none;
+  border:        none;
+  cursor:        pointer;
+  color:        var(--ui-muted, #94a3b8);
+  padding:       4px;
+  &:hover { color: $ev-acc-azul; }
+}
+.ev-search-wrap { position: relative; }
+
+// ── Banner de escalamiento SLA ───────────────────────────────────────────────
+.ev-sla-banner {
+  display:       flex;
+  align-items:   center;
+  gap:           10px;
+  margin:        0 0 8px;
+  padding:       8px 12px;
+  border-radius: 8px;
+  background:    rgba(239,68,68,.10);
+  border:        1px solid rgba(239,68,68,.3);
+
+  &__icon { color: $sem-rojo; animation: ev-pulse-text 1.4s ease-in-out infinite; }
+  &__text { font-size: calc(11px * var(--font-size-scale)); color: #991b1b; font-weight: 600; }
+}
+
+// ── Resultados de búsqueda backend ───────────────────────────────────────────
+.ev-list--oculta { display: none; }
+
+.ev-search-results {
+  display:        flex;
+  flex-direction: column;
+  gap:            4px;
+  padding:        4px;
+  overflow-y:     auto;
+  flex:           1;
+
+  &__head {
+    font-size:   calc(11px * var(--font-size-scale));
+    font-weight: 800;
+    color:       var(--ui-muted, #64748b);
+    padding:     6px 8px;
+    i { margin-right: 6px; color: $ev-acc-azul; }
+  }
+}
+
+.ev-search-item {
+  display:       flex;
+  align-items:   center;
+  gap:           10px;
+  padding:       8px 10px;
+  border-radius: 8px;
+  border:        1px solid var(--ui-border, rgba(21,27,59,.10));
+  cursor:        pointer;
+  transition:    background .15s;
+
+  &__main { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+  &__meta { font-size: calc(10px * var(--font-size-scale)); color: var(--ui-muted, #64748b); }
+
+  strong { font-size: calc(12px * var(--font-size-scale)); }
+  i.fa-chevron-right { color: var(--ui-muted, #94a3b8); }
+  &:hover { background: var(--policia-gradiente-soft, rgba(59,130,246,.06)); }
+}
+
+.ev-req { color: $sem-rojo; }
+
+// ── Dark mode para todos los elementos nuevos ────────────────────────────────
+html.dark-mode {
+  .ev-hist-panel {
+    background:   rgba(255,255,255,.03);
+    border-color: rgba(255,255,255,.10);
+    &__head { color: rgba(228,231,235,.9); }
+  }
+  .ev-hist-item__meta   { color: rgba(228,231,235,.55); }
+  .ev-hist-item__motivo { color: rgba(228,231,235,.8); }
+
+  .ev-dup-banner__title { color: #fcd34d; }
+  .ev-dup-banner__close { color: #fcd34d; }
+  .ev-dup-item__meta    { color: rgba(228,231,235,.55); }
+
+  .ev-anot-chip {
+    background:   rgba(255,255,255,.05);
+    border-color: rgba(255,255,255,.15);
+    color:        rgba(228,231,235,.85);
+  }
+
+  .ev-sla-banner__text { color: #fca5a5; }
+
+  .ev-confirm-check { background: rgba(239,68,68,.12); }
+
+  .ev-search-item {
+    border-color: rgba(255,255,255,.10);
+    &:hover { background: rgba(255,255,255,.05); }
+  }
+
+  .ev-time-en-estado { color: rgba(228,231,235,.6); }
+  .ev-modal-hint     { color: rgba(228,231,235,.65); }
+}

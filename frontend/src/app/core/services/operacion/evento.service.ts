@@ -84,6 +84,34 @@ export interface DtoCanalItem {
 
 export interface DtoEstadoRequest {
   estado: string;
+  /** Motivo del cambio — obligatorio desde Eventos, queda en cad_pedidos_estado_historial. */
+  motivo?: string;
+}
+
+/** Una fila del historial de cambios de estado de un caso. */
+export interface DtoEstadoHistorialItem {
+  estadoAnterior: string | null;
+  estadoNuevo:    string;
+  motivo:         string | null;
+  username:       string | null;
+  fecha:          string;
+}
+
+/** Caso posiblemente duplicado o con contexto histórico relevante (misma zona/ventana de tiempo). */
+export interface DtoPedidoCercano {
+  id:              string;
+  sitioGraba:      number;
+  codiPedido:      string | null;
+  codiPedido2:     string | null;
+  direCaso:        string | null;
+  ciudad:          string | null;
+  barrio:          string | null;
+  estado:          string | null;
+  prioridad:       string | null;
+  nombLlamante:    string | null;
+  horaCaso:        string | null;
+  distanciaMetros: number;
+  minutosAtras:    number;
 }
 
 /** Código de cierre individual para el módulo Despachador. */
@@ -161,9 +189,55 @@ export class EventoService {
     return this.http.get<DtoPedidoDetalle>(`${this.baseUrl}/${id}`);
   }
 
-  /** Change management state (P=Pendiente, E=En proceso, T=Seguimiento, R=Revisión). */
-  setEstado(id: string, estado: string): Observable<DtoPedidoResult> {
-    return this.http.put<DtoPedidoResult>(`${this.baseUrl}/${id}/estado`, { estado });
+  /**
+   * Change management state (P=Pendiente, E=En proceso, T=Seguimiento, R=Revisión).
+   * motivo es obligatorio — el backend rechaza la solicitud si viene vacío.
+   */
+  setEstado(id: string, estado: string, motivo: string): Observable<DtoPedidoResult> {
+    return this.http.put<DtoPedidoResult>(`${this.baseUrl}/${id}/estado`, { estado, motivo });
+  }
+
+  /** Historial de cambios de estado del caso — quién, cuándo, desde/hacia dónde y por qué. */
+  getEstadoHistorial(id: string): Observable<DtoEstadoHistorialItem[]> {
+    return this.http.get<DtoEstadoHistorialItem[]>(`${this.baseUrl}/${id}/estado-historial`);
+  }
+
+  /** Vincula este caso a otro (padre) — mismo incidente real reportado por llamadas distintas. */
+  vincular(id: string, sitioGraba: number, numeLlamada: number): Observable<DtoPedidoResult> {
+    return this.http.put<DtoPedidoResult>(`${this.baseUrl}/${id}/vincular`, { sitioGraba, numeLlamada });
+  }
+
+  /** Quita el vínculo de este caso con su caso padre. */
+  desvincular(id: string): Observable<DtoPedidoResult> {
+    return this.http.put<DtoPedidoResult>(`${this.baseUrl}/${id}/desvincular`, {});
+  }
+
+  /**
+   * Casos posiblemente duplicados o con contexto histórico relevante — mismo
+   * radio geográfico dentro de una ventana de tiempo (por defecto 7 días).
+   */
+  getDuplicados(id: string, lat: number, lng: number, radioMetros = 300, diasAtras = 7): Observable<DtoPedidoCercano[]> {
+    const params = new HttpParams()
+      .set('lat', lat.toString()).set('lng', lng.toString())
+      .set('radioMetros', radioMetros.toString()).set('diasAtras', diasAtras.toString());
+    return this.http.get<DtoPedidoCercano[]>(`${this.baseUrl}/${id}/duplicados`, { params });
+  }
+
+  /** Usernames que vieron este caso en los últimos 5 minutos (excluyendo al usuario actual). */
+  getPresencia(id: string): Observable<string[]> {
+    return this.http.get<string[]>(`${this.baseUrl}/${id}/presencia`);
+  }
+
+  /**
+   * Búsqueda server-side por dirección, código, llamante, teléfono o número de
+   * evento/llamada — sin el límite de 300 de la cola en vivo, incluye cerrados.
+   * Requiere al menos 3 caracteres.
+   */
+  buscar(texto: string, fuerzaId?: number, sitioGraba?: number): Observable<DtoEventoListItem[]> {
+    let params = new HttpParams().set('texto', texto);
+    if (fuerzaId  != null && fuerzaId  > 0) params = params.set('fuerzaId', fuerzaId.toString());
+    if (sitioGraba != null && sitioGraba > 0) params = params.set('sitioGraba', sitioGraba.toString());
+    return this.http.get<DtoEventoListItem[]>(`${this.baseUrl}/buscar`, { params });
   }
 
   /** Add an annotation / note to an event. */
