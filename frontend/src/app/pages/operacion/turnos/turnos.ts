@@ -895,7 +895,7 @@ export class TurnosComponent implements OnInit, OnDestroy, AfterViewChecked {
         },
         error: (e) => {
           this.cargandoUnidadesSivicc = false;
-          this.errorSivicc = 'Error al consultar SIVICC: ' + (e.error?.message ?? e.message ?? 'Error desconocido.');
+          this.errorSivicc = 'Error al consultar GESPO: ' + (e.error?.message ?? e.message ?? 'Error desconocido.');
         }
       })
     );
