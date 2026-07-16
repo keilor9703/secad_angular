@@ -1405,10 +1405,20 @@ WHERE  m.patrulla_codigo = v.patcod
         {
             var sigla = _tenant.GespoSiglaUnidad;
             if (string.IsNullOrWhiteSpace(sigla) || string.IsNullOrWhiteSpace(_tenant.CodDane))
+            {
+                _logger.LogInformation(
+                    "P_SincronizarGpsBajoDemanda: tenant {CodDane} sin gespo_sigla_unidad configurada — no se sincroniza.",
+                    _tenant.CodDane ?? "?");
                 return 0; // GPS no configurado para este tenant — no hay nada que hacer.
+            }
 
             if (!_gespoCooldown.TryEntrar(_tenant.CodDane, TimeSpan.FromSeconds(6)))
+            {
+                _logger.LogDebug(
+                    "P_SincronizarGpsBajoDemanda: tenant {CodDane} — sincronización omitida (cooldown).",
+                    _tenant.CodDane);
                 return 0; // Otra sincronización de este tenant corrió hace muy poco.
+            }
 
             List<DtoGespoUbicacion> ubicaciones;
             try
@@ -1426,9 +1436,23 @@ WHERE  m.patrulla_codigo = v.patcod
                 return 0;
             }
 
-            if (ubicaciones.Count == 0) return 0;
+            if (ubicaciones.Count == 0)
+            {
+                _logger.LogInformation(
+                    "P_SincronizarGpsBajoDemanda: tenant {CodDane} sigla={Sigla} — Oracle no devolvió ubicaciones.",
+                    _tenant.CodDane, sigla);
+                return 0;
+            }
 
-            return await P_ActualizarUbicacionesGespoAsync(ubicaciones, ct);
+            var actualizados = await P_ActualizarUbicacionesGespoAsync(ubicaciones, ct);
+            if (actualizados == 0)
+                _logger.LogInformation(
+                    "P_SincronizarGpsBajoDemanda: tenant {CodDane} — Oracle devolvió {N} cuadrante(s) pero " +
+                    "0 medios se actualizaron (¿turno sin actividad ahora mismo, o patrulla_codigo no " +
+                    "coincide con CUADRANTE_ID de ningún medio ya importado?).",
+                    _tenant.CodDane, ubicaciones.Count);
+
+            return actualizados;
         }
 
         // ════════════════════════════════════════════════════════════════════════

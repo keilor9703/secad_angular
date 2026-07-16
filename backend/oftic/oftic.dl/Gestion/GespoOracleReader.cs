@@ -44,8 +44,20 @@ namespace Datos.Gestion
         public async Task<List<DtoGespoUbicacion>> LeerUbicacionesActualesAsync(string siglaUnidad, CancellationToken ct)
         {
             var result = new List<DtoGespoUbicacion>();
-            if (!_opts.Enabled || string.IsNullOrWhiteSpace(_opts.ConnectionString) || string.IsNullOrWhiteSpace(siglaUnidad))
+            if (!_opts.Enabled || string.IsNullOrWhiteSpace(_opts.ConnectionString))
+            {
+                _logger.LogInformation(
+                    "[GespoOracleReader] Lectura deshabilitada o sin ConnectionString " +
+                    "(GespoOracle:Enabled={Enabled}) — no se consulta Oracle.", _opts.Enabled);
                 return result;
+            }
+            if (string.IsNullOrWhiteSpace(siglaUnidad))
+            {
+                _logger.LogInformation(
+                    "[GespoOracleReader] siglaUnidad vacía — probablemente " +
+                    "secad_tenants.gespo_sigla_unidad no está configurada para este tenant.");
+                return result;
+            }
 
             using var conn = new OracleConnection(_opts.ConnectionString);
             await conn.OpenAsync(ct);
@@ -55,10 +67,14 @@ namespace Datos.Gestion
             // Nombres de esquema/vista vienen de configuración (no de input de usuario),
             // igual que el resto de sentencias de esquema en el proyecto. El filtro por
             // sigla sí es un bind parameter (viene de secad_tenants, dato de negocio).
+            // UPPER() en ambos lados: la comparación en Oracle es sensible a
+            // mayúsculas/minúsculas por defecto — sin esto, una sigla guardada en
+            // secad_tenants con un case distinto al de SIGLA_PAPA_UNIDAD en Oracle
+            // no matchea NUNCA y la consulta siempre vuelve vacía sin ningún error.
             cmd.CommandText = $@"
 SELECT cuadrante_id, latitud, longitud, fecha, velocidad
 FROM   {_opts.Schema}.{_opts.ViewName}
-WHERE  sigla_papa_unidad = :sigla
+WHERE  UPPER(sigla_papa_unidad) = UPPER(:sigla)
   AND  cuadrante_id IS NOT NULL
   AND  latitud      IS NOT NULL
   AND  longitud     IS NOT NULL
@@ -96,7 +112,7 @@ WHERE  sigla_papa_unidad = :sigla
                 });
             }
 
-            _logger.LogDebug(
+            _logger.LogInformation(
                 "[GespoOracleReader] sigla={Sigla} — {Cantidad} cuadrante(s) leído(s) de Oracle.",
                 siglaUnidad, result.Count);
             return result;
