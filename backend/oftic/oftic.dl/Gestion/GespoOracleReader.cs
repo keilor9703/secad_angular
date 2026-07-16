@@ -87,11 +87,15 @@ WHERE  UPPER(sigla_papa_unidad) = UPPER(:sigla)
             {
                 while (await rdr.ReadAsync(ct))
                 {
+                    // CultureInfo.InvariantCulture explícito es obligatorio acá: Convert.ToDouble
+                    // sin proveedor de formato usa la cultura del hilo/SO del servidor, y en una
+                    // cultura es-* el '.' se interpreta como separador de miles en vez de decimal
+                    // (4.6183887 → 46183887), corrompiendo silenciosamente cada coordenada leída.
                     var cuadranteId = Convert.ToInt64(rdr.GetValue(0)).ToString(CultureInfo.InvariantCulture);
-                    var lat         = Convert.ToDouble(rdr.GetValue(1));
-                    var lng         = Convert.ToDouble(rdr.GetValue(2));
+                    var lat         = Convert.ToDouble(rdr.GetValue(1), CultureInfo.InvariantCulture);
+                    var lng         = Convert.ToDouble(rdr.GetValue(2), CultureInfo.InvariantCulture);
                     var fecha       = rdr.GetDateTime(3);
-                    var velocidad   = rdr.IsDBNull(4) ? (double?)null : Convert.ToDouble(rdr.GetValue(4));
+                    var velocidad   = rdr.IsDBNull(4) ? (double?)null : Convert.ToDouble(rdr.GetValue(4), CultureInfo.InvariantCulture);
 
                     if (!masRecientePorCuadrante.TryGetValue(cuadranteId, out var actual) || fecha > actual.Fecha)
                         masRecientePorCuadrante[cuadranteId] = (lat, lng, velocidad, fecha);
