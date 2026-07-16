@@ -1344,9 +1344,19 @@ SELECT fn_cambiar_estado_medio(
                 lngs[i]    = u.Longitud;
                 vels[i]    = u.VelocidadKmh;
                 rums[i]    = u.RumboGrados;
-                fechas[i]  = DateTime.TryParse(u.FechaGps, null,
-                                 System.Globalization.DateTimeStyles.RoundtripKind, out var dt)
-                             ? dt : DateTimeOffset.UtcNow;
+                // DateTimeOffset.TryParse (no DateTime.TryParse) — u.FechaGps trae un
+                // offset explícito (ej. "-05:00" desde GespoOracleReader). Con
+                // DateTime.TryParse, RoundtripKind convierte ese valor a Kind=Local
+                // usando la zona horaria DEL SERVIDOR .NET, no la que trae el string —
+                // en un servidor configurado en hora Colombia el resultado
+                // "coincidencialmente" queda en -05:00, pero Npgsql exige offset=0
+                // (UTC) para escribir en timestamptz y siempre falla:
+                // "Cannot write DateTimeOffset with Offset=-05:00:00...". Parseando
+                // como DateTimeOffset se preserva el instante exacto sin depender de
+                // la zona horaria del servidor, y ToUniversalTime() deja offset=0.
+                fechas[i]  = DateTimeOffset.TryParse(u.FechaGps, null,
+                                 System.Globalization.DateTimeStyles.RoundtripKind, out var dto)
+                             ? dto.ToUniversalTime() : DateTimeOffset.UtcNow;
             }
 
             await using var conn = await _tenant.DataSource.OpenConnectionAsync(ct);
