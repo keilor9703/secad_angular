@@ -783,8 +783,7 @@
                             <div class="ev-sugerencia-item" [class.ev-sugerencia-item--top]="i === 0">
                               <span class="ev-sugerencia-item__rank">{{ i + 1 }}</span>
                               <div class="ev-sugerencia-item__info">
-                                <strong>{{ s.patrullaCodigo }}</strong>
-                                <span>{{ s.patrullaDesc }}</span>
+                                <strong>{{ nombrePatrulla(s) }}</strong>
                               </div>
                               <span class="ev-sugerencia-item__dist">
                                 {{ s.distanciaM < 1000 ? (s.distanciaM + ' m') : ((s.distanciaM/1000 | number:'1.1-1') + ' km') }}
@@ -836,10 +835,7 @@
                                 <i [class]="iconoTipo(r.tipoMedio) + ' ev-recmap-item__icon'"
                                    [title]="etiquetaTipoMedio(r.tipoMedio)"></i>
                                 <div class="ev-recmap-item__info">
-                                  <strong class="ev-recmap-item__nombre">{{ r.patrullaCodigo }}</strong>
-                                  @if (r.patrullaDesc && r.patrullaDesc !== r.patrullaCodigo) {
-                                    <span class="ev-recmap-item__desc">{{ r.patrullaDesc }}</span>
-                                  }
+                                  <strong class="ev-recmap-item__nombre">{{ nombrePatrulla(r) }}</strong>
                                   <span class="ev-recmap-item__personal">{{ r.personalResumen || 'Sin personal asignado' }}</span>
                                 </div>
                                 <span class="ev-gps-dot" [class.ev-gps-dot--on]="r.gpsActivo"

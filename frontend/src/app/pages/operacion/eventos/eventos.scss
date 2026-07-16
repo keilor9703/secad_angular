@@ -751,7 +751,7 @@ html.dark-mode .ev-no-canal-banner {
 
   // El mapa es el centro de atención del panel de recursos — bastante más
   // grande que el mini-mapa de "solo consulta" que tenía antes.
-  &--lg { height: 480px; }
+  &--lg { height: 680px; }
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -783,7 +783,7 @@ html.dark-mode .ev-no-canal-banner {
   display:        flex;
   flex-direction: column;
   gap:            5px;
-  height:         480px;
+  height:         680px;
   overflow-y:     auto;
   padding:        6px;
   border:         1px solid var(--ui-border, rgba(21,27,59,.12));
@@ -791,7 +791,7 @@ html.dark-mode .ev-no-canal-banner {
   background:     rgba(21,27,59,.015);
 
   @media (max-width: 900px) {
-    height: 220px;
+    height: 280px;
   }
 }
 

@@ -1384,6 +1384,24 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
     return this.turnosSvc.estimarEtaMin(distanciaKm, tipoMedio as any);
   }
 
+  /**
+   * Nombre de la patrulla que ve el operador — el identificador oficial del
+   * cuadrante (patrullaDesc, p.ej. "EMEBOGC03E08C13027"), NO el código interno
+   * (patrullaCodigo, p.ej. "8254"), que no le interesa al despachador.
+   */
+  nombrePatrulla(r: { patrullaDesc?: string; patrullaCodigo?: string }): string {
+    return (r.patrullaDesc && r.patrullaDesc.trim()) ? r.patrullaDesc : (r.patrullaCodigo ?? '');
+  }
+
+  /**
+   * Número corto de cuadrante para la etiqueta del marcador en el mapa —
+   * los últimos 2 caracteres del nombre (EMEBOGC03E08C13027 → "27").
+   */
+  numeroCuadrante(r: { patrullaDesc?: string; patrullaCodigo?: string }): string {
+    const nombre = this.nombrePatrulla(r);
+    return nombre.length >= 2 ? nombre.slice(-2) : nombre;
+  }
+
   // ─── Recursos en turno ───────────────────────────────────────────────────────
 
   /**
@@ -1423,13 +1441,9 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
               r.distanciaKm = (r.lat != null && r.lng != null)
                 ? this.haversineKm(lat0, lng0, r.lat, r.lng) : undefined;
             });
-            // Ordenar: libres primero, luego por distancia
-            this.recursos.sort((a, b) => {
-              const libre = (x: DtoMedioDisponibleResumen) => x.estado === 27 ? 0 : 1;
-              const df = libre(a) - libre(b);
-              if (df !== 0) return df;
-              return (a.distanciaKm ?? 9999) - (b.distanciaKm ?? 9999);
-            });
+            // Ordenar SOLO por distancia — la posición de cada patrulla es estable
+            // aunque cambie de estado (al asignarla no debe saltar al final).
+            this.recursos.sort((a, b) => (a.distanciaKm ?? 9999) - (b.distanciaKm ?? 9999));
           }
           this.actualizarSugerenciasLlegada();
           this.actualizarMarcadoresRecursos();
@@ -1998,13 +2012,8 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
             r.distanciaKm = (r.lat != null && r.lng != null)
               ? this.haversineKm(lat0, lng0, r.lat, r.lng) : undefined;
           });
-          // Libres primero, luego por distancia
-          this.recursos.sort((a, b) => {
-            const libre = (x: DtoMedioDisponibleResumen) => x.estado === 27 ? 0 : 1;
-            const df = libre(a) - libre(b);
-            if (df !== 0) return df;
-            return (a.distanciaKm ?? 9999) - (b.distanciaKm ?? 9999);
-          });
+          // Ordenar SOLO por distancia — posición estable al cambiar de estado.
+          this.recursos.sort((a, b) => (a.distanciaKm ?? 9999) - (b.distanciaKm ?? 9999));
         }
         this.actualizarMarcadoresRecursos();
         this.cdr.markForCheck();
@@ -2066,7 +2075,7 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
         background:rgba(21,27,59,.78);padding:1px 7px;border-radius:5px;
         margin-top:3px;text-align:center;white-space:nowrap;
         box-shadow:0 1px 3px rgba(0,0,0,.4);">
-        ${this.escapeHtml(r.patrullaCodigo)}
+        ${this.escapeHtml(this.numeroCuadrante(r))}
       </div>`,
       iconSize:   [34, 56],
       iconAnchor: [17, 17],
@@ -2081,7 +2090,7 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
 
     const titulo = document.createElement('div');
     titulo.className = 'ev-map-popup__title';
-    titulo.textContent = r.patrullaCodigo;
+    titulo.textContent = this.nombrePatrulla(r);
     box.appendChild(titulo);
 
     const estado = document.createElement('div');
