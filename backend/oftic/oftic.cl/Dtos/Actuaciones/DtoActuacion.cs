@@ -91,6 +91,8 @@ public class DtoActuacionListItem
     public int?    CanalCodigo     { get; set; }
     public int?    FuerzaId        { get; set; }
     public string? UnidadAsignada  { get; set; }
+    /// <summary>Nombre legible del cuadrante (patrulla_desc) para mostrar en la UI en vez del código.</summary>
+    public string? UnidadDesc      { get; set; }
     public string  Estado          { get; set; } = "";
     public string  FechaCreacion   { get; set; } = "";
     public string? FechaDespacho   { get; set; }

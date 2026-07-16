@@ -87,6 +87,8 @@ export interface DtoActuacionListItem {
   canalCodigo?:    number;
   fuerzaId?:       number;
   unidadAsignada?: string;
+  /** Nombre legible del cuadrante (patrulla_desc) — se muestra en la UI en vez del código. */
+  unidadDesc?:     string;
   estado:          EstadoActuacion;
   fechaCreacion:   string;
   fechaDespacho?:  string;

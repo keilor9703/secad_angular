@@ -978,7 +978,7 @@
                           <div class="ev-dispatch-row__head">
                             <strong class="ev-dispatch-row__unidad">
                               <i class="fa-solid fa-car-side"></i>
-                              {{ act.unidadAsignada || '—' }}
+                              {{ nombreUnidad(act) }}
                             </strong>
                             <span class="ev-dispatch-badge"
                                   [ngClass]="claseEstadoActuacion(act.estado)">
@@ -1448,7 +1448,7 @@
         @if (actuacionACerrar) {
           <div class="ev-modal-act-info">
             <i class="fa-solid fa-car-side"></i>
-            <strong>{{ actuacionACerrar.unidadAsignada || '—' }}</strong>
+            <strong>{{ nombreUnidad(actuacionACerrar) }}</strong>
             @if (actuacionACerrar.canalDesc) {
               <span class="ev-modal-act-ts">· {{ actuacionACerrar.canalDesc }}</span>
             }
@@ -1751,7 +1751,7 @@
         @if (actuacionADesasignar) {
           <div class="ev-modal-act-info">
             <i class="fa-solid fa-car-side"></i>
-            Recurso: <strong>{{ actuacionADesasignar.unidadAsignada || '—' }}</strong>
+            Recurso: <strong>{{ nombreUnidad(actuacionADesasignar) }}</strong>
             <span class="ev-modal-act-ts">
               Asignado: {{ actuacionADesasignar.fechaCreacion }}
             </span>
@@ -1832,7 +1832,7 @@
         @if (actuacionNovedad) {
           <div class="ev-modal-act-info">
             <i class="fa-solid fa-car-side"></i>
-            Recurso: <strong>{{ actuacionNovedad.unidadAsignada || '—' }}</strong>
+            Recurso: <strong>{{ nombreUnidad(actuacionNovedad) }}</strong>
             <span class="ev-dispatch-badge" [ngClass]="claseEstadoActuacion(actuacionNovedad.estado)"
                   style="margin-left:8px">
               {{ etiquetaEstadoActuacion(actuacionNovedad.estado) }}

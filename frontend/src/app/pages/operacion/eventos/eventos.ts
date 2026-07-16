@@ -1402,6 +1402,14 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
     return nombre.length >= 2 ? nombre.slice(-2) : nombre;
   }
 
+  /**
+   * Nombre del cuadrante para una actuación del timeline de despacho —
+   * usa unidadDesc (patrulla_desc) y cae al código solo si no hay nombre.
+   */
+  nombreUnidad(act: { unidadDesc?: string; unidadAsignada?: string }): string {
+    return (act.unidadDesc && act.unidadDesc.trim()) ? act.unidadDesc : (act.unidadAsignada ?? '—');
+  }
+
   // ─── Recursos en turno ───────────────────────────────────────────────────────
 
   /**

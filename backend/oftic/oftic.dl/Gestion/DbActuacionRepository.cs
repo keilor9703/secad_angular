@@ -60,7 +60,15 @@ SELECT a.id, a.evento_id,
        a.canal_codigo,         -- col 15
        a.fuerza_id,            -- col 16
        a.solicita_apoyo,       -- col 17
-       TO_CHAR(a.fecha_solicita_apoyo AT TIME ZONE 'America/Bogota','{TsFormat}')  -- col 18
+       TO_CHAR(a.fecha_solicita_apoyo AT TIME ZONE 'America/Bogota','{TsFormat}'),  -- col 18
+       -- col 19: nombre del cuadrante (patrulla_desc) para la unidad asignada —
+       -- a.unidad_asignada guarda el código; acá se resuelve el nombre legible.
+       (SELECT md.patrulla_desc
+          FROM cad_medios_disponibles md
+         WHERE md.patrulla_codigo = a.unidad_asignada
+           AND (a.fuerza_id IS NULL OR md.fuerza_id = a.fuerza_id)
+         ORDER BY md.id DESC
+         LIMIT 1)                            AS unidad_desc
 FROM   cad_actuaciones a
 LEFT   JOIN cad_fuerzas f ON f.id     = a.fuerza_id
 LEFT   JOIN cad_canales c ON c.codigo = a.canal_codigo AND c.cadfuerz_id = a.fuerza_id
@@ -104,7 +112,8 @@ ORDER  BY
                     CanalCodigo         = rdr.IsDBNull(15) ? null : rdr.GetInt32(15),
                     FuerzaId            = rdr.IsDBNull(16) ? null : rdr.GetInt32(16),
                     SolicitaApoyo       = !rdr.IsDBNull(17) && rdr.GetBoolean(17),
-                    FechaSolicitaApoyo  = rdr.IsDBNull(18) ? null : rdr.GetString(18)
+                    FechaSolicitaApoyo  = rdr.IsDBNull(18) ? null : rdr.GetString(18),
+                    UnidadDesc          = rdr.IsDBNull(19) ? null : rdr.GetString(19)
                 });
             return result;
         }
