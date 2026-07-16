@@ -62,13 +62,10 @@ namespace Api.Middleware
                         await context.Response.WriteAsJsonAsync(new { message = "Tenant no autorizado." });
                         return;
                     }
+                    // GetOrCreate ya cachea sitio_graba/gespo_sigla_unidad junto con el pool.
                     dataSource       = poolManager.GetOrCreate(tenant);
                     sitioGrabaTenant = tenant.SitioGraba;
                     gespoSigla       = tenant.GespoSiglaUnidad;
-
-                    // Cachear sitio_graba y sigla GESPO del tenant junto con el DataSource
-                    poolManager.SetSitioGraba(codDane, tenant.SitioGraba);
-                    poolManager.SetGespoSigla(codDane, tenant.GespoSiglaUnidad);
                 }
                 else
                 {

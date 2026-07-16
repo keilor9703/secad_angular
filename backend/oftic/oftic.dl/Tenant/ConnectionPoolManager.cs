@@ -18,6 +18,15 @@ namespace Datos.Tenant
 
         public NpgsqlDataSource GetOrCreate(DtoTenant tenant)
         {
+            // Todo caller de GetOrCreate ya tiene un DtoTenant recién leído de la BD maestra —
+            // sembrar acá sitio_graba/gespo_sigla_unidad garantiza que, sin importar cuál de los
+            // callers (TenantMiddleware, login, health monitor) sea el primero en tocar este
+            // tenant en el proceso, los cachés queden poblados. De lo contrario, cualquier caller
+            // que solo llame GetOrCreate (sin los Set* explícitos) deja el pool en estado de
+            // "cache hit" para siempre con esos valores en null, sin que la BD maestra se vuelva
+            // a consultar jamás para ese tenant.
+            _sitiosGraba[tenant.CodDane] = tenant.SitioGraba;
+            _gespoSiglas[tenant.CodDane] = tenant.GespoSiglaUnidad;
             return _pools.GetOrAdd(tenant.CodDane, _ => BuildDataSource(tenant));
         }
 
