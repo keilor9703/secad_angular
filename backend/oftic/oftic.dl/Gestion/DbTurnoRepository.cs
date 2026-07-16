@@ -1325,7 +1325,27 @@ SELECT fn_cambiar_estado_medio(
         public async Task<int> P_ActualizarUbicacionesGespoAsync(
             IEnumerable<DtoGespoUbicacion> ubicaciones, CancellationToken ct)
         {
-            var lista = ubicaciones.Where(u => !string.IsNullOrWhiteSpace(u.PatrullaCodigo)).ToList();
+            // Filtra valores fuera del rango físico real (y del rango que las
+            // columnas NUMERIC pueden almacenar: latitud/longitud NUMERIC(10,7),
+            // velocidad_kmh NUMERIC(6,2)) — un solo fix GPS corrupto/absurdo no
+            // debe tumbar el UPDATE en lote de TODAS las patrullas con "22003:
+            // desbordamiento de campo numeric". Se descarta esa fila puntual y se
+            // sigue con el resto.
+            var lista = ubicaciones
+                .Where(u => !string.IsNullOrWhiteSpace(u.PatrullaCodigo))
+                .Where(u =>
+                {
+                    var valido = Math.Abs(u.Latitud) <= 90 && Math.Abs(u.Longitud) <= 180
+                              && (u.VelocidadKmh is null || Math.Abs(u.VelocidadKmh.Value) < 9999.99)
+                              && (u.RumboGrados  is null || Math.Abs(u.RumboGrados.Value)  < 999.99);
+                    if (!valido)
+                        _logger.LogWarning(
+                            "P_ActualizarUbicacionesGespo: descartando fix GPS fuera de rango — " +
+                            "patrulla={Pat} lat={Lat} lng={Lng} vel={Vel} rumbo={Rumbo}",
+                            u.PatrullaCodigo, u.Latitud, u.Longitud, u.VelocidadKmh, u.RumboGrados);
+                    return valido;
+                })
+                .ToList();
             if (lista.Count == 0) return 0;
 
             // Antes: un UPDATE por posición GPS (N round-trips por lote de GESPO).
@@ -1454,7 +1474,24 @@ WHERE  m.patrulla_codigo = v.patcod
                 return 0;
             }
 
-            var actualizados = await P_ActualizarUbicacionesGespoAsync(ubicaciones, ct);
+            int actualizados;
+            try
+            {
+                actualizados = await P_ActualizarUbicacionesGespoAsync(ubicaciones, ct);
+            }
+            catch (Exception ex)
+            {
+                // Igual que con Oracle: es un tick de fondo, no una acción que el
+                // usuario disparó a propósito — un problema puntual escribiendo en
+                // Postgres (ej. un valor fuera de rango que igual se filtra en
+                // P_ActualizarUbicacionesGespoAsync, pero por si acaso) no debe
+                // mostrarle un error 500 crudo al operador.
+                _logger.LogWarning(ex,
+                    "P_SincronizarGpsBajoDemanda: error escribiendo ubicaciones en Postgres (tenant={CodDane}).",
+                    _tenant.CodDane);
+                return 0;
+            }
+
             if (actualizados == 0)
                 _logger.LogInformation(
                     "P_SincronizarGpsBajoDemanda: tenant {CodDane} — Oracle devolvió {N} cuadrante(s) pero " +
