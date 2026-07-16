@@ -814,7 +814,7 @@
 }
 
 <!-- ══════════════════════════════════════════════════════════════
-     MODAL: Importar desde SIVICC
+     MODAL: Importar desde GESPO
      ══════════════════════════════════════════════════════════════ -->
 @if (modalSivicc) {
   <div class="ui-modal" (click)="cerrarModalSivicc()">
@@ -823,7 +823,7 @@
       <div class="ui-modal__head">
         <div class="ui-modal__title">
           <i class="fa-solid fa-file-import"></i>
-          Importar desde minuta SIVICC
+          Importar desde minuta GESPO
         </div>
         <button class="ui-icon-btn" type="button" (click)="cerrarModalSivicc()" aria-label="Cerrar">
           <i class="fa-solid fa-xmark"></i>
@@ -832,11 +832,11 @@
 
       <div class="ui-modal__body">
 
-        <!-- ── Paso 1: Consultando unidades en SIVICC ── -->
+        <!-- ── Paso 1: Consultando unidades en GESPO ── -->
         @if (cargandoUnidadesSivicc) {
           <div class="tr-sivicc-loading">
             <span class="tr-spinner"></span>
-            <span>Consultando unidades en SIVICC…</span>
+            <span>Consultando unidades en GESPO</span>
           </div>
         }
 
@@ -851,7 +851,7 @@
         @if (!cargandoUnidadesSivicc && !errorSivicc && unidadesSivicc.length > 0) {
 
           <p class="tr-modal-hint">
-            Se encontraron <strong>{{ unidadesSivicc.length }}</strong> unidad(es) en la minuta SIVICC
+            Se encontraron <strong>{{ unidadesSivicc.length }}</strong> unidad(es) en la minuta GESPO
             para este turno. Selecciona las que deseas importar.
           </p>
 
@@ -927,7 +927,7 @@
           <div class="tr-empty-state">
             <i class="fa-solid fa-circle-info"></i>
             <span>
-              No se encontraron unidades en SIVICC para este turno.<br>
+              No se encontraron unidades en GESPO para este turno.<br>
               <small>Verifique que la sigla de la fuerza y la fecha del turno coincidan con la minuta vigente.</small>
             </span>
           </div>
