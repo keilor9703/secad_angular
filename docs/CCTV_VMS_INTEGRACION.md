@@ -10,6 +10,9 @@
 > *"cámaras integradas vía VMS"*, y responsabilidad de la Policía Nacional de
 > *"habilitar APIs de los sistemas institucionales (GESPO, VMS, ARCGIS) y proveer
 > credenciales"*. Es decir: mismo patrón que GESPO.
+>
+> **Diseño técnico concreto del piloto (Tunja, HikCentral OpenAPI V3.1.0):**
+> ver `docs/CCTV_HIKCENTRAL_DISENO_TECNICO.md`.
 
 ---
 
