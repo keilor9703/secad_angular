@@ -15,12 +15,19 @@ import {
   DtoAgenciaExternaRequest,
   TIPOS_AGENCIA
 } from '../../../core/services/operacion/agencia-externa.service';
+import {
+  CamaraIntegracionService,
+  DtoCamaraIntegracion,
+  DtoCamaraIntegracionRequest,
+  DtoVmsDriverDescriptor
+} from '../../../core/services/administracion/camara-integracion.service';
 import { ToastService } from '../../../core/services/toast.service';
 import { AuthService }   from '../../../core/auth/auth.service';
 
-type Tab     = 'salientes' | 'entrantes' | 'auditoria';
+type Tab     = 'salientes' | 'entrantes' | 'camaras' | 'auditoria';
 type ModalT  = 'saliente-create' | 'saliente-edit'
              | 'entrante-create' | 'entrante-edit'
+             | 'camara-create'   | 'camara-edit'
              | 'payload-viewer'  | null;
 
 @Component({
@@ -148,6 +155,20 @@ export class IntegracionesComponent implements OnInit {
   formEntPayload  = '';
   editEntId       = '';
 
+  // ── Tab Cámaras (integraciones VMS) ─────────────────────────────────────────
+  camaras:        DtoCamaraIntegracion[] = [];
+  loadingCam      = false;
+  drivers:        DtoVmsDriverDescriptor[] = [];
+  /** Driver seleccionado en el formulario (para pintar sus campos). */
+  camDriver:      DtoVmsDriverDescriptor | null = null;
+  /** Valores del formulario dinámico (config + secretos), por key de campo. */
+  camForm:        Record<string, string> = {};
+  camNombre       = '';
+  camDescripcion  = '';
+  camActiva       = true;
+  editCamId       = '';
+  camPrueba       = '';        // resultado de "validar configuración"
+
   // ── Tab Auditoría ───────────────────────────────────────────────────────────
   audTab:       'salientes' | 'entrantes' = 'salientes';
   audSalientes: DtoDespachoAuditoria[]   = [];
@@ -167,6 +188,7 @@ export class IntegracionesComponent implements OnInit {
   constructor(
     private svc:        IntegracionesService,
     private agSvc:      AgenciaExternaService,
+    private camSvc:     CamaraIntegracionService,
     private toast:      ToastService,
     private auth:       AuthService
   ) {
@@ -184,6 +206,10 @@ export class IntegracionesComponent implements OnInit {
     this.tab = t;
     if (t === 'auditoria' && !this.audSalientes.length && !this.audEntrantes.length)
       this.loadAuditoria();
+    if (t === 'camaras') {
+      if (!this.drivers.length) this.loadDrivers();
+      this.loadCamaras();
+    }
   }
 
   setAudTab(t: 'salientes' | 'entrantes'): void {
@@ -379,6 +405,123 @@ export class IntegracionesComponent implements OnInit {
       : '{}';
     this.modal = 'payload-viewer';
     document.body.classList.add('ui-modal-open');
+  }
+
+  // ════════════════════════════════════════════════════════════════════════════
+  //  TAB CÁMARAS (integraciones VMS)
+  // ════════════════════════════════════════════════════════════════════════════
+
+  loadDrivers(): void {
+    this.camSvc.getDrivers().subscribe({
+      next:  d => { this.drivers = d; },
+      error: () => { this.toast.error('Error', 'No se pudieron cargar los drivers de VMS.'); }
+    });
+  }
+
+  loadCamaras(): void {
+    this.loadingCam = true;
+    this.camSvc.getAll().subscribe({
+      next:  d => { this.camaras = d; this.loadingCam = false; },
+      error: () => { this.loadingCam = false; this.toast.error('Error', 'No se pudieron cargar las integraciones de cámaras.'); }
+    });
+  }
+
+  /** Campo actual del driver seleccionado (para el template). */
+  get camCampos() { return this.camDriver?.campos ?? []; }
+
+  onCamDriverChange(driverId: string): void {
+    this.camDriver = this.drivers.find(d => d.driver === driverId) ?? null;
+    // Reiniciar valores del formulario a los campos del nuevo driver.
+    this.camForm = {};
+    for (const c of this.camDriver?.campos ?? []) this.camForm[c.key] = '';
+  }
+
+  openCreateCam(): void {
+    this.editCamId      = '';
+    this.camNombre      = '';
+    this.camDescripcion = '';
+    this.camActiva      = true;
+    this.camPrueba      = '';
+    this.camDriver      = null;
+    this.camForm        = {};
+    if (!this.drivers.length) this.loadDrivers();
+    this.modal = 'camara-create';
+    document.body.classList.add('ui-modal-open');
+  }
+
+  openEditCam(c: DtoCamaraIntegracion): void {
+    this.editCamId      = c.id;
+    this.camNombre      = c.nombre;
+    this.camDescripcion = c.descripcion ?? '';
+    this.camActiva      = c.activa;
+    this.camPrueba      = '';
+    this.camDriver      = this.drivers.find(d => d.driver === c.driver) ?? null;
+    // Cargar valores no secretos; los secretos quedan vacíos (write-only).
+    this.camForm = {};
+    for (const campo of this.camDriver?.campos ?? [])
+      this.camForm[campo.key] = campo.secreto ? '' : (c.config[campo.key] ?? '');
+    this.modal = 'camara-edit';
+    document.body.classList.add('ui-modal-open');
+  }
+
+  /** Arma el request separando config (no secreto) de secretos. */
+  private buildCamRequest(): DtoCamaraIntegracionRequest {
+    const config: Record<string, string> = {};
+    const secretos: Record<string, string> = {};
+    for (const campo of this.camDriver?.campos ?? []) {
+      const v = (this.camForm[campo.key] ?? '').trim();
+      if (campo.secreto) { if (v) secretos[campo.key] = v; }
+      else               { config[campo.key] = v; }
+    }
+    return {
+      nombre:      this.camNombre.trim(),
+      descripcion: this.camDescripcion.trim() || undefined,
+      driver:      this.camDriver?.driver ?? '',
+      config,
+      secretos,
+      activa:      this.camActiva
+    };
+  }
+
+  probarCam(): void {
+    if (!this.camDriver) { this.toast.warning('Cámaras', 'Seleccione un driver.'); return; }
+    this.camSvc.validar(this.buildCamRequest()).subscribe({
+      next:  r => { this.camPrueba = r.mensaje; if (r.ok) this.toast.success('Validación', r.mensaje); else this.toast.warning('Validación', r.mensaje); },
+      error: e => { this.camPrueba = e.error?.mensaje ?? 'Error al validar.'; }
+    });
+  }
+
+  saveCam(): void {
+    if (!this.camNombre.trim()) { this.toast.warning('Cámaras', 'El nombre es obligatorio.'); return; }
+    if (!this.camDriver)        { this.toast.warning('Cámaras', 'Seleccione un driver.'); return; }
+    this.saving = true;
+    const req = this.buildCamRequest();
+    const obs = this.editCamId
+      ? this.camSvc.actualizar(this.editCamId, req)
+      : this.camSvc.crear(req);
+    obs.subscribe({
+      next: r => {
+        this.saving = false;
+        if (r.success) { this.toast.success('Cámaras', r.message); this.closeModal(); this.loadCamaras(); }
+        else           { this.toast.warning('Cámaras', r.message); }
+      },
+      error: e => { this.saving = false; this.toast.error('Cámaras', e.error?.message ?? 'Error al guardar.'); }
+    });
+  }
+
+  toggleCam(c: DtoCamaraIntegracion): void {
+    this.camSvc.toggle(c.id).subscribe({
+      next:  () => { c.activa = !c.activa; },
+      error: () => { this.toast.error('Cámaras', 'No se pudo cambiar el estado.'); }
+    });
+  }
+
+  deleteCam(c: DtoCamaraIntegracion): void {
+    if (!confirm(`¿Eliminar la integración de cámaras "${c.nombre}"? Esto también quita su catálogo de cámaras.`)) return;
+    this.camSvc.eliminar(c.id).subscribe({
+      next:  r => { if (r.success) { this.toast.success('Cámaras', r.message); this.loadCamaras(); } },
+      error: () => { this.toast.error('Cámaras', 'No se pudo eliminar.'); }
+    });
   }
 
   // ════════════════════════════════════════════════════════════════════════════

@@ -851,3 +851,75 @@ html.dark-mode {
     &--ok    { background: rgba(22,163,74,.10); color: rgba(228,231,235,.65); }
   }
 }
+
+// ── Tab Cámaras (integraciones VMS) ───────────────────────────────────────────
+.integ-req { color: #dc2626; }
+
+.integ-table-wrap { overflow-x: auto; }
+
+.integ-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+
+  th, td {
+    padding: 10px 12px;
+    text-align: left;
+    border-bottom: 1px solid var(--ui-border, rgba(21,27,59,.1));
+    vertical-align: middle;
+  }
+  th { font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: rgba(21,27,59,.5); }
+  tbody tr:hover { background: rgba(8,166,203,.05); }
+
+  .integ-sub { display: block; font-size: 11px; color: rgba(21,27,59,.55); }
+}
+
+.integ-badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 2px 9px; border-radius: 999px;
+  background: rgba(59,130,246,.12); color: #2563eb;
+  font-size: 11px; font-weight: 700;
+}
+
+.integ-mono { font-family: ui-monospace, monospace; font-size: 12px; color: rgba(21,27,59,.7); }
+
+.integ-estado {
+  display: inline-block; padding: 2px 10px; border-radius: 999px;
+  font-size: 11px; font-weight: 700;
+  &--on  { background: rgba(22,163,74,.14);  color: #15803d; }
+  &--off { background: rgba(107,114,128,.16); color: #4b5563; }
+}
+
+.integ-driver-fields {
+  border: 1px dashed var(--ui-border, rgba(21,27,59,.18));
+  border-radius: 10px;
+  padding: 12px;
+  margin: 8px 0;
+  display: flex; flex-direction: column; gap: 12px;
+}
+
+.integ-check {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 13px; font-weight: 600; margin-top: 10px; cursor: pointer;
+  input { cursor: pointer; }
+}
+
+.integ-prueba {
+  margin-top: 10px; padding: 8px 10px; border-radius: 8px;
+  background: rgba(59,130,246,.08); color: #1e40af; font-size: 12px;
+  i { margin-right: 6px; }
+}
+
+html.dark-mode {
+  .integ-table {
+    th { color: rgba(228,231,235,.5); }
+    th, td { border-bottom-color: rgba(255,255,255,.08); }
+    tbody tr:hover { background: rgba(255,255,255,.04); }
+    .integ-sub { color: rgba(228,231,235,.55); }
+  }
+  .integ-mono   { color: rgba(228,231,235,.7); }
+  .integ-badge  { background: rgba(59,130,246,.2); color: #93c5fd; }
+  .integ-estado--off { background: rgba(255,255,255,.1); color: rgba(228,231,235,.6); }
+  .integ-driver-fields { border-color: rgba(255,255,255,.15); }
+  .integ-prueba { background: rgba(59,130,246,.15); color: #bfdbfe; }
+}

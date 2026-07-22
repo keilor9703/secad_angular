@@ -192,6 +192,10 @@ builder.Services.AddScoped<IDbAdjuntoService,    DbAdjuntoService>();
 builder.Services.AddScoped<IDbIntegracionRepository, DbIntegracionRepository>();
 builder.Services.AddScoped<IDbIntegracionService,    DbIntegracionService>();
 
+// Integración de Cámaras (VMS) — configurable por el administrador
+builder.Services.AddScoped<IDbCamaraIntegracionRepository, DbCamaraIntegracionRepository>();
+builder.Services.AddScoped<IDbCamaraIntegracionService,    DbCamaraIntegracionService>();
+
 // Módulo Reportes y Estadísticas (§6.16)
 builder.Services.AddScoped<IDbReporteRepository, DbReporteRepository>();
 builder.Services.AddScoped<IDbReporteService,    DbReporteService>();

@@ -27,6 +27,12 @@
       Integraciones Entrantes
       <span class="integ-tab__badge">{{ entrantes.length }}</span>
     </button>
+    <button class="integ-tab" [class.integ-tab--active]="tab === 'camaras'"
+            (click)="setTab('camaras')">
+      <i class="fa-solid fa-video"></i>
+      Cámaras (VMS)
+      <span class="integ-tab__badge">{{ camaras.length }}</span>
+    </button>
     <button class="integ-tab" [class.integ-tab--active]="tab === 'auditoria'"
             (click)="setTab('auditoria')">
       <i class="fa-solid fa-clock-rotate-left"></i>
@@ -389,6 +395,82 @@
         </div>
       }
 
+    </div>
+  }
+
+  <!-- ══════════════════════════════════════════════════════════════════════════
+       TAB: CÁMARAS (integraciones VMS)
+       Configura la conexión a un VMS (HikCentral, ONVIF/RTSP…) por municipio
+       ══════════════════════════════════════════════════════════════════════════ -->
+  @if (tab === 'camaras') {
+    <div class="integ-panel">
+
+      <div class="integ-panel__toolbar">
+        <div class="integ-panel__desc">
+          <i class="fa-solid fa-circle-info"></i>
+          Integraciones a sistemas de video (VMS) para ver cámaras cercanas a un evento.
+          Elija el driver de la marca (HikCentral, ONVIF/RTSP genérico…) y configure la conexión — sin tocar el código.
+        </div>
+        <button class="ui-btn primary sm" (click)="openCreateCam()">
+          <i class="fa-solid fa-plus"></i>
+          Nueva integración
+        </button>
+      </div>
+
+      @if (loadingCam) {
+        <div class="integ-empty"><i class="fa-solid fa-spinner fa-spin"></i> Cargando…</div>
+      } @else if (camaras.length === 0) {
+        <div class="integ-empty">
+          <i class="fa-solid fa-video-slash"></i>
+          <p>No hay integraciones de cámaras configuradas.</p>
+        </div>
+      } @else {
+        <div class="integ-table-wrap">
+          <table class="integ-table">
+            <thead>
+              <tr>
+                <th>Nombre</th>
+                <th>Driver / VMS</th>
+                <th>URL</th>
+                <th style="text-align:center">Cámaras</th>
+                <th style="text-align:center">Estado</th>
+                <th style="text-align:right">Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (c of camaras; track c.id) {
+                <tr>
+                  <td>
+                    <strong>{{ c.nombre }}</strong>
+                    @if (c.descripcion) { <span class="integ-sub">{{ c.descripcion }}</span> }
+                  </td>
+                  <td>
+                    <span class="integ-badge"><i class="fa-solid fa-server"></i> {{ c.driverNombre }}</span>
+                  </td>
+                  <td class="integ-mono">{{ c.baseUrl || '—' }}</td>
+                  <td style="text-align:center">{{ c.totalCamaras }}</td>
+                  <td style="text-align:center">
+                    <span class="integ-estado" [class.integ-estado--on]="c.activa" [class.integ-estado--off]="!c.activa">
+                      {{ c.activa ? 'Activa' : 'Inactiva' }}
+                    </span>
+                  </td>
+                  <td style="text-align:right">
+                    <button class="ui-icon-btn" title="Editar" (click)="openEditCam(c)">
+                      <i class="fa-solid fa-pen"></i>
+                    </button>
+                    <button class="ui-icon-btn" [title]="c.activa ? 'Desactivar' : 'Activar'" (click)="toggleCam(c)">
+                      <i class="fa-solid" [class.fa-toggle-on]="c.activa" [class.fa-toggle-off]="!c.activa"></i>
+                    </button>
+                    <button class="ui-icon-btn danger" title="Eliminar" (click)="deleteCam(c)">
+                      <i class="fa-solid fa-trash"></i>
+                    </button>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
     </div>
   }
 
@@ -947,6 +1029,117 @@
           }
         </span>
         <button class="ui-btn ghost" (click)="closeModal()">Cerrar</button>
+      </div>
+
+    </div>
+  </div>
+}
+
+<!-- ══════════════════════════════════════════════════════════════════════════
+     MODAL: Crear / Editar integración de cámaras (VMS) — formulario dinámico
+     ══════════════════════════════════════════════════════════════════════════ -->
+@if (modal === 'camara-create' || modal === 'camara-edit') {
+  <div class="ui-modal" (click)="closeModal()">
+    <div class="ui-modal__dialog integ-modal" (click)="$event.stopPropagation()">
+
+      <div class="ui-modal__head">
+        <div class="ui-modal__title">
+          <i class="fa-solid fa-video"></i>
+          {{ modal === 'camara-edit' ? 'Editar integración de cámaras' : 'Nueva integración de cámaras' }}
+        </div>
+        <button class="ui-icon-btn" (click)="closeModal()"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+
+      <div class="ui-modal__body integ-form">
+
+        <div class="ui-field">
+          <label class="ui-label">Nombre <span class="integ-req">*</span></label>
+          <input class="ui-control" [(ngModel)]="camNombre" placeholder="Ej: HikCentral Tunja">
+        </div>
+
+        <div class="ui-field">
+          <label class="ui-label">Descripción</label>
+          <input class="ui-control" [(ngModel)]="camDescripcion" placeholder="Opcional">
+        </div>
+
+        <!-- Selección de driver / marca -->
+        <div class="ui-field">
+          <label class="ui-label">Proveedor / Driver <span class="integ-req">*</span></label>
+          <select class="ui-control"
+                  [ngModel]="camDriver?.driver || ''"
+                  (ngModelChange)="onCamDriverChange($event)"
+                  [disabled]="modal === 'camara-edit'">
+            <option value="">— Seleccione el VMS —</option>
+            @for (d of drivers; track d.driver) {
+              <option [value]="d.driver">{{ d.nombre }}</option>
+            }
+          </select>
+          @if (camDriver) {
+            <p class="integ-hint">
+              {{ camDriver.descripcion }}
+              @if (camDriver.requiereGateway) {
+                <br><i class="fa-solid fa-triangle-exclamation"></i>
+                Requiere un media gateway (go2rtc/MediaMTX) para llevar el video al navegador.
+              }
+            </p>
+          }
+        </div>
+
+        <!-- Campos dinámicos del driver -->
+        @if (camDriver) {
+          <div class="integ-driver-fields">
+            @for (campo of camCampos; track campo.key) {
+              <div class="ui-field">
+                <label class="ui-label">
+                  {{ campo.nombre }}
+                  @if (campo.requerido) { <span class="integ-req">*</span> }
+                  @if (campo.secreto && modal === 'camara-edit') {
+                    <span class="integ-hint"> — Vacío = mantener actual</span>
+                  }
+                </label>
+
+                @if (campo.tipo === 'select') {
+                  <select class="ui-control" [(ngModel)]="camForm[campo.key]">
+                    <option value="">—</option>
+                    @for (op of campo.opciones || []; track op) {
+                      <option [value]="op">{{ op }}</option>
+                    }
+                  </select>
+                } @else if (campo.tipo === 'textarea') {
+                  <textarea class="ui-control" rows="2" [(ngModel)]="camForm[campo.key]"
+                            [placeholder]="campo.ejemplo || ''"></textarea>
+                } @else {
+                  <input class="ui-control"
+                         [type]="campo.tipo === 'password' ? 'password' : (campo.tipo === 'number' ? 'number' : 'text')"
+                         [(ngModel)]="camForm[campo.key]"
+                         [placeholder]="campo.ejemplo || ''"
+                         [attr.autocomplete]="campo.secreto ? 'new-password' : null">
+                }
+                @if (campo.ayuda) { <p class="integ-hint">{{ campo.ayuda }}</p> }
+              </div>
+            }
+          </div>
+        }
+
+        <label class="integ-check">
+          <input type="checkbox" [(ngModel)]="camActiva"> Integración activa
+        </label>
+
+        @if (camPrueba) {
+          <div class="integ-prueba"><i class="fa-solid fa-circle-info"></i> {{ camPrueba }}</div>
+        }
+      </div>
+
+      <div class="ui-modal__foot" style="gap:8px">
+        <button class="ui-btn ghost" [disabled]="!camDriver" (click)="probarCam()">
+          <i class="fa-solid fa-vial-circle-check"></i> Validar configuración
+        </button>
+        <span style="flex:1"></span>
+        <button class="ui-btn ghost" (click)="closeModal()">Cancelar</button>
+        <button class="ui-btn primary" [disabled]="saving || !camDriver" (click)="saveCam()">
+          <i class="fa-solid fa-floppy-disk"></i>
+          {{ saving ? 'Guardando…' : 'Guardar' }}
+        </button>
       </div>
 
     </div>
