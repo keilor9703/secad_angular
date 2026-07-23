@@ -5,6 +5,9 @@
     "ng": "ng",
     "start": "ng serve --proxy-config proxy.conf.json",
     "build": "ng build",
+    "build:mfa": "ng build @policia/mfa",
+    "pack:mfa": "ng build @policia/mfa && npm pack ./dist/policia-mfa",
+    "publish:mfa": "ng build @policia/mfa && npm publish ./dist/policia-mfa",
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
     "check:a11y": "powershell -ExecutionPolicy Bypass -File ./check-accessibility.ps1",
@@ -48,6 +51,7 @@
     "karma-coverage": "~2.2.0",
     "karma-jasmine": "~5.1.0",
     "karma-jasmine-html-reporter": "~2.1.0",
+    "ng-packagr": "^20.3.2",
     "patch-package": "^8.0.1",
     "typescript": "~5.9.2"
   },

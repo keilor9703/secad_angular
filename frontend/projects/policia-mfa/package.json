@@ -1,0 +1,29 @@
+{
+  "name": "@policia/mfa",
+  "version": "1.0.0",
+  "description": "Librería Angular para consumir la API de doble autenticación (2FA) institucional de la Policía Nacional: servicio, modelos y las modales de UI (enroll/verify/reset/blocked/svcdown) con el mismo diseño y lógica que SECAD.",
+  "keywords": [
+    "angular",
+    "mfa",
+    "2fa",
+    "totp",
+    "otp",
+    "autenticacion",
+    "policia"
+  ],
+  "license": "UNLICENSED",
+  "sideEffects": false,
+  "publishConfig": {
+    "registry": "https://registro-npm.policia.gov.co/",
+    "access": "restricted"
+  },
+  "peerDependencies": {
+    "@angular/common": "^20.2.0",
+    "@angular/core": "^20.2.0",
+    "@angular/forms": "^20.2.0",
+    "@angular/platform-browser": "^20.2.0"
+  },
+  "dependencies": {
+    "tslib": "^2.3.0"
+  }
+}

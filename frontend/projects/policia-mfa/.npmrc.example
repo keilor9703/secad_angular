@@ -1,0 +1,13 @@
+# .npmrc.example — configuración para publicar/instalar @policia/mfa
+# desde el registro npm privado de la Policía Nacional.
+#
+# Copie este archivo como `.npmrc` (en la raíz del proyecto consumidor o en el
+# home del usuario/CI) y reemplace la URL y el token por los reales.
+# NUNCA versione un `.npmrc` con un token real.
+
+# 1) Enrutar el scope @policia al registro privado (instalación y publicación).
+@policia:registry=https://registro-npm.policia.gov.co/
+
+# 2) Token de acceso al registro privado. Recomendado inyectarlo por variable de
+#    entorno en CI (p. ej. NPM_TOKEN) en vez de escribirlo en texto plano.
+//registro-npm.policia.gov.co/:_authToken=${NPM_TOKEN}

@@ -4,7 +4,7 @@ import { provideHttpClient, withInterceptors, withXsrfConfiguration } from '@ang
 import { routes } from './app.routes';
 import { authInterceptor } from './core/interceptors/auth.interceptor';
 import { environment } from '../environments/environment';
-import { providePoliciaMfa } from './libs/policia-mfa/public-api';
+import { providePoliciaMfa } from '@policia/mfa';
 
 export const appConfig: ApplicationConfig = {
   providers: [

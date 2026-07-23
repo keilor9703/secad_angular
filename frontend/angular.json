@@ -103,6 +103,29 @@
           }
         }
       }
+    },
+    "@policia/mfa": {
+      "projectType": "library",
+      "root": "projects/policia-mfa",
+      "sourceRoot": "projects/policia-mfa/src",
+      "prefix": "pmfa",
+      "architect": {
+        "build": {
+          "builder": "@angular/build:ng-packagr",
+          "options": {
+            "project": "projects/policia-mfa/ng-package.json"
+          },
+          "configurations": {
+            "production": {
+              "tsConfig": "projects/policia-mfa/tsconfig.lib.prod.json"
+            },
+            "development": {
+              "tsConfig": "projects/policia-mfa/tsconfig.lib.json"
+            }
+          },
+          "defaultConfiguration": "production"
+        }
+      }
     }
   },
   "cli": {

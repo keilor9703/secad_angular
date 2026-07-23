@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
 import { AuthService } from '../../core/auth/auth.service';
-import { MfaLoginChallenge, PoliciaMfaFlowComponent } from '../../libs/policia-mfa/public-api';
+import { MfaLoginChallenge, PoliciaMfaFlowComponent } from '@policia/mfa';
 import { LoginVisualPublicItem, LoginVisualService } from '../../core/services/administracion/login-visual.service';
 import { BrandingService } from '../../core/services/administracion/branding.service';
 
