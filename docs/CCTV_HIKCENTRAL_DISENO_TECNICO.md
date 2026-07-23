@@ -54,6 +54,61 @@ navegador ↔ HikCentral (Streaming Media Server).
 
 ---
 
+## 2.1 Arquitectura de despliegue — control central / datos en el edge
+
+**Restricción de red confirmada:** por seguridad (segmentación VLAN), los
+servidores centrales de Bogotá **NO alcanzan** las redes de cámaras de los
+municipios. Las redes involucradas en el piloto:
+
+| Componente | Red | ¿Alcanza a las cámaras (172.19)? |
+|---|---|---|
+| Cámaras / HikCentral (Tunja) | `172.19.x.x` | — |
+| SECAD **edge** (Tunja, misma sede que las cámaras) | `172.26.x.x` | ✅ **Sí (confirmado)** |
+| SECAD central (Bogotá) | `172.28.x.x` | ❌ No (ni debe) |
+| Navegador del operador (Tunja) | red local Tunja | según VLAN operador↔cámaras |
+
+El operador está en Tunja y su **navegador es local**, pero el SECAD que usa es el
+**central de Bogotá**. Por eso se separa:
+
+- **Plano de control (Bogotá):** login, eventos, despacho, **configuración** de la
+  integración (tab Cámaras), **catálogo** de cámaras + coordenadas, cálculo de
+  "cámaras cercanas" (metadata) y auditoría. Es texto liviano; replica al edge.
+- **Plano de datos (edge Tunja):** la **llamada a HikCentral** (`previewURLs`,
+  firmada con AK/SK) y el **video**. Corre en el edge, único que alcanza `172.19`
+  y donde vive el AppSecret (nunca en el navegador ni en Bogotá).
+
+**Por qué el edge es imprescindible aunque el operador use el SECAD central:**
+minar la URL del stream requiere (a) alcanzar la red de cámaras y (b) firmar con
+el secreto. Bogotá no puede (a); el navegador no debe hacer (b). → lo hace el edge.
+
+```
+Navegador (Tunja) ──── control / metadata (JSON) ────▶  SECAD central (Bogotá, 172.28)
+      │
+      │  "dame la URL de la cámara X"
+      ▼
+Servicio de cámaras en el EDGE (Tunja, 172.26) ──firma AK/SK──▶ HikCentral (172.19)
+      │  (devuelve URL HLS efímera)
+      ▼
+Navegador (Tunja) ──── baja el video (HLS) ────▶ HikCentral SMS (Tunja, 172.19)
+```
+
+El video **nunca cruza a Bogotá**; a Bogotá solo va texto.
+
+**Dos variantes según la VLAN local** (a confirmar con conectividad):
+- Si el **navegador del operador alcanza `172.19`** → baja el HLS directo; el edge
+  solo acuña la URL.
+- Si **no** lo alcanza (solo el edge sí) → el edge además **relaya** el video
+  (proxy/media gateway local en `172.26`) y el navegador baja del edge. Sigue
+  siendo todo local a Tunja.
+
+**Implicación de implementación:** el runtime del driver (`HikCentralVmsDriver`)
+se ejecuta en el **nodo edge**, leyendo la configuración replicada desde el
+central. La configuración de cada integración (tabla `cad_camara_integracion`)
+identifica el nodo/edge que la atiende; el frontend dirige las operaciones de
+video a ese edge, no a Bogotá.
+
+---
+
 ## 3. Autenticación — AK/SK (sección 3.2 del manual)
 
 HikCentral usa **AK/SK digest authentication** (HMAC-SHA256). Por cada petición:
