@@ -1,6 +1,7 @@
 import { Component, OnDestroy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { DomSanitizer, SafeUrl } from '@angular/platform-browser';
 import { Router, RouterModule } from '@angular/router';
 import { AuthService } from '../../core/auth/auth.service';
 import { MfaService, MfaLoginChallenge, MfaStepResponse } from '../../core/services/auth/mfa.service';
@@ -48,6 +49,12 @@ export class LoginComponent implements OnInit, OnDestroy {
   mfaQrBase64   = '';
   mfaManualKey  = '';
   mfaEnrollToken = '';
+  /**
+   * Enlace otpauth:// para agregar la cuenta con un toque cuando SECAD se abre
+   * en el mismo celular que tiene la app de autenticación (no se puede escanear
+   * la propia pantalla). Se calcula al recibir la clave manual.
+   */
+  mfaOtpauthUri: SafeUrl | null = null;
 
   // ── Bloqueo ───────────────────────────────────────────────────────────────
   mfaBloqueoHasta = '';
@@ -79,8 +86,24 @@ export class LoginComponent implements OnInit, OnDestroy {
     private mfaService:         MfaService,
     private router:             Router,
     private loginVisualService: LoginVisualService,
-    private brandingService:    BrandingService
+    private brandingService:    BrandingService,
+    private sanitizer:          DomSanitizer
   ) {}
+
+  /**
+   * Construye el enlace estándar otpauth://totp/... a partir de la clave manual.
+   * Al tocarlo en un celular, la app de autenticación (Google/Microsoft
+   * Authenticator, Authy…) se abre y agrega la cuenta sin escanear el QR.
+   */
+  private buildOtpauthUri(): void {
+    if (!this.mfaManualKey) { this.mfaOtpauthUri = null; return; }
+    const secret = this.mfaManualKey.replace(/\s+/g, '').toUpperCase();
+    const issuer = 'SECAD';
+    const label  = encodeURIComponent(`${issuer}:${(this.usuario || 'usuario').trim()}`);
+    const uri    = `otpauth://totp/${label}?secret=${secret}&issuer=${encodeURIComponent(issuer)}&digits=6&period=30`;
+    // otpauth:// no está en la lista blanca de Angular → hay que marcarla como segura.
+    this.mfaOtpauthUri = this.sanitizer.bypassSecurityTrustUrl(uri);
+  }
 
   ngOnInit(): void {
     this.loadBranding();
@@ -198,6 +221,7 @@ export class LoginComponent implements OnInit, OnDestroy {
       this.mfaQrBase64    = challenge.mfaQrBase64    ?? '';
       this.mfaManualKey   = challenge.mfaManualKey   ?? '';
       this.mfaEnrollToken = challenge.mfaEnrollToken ?? '';
+      this.buildOtpauthUri();
       this.openModal('enroll');
     } else if (mode === 'verify') {
       this.openModal('verify');
@@ -350,6 +374,7 @@ export class LoginComponent implements OnInit, OnDestroy {
         this.mfaQrBase64    = r.qrBase64    ?? '';
         this.mfaManualKey   = r.manualKey   ?? '';
         this.mfaEnrollToken = r.enrollToken ?? '';
+        this.buildOtpauthUri();
         this.clearOtp();
         this.mfaError  = '';
         this.mfaInfo   = 'MFA restablecido. Escanee el nuevo QR para activar su autenticador.';

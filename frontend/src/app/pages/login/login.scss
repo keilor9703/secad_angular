@@ -428,6 +428,32 @@ body, input, button, textarea, select, label, p, h1, h2, h3, h4, h5, h6, a, span
     border:        1px solid rgba(205, 255, 0, .2);
 }
 
+// ── Botón "un toque" para móvil (otpauth://) ─────────────────────────────────
+.mfa-otpauth-btn {
+    display:        inline-flex;
+    align-items:    center;
+    gap:            8px;
+    margin-top:     12px;
+    padding:        9px 14px;
+    border-radius:  var(--ui-radius-sm, 10px);
+    border:         1px solid var(--ui-border, rgba(21,27,59,.18));
+    background:     var(--ui-surface, #fff);
+    color:          var(--policia-oscuro, #151b3b);
+    font-size:      .82rem;
+    font-weight:    600;
+    text-decoration: none;
+    cursor:         pointer;
+    transition:     background .15s, border-color .15s;
+
+    i { color: var(--policia-azul, #2563eb); }
+    &:hover { background: var(--policia-gradiente-soft, rgba(37,99,235,.08)); border-color: var(--policia-azul, #2563eb); }
+}
+html.dark-mode .mfa-otpauth-btn {
+    background:   rgba(255,255,255,.05);
+    border-color: rgba(255,255,255,.15);
+    color:        rgba(228,231,235,.9);
+}
+
 // ── OTP boxes — mismos estilos de foco que .ui-control ───────────────────────
 
 .mfa-otp-wrap {

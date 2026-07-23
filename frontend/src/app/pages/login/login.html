@@ -98,6 +98,14 @@
           <p class="mfa-step-label mfa-step-label--sm">Clave manual (no la comparta)</p>
           <code class="mfa-manual-key">{{ mfaManualKey }}</code>
         </div>
+
+        <!-- Un toque para agregar la cuenta cuando SECAD se abre en el mismo
+             celular que tiene la app de autenticación (no se puede escanear la
+             propia pantalla). -->
+        <a *ngIf="mfaOtpauthUri" class="mfa-otpauth-btn" [href]="mfaOtpauthUri">
+          <i class="fa-solid fa-mobile-screen-button"></i>
+          ¿En un celular? Toque para agregarla a su app
+        </a>
       </div>
 
       <!-- Columna derecha: OTP -->
