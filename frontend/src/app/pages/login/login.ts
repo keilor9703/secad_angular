@@ -4,7 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { DomSanitizer, SafeUrl } from '@angular/platform-browser';
 import { Router, RouterModule } from '@angular/router';
 import { AuthService } from '../../core/auth/auth.service';
-import { MfaService, MfaLoginChallenge, MfaStepResponse } from '../../core/services/auth/mfa.service';
+import { MfaService, MfaLoginChallenge, MfaStepResponse } from '../../libs/policia-mfa/public-api';
 import { LoginVisualPublicItem, LoginVisualService } from '../../core/services/administracion/login-visual.service';
 import { BrandingService } from '../../core/services/administracion/branding.service';
 

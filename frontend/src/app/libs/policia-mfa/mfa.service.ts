@@ -1,45 +1,31 @@
-import { Injectable } from '@angular/core';
+import { Injectable, Inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { environment } from '../../../../environments/environment';
+import { POLICIA_MFA_CONFIG, PoliciaMfaConfig } from './mfa.config';
+import { MfaStepResponse } from './mfa.models';
 
-// ─── Respuesta del primer paso (POST /api/Cuenta/Token cuando requiere MFA) ──
-
-export interface MfaLoginChallenge {
-  success:         false;
-  requiresMfa:     true;
-  /** 'enroll' | 'verify' | 'blocked' | 'svcdown' */
-  mfaMode:         string;
-  mfaSessionToken?: string;
-  mfaQrBase64?:    string;
-  mfaManualKey?:   string;
-  mfaEnrollToken?: string;
-  bloqueoHasta?:   string;
-  message?:        string;
-}
-
-// ─── Respuesta de los pasos MFA intermedios ───────────────────────────────────
-
-export interface MfaStepResponse {
-  success:      boolean;
-  message:      string;
-  /** JWT definitivo — presente solo cuando success=true y el 2FA quedó completo. */
-  token?:       string;
-  bloqueoHasta?: string;
-  isInfo?:      boolean;
-  /** QR para abrir modal de enrolamiento tras un reset exitoso. */
-  qrBase64?:    string;
-  manualKey?:   string;
-  enrollToken?: string;
-}
-
+/**
+ * Cliente del flujo de doble autenticación institucional (@policia/mfa).
+ *
+ * Consume los endpoints MFA del backend del propio sistema
+ * (.../{controlador}/MfaVerify, MfaEnrollConfirm, MfaResetRequest,
+ * MfaResetConfirm), que a su vez se integran con la API 2FA central de la
+ * Policía. La URL y el controlador se toman de la configuración inyectada,
+ * así la misma librería sirve para cualquier sistema.
+ */
 @Injectable({ providedIn: 'root' })
 export class MfaService {
 
-  private readonly base      = `${environment.apiBaseUrl}/Cuenta`;
-  private readonly deviceKey = 'secad_mfa_device';
+  private readonly base: string;
+  private readonly deviceKey: string;
 
-  constructor(private http: HttpClient) {}
+  constructor(
+    private http: HttpClient,
+    @Inject(POLICIA_MFA_CONFIG) private cfg: Required<PoliciaMfaConfig>,
+  ) {
+    this.base      = `${this.cfg.apiBaseUrl}/${this.cfg.controlador}`;
+    this.deviceKey = this.cfg.deviceStorageKey;
+  }
 
   // ── Gestión del deviceId ──────────────────────────────────────────────────
 
