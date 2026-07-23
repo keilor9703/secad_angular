@@ -7,3 +7,4 @@
 export * from './mfa.config';
 export * from './mfa.models';
 export * from './mfa.service';
+export * from './flow/mfa-flow.component';
