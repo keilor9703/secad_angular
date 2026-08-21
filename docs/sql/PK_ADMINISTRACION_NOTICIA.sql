@@ -47,7 +47,7 @@ CREATE INDEX IDX_NOTICIAS_FECHA     ON CTR_NOTICIAS(FECHA_CREACION DESC);
 INSERT INTO CTR_NOTICIAS (UNIDAD, TITULO, SECCION, CIUDAD, IMAGEN_NOTICIA, SUBTITULO, CONTENIDO, VIGENTE, USUARIO_CREACION, MAQUINA_CREACION)
 VALUES (
     'Policía Nacional',
-    'Actualización del sistema SISGE',
+    'Actualización del sistema SECAD',
     'Comunicado',
     'Bogotá',
     'noticia1.jpg',
@@ -89,12 +89,12 @@ VALUES (
 INSERT INTO CTR_NOTICIAS (UNIDAD, TITULO, SECCION, CIUDAD, IMAGEN_NOTICIA, SUBTITULO, CONTENIDO, VIGENTE, USUARIO_CREACION, MAQUINA_CREACION)
 VALUES (
     'OFTIC',
-    'SISGE - Sistema de Gestión Institucional',
+    'SECAD - Sistema de Gestión Institucional',
     'Comunicado',
     'Nacional',
-    'sisge-sistema.jpg',
+    'secad-sistema.jpg',
     'Nueva plataforma tecnológica para la gestión de información policial',
-    '<p>La Oficina de Tecnologías de la Información y las Comunicaciones (OFTIC) presenta el nuevo Sistema de Gestión Institucional (SISGE), una plataforma tecnológica diseñada para optimizar la administración de información dentro de la Policía Nacional.</p><p><strong>Características principales:</strong></p><ul><li>Gestión centralizada de dominios organizacionales</li><li>Administración de línea de mando</li><li>Sliders y contenido multimedia institucional</li><li>Radioemisoras en línea</li><li>Videos institucionales y de unidad</li><li>Control de acceso basado en roles</li></ul><p>Este sistema representa un avance significativo en la digitalización de nuestros procesos internos, permitiendo una gestión más eficiente y transparente de la información.</p><p>Para acceder al sistema, utilize sus credenciales institucionales. Si requiere asistencia técnica, contacte a la Oficina de Tecnologías de la Información.</p>',
+    '<p>La Oficina de Tecnologías de la Información y las Comunicaciones (OFTIC) presenta el nuevo Sistema de Gestión Institucional (SECAD), una plataforma tecnológica diseñada para optimizar la administración de información dentro de la Policía Nacional.</p><p><strong>Características principales:</strong></p><ul><li>Gestión centralizada de dominios organizacionales</li><li>Administración de línea de mando</li><li>Sliders y contenido multimedia institucional</li><li>Radioemisoras en línea</li><li>Videos institucionales y de unidad</li><li>Control de acceso basado en roles</li></ul><p>Este sistema representa un avance significativo en la digitalización de nuestros procesos internos, permitiendo una gestión más eficiente y transparente de la información.</p><p>Para acceder al sistema, utilize sus credenciales institucionales. Si requiere asistencia técnica, contacte a la Oficina de Tecnologías de la Información.</p>',
     1,
     'sistema',
     'SERVIDOR-OFTIC'

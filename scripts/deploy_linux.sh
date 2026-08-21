@@ -19,7 +19,7 @@ WEB_TAR="${WEB_TAR:-/tmp/web-release.tar.gz}"
 PORT="${PORT:-8088}"
 STAMP="$(date +%F_%H%M%S)"
 
-echo "== SISGE deploy (Linux) =="
+echo "== SECAD deploy (Linux) =="
 echo "API dir:   $API_DIR"
 echo "WEB dir:   $WWW_DIR"
 echo "API tar:   $API_TAR"

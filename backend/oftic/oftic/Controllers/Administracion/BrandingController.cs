@@ -10,8 +10,8 @@ namespace ofic.Controllers.Administracion
 {
     public class BrandingConfig
     {
-        public string sistema { get; set; } = "SISGE";
-        public string nombreSistema { get; set; } = "SISGE";
+        public string sistema { get; set; } = "SECAD";
+        public string nombreSistema { get; set; } = "SECAD";
         public string? logoFileName { get; set; } = null;
         public string? faviconFileName { get; set; } = null;
     }
@@ -163,8 +163,8 @@ namespace ofic.Controllers.Administracion
                 EnsureStorage();
                 var cfg = ReadConfig();
 
-                var sistema = (request.sistema ?? cfg.sistema ?? "SISGE").Trim();
-                var nombreSistema = (request.nombreSistema ?? cfg.nombreSistema ?? "SISGE").Trim();
+                var sistema = (request.sistema ?? cfg.sistema ?? "SECAD").Trim();
+                var nombreSistema = (request.nombreSistema ?? cfg.nombreSistema ?? "SECAD").Trim();
 
                 if (string.IsNullOrWhiteSpace(sistema))
                 {
@@ -352,7 +352,7 @@ namespace ofic.Controllers.Administracion
                             var hasNombreSistema = root.TryGetProperty("nombreSistema", out _);
                             if (!hasNombreSistema && root.TryGetProperty("systemName", out var legacySystemName))
                             {
-                                cfg.nombreSistema = legacySystemName.GetString() ?? "SISGE";
+                                cfg.nombreSistema = legacySystemName.GetString() ?? "SECAD";
                             }
                         }
                         catch
@@ -360,13 +360,13 @@ namespace ofic.Controllers.Administracion
                             // If legacy parse fails, fallback defaults below keep config usable.
                         }
 
-                        cfg.sistema = string.IsNullOrWhiteSpace(cfg.sistema) ? "SISGE" : cfg.sistema.Trim();
+                        cfg.sistema = string.IsNullOrWhiteSpace(cfg.sistema) ? "SECAD" : cfg.sistema.Trim();
                         if (cfg.sistema.Length > 10)
                         {
                             cfg.sistema = cfg.sistema[..10];
                         }
 
-                        cfg.nombreSistema = string.IsNullOrWhiteSpace(cfg.nombreSistema) ? "SISGE" : cfg.nombreSistema.Trim();
+                        cfg.nombreSistema = string.IsNullOrWhiteSpace(cfg.nombreSistema) ? "SECAD" : cfg.nombreSistema.Trim();
                         if (cfg.nombreSistema.Length > 50)
                         {
                             cfg.nombreSistema = cfg.nombreSistema[..50];
@@ -396,8 +396,8 @@ namespace ofic.Controllers.Administracion
                 
                 var safe = new BrandingConfig
                 {
-                    sistema = string.IsNullOrWhiteSpace(config.sistema) ? "SISGE" : config.sistema.Trim(),
-                    nombreSistema = string.IsNullOrWhiteSpace(config.nombreSistema) ? "SISGE" : config.nombreSistema.Trim(),
+                    sistema = string.IsNullOrWhiteSpace(config.sistema) ? "SECAD" : config.sistema.Trim(),
+                    nombreSistema = string.IsNullOrWhiteSpace(config.nombreSistema) ? "SECAD" : config.nombreSistema.Trim(),
                     logoFileName = string.IsNullOrWhiteSpace(config.logoFileName) ? null : Path.GetFileName(config.logoFileName),
                     faviconFileName = string.IsNullOrWhiteSpace(config.faviconFileName) ? null : Path.GetFileName(config.faviconFileName)
                 };
@@ -423,14 +423,14 @@ namespace ofic.Controllers.Administracion
 
         private static string ResolveStoragePath(string contentRootPath)
         {
-            var configured = Environment.GetEnvironmentVariable("SISGE_BRANDING_PATH");
+            var configured = Environment.GetEnvironmentVariable("SECAD_BRANDING_PATH");
             if (!string.IsNullOrWhiteSpace(configured))
             {
                 return Path.GetFullPath(configured);
             }
 
             // Backward-compatibility: previous Windows-like relative folder accidentally created in Linux publish.
-            var legacyFolder = Path.Combine(contentRootPath, @"C:\SISGE\branding");
+            var legacyFolder = Path.Combine(contentRootPath, @"C:\SECAD\branding");
             if (Directory.Exists(legacyFolder))
             {
                 return legacyFolder;
@@ -438,7 +438,7 @@ namespace ofic.Controllers.Administracion
 
             if (OperatingSystem.IsWindows())
             {
-                return @"C:\SISGE\branding";
+                return @"C:\SECAD\branding";
             }
 
             return "/opt/oftic/uploads/branding";

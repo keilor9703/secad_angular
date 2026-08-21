@@ -1,12 +1,12 @@
 param(
-  [string]$RepoRoot = "C:\Users\Dyck.lopez\source\repos\sisgeNg",
+  [string]$RepoRoot = "C:\Users\Dyck.lopez\source\repos\secad_angular",
   [string]$FrontendProject = "policiadev-app",
   [switch]$SkipNpmCi
 )
 
 $ErrorActionPreference = "Stop"
 
-Write-Host "== SISGE build (Windows) =="
+Write-Host "== SECAD build (Windows) =="
 Write-Host "RepoRoot: $RepoRoot"
 
 $backendProject = Join-Path $RepoRoot "backend\oftic\oftic\Api.csproj"

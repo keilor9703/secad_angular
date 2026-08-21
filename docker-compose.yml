@@ -5,8 +5,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: sisge-api:latest
-    container_name: sisge-api
+    image: secad-api:latest
+    container_name: secad-api
     ports:
       - "8088:8088"
     environment:

@@ -1,6 +1,6 @@
-# Deploy SISGE (Windows + Linux/OL7)
+# Deploy SECAD (Windows + Linux/OL7)
 
-Guía rápida para compilar, empaquetar y publicar SISGE en producción usando los scripts del repositorio.
+Guía rápida para compilar, empaquetar y publicar SECAD en producción usando los scripts del repositorio.
 
 ## Requisitos
 
@@ -30,7 +30,7 @@ Guía rápida para compilar, empaquetar y publicar SISGE en producción usando l
 Desde la raíz del repo:
 
 ```powershell
-cd C:\Users\Dyck.lopez\source\repos\sisgeNg
+cd C:\Users\Dyck.lopez\source\repos\secad_angular
 .\scripts\build_windows.ps1
 ```
 
@@ -50,7 +50,7 @@ Esto hace:
 ### Opción con ruta de repo diferente
 
 ```powershell
-.\scripts\build_windows.ps1 -RepoRoot "D:\repos\sisgeNg"
+.\scripts\build_windows.ps1 -RepoRoot "D:\repos\secad_angular"
 ```
 
 ---

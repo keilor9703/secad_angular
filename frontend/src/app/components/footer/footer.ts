@@ -20,7 +20,7 @@ interface FooterStation {
   styleUrl: './footer.scss',
 })
 export class FooterComponent implements OnInit, OnDestroy {
-  systemName = 'SISGE';
+  systemName = 'SECAD';
   systemDisplayName = 'Sistema de gestion de Policia';
   isPlaying = false;
   errorMessage = '';

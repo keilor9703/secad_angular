@@ -1,4 +1,4 @@
-# SISGE - API de Integración
+# SECAD - API de Integración
 
 Este documento describe los endpoints públicos disponibles para consumo desde sistemas externos.
 
@@ -179,7 +179,7 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 
 @Injectable({ providedIn: 'root' })
-export class SisgeApiService {
+export class SecadApiService {
   private baseUrl = 'http://172.28.9.181:8088';
 
   constructor(private http: HttpClient) {}

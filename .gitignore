@@ -15,6 +15,9 @@ frontend/.sass-cache/
 frontend/connect.lock
 frontend/libpeerconnection.log
 frontend/testem.log
+frontend/audit.json
+frontend/audit_debug.json
+frontend/audit_final.json
 
 # =====================
 # BACKEND (.NET 8)
@@ -45,6 +48,7 @@ backend/*.zip
 # IDEs y editores
 # =====================
 .idea/
+.vs/
 .vscode/*
 !.vscode/settings.json
 !.vscode/tasks.json

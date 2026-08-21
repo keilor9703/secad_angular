@@ -1,9 +1,9 @@
-# SISGE - Guía de Despliegue
+# SECAD - Guía de Despliegue
 
 ## Estructura del Proyecto
 
 ```
-sisgeNg/
+secad_angular/
 ├── backend/          # API .NET 8
 ├── frontend/         # Angular 17
 └── docker/          # Configuración para contenedores
@@ -60,8 +60,8 @@ ssh usuario@servidor
 sudo yum install -y git
 
 # 3. Clonar el repositorio
-git clone https://github.com/tu-usuario/sisgeNg.git
-cd sisgeNg/docker
+git clone https://github.com/tu-usuario/secad_angular.git
+cd secad_angular/docker
 
 # 4. Configurar variables de entorno
 cp .env.example .env

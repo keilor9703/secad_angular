@@ -15,7 +15,7 @@ describe('FooterComponent', () => {
         {
           provide: BrandingService,
           useValue: {
-            getPublicConfig: () => of({ systemName: 'SISGE' })
+            getPublicConfig: () => of({ systemName: 'SECAD' })
           }
         }
       ]

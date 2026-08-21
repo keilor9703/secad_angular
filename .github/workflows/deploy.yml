@@ -82,8 +82,8 @@ jobs:
           key: ${{ secrets.SERVER_SSH_KEY }}
           script: |
             # Stop existing container
-            docker stop sisge-api || true
-            docker rm sisge-api || true
+            docker stop secad-api || true
+            docker rm secad-api || true
 
             # Copy artifacts
             cp -r /tmp/api /opt/oftic/api/

@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**SISGE/OFTIC** is a full-stack police administration system for the Colombian National Police (OFTIC unit). It consists of an Angular 20 frontend and an ASP.NET Core 8 backend with Oracle database, featuring JWT authentication integrated with external OUD/PIP identity services.
+**SECAD/OFTIC** is a full-stack police administration system for the Colombian National Police (OFTIC unit). It consists of an Angular 20 frontend and an ASP.NET Core 8 backend with Oracle database, featuring JWT authentication integrated with external OUD/PIP identity services.
 
 ---
 
@@ -33,7 +33,7 @@ npm run test                              # Unit tests with Karma/Jasmine
 ### Docker (recommended for full-stack)
 
 ```bash
-docker-compose up --build -d   # Runs sisge-api on port 8088
+docker-compose up --build -d   # Runs secad-api on port 8088
 docker-compose logs -f
 docker-compose down
 ```

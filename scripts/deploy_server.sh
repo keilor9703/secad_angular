@@ -8,7 +8,7 @@ WEB_TAR="/tmp/web-release.tar.gz"
 PORT=8088
 
 echo "========================================="
-echo "  SISGE DEPLOY - Servidor"
+echo "  SECAD DEPLOY - Servidor"
 echo "========================================="
 
 # Verificar archivos necesarios

@@ -34,8 +34,8 @@ export class ConfiguracionSistemaComponent implements OnInit {
   brandingSaving = false;
   brandingUploading = false;
   brandingUploadingFavicon = false;
-  brandingSistema = 'SISGE';
-  brandingNombreSistema = 'SISGE';
+  brandingSistema = 'SECAD';
+  brandingNombreSistema = 'SECAD';
   brandingLogoFileName: string | null = null;
   brandingLogoUrl: string | null = null;
   brandingFaviconFileName: string | null = null;
@@ -278,8 +278,8 @@ export class ConfiguracionSistemaComponent implements OnInit {
     this.brandingLoading = true;
     this.brandingService.getAdminConfig().subscribe({
       next: (cfg) => {
-        this.brandingSistema = (cfg?.sistema ?? 'SISGE').trim() || 'SISGE';
-        this.brandingNombreSistema = (cfg?.nombreSistema ?? cfg?.systemName ?? 'SISGE').trim() || 'SISGE';
+        this.brandingSistema = (cfg?.sistema ?? 'SECAD').trim() || 'SECAD';
+        this.brandingNombreSistema = (cfg?.nombreSistema ?? cfg?.systemName ?? 'SECAD').trim() || 'SECAD';
         this.brandingLogoFileName = cfg?.logoFileName ?? null;
         this.brandingLogoUrl = cfg?.logoUrl ?? null;
         this.brandingFaviconFileName = cfg?.faviconFileName ?? null;
