@@ -2,7 +2,7 @@
   --accessibility-btn-size: 30px;
   --accessibility-icon-size: 20px;
   --accessibility-gap: 12px;
-  --accessibility-color: #08a6cb;
+  --accessibility-color: var(--policia-cielo);
   --accessibility-hover-color: #1c45b4;
   --accessibility-active-color: #cdff00;
   --accessibility-disabled-color: #c8c8c8;
@@ -14,7 +14,7 @@
 
 :host-context(html.dark-mode) {
   --accessibility-bg: #2a2a3e;
-  --accessibility-color: #08a6cb;
+  --accessibility-color: var(--policia-cielo);
   --accessibility-tooltip-bg: #ffffff;
   --accessibility-tooltip-text: var(--policia-oscuro);
 }

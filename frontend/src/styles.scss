@@ -3,14 +3,6 @@
    ========================================== */
 @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800;900&display=swap');
 
-@font-face {
-  font-family: 'Poppins';
-  font-style: normal;
-  font-weight: 300 700;
-  src: local('Poppins');
-}
-
-
 :root {
   /* --- Paleta Institucional --- */
   --policia-oscuro: #151b3b;
@@ -84,6 +76,26 @@
   /* --- Alias de color semánticos adicionales (modo claro) --- */
   --ui-bg:          #f4f7fa;
   --ui-text-muted:  var(--policia-neutral-medio);
+
+  /* --- Tipografía monoespaciada (radicados, IDs, coordenadas) --- */
+  --font-mono: 'Courier New', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
+  /* ===========================================
+     TOKENS SEMÁNTICOS DE ESTADO
+     ===========================================
+     Antes de estos tokens, cada módulo traía su propio rojo/verde/ámbar
+     ad-hoc (variantes cercanas de la paleta de Tailwind, pero no idénticas
+     entre sí). Usar estos en vez de hex nuevos para que "error" sea el
+     mismo color en Recepción, Reportes, Eventos e Integraciones.
+     =========================================== */
+  --color-success:    #16a34a;
+  --color-success-bg: #dcfce7;
+  --color-danger:     #dc2626;
+  --color-danger-bg:  #fee2e2;
+  --color-warning:    #d97706;
+  --color-warning-bg: #fde68a;
+  --color-info:       #3b82f6;
+  --color-info-bg:    #dbeafe;
 }
 
 /* --- Tema Oscuro --- */
@@ -99,6 +111,16 @@ html.dark-mode {
   /* Aliases adicionales para compatibilidad con módulos */
   --ui-bg:          #0a0f1b;
   --ui-text-muted:  #9ca3af;
+
+  /* --- Tokens semánticos de estado (modo oscuro) --- */
+  --color-success:    #4ade80;
+  --color-success-bg: rgba(34, 197, 94, .15);
+  --color-danger:     #f87171;
+  --color-danger-bg:  rgba(239, 68, 68, .15);
+  --color-warning:    #fbbf24;
+  --color-warning-bg: rgba(217, 119, 6, .18);
+  --color-info:       #93c5fd;
+  --color-info-bg:    rgba(59, 130, 246, .15);
 
   /* Body */
   body {

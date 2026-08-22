@@ -333,7 +333,7 @@
     gap:         3px;
 
     i { font-size: calc(9px * var(--font-size-scale)); }
-    span { font-family: monospace; }
+    span { font-family: var(--font-mono); }
   }
 
   // ─── Título opcional ──────────────────────────────────────

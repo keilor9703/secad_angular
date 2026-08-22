@@ -326,7 +326,7 @@ $radius:         6px;
 
     &.bold    { font-weight: 700; }
     &.secondary { color: #666; font-size: 12px; margin-top: 2px; }
-    &.coords  { font-family: monospace; font-size: 11px; color: #888; }
+    &.coords  { font-family: var(--font-mono); font-size: 11px; color: #888; }
     &.verde   { color: $color-activo; font-weight: 600; }
   }
 }
@@ -546,7 +546,7 @@ $radius:         6px;
   }
 
   .id-valor {
-    font-family: 'Courier New', monospace;
+    font-family: var(--font-mono);
     font-size: 11px;
     color: #333;
     font-weight: 600;

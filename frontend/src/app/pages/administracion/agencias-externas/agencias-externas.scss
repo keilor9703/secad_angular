@@ -182,7 +182,7 @@ code {
 }
 
 .ag-json-area {
-  font-family: 'Courier New', monospace;
+  font-family: var(--font-mono);
   font-size: calc(11.5px * var(--font-size-scale, 1));
   resize: vertical;
 }

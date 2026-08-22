@@ -367,7 +367,7 @@ html.dark-mode .ev-no-canal-banner {
 
   // Evento ya abierto/en gestión (estado='E'): acento fijo, no animado —
   // deliberadamente distinto del destello de "nuevo".
-  &--en-gestion:not(&--nuevo) { border-left: 3px solid #08a6cb; }
+  &--en-gestion:not(&--nuevo) { border-left: 3px solid var(--policia-cielo); }
 
   // Left semáforo strip colour
   &.semaforo-verde    .ev-item__strip { background: $sem-verde; }
@@ -398,7 +398,7 @@ html.dark-mode .ev-no-canal-banner {
     font-size:     calc(11px * var(--font-size-scale));
     font-weight:   600;
     color:         rgba(21,27,59,.55);
-    font-family:   monospace;
+    font-family: var(--font-mono);
     white-space:   nowrap;
     overflow:      hidden;
     text-overflow: ellipsis;
@@ -635,7 +635,7 @@ html.dark-mode .ev-no-canal-banner {
   font-size:   calc(11px * var(--font-size-scale));
   font-weight: 600;
   color:       rgba(21,27,59,.45);
-  font-family: monospace;
+  font-family: var(--font-mono);
 }
 
 // Icon-only back button
@@ -944,7 +944,7 @@ html.dark-mode .ev-no-canal-banner {
   // Dirección del caso: el dato de mayor relevancia operativa
   &--destacado {
     background:    linear-gradient(135deg, rgba(8,166,203,.08), rgba(8,166,203,.02));
-    border-left:   3px solid #08a6cb;
+    border-left:   3px solid var(--policia-cielo);
     border-radius: 8px;
     padding:       9px 14px;
     margin:        2px 0;
@@ -2239,7 +2239,7 @@ html.dark-mode {
   font-size:   calc(12px * var(--font-size-scale));
   color:       var(--ui-text, #1f2937);
 
-  strong { font-weight: 900; color: var(--policia-medio, #08a6cb); white-space: nowrap; }
+  strong { font-weight: 900; color: var(--policia-medio, #002a66); white-space: nowrap; }
 
   &:hover { background: rgba(8,166,203,.08); }
   & + & { border-top: 1px solid rgba(21,27,59,.06); }

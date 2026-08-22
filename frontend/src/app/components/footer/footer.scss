@@ -290,7 +290,7 @@
   border: 1px solid var(--ui-border);
   padding: 2px 6px;
   border-radius: var(--ui-radius-sm);
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-family: var(--font-mono);
   font-size: calc(12px * var(--font-size-scale));
 }
 

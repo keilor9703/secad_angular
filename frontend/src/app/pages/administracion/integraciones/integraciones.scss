@@ -109,14 +109,14 @@
     border-radius: 7px;
     padding:     10px 14px;
 
-    i { flex-shrink:0; margin-top:2px; color: #08a6cb; }
+    i { flex-shrink:0; margin-top:2px; color: var(--policia-cielo); }
 
     code {
       background:   rgba(8,166,203,.12);
       padding:      1px 5px;
       border-radius:3px;
       font-size:    0.85em;
-      font-family:  monospace;
+      font-family: var(--font-mono);
     }
   }
 }
@@ -210,7 +210,7 @@
       padding:      1px 5px;
       border-radius:3px;
       font-size:    0.9em;
-      font-family:  monospace;
+      font-family: var(--font-mono);
       color:        var(--ui-text);
     }
   }
@@ -220,7 +220,7 @@
     padding:      10px 14px;
     background:   rgba(0,0,0,.04);
     border-radius:6px;
-    font-family:  monospace;
+    font-family: var(--font-mono);
     font-size:    calc(11.5px * var(--font-size-scale));
     line-height:  1.6;
     color:        var(--ui-text);
@@ -307,7 +307,7 @@
   }
 
   &__val {
-    font-family:  monospace;
+    font-family: var(--font-mono);
     font-size:    calc(12px * var(--font-size-scale));
     color:        var(--ui-text);
     background:   rgba(8,166,203,.08);
@@ -323,7 +323,7 @@
     line-height:1.4;
 
     code {
-      font-family:  monospace;
+      font-family: var(--font-mono);
       font-size:    0.9em;
       background:   rgba(8,166,203,.1);
       padding:      1px 4px;
@@ -355,7 +355,7 @@
     padding:      1px 5px;
     border-radius:3px;
     font-size:    0.85em;
-    font-family:  monospace;
+    font-family: var(--font-mono);
   }
 }
 
@@ -414,10 +414,10 @@
     gap:         6px;
     font-size:   calc(12px * var(--font-size-scale));
 
-    i { color: #08a6cb; }
+    i { color: var(--policia-cielo); }
 
     code {
-      font-family:  monospace;
+      font-family: var(--font-mono);
       font-size:    0.9em;
       background:   rgba(8,166,203,.08);
       padding:      2px 6px;
@@ -519,7 +519,7 @@
 
 .integ-resp-snippet {
   display:     block;
-  font-family: monospace;
+  font-family: var(--font-mono);
   font-size:   calc(10.5px * var(--font-size-scale));
   line-height: 1.45;
   max-width:   320px;
@@ -591,14 +591,14 @@
 }
 
 .integ-url {
-  font-family:   monospace;
+  font-family: var(--font-mono);
   font-size:     0.8rem;
   color:         var(--ui-text);
   word-break:    break-all;
 }
 
 .integ-id {
-  font-family: monospace;
+  font-family: var(--font-mono);
   font-size:   0.72rem;
   background:  rgba(0,0,0,.04);
   padding:     1px 4px;
@@ -670,7 +670,7 @@
   cursor:      pointer;
   transition:  all .15s;
 
-  &:hover { border-color: rgba(8,166,203,.4); color: #08a6cb; }
+  &:hover { border-color: rgba(8,166,203,.4); color: var(--policia-cielo); }
 
   &--active {
     background:   rgba(8,166,203,.1);
@@ -727,7 +727,7 @@
 .integ-form-field--sg    { flex: 0 0 150px; }
 
 .integ-json-area {
-  font-family: monospace;
+  font-family: var(--font-mono);
   font-size:   calc(12px * var(--font-size-scale));
   resize:      vertical;
 }
@@ -780,7 +780,7 @@
 .integ-payload-viewer {
   margin:      0;
   padding:     20px;
-  font-family: monospace;
+  font-family: var(--font-mono);
   font-size:   calc(12px * var(--font-size-scale));
   background:  rgba(0,0,0,.025);
   border-radius:0;
@@ -881,7 +881,7 @@ html.dark-mode {
   font-size: 11px; font-weight: 700;
 }
 
-.integ-mono { font-family: ui-monospace, monospace; font-size: 12px; color: rgba(21,27,59,.7); }
+.integ-mono { font-family: var(--font-mono); font-size: 12px; color: rgba(21,27,59,.7); }
 
 .integ-estado {
   display: inline-block; padding: 2px 10px; border-radius: 999px;

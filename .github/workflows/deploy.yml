@@ -48,7 +48,7 @@ jobs:
         run: npm ci --prefix frontend
 
       - name: Build
-        run: npx ng build polisiadev-app --configuration production
+        run: npx ng build policiadev-app --configuration production
         working-directory: frontend
 
       - name: Upload artifact

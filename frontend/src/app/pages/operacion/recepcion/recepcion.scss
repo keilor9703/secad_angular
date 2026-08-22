@@ -712,13 +712,13 @@ html.dark-mode {
     color:        rgba(228,231,235,.5);
 
     &:hover {
-      border-color: #08a6cb;
+      border-color: var(--policia-cielo);
       color:        #5eead4;
     }
 
     &--sel {
-      background:   #08a6cb;
-      border-color: #08a6cb;
+      background:   var(--policia-cielo);
+      border-color: var(--policia-cielo);
       color:        #fff;
     }
   }
@@ -726,7 +726,7 @@ html.dark-mode {
   // ── Relato preview ────────────────────────────────────────────────────────
   .rec-relato-preview {
     border-color:      rgba(8,166,203,.25);
-    border-left-color: #08a6cb;
+    border-left-color: var(--policia-cielo);
     background:        rgba(8,166,203,.05);
 
     &__head {
@@ -910,7 +910,7 @@ html.dark-mode {
   transition:    background 0.15s, color 0.15s;
 
   &:hover {
-    background: #08a6cb;
+    background: var(--policia-cielo);
     color:      #fff;
   }
 
@@ -946,13 +946,13 @@ html.dark-mode {
   }
 
   &:hover {
-    border-color: #08a6cb;
-    color:        #08a6cb;
+    border-color: var(--policia-cielo);
+    color:        var(--policia-cielo);
   }
 
   &--sel {
-    background:   #08a6cb;
-    border-color: #08a6cb;
+    background:   var(--policia-cielo);
+    border-color: var(--policia-cielo);
     color:        #fff;
   }
 }
@@ -993,7 +993,7 @@ html.dark-mode {
 .rec-relato-preview {
   margin-top:    12px;
   border:        1.5px solid rgba(8,166,203,.35);
-  border-left:   4px solid #08a6cb;
+  border-left:   4px solid var(--policia-cielo);
   border-radius: 6px;
   overflow:      hidden;
   background:    rgba(8,166,203,.04);
@@ -1016,7 +1016,7 @@ html.dark-mode {
   &__body {
     margin:      0;
     padding:     10px 14px;
-    font-family: 'Courier New', Courier, monospace;
+    font-family: var(--font-mono);
     font-size:   calc(12px * var(--font-size-scale));
     line-height: 1.7;
     white-space: pre-wrap;

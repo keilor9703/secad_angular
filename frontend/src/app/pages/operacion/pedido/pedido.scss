@@ -783,7 +783,7 @@
   &__val {
     font-weight: 700;
     color:       var(--policia-oscuro, #151b3b);
-    font-family: 'Courier New', monospace;
+    font-family: var(--font-mono);
     font-size:   calc(11.5px * var(--font-size-scale, 1));
     max-width:   160px;
     overflow:    hidden;
@@ -943,7 +943,7 @@
   }
 
   &--mono {
-    font-family: 'Courier New', monospace;
+    font-family: var(--font-mono);
     font-size: calc(12px * var(--font-size-scale, 1));
     color: #555;
   }
@@ -1114,7 +1114,7 @@
   i { font-size: 9px; opacity: .8; }
 
   &--placa {
-    font-family:    monospace;
+    font-family: var(--font-mono);
     font-weight:    700;
     letter-spacing: .03em;
     background:     rgba(0,48,135,.08);
@@ -1789,7 +1789,7 @@
   &__cod {
     font-weight: 700;
     color:       var(--policia-oscuro, #151b3b);
-    font-family: 'Courier New', monospace;
+    font-family: var(--font-mono);
   }
 
   &__placa {
