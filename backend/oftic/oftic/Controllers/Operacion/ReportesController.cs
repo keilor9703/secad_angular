@@ -99,12 +99,13 @@ namespace Api.Controllers.Operacion
         public async Task<IActionResult> GetPorCalidad(
             [FromQuery] string? desde           = null,
             [FromQuery] string? hasta           = null,
+            [FromQuery] int     fuerzaId        = 0,
             [FromQuery] int     turnoVigilancia = 0,
             CancellationToken   ct              = default)
         {
             try
             {
-                var data = await _svc.GetPorCalidadAsync(BaseParams(desde, hasta, 0, turnoVigilancia), ct);
+                var data = await _svc.GetPorCalidadAsync(BaseParams(desde, hasta, ResolveFuerza(fuerzaId), turnoVigilancia), ct);
                 return Ok(new { success = true, data });
             }
             catch (Exception ex)

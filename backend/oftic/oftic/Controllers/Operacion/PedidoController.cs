@@ -60,10 +60,9 @@ namespace Api.Controllers.Operacion
         {
             try
             {
-                var result = await _service.GetByIdAsync(id, ct);
-                if (result == null)
-                    return NotFound(new { success = false, message = "Caso no encontrado." });
-                return Ok(result);
+                var (ok, error, pedido) = await ValidarPropietarioAsync(id, ct);
+                if (!ok) return error!;
+                return Ok(pedido);
             }
             catch (Exception ex)
             {
@@ -107,6 +106,9 @@ namespace Api.Controllers.Operacion
 
             try
             {
+                var (ok, error, _) = await ValidarPropietarioAsync(id, ct);
+                if (!ok) return error!;
+
                 var (usuario, username, maquina) = ObtenerAuditoria();
                 var result = await _service.UpdateAsync(id, request, usuario, username, maquina, ct);
                 if (!result.Success)
@@ -128,6 +130,9 @@ namespace Api.Controllers.Operacion
         {
             try
             {
+                var (ok, error, _) = await ValidarPropietarioAsync(id, ct);
+                if (!ok) return error!;
+
                 var (usuario, _, maquina) = ObtenerAuditoria();
                 var result = await _service.CerrarRapidoAsync(id, request, usuario, maquina, ct);
                 if (!result.Success)
@@ -154,6 +159,9 @@ namespace Api.Controllers.Operacion
 
             try
             {
+                var (ok, error, _) = await ValidarPropietarioAsync(id, ct);
+                if (!ok) return error!;
+
                 var (usuario, username, maquina) = ObtenerAuditoria();
                 var result = await _service.SetEstadoAsync(id, request.Estado, usuario, username, maquina, request.Motivo, ct);
                 if (!result.Success)
@@ -193,6 +201,9 @@ namespace Api.Controllers.Operacion
         {
             try
             {
+                var (ok, error, _) = await ValidarPropietarioAsync(id, ct);
+                if (!ok) return error!;
+
                 var (usuario, username, maquina) = ObtenerAuditoria();
                 var result = await _service.CreateAnotacionAsync(id, request, usuario, username, maquina, ct);
                 if (!result.Success)
@@ -225,6 +236,33 @@ namespace Api.Controllers.Operacion
         }
 
         // ─── Helpers ──────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Verifica que el pedido pertenezca al sitio_graba del operador autenticado
+        /// (los super-admin pueden operar sobre cualquier sitio del tenant). Evita que
+        /// un operador de un sitio lea/edite/cierre casos de otro sitio (IDOR), igual
+        /// que ya se controla en RecepcionController y MapaController.
+        /// </summary>
+        private async Task<(bool ok, ActionResult? error, DtoPedidoDetalle? pedido)> ValidarPropietarioAsync(long id, CancellationToken ct)
+        {
+            var pedido = await _service.GetByIdAsync(id, ct);
+            if (pedido == null)
+                return (false, NotFound(new { success = false, message = "Caso no encontrado." }), null);
+
+            if (!IsAdmin() && pedido.SitioGraba != GetIntClaim("sitio_graba"))
+                return (false, Forbid(), null);
+
+            return (true, null, pedido);
+        }
+
+        private int GetIntClaim(string claimType)
+        {
+            var val = User.FindFirst(claimType)?.Value;
+            return int.TryParse(val, out var n) ? n : 0;
+        }
+
+        private bool IsAdmin() =>
+            string.Equals(User.FindFirstValue("es_admin"), "true", StringComparison.OrdinalIgnoreCase);
 
         private (long usuario, string username, string maquina) ObtenerAuditoria()
         {

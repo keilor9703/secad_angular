@@ -445,9 +445,10 @@ namespace Datos.Gestion
                   AND  p.fecha_creacion <= @fh
                   AND  p.enviar = 'S'
                 """;
+            if (p.FuerzaId > 0) cmd.CommandText += "\n  AND  EXISTS (SELECT 1 FROM cad_eventos ev WHERE ev.pedido_id = p.id AND ev.fuerza_id = @fuerza)";
             if (p.TurnoVigilancia > 0) cmd.CommandText += $"\n{TurnoSql(p.TurnoVigilancia)}";
             cmd.CommandText += "\nGROUP  BY calidad\nORDER  BY total DESC";
-            AddParams(cmd, desde, hasta, 0);
+            AddParams(cmd, desde, hasta, p.FuerzaId);
 
             var rows = new List<(string cali, int total)>();
             await using var rdr = await cmd.ExecuteReaderAsync(ct);

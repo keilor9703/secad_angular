@@ -829,11 +829,28 @@ VALUES
 UPDATE cad_medios_disponibles
 SET    evento_id    = @eventoId,
        actuacion_id = @actId
-WHERE  id = @medioId";
+WHERE  id = @medioId
+  AND  actuacion_id IS NULL";
                     updM.Parameters.AddWithValue("eventoId", req.EventoId);
                     updM.Parameters.AddWithValue("actId",    actuacionId);
                     updM.Parameters.AddWithValue("medioId",  medioIdLong);
-                    await updM.ExecuteNonQueryAsync(ct);
+                    var filasMedio = await updM.ExecuteNonQueryAsync(ct);
+
+                    // El UPDATE condicionado a "actuacion_id IS NULL" es lo que realmente
+                    // cierra la carrera (el chequeo del Paso 0b solo falla rápido en el caso
+                    // sin contención): si otra transacción concurrente ya asignó el medio
+                    // entre ese chequeo y este UPDATE, aquí no se afecta ninguna fila.
+                    if (filasMedio == 0)
+                    {
+                        await tx.RollbackAsync(ct);
+                        return new DtoActuacionResult
+                        {
+                            Success     = false,
+                            ActuacionId = 0,
+                            Message     = "Este recurso ya tiene un despacho activo. " +
+                                          "Cierre o desasigne la actuación anterior antes de reasignarlo."
+                        };
+                    }
                 }
 
                 // Red de seguridad: asignar un recurso es una gestión real — promover el

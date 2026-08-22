@@ -321,6 +321,12 @@ namespace Datos.Gestion
         public async Task<DtoRecepcionResult> P_GuardarLlamadaAsync(
             DtoRecepcion d, int canalFuerza, string usuario, long idEmpleado, CancellationToken ct)
         {
+            // El formulario de Recepción en Angular ya exige lat/lng, pero solo del
+            // lado del cliente — sin esto, un pedido sin coordenadas queda invisible
+            // en el Mapa de Incidentes y fuera de la detección de duplicados cercanos.
+            if (string.IsNullOrWhiteSpace(d.LATITUD_CASO) || string.IsNullOrWhiteSpace(d.LONGITUD_CASO))
+                return new DtoRecepcionResult { Success = false, Message = "Latitud y longitud del caso son obligatorias." };
+
             await using var conn = await _tenant.DataSource.OpenConnectionAsync(ct);
             await using var tx   = await conn.BeginTransactionAsync(ct);
 
@@ -924,6 +930,36 @@ RETURNING pedido_id";
                         };
                     }
                     pedidoId = Convert.ToInt64(rawPedidoId);
+                }
+
+                // ── Gate multi-canal ────────────────────────────────────────────
+                // Mismo criterio que DbPedidoRepository.CerrarEventoDesdeDespachoAsync:
+                // no hacer un cierre global del pedido si otro canal/evento todavía
+                // tiene una actuación activa con un recurso desplegado — sin esto se
+                // abandona en silencio el despacho de ese otro canal.
+                long actuacionesOtroCanal;
+                await using (var actCnt = conn.CreateCommand())
+                {
+                    actCnt.Transaction = tx;
+                    actCnt.CommandText = @"
+SELECT COUNT(*) FROM cad_actuaciones
+WHERE  pedido_id = @pedidoId
+  AND  evento_id <> @eventoId
+  AND  estado NOT IN ('C','V')";
+                    actCnt.Parameters.AddWithValue("pedidoId", pedidoId);
+                    actCnt.Parameters.AddWithValue("eventoId", req.EventoId);
+                    actuacionesOtroCanal = Convert.ToInt64(await actCnt.ExecuteScalarAsync(ct) ?? 0);
+                }
+                if (actuacionesOtroCanal > 0)
+                {
+                    await tx.RollbackAsync(ct);
+                    return new DtoEventoResult
+                    {
+                        Success  = false,
+                        EventoId = req.EventoId,
+                        Message  = $"Este pedido tiene {actuacionesOtroCanal} actuación(es) activa(s) en otro canal. " +
+                                   "Ciérrelas antes de cerrar el evento."
+                    };
                 }
 
                 // ── Limpiar códigos previos (si se re-cierra por corrección) ──

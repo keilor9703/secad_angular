@@ -698,8 +698,13 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
     this.duplicados            = [];
     this.duplicadosDescartados = false;
     this.detenerPollingPresencia();
+    // Snapshot del id pedido: si el dispatcher selecciona OTRO evento antes de que
+    // esta respuesta llegue, una respuesta fuera de orden no debe pisar el panel
+    // que ya está mostrando el evento más reciente.
+    const requestedId = evento.id;
     this.eventoSvc.getById(evento.id).subscribe({
       next: (d) => {
+        if (this.eventoSeleccionado?.id !== requestedId) return;
         this.detalle         = d;
         this.cargandoDetalle = false;
         // El backend promueve el estado a 'E' al abrir (RegistrarAccesoAsync) — reflejarlo
@@ -718,6 +723,7 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
         this.iniciarPollingPresencia(evento.id);
       },
       error: () => {
+        if (this.eventoSeleccionado?.id !== requestedId) return;
         this.cargandoDetalle = false;
         this.errorCarga = 'No se pudo cargar el detalle del evento.';
       }
