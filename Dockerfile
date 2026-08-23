@@ -2,23 +2,17 @@
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /src
 
-# Copy solution and projects
-COPY backend/oftic/oftic.sln .
-COPY backend/oftic/oftic.cl/oftic.cl.csproj ./oftic.cl/
-COPY backend/oftic/oftic.dl/oftic.dl.csproj ./oftic.dl/
-COPY backend/oftic/oftic.bl/oftic.bl.csproj ./oftic.bl/
-COPY backend/oftic/oftic.sl/oftic.sl.csproj ./oftic.sl/
-COPY backend/oftic/oftic/Api.csproj ./Api/
-COPY backend/oftic/oftic/Comun.csproj ./Comun/
+# La solución vive en backend/oftic/oftic/oftic.sln y referencia sus proyectos
+# hermanos con rutas relativas (..\oftic.cl\Comun.csproj, etc. — nombres de
+# carpeta y de .csproj no coinciden: oftic.cl->Comun, oftic.dl->Datos,
+# oftic.bl->Negocio, oftic.sl->Servicios). Se copia el árbol completo tal cual
+# para que esas rutas relativas resuelvan sin tener que reconstruirlas a mano.
+COPY backend/oftic/ ./backend/oftic/
 
-# Restore packages
+WORKDIR /src/backend/oftic/oftic
 RUN dotnet restore oftic.sln
 
-# Copy all source
-COPY backend/oftic/ .
-
 # Publish
-WORKDIR /src/backend/oftic
 RUN dotnet publish Api.csproj -c Release -o /app/publish --no-restore
 
 # Runtime stage

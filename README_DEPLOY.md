@@ -25,6 +25,31 @@ Guía rápida para compilar, empaquetar y publicar SECAD en producción usando l
 
 ---
 
+## Opción Docker (alternativa a los pasos 1-5)
+
+El repositorio incluye un `docker-compose.yml` en la raíz que levanta backend (`secad-api`, puerto 8088) y frontend (`secad-frontend`, puerto 80) en un solo stack.
+
+```bash
+git clone <url-del-repo> secad_angular
+cd secad_angular
+cp .env.example .env
+nano .env   # completar DB_MASTER, JWT_KEY, RECEPCION_EXTERNA_API_KEY
+docker-compose up --build -d
+docker-compose ps
+docker-compose logs -f
+```
+
+**Variables obligatorias en `.env`** (ver `.env.example`):
+- `DB_MASTER`: cadena de conexión PostgreSQL a la base maestra (`ConnectionStrings:MasterDb`). Es la única base que la API exige al arrancar — el enrutamiento a la base de cada CAD/tenant se resuelve desde ahí (tabla `secad_tenants`), no por variable de entorno.
+- `JWT_KEY`: reemplaza el placeholder de `appsettings.json`. Mínimo 32 caracteres aleatorios.
+- `RECEPCION_EXTERNA_API_KEY`: reemplaza el placeholder que protege los endpoints de ingesta externa (PlantaTel/Chat/SMS, `RecepcionExternaController`).
+
+Troubleshooting:
+- `ConnectionStrings:MasterDb no configurada` en los logs → falta `DB_MASTER` en `.env` o el contenedor no lo está recibiendo (revisa `docker-compose config`).
+- Frontend carga pero las llamadas a `/api/...` fallan → confirma que el contenedor `secad-api` está `healthy` (`docker-compose ps`) antes de culpar al nginx del frontend.
+
+---
+
 ## 1) Build en Windows
 
 Desde la raíz del repo:

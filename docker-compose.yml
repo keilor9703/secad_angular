@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   api:
     build:
@@ -12,17 +10,45 @@ services:
     environment:
       - ASPNETCORE_ENVIRONMENT=Production
       - TZ=America/Bogota
-      - ConnectionStrings__DbOracle=${DB_ORACLE}
-      - ConnectionStrings__DbCoest=${DB_COEST}
+      # ConnectionStrings:MasterDb es la única cadena que Program.cs exige al
+      # arrancar (Postgres — el motor real del sistema; Oracle solo se usa para
+      # la integración externa GESPO, configurada aparte en appsettings.json).
+      - ConnectionStrings__MasterDb=${DB_MASTER}
+      # appsettings.json trae Jwt:Key como placeholder ("CAMBIAR_EN_PRODUCCION...") —
+      # sin este override el contenedor firmaría tokens con una clave pública y conocida.
+      - Jwt__Key=${JWT_KEY}
+      # Igual que Jwt:Key: RecepcionExterna:ApiKey también viene como placeholder
+      # en appsettings.json y protege los endpoints de ingesta (PlantaTel/Chat/SMS).
+      - RecepcionExterna__ApiKey=${RECEPCION_EXTERNA_API_KEY}
       - AppSettings__UploadsPath=/app/uploads
     volumes:
       - uploads:/app/uploads
     restart: unless-stopped
+    networks:
+      - secad-network
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8088/api/health"]
       interval: 30s
       timeout: 10s
       retries: 3
 
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    image: secad-frontend:latest
+    container_name: secad-frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - api
+    restart: unless-stopped
+    networks:
+      - secad-network
+
 volumes:
   uploads:
+
+networks:
+  secad-network:
+    driver: bridge

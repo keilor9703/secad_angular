@@ -33,7 +33,7 @@ npm run test                              # Unit tests with Karma/Jasmine
 ### Docker (recommended for full-stack)
 
 ```bash
-docker-compose up --build -d   # Runs secad-api on port 8088
+docker-compose up --build -d   # secad-api en :8088, secad-frontend (nginx) en :80
 docker-compose logs -f
 docker-compose down
 ```

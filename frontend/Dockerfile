@@ -2,13 +2,16 @@
 FROM node:20-alpine AS build
 WORKDIR /app
 
-# Copiar package.json y package-lock.json
+# Copiar manifiestos y el script que el postinstall necesita ANTES de npm ci —
+# postinstall corre en cuanto termina npm ci, antes de que el resto del código
+# fuente se copie a la imagen.
 COPY package*.json ./
+COPY scripts ./scripts
+COPY patches ./patches
 
-# Instalar dependencias
 RUN npm ci
 
-# Copiar código fuente
+# Copiar el resto del código fuente
 COPY . .
 
 # Construir la aplicación Angular
