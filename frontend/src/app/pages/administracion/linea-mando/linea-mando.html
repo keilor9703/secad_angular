@@ -4,13 +4,13 @@
     <div class="ui-panel__head">
       <div class="ui-panel__title">
         <i class="fa-solid fa-user-gear"></i>
-        {{ modoEdicion ? 'Editar' : 'Agregar' }} Línea de Mando
+        {{ modoEdicion() ? 'Editar' : 'Agregar' }} Línea de Mando
       </div>
     </div>
 
     <div class="ui-panel__body">
       <!-- Buscar por identificación -->
-      @if (!modoEdicion) {
+      @if (!modoEdicion()) {
         <div class="ui-grid">
           <div class="ui-field ui-col-6">
             <label class="ui-label">Buscar Funcionario por Cédula</label>
@@ -18,9 +18,10 @@
               <input
                 class="ui-control"
                 type="text"
-                [(ngModel)]="searchIdentificacion"
+                [ngModel]="searchIdentificacion()"
+                (ngModelChange)="searchIdentificacion.set($event)"
                 placeholder="Ingrese número de identificación y presione Enter"
-                [disabled]="searchingFuncionario"
+                [disabled]="searchingFuncionario()"
                 (keyup.enter)="onSearchEnter($event)"
                 style="border-radius: var(--ui-radius-sm) 0 0 var(--ui-radius-sm); flex: 1;"
                 >
@@ -28,22 +29,22 @@
                 class="ui-btn primary"
                 type="button"
                 (click)="buscarFuncionario()"
-                [disabled]="searchingFuncionario"
+                [disabled]="searchingFuncionario()"
                 style="border-radius: 0 var(--ui-radius-sm) var(--ui-radius-sm) 0; white-space: nowrap;"
                 >
                 <i class="fa-solid fa-magnifying-glass"></i>
-                {{ searchingFuncionario ? 'Buscando...' : 'Buscar' }}
+                {{ searchingFuncionario() ? 'Buscando...' : 'Buscar' }}
               </button>
             </div>
           </div>
         </div>
       }
       <!-- Datos del funcionario encontrado -->
-      @if (hayFuncionario) {
+      @if (hayFuncionario()) {
         <div class="funcionario-panel">
           <div class="funcionario-foto">
             <div class="foto-container">
-              <img [src]="fotoPreview || 'imagenes/policia.jpg'" alt="Foto">
+              <img [src]="fotoPreview() || 'imagenes/policia.jpg'" alt="Foto">
             </div>
             <div style="margin-top: 10px;">
               <input
@@ -59,32 +60,32 @@
             </div>
           </div>
           <div class="funcionario-datos">
-            <div class="ui-grid">
+            <form [formGroup]="formData" class="ui-grid">
               <div class="ui-field ui-col-4">
                 <label class="ui-label">Identificación *</label>
-                <input class="ui-control" type="text" [(ngModel)]="formData.identificacion" placeholder="Número de identificación"readonly>
+                <input class="ui-control" type="text" formControlName="identificacion" placeholder="Número de identificación" readonly>
               </div>
               <div class="ui-field ui-col-4">
                 <label class="ui-label">Nombre(s) *</label>
-                <input class="ui-control" type="text" [(ngModel)]="formData.nombre" placeholder="Nombre" readonly>
+                <input class="ui-control" type="text" formControlName="nombre" placeholder="Nombre" readonly>
               </div>
               <div class="ui-field ui-col-4">
                 <label class="ui-label">Apellido(s)</label>
-                <input class="ui-control" type="text" [(ngModel)]="formData.apellidos" placeholder="Apellidos" readonly>
+                <input class="ui-control" type="text" formControlName="apellidos" placeholder="Apellidos" readonly>
               </div>
               <div class="ui-field ui-col-4">
                 <label class="ui-label">Grado</label>
-                <input class="ui-control" type="text" [(ngModel)]="formData.grado" placeholder="Grado" readonly>
+                <input class="ui-control" type="text" formControlName="grado" placeholder="Grado" readonly>
               </div>
               <div class="ui-field ui-col-4">
                 <label class="ui-label">Cargo</label>
-                <input class="ui-control" type="text" [(ngModel)]="formData.cargo" placeholder="Cargo">
+                <input class="ui-control" type="text" formControlName="cargo" placeholder="Cargo">
               </div>
               <div class="ui-field ui-col-4">
                 <label class="ui-label">Peso *</label>
-                <select class="ui-control" [(ngModel)]="formData.peso">
+                <select class="ui-control" formControlName="peso">
                   <option value="">Seleccione...</option>
-                  @for (peso of pesoOpciones; track peso) {
+                  @for (peso of pesoOpciones; track peso.id) {
                     <option [value]="peso.id">
                       {{ peso.nombre }}
                     </option>
@@ -93,19 +94,19 @@
               </div>
               <div class="ui-field ui-col-4">
                 <label class="ui-label">Orden</label>
-                <input class="ui-control" type="number" [(ngModel)]="formData.orden" min="1">
+                <input class="ui-control" type="number" formControlName="orden" min="1">
               </div>
               <div class="ui-field ui-col-4">
                 <label class="ui-label">Unidad</label>
-                <input class="ui-control" type="text" [(ngModel)]="formData.unidad" placeholder="Unidad" readonly>
+                <input class="ui-control" type="text" formControlName="unidad" placeholder="Unidad" readonly>
               </div>
-            </div>
+            </form>
           </div>
         </div>
       }
 
       <!-- Mensaje cuando no hay funcionario -->
-      @if (!hayFuncionario && !modoEdicion) {
+      @if (!hayFuncionario() && !modoEdicion()) {
         <div class="no-funcionario">
           <i class="fa-solid fa-user-plus"></i>
           <p>Busque un funcionario por número de identificación para agregar a la línea de mando</p>
@@ -113,11 +114,11 @@
       }
 
       <!-- Botones -->
-      @if (hayFuncionario) {
+      @if (hayFuncionario()) {
         <div class="ui-toolbar">
-          <button class="ui-btn primary" type="button" (click)="guardar()" [disabled]="saving">
+          <button class="ui-btn primary" type="button" (click)="guardar()" [disabled]="saving()">
             <i class="fa-solid fa-floppy-disk"></i>
-            {{ saving ? 'Guardando...' : (modoEdicion ? 'Actualizar' : 'Guardar') }}
+            {{ saving() ? 'Guardando...' : (modoEdicion() ? 'Actualizar' : 'Guardar') }}
           </button>
           <button class="ui-btn outline" type="button" (click)="limpiarForm()">
             <i class="fa-solid fa-xmark"></i> Cancelar
@@ -135,25 +136,25 @@
         Línea de Mando Configurada
       </div>
       <div class="ui-panel__actions">
-        <span class="ui-badge info">Registros: {{ listaLineaMando.length }}</span>
+        <span class="ui-badge info">Registros: {{ listaLineaMando().length }}</span>
       </div>
     </div>
 
     <div class="ui-panel__body">
-      @if (loading) {
+      @if (loading()) {
         <div style="text-align: center; padding: 40px;">
           <i class="fa-solid fa-spinner fa-spin"></i> Cargando...
         </div>
       }
 
-      @if (!loading && listaLineaMando.length === 0) {
+      @if (!loading() && listaLineaMando().length === 0) {
         <div style="text-align: center; padding: 40px; color: var(--ui-muted, #666);">
           No hay registros de línea de mando. Busque un funcionario y agréguelo.
         </div>
       }
 
       <!-- Tabla de Línea de Mando -->
-      @if (!loading && listaLineaMando.length > 0) {
+      @if (!loading() && listaLineaMando().length > 0) {
         <div class="ui-table-wrap">
           <table class="ui-table">
             <thead>
@@ -167,7 +168,7 @@
               </tr>
             </thead>
             <tbody>
-              @for (item of listaLineaMando; track item) {
+              @for (item of listaLineaMando(); track item.idLineaMando) {
                 <tr>
                   <td style="text-align: center;">
                     <span class="ui-badge info">{{ item.orden }}</span>
