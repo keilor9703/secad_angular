@@ -1,5 +1,5 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
-import { CommonModule } from '@angular/common';
+
 import { AccessibilityService, AccessibilityState } from '../../core/services/accessibility.service';
 import { SpeechToTextService } from '../../core/services/speech-to-text.service';
 import { TextToSpeechService } from '../../core/services/text-to-speech.service';
@@ -11,7 +11,7 @@ import { takeUntil } from 'rxjs/operators';
   templateUrl: './accessibility-menu.html',
   styleUrls: ['./accessibility-menu.scss'],
   standalone: true,
-  imports: [CommonModule],
+  imports: [],
   host: {
     'class': 'accessibility-menu-host'
   }

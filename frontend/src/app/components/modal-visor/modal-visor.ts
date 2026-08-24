@@ -1,5 +1,5 @@
 import { Component, OnDestroy, OnInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
+
 import { NavigationEnd, Router } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { filter } from 'rxjs/operators';
@@ -13,7 +13,7 @@ import { SafeUrlPipe } from '../../shared/pipes/safe-url.pipe';
 @Component({
   selector: 'app-modal-visor',
   standalone: true,
-  imports: [CommonModule, SafeUrlPipe],
+  imports: [SafeUrlPipe],
   templateUrl: './modal-visor.html',
   styleUrls: ['./modal-visor.scss'],
 })

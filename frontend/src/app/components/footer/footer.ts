@@ -1,5 +1,5 @@
 import { Component, HostListener, OnDestroy, OnInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
+
 import { FormsModule } from '@angular/forms';
 import { BrandingService } from '../../core/services/administracion/branding.service';
 import { DtoRadioEmisora, RadioService } from '../../core/services/administracion/radio.service';
@@ -15,7 +15,7 @@ interface FooterStation {
 @Component({
   selector: 'app-footer',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [FormsModule],
   templateUrl: './footer.html',
   styleUrl: './footer.scss',
 })

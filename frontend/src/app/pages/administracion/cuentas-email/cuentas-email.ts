@@ -1,5 +1,5 @@
 import { Component, HostListener, OnInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
+
 import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
 import { ToastService } from '../../../core/services/toast.service';
@@ -11,7 +11,7 @@ import { finalize } from 'rxjs';
 @Component({
   selector: 'app-cuentas-email',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule],
+  imports: [FormsModule, RouterModule],
   templateUrl: './cuentas-email.html',
   styleUrls: ['./cuentas-email.scss']
 })

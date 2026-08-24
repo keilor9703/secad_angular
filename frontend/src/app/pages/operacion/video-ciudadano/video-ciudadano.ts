@@ -1,5 +1,5 @@
-import { Component, ElementRef, OnDestroy, OnInit, ViewChild } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { Component, ElementRef, OnDestroy, OnInit, viewChild } from '@angular/core';
+
 import { HttpClient } from '@angular/common/http';
 import { ActivatedRoute } from '@angular/router';
 import * as signalR from '@microsoft/signalr';
@@ -26,13 +26,13 @@ type EstadoPagina =
 @Component({
   selector:    'app-video-ciudadano',
   standalone:  true,
-  imports:     [CommonModule],
+  imports: [],
   templateUrl: './video-ciudadano.html',
   styleUrls:   ['./video-ciudadano.scss']
 })
 export class VideoCiudadanoComponent implements OnInit, OnDestroy {
 
-  @ViewChild('videoLocal') videoLocalRef?: ElementRef<HTMLVideoElement>;
+  readonly videoLocalRef = viewChild<ElementRef<HTMLVideoElement>>('videoLocal');
 
   estado: EstadoPagina = 'validando';
   mensajeError = '';
@@ -85,7 +85,8 @@ export class VideoCiudadanoComponent implements OnInit, OnDestroy {
       return;
     }
 
-    if (this.videoLocalRef) this.videoLocalRef.nativeElement.srcObject = this.localStream;
+    const videoLocalRef = this.videoLocalRef();
+    if (videoLocalRef) videoLocalRef.nativeElement.srcObject = this.localStream;
 
     await this.conectar();
   }

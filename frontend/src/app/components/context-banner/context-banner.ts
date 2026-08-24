@@ -1,5 +1,5 @@
 import { Component, HostListener, OnInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
+
 import { Router } from '@angular/router';
 import { AuthService } from '../../core/auth/auth.service';
 import { SuperAdminService, TenantPublico } from '../../core/services/super-admin.service';
@@ -10,7 +10,7 @@ import { ToastService } from '../../core/services/toast.service';
   templateUrl: './context-banner.html',
   styleUrls: ['./context-banner.scss'],
   standalone: true,
-  imports: [CommonModule]
+  imports: []
 })
 export class ContextBannerComponent implements OnInit {
   isSuperAdmin  = false;

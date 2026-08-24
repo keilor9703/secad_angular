@@ -1,5 +1,5 @@
 import { Component, OnInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
+
 import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
 import { ToastService } from '../../../core/services/toast.service';
@@ -13,7 +13,7 @@ import {
 @Component({
   selector: 'app-entidades',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule],
+  imports: [FormsModule, RouterModule],
   templateUrl: './entidades.html',
   styleUrls: ['./entidades.scss']
 })

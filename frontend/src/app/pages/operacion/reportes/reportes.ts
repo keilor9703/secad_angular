@@ -1,7 +1,8 @@
 import {
   Component, OnInit, OnDestroy,
-  AfterViewInit, ElementRef, ViewChild,
-  ChangeDetectorRef
+  AfterViewInit, ElementRef,
+  ChangeDetectorRef,
+  viewChild
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -31,9 +32,9 @@ declare const Chart: any;
 export class ReportesComponent implements OnInit, AfterViewInit, OnDestroy {
 
   // ── Canvas refs para Chart.js ────────────────────────────────────────────
-  @ViewChild('canvasOrigen') canvasOrigen!: ElementRef<HTMLCanvasElement>;
-  @ViewChild('canvasHoras')  canvasHoras!:  ElementRef<HTMLCanvasElement>;
-  @ViewChild('canvasPrio')   canvasPrio!:   ElementRef<HTMLCanvasElement>;
+  readonly canvasOrigen = viewChild.required<ElementRef<HTMLCanvasElement>>('canvasOrigen');
+  readonly canvasHoras = viewChild.required<ElementRef<HTMLCanvasElement>>('canvasHoras');
+  readonly canvasPrio = viewChild.required<ElementRef<HTMLCanvasElement>>('canvasPrio');
 
   // ── Sección activa: dashboard o reportes detallados ───────────────────────
   seccion: 'dashboard' | 'detallados' = 'dashboard';
@@ -216,7 +217,7 @@ export class ReportesComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private renderChartOrigen(): void {
-    const el = this.canvasOrigen?.nativeElement;
+    const el = this.canvasOrigen()?.nativeElement;
     if (!el || !this.datos?.porOrigen.length) return;
     const data = this.datos.porOrigen;
     this.chartOrigen = new Chart(el, {
@@ -249,7 +250,7 @@ export class ReportesComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private renderChartHoras(): void {
-    const el = this.canvasHoras?.nativeElement;
+    const el = this.canvasHoras()?.nativeElement;
     if (!el || !this.datos?.porHora.length) return;
     const data = this.datos.porHora;
     const max  = Math.max(...data.map(h => h.total), 1);
@@ -283,7 +284,7 @@ export class ReportesComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private renderChartPrio(): void {
-    const el = this.canvasPrio?.nativeElement;
+    const el = this.canvasPrio()?.nativeElement;
     if (!el || !this.datos) return;
     const r = this.datos.resumen;
     this.chartPrio = new Chart(el, {

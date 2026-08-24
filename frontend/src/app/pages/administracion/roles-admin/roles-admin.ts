@@ -1,5 +1,5 @@
 ﻿import { Component, OnInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
+
 import { FormsModule } from '@angular/forms';
 import {
   RolAdminItem,
@@ -12,7 +12,7 @@ import { ToastService } from '../../../core/services/toast.service';
 @Component({
   selector: 'app-roles-admin',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [FormsModule],
   templateUrl: './roles-admin.html',
   styleUrls: ['./roles-admin.scss']
 })

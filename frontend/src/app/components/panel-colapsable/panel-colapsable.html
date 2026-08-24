@@ -1,17 +1,17 @@
 <div class="pnl-colapsable">
   <button class="pnl-colapsable__head"
           type="button"
-          [class.pnl-colapsable__head--sticky]="sticky"
-          [attr.aria-expanded]="abierto"
+          [class.pnl-colapsable__head--sticky]="sticky()"
+          [attr.aria-expanded]="abierto()"
           (click)="toggle()">
-    <i [class]="icono"></i>
-    <span class="pnl-colapsable__titulo">{{ titulo }}</span>
+    <i [class]="icono()"></i>
+    <span class="pnl-colapsable__titulo">{{ titulo() }}</span>
     <ng-content select="[extra]"></ng-content>
     <i class="fa-solid pnl-colapsable__chevron"
-       [class.fa-chevron-down]="!abierto"
-       [class.fa-chevron-up]="abierto"></i>
+       [class.fa-chevron-down]="!abierto()"
+       [class.fa-chevron-up]="abierto()"></i>
   </button>
-  @if (abierto) {
+  @if (abierto()) {
     <div class="pnl-colapsable__body">
       <ng-content></ng-content>
     </div>

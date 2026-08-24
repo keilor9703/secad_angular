@@ -1,5 +1,5 @@
 ﻿import { Component } from '@angular/core';
-import { CommonModule } from '@angular/common';
+
 import { RouterModule, Router, NavigationEnd } from '@angular/router';
 import { filter } from 'rxjs/operators';
 
@@ -11,26 +11,30 @@ interface BreadcrumbItem {
 @Component({
   selector: 'app-breadcrumb',
   standalone: true,
-  imports: [CommonModule, RouterModule],
+  imports: [RouterModule],
   template: `
-    <nav class="breadcrumb-nav" *ngIf="items.length > 0">
-      <ol class="breadcrumb-list">
-        <li class="breadcrumb-item" *ngFor="let item of items; let last = last">
-          <ng-container *ngIf="!last && item.route">
-            <a [routerLink]="item.route" class="breadcrumb-link">{{ item.label }}</a>
-            <i class="fa-solid fa-chevron-right breadcrumb-separator"></i>
-          </ng-container>
-          <ng-container *ngIf="last">
-            <span class="breadcrumb-current">{{ item.label }}</span>
-          </ng-container>
-          <ng-container *ngIf="!last && !item.route">
-            <span class="breadcrumb-link">{{ item.label }}</span>
-            <i class="fa-solid fa-chevron-right breadcrumb-separator"></i>
-          </ng-container>
-        </li>
-      </ol>
-    </nav>
-  `,
+    @if (items.length > 0) {
+      <nav class="breadcrumb-nav">
+        <ol class="breadcrumb-list">
+          @for (item of items; track item; let last = $last) {
+            <li class="breadcrumb-item">
+              @if (!last && item.route) {
+                <a [routerLink]="item.route" class="breadcrumb-link">{{ item.label }}</a>
+                <i class="fa-solid fa-chevron-right breadcrumb-separator"></i>
+              }
+              @if (last) {
+                <span class="breadcrumb-current">{{ item.label }}</span>
+              }
+              @if (!last && !item.route) {
+                <span class="breadcrumb-link">{{ item.label }}</span>
+                <i class="fa-solid fa-chevron-right breadcrumb-separator"></i>
+              }
+            </li>
+          }
+        </ol>
+      </nav>
+    }
+    `,
   styles: [`
     .breadcrumb-nav {
       padding: 12px 20px;

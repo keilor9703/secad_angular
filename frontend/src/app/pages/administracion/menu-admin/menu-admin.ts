@@ -1,5 +1,5 @@
 ﻿import { Component, OnInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
+
 import { FormsModule } from '@angular/forms';
 import {
   DbMenuItem,
@@ -13,7 +13,7 @@ import { ToastService } from '../../../core/services/toast.service';
 @Component({
   selector: 'app-menu-admin',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [FormsModule],
   templateUrl: './menu-admin.html',
   styleUrls: ['./menu-admin.scss']
 })

@@ -1,693 +1,677 @@
-<section class="user-admin-page" *ngIf="visible">
-  <div class="ui-panel">
-    <div class="ui-panel__head">
-      <div class="ui-panel__title">
-        <i class="fa-solid fa-id-card"></i>
-        Administración de Usuarios
+@if (visible) {
+  <section class="user-admin-page">
+    <div class="ui-panel">
+      <div class="ui-panel__head">
+        <div class="ui-panel__title">
+          <i class="fa-solid fa-id-card"></i>
+          Administración de Usuarios
+        </div>
+        <div class="ui-panel__actions ui-window-controls">
+          <button class="ui-icon-btn ui-win-btn is-min" type="button" title="Minimizar" (click)="toggleMinimize()">
+            <i class="fa-solid fa-minus"></i>
+          </button>
+          <button class="ui-icon-btn ui-win-btn is-close" type="button" title="Cerrar" (click)="closePanel()">
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        </div>
       </div>
-
-      <div class="ui-panel__actions ui-window-controls">
-        <button class="ui-icon-btn ui-win-btn is-min" type="button" title="Minimizar" (click)="toggleMinimize()">
-          <i class="fa-solid fa-minus"></i>
-        </button>
-        <button class="ui-icon-btn ui-win-btn is-close" type="button" title="Cerrar" (click)="closePanel()">
-          <i class="fa-solid fa-xmark"></i>
-        </button>
-      </div>
-    </div>
-
-    <div class="ui-panel__body" *ngIf="!minimized">
-      <div class="admin-grid" *ngIf="user; else emptyState">
-        <aside class="left-column">
-          <article class="profile-card">
-            <div class="profile-card__cover" [class.inactive]="!user.activo"></div>
-            <div class="profile-card__body">
-              <img
-                class="profile-avatar"
+      @if (!minimized) {
+        <div class="ui-panel__body">
+          @if (user) {
+            <div class="admin-grid">
+              <aside class="left-column">
+                <article class="profile-card">
+                  <div class="profile-card__cover" [class.inactive]="!user.activo"></div>
+                  <div class="profile-card__body">
+                    <img
+                      class="profile-avatar"
                 [src]="(tipoCreacion !== 'civil' && user.fotoUrl)
                          ? user.fotoUrl
                          : 'https://ui-avatars.com/api/?name=' + user.nombreCompleto + '&background=002a66&color=fff&size=160'"
-                alt="Foto de usuario"
-              >
-
-              <h3 class="profile-name">{{ user.nombreCompleto }}</h3>
-              <p class="profile-role">{{ user.cargo }}</p>
-
-              <div class="state-box">
-                <div>
-                  <span class="state-box__label">Estado de usuario</span>
-                  <span class="state-box__value" [class.inactive]="!user.activo">
-                    {{ user.activo ? 'ACTIVO' : 'INACTIVO' }}
-                  </span>
-                </div>
-                <button class="switch" type="button" [class.active]="user.activo" (click)="toggleEstadoUsuario()">
-                  <span></span>
-                </button>
-              </div>
-            </div>
-          </article>
-
-          <article class="access-summary">
-            <h4><i class="fa-solid fa-circle-info"></i> Resumen de acceso</h4>
-            <div class="summary-row">
-              <span>Roles activos</span>
-              <strong>{{ activeRolesCount }}</strong>
-            </div>
-            <div class="summary-row">
-              <span>Último ingreso</span>
-              <strong>{{ user.ultimoIngreso }}</strong>
-            </div>
-          </article>
-        </aside>
-
-        <section class="right-column">
-          <div class="tabs-shell">
-            <button
-              type="button"
-              class="tab-btn"
-              [class.active]="activeTab === 'datos'"
-              (click)="setTab('datos')"
-            >
-              <i class="fa-solid fa-user"></i>
-              Datos personales
-            </button>
-
-            <button
-              type="button"
-              class="tab-btn"
-              [class.active]="activeTab === 'roles'"
-              (click)="setTab('roles')"
-            >
-              <i class="fa-solid fa-shield-halved"></i>
-              Roles y permisos
-            </button>
-
-            <button
-              type="button"
-              class="tab-btn"
-              [class.active]="activeTab === 'operacion'"
-              (click)="setTab('operacion')"
-            >
-              <i class="fa-solid fa-radio"></i>
-              Operación
-            </button>
-          </div>
-
-          <!-- ── Pestaña datos: Funcionario Policía ─────────────────────── -->
-          <article class="tab-card" *ngIf="activeTab === 'datos' && tipoCreacion !== 'civil'">
-            <div class="ui-grid">
-              <div class="ui-field ui-col-6">
-                <label class="ui-label">Identificación</label>
-                <div class="ui-input-group">
-                  <input class="ui-control" type="text" [(ngModel)]="searchIdentification" placeholder="Ej: 10203040" (keyup.enter)="consultarUsuario()">
-                  <button class="ui-addon-btn search-btn" type="button" (click)="consultarUsuario()" [disabled]="loading">
-                    <i class="fa-solid fa-magnifying-glass"></i>
-                  </button>
-                </div>
-              </div>
-
-              <div class="ui-field ui-col-6">
-                <label class="ui-label">Usuario empresarial</label>
-                <input class="ui-control" type="text" [(ngModel)]="user.usuarioEmpresarial" readonly>
-              </div>
-
-              <div class="ui-field ui-col-6">
-                <label class="ui-label">Grado</label>
-                <input class="ui-control" type="text" [(ngModel)]="user.grado" readonly>
-              </div>
-
-              <div class="ui-field ui-col-6">
-                <label class="ui-label">Nombre completo</label>
-                <input class="ui-control" type="text" [(ngModel)]="user.nombreCompleto" readonly>
-              </div>
-
-              <div class="ui-field ui-col-6">
-                <label class="ui-label">Correo institucional</label>
-                <input class="ui-control" type="email" [(ngModel)]="user.email" readonly>
-              </div>
-
-              <div class="ui-field ui-col-6">
-                <label class="ui-label">Teléfono</label>
-                <input class="ui-control" type="text" [(ngModel)]="user.telefono" readonly>
-              </div>
-
-              <div class="ui-field ui-col-6">
-                <label class="ui-label">Situación laboral</label>
-                <input class="ui-control" type="text" [(ngModel)]="user.situacionLaboral" readonly>
-              </div>
-
-              <div class="ui-field ui-col-6">
-                <label class="ui-label">Unidad</label>
-                <input class="ui-control" type="text" [(ngModel)]="user.unidadFisica" readonly>
-              </div>
-
-              <div class="ui-field ui-col-6">
-                <label class="ui-label">Grupo donde labora</label>
-                <input class="ui-control" type="text" [(ngModel)]="user.unidad" readonly>
-              </div>
-
-              <div class="ui-field ui-col-6">
-                <label class="ui-label">Cargo</label>
-                <input class="ui-control" type="text" [(ngModel)]="user.cargo" readonly>
-              </div>
-            </div>
-          </article>
-
-          <!-- ── Pestaña datos: Usuario civil / otra entidad ────────────── -->
-          <article class="tab-card" *ngIf="activeTab === 'datos' && tipoCreacion === 'civil'">
-            <p class="helper-text">
-              <i class="fa-solid fa-id-card"></i>
-              Usuario civil / otra entidad. Deja la contraseña en blanco para no modificarla.
-            </p>
-            <div class="ui-grid">
-              <div class="ui-field ui-col-6">
-                <label class="ui-label">Usuario (login)</label>
-                <input class="ui-control" type="text" [(ngModel)]="civilForm.username" placeholder="username">
-              </div>
-              <div class="ui-field ui-col-6">
-                <label class="ui-label">Nueva contraseña <small>(vacío = sin cambio)</small></label>
-                <div class="ui-input-group">
-                  <input class="ui-control" [type]="showPassword ? 'text' : 'password'"
-                    [(ngModel)]="civilForm.password" placeholder="Mínimo 8 caracteres">
-                  <button class="ui-addon-btn" type="button" (click)="toggleShowPassword()" title="Mostrar/ocultar">
-                    <i class="fa-solid" [class.fa-eye]="!showPassword" [class.fa-eye-slash]="showPassword"></i>
-                  </button>
-                </div>
-              </div>
-
-              <div class="ui-field ui-col-6">
-                <label class="ui-label">Nombres</label>
-                <input class="ui-control" type="text" [(ngModel)]="civilForm.nombres">
-              </div>
-              <div class="ui-field ui-col-6">
-                <label class="ui-label">Apellidos</label>
-                <input class="ui-control" type="text" [(ngModel)]="civilForm.apellidos">
-              </div>
-
-              <div class="ui-field ui-col-6">
-                <label class="ui-label">Identificación</label>
-                <input class="ui-control" type="text" [(ngModel)]="civilForm.identificacion">
-              </div>
-              <div class="ui-field ui-col-6">
-                <label class="ui-label">Correo electrónico</label>
-                <input class="ui-control" type="email" [(ngModel)]="civilForm.email">
-              </div>
-
-              <div class="ui-field ui-col-6">
-                <label class="ui-label">Entidad / Institución</label>
-                <input class="ui-control" type="text" [(ngModel)]="civilForm.entidad">
-              </div>
-              <div class="ui-field ui-col-6">
-                <label class="ui-label">Cargo</label>
-                <input class="ui-control" type="text" [(ngModel)]="civilForm.cargo">
-              </div>
-            </div>
-          </article>
-
-          <div class="tab-actions" *ngIf="activeTab === 'datos'">
-            <button class="ui-btn primary" type="button" (click)="guardarDatosUsuario()" [disabled]="loading">
-              <i class="fa-solid fa-floppy-disk"></i>
-              {{ loading ? 'Guardando...' : 'Guardar' }}
-            </button>
-          </div>
-
-          <article class="tab-card" *ngIf="activeTab === 'roles'">
-            <div class="roles-head">
-              <h3>Control de acceso</h3>
-              <button class="ui-btn secondary" type="button" (click)="agregarRol()">
-                <i class="fa-solid fa-plus"></i>
-                Agregar rol
-              </button>
-            </div>
-
-            <div class="role-add-form" *ngIf="showAddRoleForm">
-              <div class="ui-grid">
-                <div class="ui-field ui-col-6">
-                  <label class="ui-label">Rol</label>
-                  <select class="ui-control" [(ngModel)]="newRole.rolId">
-                    <option [ngValue]="null">Seleccione un rol</option>
-                    <option *ngFor="let role of rolesCatalogo" [ngValue]="role.id">
-                      {{ role.nombre || ('Rol ' + role.id) }}
-                    </option>
-                  </select>
-                </div>
-
-                <div class="ui-field ui-col-6">
-                  <label class="ui-label">Fecha fin</label>
-                  <input class="ui-control" type="date" [(ngModel)]="newRole.fechaFin">
-                </div>
-
-                <div class="ui-field ui-col-12">
-                  <label class="ui-label">Justificación</label>
-                  <textarea class="ui-control" rows="3" [(ngModel)]="newRole.justificacion" placeholder="Motivo de la asignación"></textarea>
-                </div>
-              </div>
-
-              <div class="tab-actions">
-                <button class="ui-btn secondary" type="button" (click)="cancelarNuevoRol()">
-                  <i class="fa-solid fa-ban"></i>
-                  Cancelar
-                </button>
-                <button class="ui-btn primary" type="button" (click)="guardarRoles()" [disabled]="savingRole">
-                  <i class="fa-solid fa-floppy-disk"></i>
-                  {{ savingRole ? 'Guardando...' : 'Guardar rol' }}
-                </button>
-              </div>
-            </div>
-
-            <div class="roles-list" *ngIf="user.roles.length > 0; else noRoles">
-              <div class="role-item" *ngFor="let rol of user.roles">
-                <div class="role-grid role-grid--labels">
-                  <div class="role-label">
-                    <span class="role-label__title">Rol</span>
-                    <strong>{{ rol.nombre }}</strong>
+                      alt="Foto de usuario"
+                      >
+                    <h3 class="profile-name">{{ user.nombreCompleto }}</h3>
+                    <p class="profile-role">{{ user.cargo }}</p>
+                    <div class="state-box">
+                      <div>
+                        <span class="state-box__label">Estado de usuario</span>
+                        <span class="state-box__value" [class.inactive]="!user.activo">
+                          {{ user.activo ? 'ACTIVO' : 'INACTIVO' }}
+                        </span>
+                      </div>
+                      <button class="switch" type="button" [class.active]="user.activo" (click)="toggleEstadoUsuario()">
+                        <span></span>
+                      </button>
+                    </div>
                   </div>
-
-                  <div class="role-label">
-                    <span class="role-label__title">Estado</span>
-                    <span class="ui-badge"
-                          [class.success]="rol.estado === 'Vigente'"
-                          [class.warning]="rol.estado === 'Vencido'"
-                          [class.danger]="rol.estado === 'Retirado'">
-                      <ng-container [ngSwitch]="rol.estado">
-                        <ng-container *ngSwitchCase="'Vigente'">
-                          <i class="fa-solid fa-circle-check"></i> Vigente
-                        </ng-container>
-                        <ng-container *ngSwitchCase="'Vencido'">
-                          <i class="fa-solid fa-clock"></i> Vencido
-                        </ng-container>
-                        <ng-container *ngSwitchCase="'Retirado'">
-                          <i class="fa-solid fa-ban"></i> Retirado por Admin
-                        </ng-container>
-                        <ng-container *ngSwitchDefault>{{ rol.estado }}</ng-container>
-                      </ng-container>
-                    </span>
+                </article>
+                <article class="access-summary">
+                  <h4><i class="fa-solid fa-circle-info"></i> Resumen de acceso</h4>
+                  <div class="summary-row">
+                    <span>Roles activos</span>
+                    <strong>{{ activeRolesCount }}</strong>
                   </div>
-
-                  <div class="role-label">
-                    <span class="role-label__title">Fecha expiración</span>
-                    <strong>{{ rol.fechaExpiracion || 'Sin fecha' }}</strong>
+                  <div class="summary-row">
+                    <span>Último ingreso</span>
+                    <strong>{{ user.ultimoIngreso }}</strong>
                   </div>
-
-                  <div class="role-label role-label--full">
-                    <span class="role-label__title">Justificación</span>
-                    <strong>{{ rol.justificacion || 'Sin justificación' }}</strong>
-                  </div>
-                </div>
-
-                <div class="tab-actions">
+                </article>
+              </aside>
+              <section class="right-column">
+                <div class="tabs-shell">
                   <button
-                    class="ui-btn secondary"
                     type="button"
-                    (click)="eliminarRol(rol)"
-                    [disabled]="deletingRoleId === rol.id || rol.estado !== 'Vigente'"
+                    class="tab-btn"
+                    [class.active]="activeTab === 'datos'"
+                    (click)="setTab('datos')"
+                    >
+                    <i class="fa-solid fa-user"></i>
+                    Datos personales
+                  </button>
+                  <button
+                    type="button"
+                    class="tab-btn"
+                    [class.active]="activeTab === 'roles'"
+                    (click)="setTab('roles')"
+                    >
+                    <i class="fa-solid fa-shield-halved"></i>
+                    Roles y permisos
+                  </button>
+                  <button
+                    type="button"
+                    class="tab-btn"
+                    [class.active]="activeTab === 'operacion'"
+                    (click)="setTab('operacion')"
+                    >
+                    <i class="fa-solid fa-radio"></i>
+                    Operación
+                  </button>
+                </div>
+                <!-- ── Pestaña datos: Funcionario Policía ─────────────────────── -->
+                @if (activeTab === 'datos' && tipoCreacion !== 'civil') {
+                  <article class="tab-card">
+                    <div class="ui-grid">
+                      <div class="ui-field ui-col-6">
+                        <label class="ui-label">Identificación</label>
+                        <div class="ui-input-group">
+                          <input class="ui-control" type="text" [(ngModel)]="searchIdentification" placeholder="Ej: 10203040" (keyup.enter)="consultarUsuario()">
+                          <button class="ui-addon-btn search-btn" type="button" (click)="consultarUsuario()" [disabled]="loading">
+                            <i class="fa-solid fa-magnifying-glass"></i>
+                          </button>
+                        </div>
+                      </div>
+                      <div class="ui-field ui-col-6">
+                        <label class="ui-label">Usuario empresarial</label>
+                        <input class="ui-control" type="text" [(ngModel)]="user.usuarioEmpresarial" readonly>
+                      </div>
+                      <div class="ui-field ui-col-6">
+                        <label class="ui-label">Grado</label>
+                        <input class="ui-control" type="text" [(ngModel)]="user.grado" readonly>
+                      </div>
+                      <div class="ui-field ui-col-6">
+                        <label class="ui-label">Nombre completo</label>
+                        <input class="ui-control" type="text" [(ngModel)]="user.nombreCompleto" readonly>
+                      </div>
+                      <div class="ui-field ui-col-6">
+                        <label class="ui-label">Correo institucional</label>
+                        <input class="ui-control" type="email" [(ngModel)]="user.email" readonly>
+                      </div>
+                      <div class="ui-field ui-col-6">
+                        <label class="ui-label">Teléfono</label>
+                        <input class="ui-control" type="text" [(ngModel)]="user.telefono" readonly>
+                      </div>
+                      <div class="ui-field ui-col-6">
+                        <label class="ui-label">Situación laboral</label>
+                        <input class="ui-control" type="text" [(ngModel)]="user.situacionLaboral" readonly>
+                      </div>
+                      <div class="ui-field ui-col-6">
+                        <label class="ui-label">Unidad</label>
+                        <input class="ui-control" type="text" [(ngModel)]="user.unidadFisica" readonly>
+                      </div>
+                      <div class="ui-field ui-col-6">
+                        <label class="ui-label">Grupo donde labora</label>
+                        <input class="ui-control" type="text" [(ngModel)]="user.unidad" readonly>
+                      </div>
+                      <div class="ui-field ui-col-6">
+                        <label class="ui-label">Cargo</label>
+                        <input class="ui-control" type="text" [(ngModel)]="user.cargo" readonly>
+                      </div>
+                    </div>
+                  </article>
+                }
+                <!-- ── Pestaña datos: Usuario civil / otra entidad ────────────── -->
+                @if (activeTab === 'datos' && tipoCreacion === 'civil') {
+                  <article class="tab-card">
+                    <p class="helper-text">
+                      <i class="fa-solid fa-id-card"></i>
+                      Usuario civil / otra entidad. Deja la contraseña en blanco para no modificarla.
+                    </p>
+                    <div class="ui-grid">
+                      <div class="ui-field ui-col-6">
+                        <label class="ui-label">Usuario (login)</label>
+                        <input class="ui-control" type="text" [(ngModel)]="civilForm.username" placeholder="username">
+                      </div>
+                      <div class="ui-field ui-col-6">
+                        <label class="ui-label">Nueva contraseña <small>(vacío = sin cambio)</small></label>
+                        <div class="ui-input-group">
+                          <input class="ui-control" [type]="showPassword ? 'text' : 'password'"
+                            [(ngModel)]="civilForm.password" placeholder="Mínimo 8 caracteres">
+                          <button class="ui-addon-btn" type="button" (click)="toggleShowPassword()" title="Mostrar/ocultar">
+                            <i class="fa-solid" [class.fa-eye]="!showPassword" [class.fa-eye-slash]="showPassword"></i>
+                          </button>
+                        </div>
+                      </div>
+                      <div class="ui-field ui-col-6">
+                        <label class="ui-label">Nombres</label>
+                        <input class="ui-control" type="text" [(ngModel)]="civilForm.nombres">
+                      </div>
+                      <div class="ui-field ui-col-6">
+                        <label class="ui-label">Apellidos</label>
+                        <input class="ui-control" type="text" [(ngModel)]="civilForm.apellidos">
+                      </div>
+                      <div class="ui-field ui-col-6">
+                        <label class="ui-label">Identificación</label>
+                        <input class="ui-control" type="text" [(ngModel)]="civilForm.identificacion">
+                      </div>
+                      <div class="ui-field ui-col-6">
+                        <label class="ui-label">Correo electrónico</label>
+                        <input class="ui-control" type="email" [(ngModel)]="civilForm.email">
+                      </div>
+                      <div class="ui-field ui-col-6">
+                        <label class="ui-label">Entidad / Institución</label>
+                        <input class="ui-control" type="text" [(ngModel)]="civilForm.entidad">
+                      </div>
+                      <div class="ui-field ui-col-6">
+                        <label class="ui-label">Cargo</label>
+                        <input class="ui-control" type="text" [(ngModel)]="civilForm.cargo">
+                      </div>
+                    </div>
+                  </article>
+                }
+                @if (activeTab === 'datos') {
+                  <div class="tab-actions">
+                    <button class="ui-btn primary" type="button" (click)="guardarDatosUsuario()" [disabled]="loading">
+                      <i class="fa-solid fa-floppy-disk"></i>
+                      {{ loading ? 'Guardando...' : 'Guardar' }}
+                    </button>
+                  </div>
+                }
+                @if (activeTab === 'roles') {
+                  <article class="tab-card">
+                    <div class="roles-head">
+                      <h3>Control de acceso</h3>
+                      <button class="ui-btn secondary" type="button" (click)="agregarRol()">
+                        <i class="fa-solid fa-plus"></i>
+                        Agregar rol
+                      </button>
+                    </div>
+                    @if (showAddRoleForm) {
+                      <div class="role-add-form">
+                        <div class="ui-grid">
+                          <div class="ui-field ui-col-6">
+                            <label class="ui-label">Rol</label>
+                            <select class="ui-control" [(ngModel)]="newRole.rolId">
+                              <option [ngValue]="null">Seleccione un rol</option>
+                              @for (role of rolesCatalogo; track role) {
+                                <option [ngValue]="role.id">
+                                  {{ role.nombre || ('Rol ' + role.id) }}
+                                </option>
+                              }
+                            </select>
+                          </div>
+                          <div class="ui-field ui-col-6">
+                            <label class="ui-label">Fecha fin</label>
+                            <input class="ui-control" type="date" [(ngModel)]="newRole.fechaFin">
+                          </div>
+                          <div class="ui-field ui-col-12">
+                            <label class="ui-label">Justificación</label>
+                            <textarea class="ui-control" rows="3" [(ngModel)]="newRole.justificacion" placeholder="Motivo de la asignación"></textarea>
+                          </div>
+                        </div>
+                        <div class="tab-actions">
+                          <button class="ui-btn secondary" type="button" (click)="cancelarNuevoRol()">
+                            <i class="fa-solid fa-ban"></i>
+                            Cancelar
+                          </button>
+                          <button class="ui-btn primary" type="button" (click)="guardarRoles()" [disabled]="savingRole">
+                            <i class="fa-solid fa-floppy-disk"></i>
+                            {{ savingRole ? 'Guardando...' : 'Guardar rol' }}
+                          </button>
+                        </div>
+                      </div>
+                    }
+                    @if (user.roles.length > 0) {
+                      <div class="roles-list">
+                        @for (rol of user.roles; track rol) {
+                          <div class="role-item">
+                            <div class="role-grid role-grid--labels">
+                              <div class="role-label">
+                                <span class="role-label__title">Rol</span>
+                                <strong>{{ rol.nombre }}</strong>
+                              </div>
+                              <div class="role-label">
+                                <span class="role-label__title">Estado</span>
+                                <span class="ui-badge"
+                                  [class.success]="rol.estado === 'Vigente'"
+                                  [class.warning]="rol.estado === 'Vencido'"
+                                  [class.danger]="rol.estado === 'Retirado'">
+                                  @switch (rol.estado) {
+                                    @case ('Vigente') {
+                                      <i class="fa-solid fa-circle-check"></i> Vigente
+                                    }
+                                    @case ('Vencido') {
+                                      <i class="fa-solid fa-clock"></i> Vencido
+                                    }
+                                    @case ('Retirado') {
+                                      <i class="fa-solid fa-ban"></i> Retirado por Admin
+                                    }
+                                    @default {
+                                      {{ rol.estado }}
+                                    }
+                                  }
+                                </span>
+                              </div>
+                              <div class="role-label">
+                                <span class="role-label__title">Fecha expiración</span>
+                                <strong>{{ rol.fechaExpiracion || 'Sin fecha' }}</strong>
+                              </div>
+                              <div class="role-label role-label--full">
+                                <span class="role-label__title">Justificación</span>
+                                <strong>{{ rol.justificacion || 'Sin justificación' }}</strong>
+                              </div>
+                            </div>
+                            <div class="tab-actions">
+                              <button
+                                class="ui-btn secondary"
+                                type="button"
+                                (click)="eliminarRol(rol)"
+                                [disabled]="deletingRoleId === rol.id || rol.estado !== 'Vigente'"
                     [title]="rol.estado === 'Retirado' ? 'Este rol ya fue retirado por un administrador'
                            : rol.estado === 'Vencido'  ? 'Este rol ya venció por expiración de fecha'
                            : 'Retirar este rol al usuario'"
-                  >
-                    <i class="fa-solid fa-trash"></i>
-                    {{ deletingRoleId === rol.id ? 'Retirando...' : 'Retirar rol' }}
+                                >
+                                <i class="fa-solid fa-trash"></i>
+                                {{ deletingRoleId === rol.id ? 'Retirando...' : 'Retirar rol' }}
+                              </button>
+                            </div>
+                          </div>
+                        }
+                      </div>
+                    } @else {
+                      <div class="news-state">
+                        El usuario no tiene roles asignados actualmente.
+                      </div>
+                    }
+                  </article>
+                }
+                <!-- ── Tab: Datos Operacionales ────────────────────────────────── -->
+                @if (activeTab === 'operacion') {
+                  <article class="tab-card">
+                    <div class="roles-head">
+                      <h3><i class="fa-solid fa-radio"></i> Asignación de Fuerza, Canal y ACD</h3>
+                    </div>
+                    <p class="helper-text">
+                      <i class="fa-solid fa-circle-info"></i>
+                      Estos datos determinan qué canal de despacho, fuerza y ACD usa el operador
+                      en los módulos de Recepción, Eventos y Turnos.
+                      Gestiona las fuerzas y canales desde
+                      <a routerLink="/administracion/entidades">Entidades / Fuerzas</a>.
+                    </p>
+                    <!-- Spinner carga operacional -->
+                    @if (loadingOperacion) {
+                      <div class="list-loading">
+                        <i class="fa-solid fa-spinner fa-spin"></i> Cargando datos operacionales...
+                      </div>
+                    }
+                    @if (!loadingOperacion) {
+                      <!-- Asignación actual (solo lectura, badge informativo) -->
+                      @if (operacionActual.fuerzaDescripcion || operacionActual.canalDescripcion) {
+                        <div class="operacion-actual">
+                          <span class="op-badge">
+                            <i class="fa-solid fa-building"></i>
+                            {{ operacionActual.fuerzaDescripcion ?? 'Sin fuerza' }}
+                          </span>
+                          <span class="op-sep"><i class="fa-solid fa-chevron-right"></i></span>
+                          <span class="op-badge">
+                            <i class="fa-solid fa-radio"></i>
+                            {{ operacionActual.canalDescripcion ?? 'Sin canal' }}
+                          </span>
+                          <span class="op-sep"><i class="fa-solid fa-chevron-right"></i></span>
+                          <span class="op-badge">
+                            <i class="fa-solid fa-headset"></i>
+                            ACD {{ operacionForm.acd || '—' }}
+                          </span>
+                        </div>
+                      }
+                      <div class="ui-grid">
+                        <!-- Fuerza -->
+                        <div class="ui-field ui-col-6">
+                          <label class="ui-label">Fuerza / Entidad</label>
+                          <select class="ui-control"
+                            [(ngModel)]="operacionForm.cadcanaFuerzaId"
+                            (ngModelChange)="onFuerzaOperacionChange()">
+                            <option [ngValue]="0">— Sin asignación —</option>
+                            @for (f of fuerzasDisponibles; track f) {
+                              <option [ngValue]="f.id">
+                                {{ f.abreviatura ? '[' + f.abreviatura + '] ' : '' }}{{ f.descripcion }}
+                              </option>
+                            }
+                          </select>
+                          @if (fuerzasDisponibles.length === 0) {
+                            <small class="search-hint">
+                              No hay fuerzas activas. Créalas en
+                              <a routerLink="/administracion/entidades">Entidades / Fuerzas</a>.
+                            </small>
+                          }
+                        </div>
+                        <!-- Canal (cascading) -->
+                        <div class="ui-field ui-col-6">
+                          <label class="ui-label">Canal de Despacho</label>
+                          <select class="ui-control"
+                            [(ngModel)]="operacionForm.cadcanaCodigo"
+                            [disabled]="!operacionForm.cadcanaFuerzaId || operacionForm.cadcanaFuerzaId === 0">
+                            <option [ngValue]="0">— Sin canal —</option>
+                            @for (c of canalesDisponibles; track c) {
+                              <option [ngValue]="c.codigo">
+                                #{{ c.codigo }} — {{ c.descripcion }}
+                              </option>
+                            }
+                          </select>
+                          @if (operacionForm.cadcanaFuerzaId > 0 && canalesDisponibles.length === 0) {
+                            <small class="search-hint"
+                              >
+                              Esta fuerza no tiene canales activos todavía.
+                            </small>
+                          }
+                        </div>
+                        <!-- ACD -->
+                        <div class="ui-field ui-col-4">
+                          <label class="ui-label">ACD (cola telefónica)</label>
+                          <input class="ui-control" type="number" min="0" max="9999"
+                            [(ngModel)]="operacionForm.acd"
+                            placeholder="0">
+                          <small class="search-hint">Número de ACD asignado por la central telefónica.</small>
+                        </div>
+                      </div>
+                      <div class="tab-actions">
+                        <button class="ui-btn primary" type="button"
+                          (click)="guardarOperacion()" [disabled]="savingOperacion">
+                          <i class="fa-solid fa-floppy-disk"></i>
+                          {{ savingOperacion ? 'Guardando...' : 'Guardar datos operacionales' }}
+                        </button>
+                        <button class="ui-btn secondary" type="button"
+                          (click)="cargarOperacion()" [disabled]="loadingOperacion">
+                          <i class="fa-solid fa-rotate"></i> Recargar
+                        </button>
+                      </div>
+                    }
+                  </article>
+                }
+              </section>
+            </div>
+          } @else {
+            <!-- Panel de creación de nuevo usuario (modo activo) -->
+            @if (modoCreacionActivo) {
+              <div class="creation-panel">
+                <div class="creation-header">
+                  <h3><i class="fa-solid fa-user-plus"></i> Nuevo usuario</h3>
+                  <button class="ui-btn secondary" type="button" (click)="cancelarNuevoUsuario()">
+                    <i class="fa-solid fa-xmark"></i> Cancelar
+                  </button>
+                </div>
+                <!-- Selector de tipo de usuario -->
+                <div class="tipo-selector">
+                  <button
+                    class="tipo-btn"
+                    type="button"
+                    [class.active]="tipoCreacion === 'policia'"
+                    (click)="setTipoCreacion('policia')"
+                    >
+                    <i class="fa-solid fa-shield-halved"></i>
+                    Funcionario Policía Nacional
+                  </button>
+                  <button
+                    class="tipo-btn"
+                    type="button"
+                    [class.active]="tipoCreacion === 'civil'"
+                    (click)="setTipoCreacion('civil')"
+                    >
+                    <i class="fa-solid fa-id-card"></i>
+                    Civil / Otra entidad
+                  </button>
+                </div>
+                <!-- Formulario policial (búsqueda PIP) -->
+                @if (tipoCreacion === 'policia') {
+                  <div class="tab-card">
+                    <p class="helper-text">
+                      <i class="fa-solid fa-circle-info"></i>
+                      Ingresa la cédula del funcionario para consultar su información en el directorio institucional.
+                    </p>
+                    <div class="empty-search">
+                      <input class="ui-control" type="text" [(ngModel)]="searchIdentification"
+                        placeholder="Cédula del funcionario" (keyup.enter)="consultarUsuario()">
+                      <button class="ui-btn secondary" type="button" (click)="consultarUsuario()" [disabled]="loading">
+                        <i class="fa-solid fa-magnifying-glass"></i>
+                        {{ loading ? 'Consultando...' : 'Consultar OUD Ponal' }}
+                      </button>
+                    </div>
+                  </div>
+                }
+                <!-- Formulario civil (creación directa) -->
+                @if (tipoCreacion === 'civil') {
+                  <div class="tab-card">
+                    <p class="helper-text">
+                      <i class="fa-solid fa-circle-info"></i>
+                      Los usuarios civiles acceden con usuario y contraseña asignados aquí. Su tenant
+                      será el mismo CAD del administrador que los crea.
+                    </p>
+                    <div class="ui-grid">
+                      <div class="ui-field ui-col-6">
+                        <label class="ui-label">Usuario (login) <span class="required">*</span></label>
+                        <input class="ui-control" type="text" [(ngModel)]="civilForm.username"
+                          placeholder="Ej: jperez.minjusticia">
+                      </div>
+                      <div class="ui-field ui-col-6">
+                        <label class="ui-label">Contraseña <span class="required">*</span></label>
+                        <div class="ui-input-group">
+                          <input class="ui-control" [type]="showPassword ? 'text' : 'password'"
+                            [(ngModel)]="civilForm.password" placeholder="Mínimo 8 caracteres">
+                          <button class="ui-addon-btn" type="button" (click)="toggleShowPassword()" title="Mostrar/ocultar">
+                            <i class="fa-solid" [class.fa-eye]="!showPassword" [class.fa-eye-slash]="showPassword"></i>
+                          </button>
+                        </div>
+                      </div>
+                      <div class="ui-field ui-col-6">
+                        <label class="ui-label">Nombres <span class="required">*</span></label>
+                        <input class="ui-control" type="text" [(ngModel)]="civilForm.nombres" placeholder="Ej: Juan">
+                      </div>
+                      <div class="ui-field ui-col-6">
+                        <label class="ui-label">Apellidos <span class="required">*</span></label>
+                        <input class="ui-control" type="text" [(ngModel)]="civilForm.apellidos" placeholder="Ej: Pérez Gómez">
+                      </div>
+                      <div class="ui-field ui-col-6">
+                        <label class="ui-label">Identificación</label>
+                        <input class="ui-control" type="text" [(ngModel)]="civilForm.identificacion"
+                          placeholder="Cédula o NIT">
+                      </div>
+                      <div class="ui-field ui-col-6">
+                        <label class="ui-label">Correo electrónico</label>
+                        <input class="ui-control" type="email" [(ngModel)]="civilForm.email"
+                          placeholder="correo@entidad.gov.co">
+                      </div>
+                      <div class="ui-field ui-col-6">
+                        <label class="ui-label">Entidad / Institución</label>
+                        <input class="ui-control" type="text" [(ngModel)]="civilForm.entidad"
+                          placeholder="Ej: Ministerio de Justicia">
+                      </div>
+                      <div class="ui-field ui-col-6">
+                        <label class="ui-label">Cargo</label>
+                        <input class="ui-control" type="text" [(ngModel)]="civilForm.cargo"
+                          placeholder="Ej: Analista de seguridad">
+                      </div>
+                      <div class="ui-field ui-col-12">
+                        <label class="ui-label">Estado</label>
+                        <div class="state-box">
+                          <span class="state-box__value" [class.inactive]="!civilForm.activo">
+                            {{ civilForm.activo ? 'ACTIVO' : 'INACTIVO' }}
+                          </span>
+                          <button class="switch" type="button" [class.active]="civilForm.activo"
+                            (click)="civilForm.activo = !civilForm.activo">
+                            <span></span>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="tab-actions">
+                      <button class="ui-btn primary" type="button" (click)="guardarCivilUsuario()" [disabled]="loading">
+                        <i class="fa-solid fa-floppy-disk"></i>
+                        {{ loading ? 'Guardando...' : 'Crear usuario civil' }}
+                      </button>
+                    </div>
+                  </div>
+                }
+              </div>
+            }
+            <!-- Estado vacío (no hay modo creación activo) -->
+            @if (!modoCreacionActivo) {
+              <div class="empty-state">
+                <i class="fa-solid fa-user-plus"></i>
+                <h3>Consulta un usuario para iniciar</h3>
+                <p>Ingresa la identificación y consulta para administrar datos y permisos,<br>
+                  o haz clic en <strong>Nuevo usuario</strong> para crear uno nuevo.</p>
+                  <div class="empty-search">
+                    <input class="ui-control" type="text" [(ngModel)]="searchIdentification"
+                      placeholder="Identificación del funcionario" (keyup.enter)="consultarUsuario()">
+                    <button class="ui-btn secondary" type="button" (click)="consultarUsuario()" [disabled]="loading">
+                      <i class="fa-solid fa-magnifying-glass"></i>
+                      {{ loading ? 'Consultando...' : 'Consultar' }}
+                    </button>
+                  </div>
+                </div>
+              }
+            }
+            <article class="tab-card users-table-card">
+              <div class="roles-head">
+                <h3>Usuarios existentes</h3>
+                <div class="table-head-actions">
+                  @if (!modoCreacionActivo) {
+                    <button class="ui-btn primary" type="button" (click)="prepararNuevoUsuario()">
+                      <i class="fa-solid fa-user-plus"></i>
+                      Nuevo usuario
+                    </button>
+                  }
+                  <button class="ui-btn secondary" type="button" (click)="cargarListadoUsuarios()" [disabled]="loadingListado">
+                    <i class="fa-solid fa-rotate"></i>
+                    {{ loadingListado ? 'Cargando...' : 'Actualizar' }}
                   </button>
                 </div>
               </div>
-            </div>
-
-            <ng-template #noRoles>
-              <div class="news-state">
-                El usuario no tiene roles asignados actualmente.
-              </div>
-            </ng-template>
-          </article>
-
-          <!-- ── Tab: Datos Operacionales ────────────────────────────────── -->
-          <article class="tab-card" *ngIf="activeTab === 'operacion'">
-
-            <div class="roles-head">
-              <h3><i class="fa-solid fa-radio"></i> Asignación de Fuerza, Canal y ACD</h3>
-            </div>
-
-            <p class="helper-text">
-              <i class="fa-solid fa-circle-info"></i>
-              Estos datos determinan qué canal de despacho, fuerza y ACD usa el operador
-              en los módulos de Recepción, Eventos y Turnos.
-              Gestiona las fuerzas y canales desde
-              <a routerLink="/administracion/entidades">Entidades / Fuerzas</a>.
-            </p>
-
-            <!-- Spinner carga operacional -->
-            <div class="list-loading" *ngIf="loadingOperacion">
-              <i class="fa-solid fa-spinner fa-spin"></i> Cargando datos operacionales...
-            </div>
-
-            <ng-container *ngIf="!loadingOperacion">
-
-              <!-- Asignación actual (solo lectura, badge informativo) -->
-              <div class="operacion-actual" *ngIf="operacionActual.fuerzaDescripcion || operacionActual.canalDescripcion">
-                <span class="op-badge">
-                  <i class="fa-solid fa-building"></i>
-                  {{ operacionActual.fuerzaDescripcion ?? 'Sin fuerza' }}
-                </span>
-                <span class="op-sep"><i class="fa-solid fa-chevron-right"></i></span>
-                <span class="op-badge">
-                  <i class="fa-solid fa-radio"></i>
-                  {{ operacionActual.canalDescripcion ?? 'Sin canal' }}
-                </span>
-                <span class="op-sep"><i class="fa-solid fa-chevron-right"></i></span>
-                <span class="op-badge">
-                  <i class="fa-solid fa-headset"></i>
-                  ACD {{ operacionForm.acd || '—' }}
-                </span>
-              </div>
-
               <div class="ui-grid">
-
-                <!-- Fuerza -->
                 <div class="ui-field ui-col-6">
-                  <label class="ui-label">Fuerza / Entidad</label>
-                  <select class="ui-control"
-                          [(ngModel)]="operacionForm.cadcanaFuerzaId"
-                          (ngModelChange)="onFuerzaOperacionChange()">
-                    <option [ngValue]="0">— Sin asignación —</option>
-                    <option *ngFor="let f of fuerzasDisponibles" [ngValue]="f.id">
-                      {{ f.abreviatura ? '[' + f.abreviatura + '] ' : '' }}{{ f.descripcion }}
-                    </option>
-                  </select>
-                  <small class="search-hint" *ngIf="fuerzasDisponibles.length === 0">
-                    No hay fuerzas activas. Créalas en
-                    <a routerLink="/administracion/entidades">Entidades / Fuerzas</a>.
-                  </small>
+                  <label class="ui-label">Buscar por nombre</label>
+                  <input
+                    class="ui-control"
+                    type="text"
+                    [(ngModel)]="searchNombreListado"
+                    (ngModelChange)="onSearchNombreListadoChange()"
+                    placeholder="Escribe un nombre (mínimo 6 caracteres)..."
+                    >
+                  <small class="search-hint">Al buscar, la tabla mostrará solo coincidencias desde el carácter {{ minSearchChars }}.</small>
                 </div>
-
-                <!-- Canal (cascading) -->
-                <div class="ui-field ui-col-6">
-                  <label class="ui-label">Canal de Despacho</label>
-                  <select class="ui-control"
-                          [(ngModel)]="operacionForm.cadcanaCodigo"
-                          [disabled]="!operacionForm.cadcanaFuerzaId || operacionForm.cadcanaFuerzaId === 0">
-                    <option [ngValue]="0">— Sin canal —</option>
-                    <option *ngFor="let c of canalesDisponibles" [ngValue]="c.codigo">
-                      #{{ c.codigo }} — {{ c.descripcion }}
-                    </option>
-                  </select>
-                  <small class="search-hint"
-                         *ngIf="operacionForm.cadcanaFuerzaId > 0 && canalesDisponibles.length === 0">
-                    Esta fuerza no tiene canales activos todavía.
-                  </small>
-                </div>
-
-                <!-- ACD -->
-                <div class="ui-field ui-col-4">
-                  <label class="ui-label">ACD (cola telefónica)</label>
-                  <input class="ui-control" type="number" min="0" max="9999"
-                         [(ngModel)]="operacionForm.acd"
-                         placeholder="0">
-                  <small class="search-hint">Número de ACD asignado por la central telefónica.</small>
-                </div>
-
               </div>
-
-              <div class="tab-actions">
-                <button class="ui-btn primary" type="button"
-                        (click)="guardarOperacion()" [disabled]="savingOperacion">
-                  <i class="fa-solid fa-floppy-disk"></i>
-                  {{ savingOperacion ? 'Guardando...' : 'Guardar datos operacionales' }}
-                </button>
-                <button class="ui-btn secondary" type="button"
-                        (click)="cargarOperacion()" [disabled]="loadingOperacion">
-                  <i class="fa-solid fa-rotate"></i> Recargar
-                </button>
-              </div>
-
-            </ng-container>
-          </article>
-
-        </section>
+              @if (loadingListado) {
+                <div class="list-loading">Consultando usuarios...</div>
+              }
+              @if (!loadingListado && usuariosListado.length > 0) {
+                <div class="table-wrap">
+                  <table class="users-table">
+                    <thead>
+                      <tr>
+                        <th>Usuario empresarial</th>
+                        <th>Grado y nombre</th>
+                        <th>Rol</th>
+                        <th>Fecha vencimiento rol</th>
+                        <th>Acciones</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      @for (item of usuariosListadoPaginado; track item) {
+                        <tr>
+                          <td>{{ item.username || 'N/A' }}</td>
+                          <td>{{ item.nombreCompleto || 'N/A' }}</td>
+                          <td>{{ item.rol || 'Sin rol' }}</td>
+                          <td>{{ item.fechaFinRol || 'Sin fecha' }}</td>
+                          <td>
+                            <div class="table-actions">
+                              <button class="ui-btn secondary" type="button" (click)="editarDesdeListado(item)">
+                                <i class="fa-solid fa-pen-to-square"></i>
+                              </button>
+                              <button class="ui-btn secondary danger" type="button" (click)="abrirModalEliminarUsuario(item)">
+                                <i class="fa-solid fa-user-xmark"></i>
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      }
+                    </tbody>
+                  </table>
+                  @if (totalUsuariosListado > 0) {
+                    <div class="table-pagination">
+                      <span class="pagination-summary">
+                        Página {{ currentPage }} de {{ totalPaginasListado }} | Registros: {{ totalUsuariosListado }}
+                      </span>
+                      <div class="pagination-actions">
+                        <button class="ui-btn secondary" type="button" (click)="prevPaginaListado()" [disabled]="!canGoPrevListado()">
+                          <i class="fa-solid fa-chevron-left"></i>
+                          Anterior
+                        </button>
+                        <button class="ui-btn secondary" type="button" (click)="nextPaginaListado()" [disabled]="!canGoNextListado()">
+                          Siguiente
+                          <i class="fa-solid fa-chevron-right"></i>
+                        </button>
+                      </div>
+                    </div>
+                  }
+                </div>
+              } @else {
+                <div class="news-state">
+                  {{
+                  isSearchMode
+                  ? ((searchNombreListado || '').trim().length < minSearchChars
+                  ? ('Escribe mínimo ' + minSearchChars + ' caracteres para activar la búsqueda.')
+                  : 'No hay resultados para la búsqueda.')
+                  : 'No hay usuarios para mostrar.'
+                  }}
+                </div>
+              }
+            </article>
+          </div>
+        }
       </div>
-
-      <ng-template #emptyState>
-        <!-- Panel de creación de nuevo usuario (modo activo) -->
-        <div class="creation-panel" *ngIf="modoCreacionActivo">
-          <div class="creation-header">
-            <h3><i class="fa-solid fa-user-plus"></i> Nuevo usuario</h3>
-            <button class="ui-btn secondary" type="button" (click)="cancelarNuevoUsuario()">
-              <i class="fa-solid fa-xmark"></i> Cancelar
-            </button>
-          </div>
-
-          <!-- Selector de tipo de usuario -->
-          <div class="tipo-selector">
-            <button
-              class="tipo-btn"
-              type="button"
-              [class.active]="tipoCreacion === 'policia'"
-              (click)="setTipoCreacion('policia')"
-            >
-              <i class="fa-solid fa-shield-halved"></i>
-              Funcionario Policía Nacional
-            </button>
-            <button
-              class="tipo-btn"
-              type="button"
-              [class.active]="tipoCreacion === 'civil'"
-              (click)="setTipoCreacion('civil')"
-            >
-              <i class="fa-solid fa-id-card"></i>
-              Civil / Otra entidad
-            </button>
-          </div>
-
-          <!-- Formulario policial (búsqueda PIP) -->
-          <div class="tab-card" *ngIf="tipoCreacion === 'policia'">
-            <p class="helper-text">
-              <i class="fa-solid fa-circle-info"></i>
-              Ingresa la cédula del funcionario para consultar su información en el directorio institucional.
+      @if (showDeleteUserModal) {
+        <div class="modal-backdrop">
+          <div class="modal-card">
+            <h3>Confirmar eliminación de usuario</h3>
+            <p>
+              Para eliminar el usuario <strong>{{ deletingTarget?.username }}</strong>, escribe
+              <strong>ELIMINAR</strong>.
             </p>
-            <div class="empty-search">
-              <input class="ui-control" type="text" [(ngModel)]="searchIdentification"
-                placeholder="Cédula del funcionario" (keyup.enter)="consultarUsuario()">
-              <button class="ui-btn secondary" type="button" (click)="consultarUsuario()" [disabled]="loading">
-                <i class="fa-solid fa-magnifying-glass"></i>
-                {{ loading ? 'Consultando...' : 'Consultar OUD Ponal' }}
-              </button>
-            </div>
-          </div>
-
-          <!-- Formulario civil (creación directa) -->
-          <div class="tab-card" *ngIf="tipoCreacion === 'civil'">
-            <p class="helper-text">
-              <i class="fa-solid fa-circle-info"></i>
-              Los usuarios civiles acceden con usuario y contraseña asignados aquí. Su tenant
-              será el mismo CAD del administrador que los crea.
-            </p>
-            <div class="ui-grid">
-              <div class="ui-field ui-col-6">
-                <label class="ui-label">Usuario (login) <span class="required">*</span></label>
-                <input class="ui-control" type="text" [(ngModel)]="civilForm.username"
-                  placeholder="Ej: jperez.minjusticia">
-              </div>
-              <div class="ui-field ui-col-6">
-                <label class="ui-label">Contraseña <span class="required">*</span></label>
-                <div class="ui-input-group">
-                  <input class="ui-control" [type]="showPassword ? 'text' : 'password'"
-                    [(ngModel)]="civilForm.password" placeholder="Mínimo 8 caracteres">
-                  <button class="ui-addon-btn" type="button" (click)="toggleShowPassword()" title="Mostrar/ocultar">
-                    <i class="fa-solid" [class.fa-eye]="!showPassword" [class.fa-eye-slash]="showPassword"></i>
-                  </button>
-                </div>
-              </div>
-
-              <div class="ui-field ui-col-6">
-                <label class="ui-label">Nombres <span class="required">*</span></label>
-                <input class="ui-control" type="text" [(ngModel)]="civilForm.nombres" placeholder="Ej: Juan">
-              </div>
-              <div class="ui-field ui-col-6">
-                <label class="ui-label">Apellidos <span class="required">*</span></label>
-                <input class="ui-control" type="text" [(ngModel)]="civilForm.apellidos" placeholder="Ej: Pérez Gómez">
-              </div>
-
-              <div class="ui-field ui-col-6">
-                <label class="ui-label">Identificación</label>
-                <input class="ui-control" type="text" [(ngModel)]="civilForm.identificacion"
-                  placeholder="Cédula o NIT">
-              </div>
-              <div class="ui-field ui-col-6">
-                <label class="ui-label">Correo electrónico</label>
-                <input class="ui-control" type="email" [(ngModel)]="civilForm.email"
-                  placeholder="correo@entidad.gov.co">
-              </div>
-
-              <div class="ui-field ui-col-6">
-                <label class="ui-label">Entidad / Institución</label>
-                <input class="ui-control" type="text" [(ngModel)]="civilForm.entidad"
-                  placeholder="Ej: Ministerio de Justicia">
-              </div>
-              <div class="ui-field ui-col-6">
-                <label class="ui-label">Cargo</label>
-                <input class="ui-control" type="text" [(ngModel)]="civilForm.cargo"
-                  placeholder="Ej: Analista de seguridad">
-              </div>
-
-              <div class="ui-field ui-col-12">
-                <label class="ui-label">Estado</label>
-                <div class="state-box">
-                  <span class="state-box__value" [class.inactive]="!civilForm.activo">
-                    {{ civilForm.activo ? 'ACTIVO' : 'INACTIVO' }}
-                  </span>
-                  <button class="switch" type="button" [class.active]="civilForm.activo"
-                    (click)="civilForm.activo = !civilForm.activo">
-                    <span></span>
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <div class="tab-actions">
-              <button class="ui-btn primary" type="button" (click)="guardarCivilUsuario()" [disabled]="loading">
-                <i class="fa-solid fa-floppy-disk"></i>
-                {{ loading ? 'Guardando...' : 'Crear usuario civil' }}
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <!-- Estado vacío (no hay modo creación activo) -->
-        <div class="empty-state" *ngIf="!modoCreacionActivo">
-          <i class="fa-solid fa-user-plus"></i>
-          <h3>Consulta un usuario para iniciar</h3>
-          <p>Ingresa la identificación y consulta para administrar datos y permisos,<br>
-             o haz clic en <strong>Nuevo usuario</strong> para crear uno nuevo.</p>
-
-          <div class="empty-search">
-            <input class="ui-control" type="text" [(ngModel)]="searchIdentification"
-              placeholder="Identificación del funcionario" (keyup.enter)="consultarUsuario()">
-            <button class="ui-btn secondary" type="button" (click)="consultarUsuario()" [disabled]="loading">
-              <i class="fa-solid fa-magnifying-glass"></i>
-              {{ loading ? 'Consultando...' : 'Consultar' }}
-            </button>
-          </div>
-        </div>
-      </ng-template>
-
-      <article class="tab-card users-table-card">
-        <div class="roles-head">
-          <h3>Usuarios existentes</h3>
-          <div class="table-head-actions">
-            <button class="ui-btn primary" type="button" (click)="prepararNuevoUsuario()" *ngIf="!modoCreacionActivo">
-              <i class="fa-solid fa-user-plus"></i>
-              Nuevo usuario
-            </button>
-            <button class="ui-btn secondary" type="button" (click)="cargarListadoUsuarios()" [disabled]="loadingListado">
-              <i class="fa-solid fa-rotate"></i>
-              {{ loadingListado ? 'Cargando...' : 'Actualizar' }}
-            </button>
-          </div>
-        </div>
-
-        <div class="ui-grid">
-          <div class="ui-field ui-col-6">
-            <label class="ui-label">Buscar por nombre</label>
             <input
               class="ui-control"
               type="text"
-              [(ngModel)]="searchNombreListado"
-              (ngModelChange)="onSearchNombreListadoChange()"
-              placeholder="Escribe un nombre (mínimo 6 caracteres)..."
-            >
-            <small class="search-hint">Al buscar, la tabla mostrará solo coincidencias desde el carácter {{ minSearchChars }}.</small>
-          </div>
-        </div>
-
-        <div class="list-loading" *ngIf="loadingListado">Consultando usuarios...</div>
-
-        <div class="table-wrap" *ngIf="!loadingListado && usuariosListado.length > 0; else noUsersTable">
-          <table class="users-table">
-            <thead>
-              <tr>
-                <th>Usuario empresarial</th>
-                <th>Grado y nombre</th>
-                <th>Rol</th>
-                <th>Fecha vencimiento rol</th>
-                <th>Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr *ngFor="let item of usuariosListadoPaginado">
-                <td>{{ item.username || 'N/A' }}</td>
-                <td>{{ item.nombreCompleto || 'N/A' }}</td>
-                <td>{{ item.rol || 'Sin rol' }}</td>
-                <td>{{ item.fechaFinRol || 'Sin fecha' }}</td>
-                <td>
-                  <div class="table-actions">
-                    <button class="ui-btn secondary" type="button" (click)="editarDesdeListado(item)">
-                      <i class="fa-solid fa-pen-to-square"></i>
-                      
-                    </button>
-                    <button class="ui-btn secondary danger" type="button" (click)="abrirModalEliminarUsuario(item)">
-                      <i class="fa-solid fa-user-xmark"></i>
-                      
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-
-          <div class="table-pagination" *ngIf="totalUsuariosListado > 0">
-            <span class="pagination-summary">
-              Página {{ currentPage }} de {{ totalPaginasListado }} | Registros: {{ totalUsuariosListado }}
-            </span>
-
-            <div class="pagination-actions">
-              <button class="ui-btn secondary" type="button" (click)="prevPaginaListado()" [disabled]="!canGoPrevListado()">
-                <i class="fa-solid fa-chevron-left"></i>
-                Anterior
+              [(ngModel)]="deleteConfirmText"
+              placeholder="Escribe ELIMINAR"
+              >
+            <div class="tab-actions">
+              <button class="ui-btn secondary" type="button" (click)="cerrarModalEliminarUsuario()" [disabled]="deletingUser">
+                Cancelar
               </button>
-              <button class="ui-btn secondary" type="button" (click)="nextPaginaListado()" [disabled]="!canGoNextListado()">
-                Siguiente
-                <i class="fa-solid fa-chevron-right"></i>
+              <button class="ui-btn primary" type="button" (click)="confirmarEliminarUsuario()" [disabled]="deletingUser">
+                {{ deletingUser ? 'Eliminando...' : 'Confirmar eliminación' }}
               </button>
             </div>
           </div>
         </div>
-
-        <ng-template #noUsersTable>
-          <div class="news-state">
-            {{
-              isSearchMode
-                ? ((searchNombreListado || '').trim().length < minSearchChars
-                    ? ('Escribe mínimo ' + minSearchChars + ' caracteres para activar la búsqueda.')
-                    : 'No hay resultados para la búsqueda.')
-                : 'No hay usuarios para mostrar.'
-            }}
-          </div>
-        </ng-template>
-      </article>
-    </div>
-  </div>
-
-  <div class="modal-backdrop" *ngIf="showDeleteUserModal">
-    <div class="modal-card">
-      <h3>Confirmar eliminación de usuario</h3>
-      <p>
-        Para eliminar el usuario <strong>{{ deletingTarget?.username }}</strong>, escribe
-        <strong>ELIMINAR</strong>.
-      </p>
-
-      <input
-        class="ui-control"
-        type="text"
-        [(ngModel)]="deleteConfirmText"
-        placeholder="Escribe ELIMINAR"
-      >
-
-      <div class="tab-actions">
-        <button class="ui-btn secondary" type="button" (click)="cerrarModalEliminarUsuario()" [disabled]="deletingUser">
-          Cancelar
-        </button>
-        <button class="ui-btn primary" type="button" (click)="confirmarEliminarUsuario()" [disabled]="deletingUser">
-          {{ deletingUser ? 'Eliminando...' : 'Confirmar eliminación' }}
-        </button>
-      </div>
-    </div>
-  </div>
-</section>
+      }
+    </section>
+  }

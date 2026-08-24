@@ -1,6 +1,7 @@
 import {
   Component, OnInit, OnDestroy, AfterViewInit,
-  NgZone, ChangeDetectorRef, ElementRef, ViewChild
+  NgZone, ChangeDetectorRef, ElementRef,
+  viewChild
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -82,11 +83,11 @@ export class MapaEstadisticoComponent implements OnInit, AfterViewInit, OnDestro
     'https://services3.arcgis.com/8cBoM4o6pnuUb1z1/ArcGIS/rest/services/SIDENCO_SinMalla/FeatureServer';
 
   // ── Gráficas Chart.js ─────────────────────────────────────────────────────
-  @ViewChild('chartTipo')     chartTipoRef!:     ElementRef<HTMLCanvasElement>;
-  @ViewChild('chartHora')     chartHoraRef!:     ElementRef<HTMLCanvasElement>;
-  @ViewChild('chartDia')      chartDiaRef!:      ElementRef<HTMLCanvasElement>;
-  @ViewChild('chartMes')      chartMesRef!:      ElementRef<HTMLCanvasElement>;
-  @ViewChild('chartPrioridad')chartPrioRef!:     ElementRef<HTMLCanvasElement>;
+  readonly chartTipoRef = viewChild.required<ElementRef<HTMLCanvasElement>>('chartTipo');
+  readonly chartHoraRef = viewChild.required<ElementRef<HTMLCanvasElement>>('chartHora');
+  readonly chartDiaRef = viewChild.required<ElementRef<HTMLCanvasElement>>('chartDia');
+  readonly chartMesRef = viewChild.required<ElementRef<HTMLCanvasElement>>('chartMes');
+  readonly chartPrioRef = viewChild.required<ElementRef<HTMLCanvasElement>>('chartPrioridad');
 
   private charts: Map<string, any> = new Map();
 
@@ -270,11 +271,11 @@ export class MapaEstadisticoComponent implements OnInit, AfterViewInit, OnDestro
 
   generarInforme(): void {
     // Capturar cada gráfica como imagen PNG desde su <canvas>
-    const imgTipo  = this.chartTipoRef?.nativeElement?.toDataURL('image/png') ?? '';
-    const imgHora  = this.chartHoraRef?.nativeElement?.toDataURL('image/png') ?? '';
-    const imgDia   = this.chartDiaRef?.nativeElement?.toDataURL('image/png')  ?? '';
-    const imgMes   = this.chartMesRef?.nativeElement?.toDataURL('image/png')  ?? '';
-    const imgPrio  = this.chartPrioRef?.nativeElement?.toDataURL('image/png') ?? '';
+    const imgTipo  = this.chartTipoRef()?.nativeElement?.toDataURL('image/png') ?? '';
+    const imgHora  = this.chartHoraRef()?.nativeElement?.toDataURL('image/png') ?? '';
+    const imgDia   = this.chartDiaRef()?.nativeElement?.toDataURL('image/png')  ?? '';
+    const imgMes   = this.chartMesRef()?.nativeElement?.toDataURL('image/png')  ?? '';
+    const imgPrio  = this.chartPrioRef()?.nativeElement?.toDataURL('image/png') ?? '';
 
     const filtrosTexto = [
       `Período: ${this.escapeHtml(this.filtro.desde)} → ${this.escapeHtml(this.filtro.hasta)}`,
@@ -762,7 +763,7 @@ export class MapaEstadisticoComponent implements OnInit, AfterViewInit, OnDestro
   }
 
   private renderChartTipo(): void {
-    const ref = this.chartTipoRef?.nativeElement;
+    const ref = this.chartTipoRef()?.nativeElement;
     if (!ref) return;
     const top = this.metricas.porTipoCaso.slice(0, 12);
     const text = this.chartTextColor();
@@ -785,7 +786,7 @@ export class MapaEstadisticoComponent implements OnInit, AfterViewInit, OnDestro
   }
 
   private renderChartHora(): void {
-    const ref = this.chartHoraRef?.nativeElement;
+    const ref = this.chartHoraRef()?.nativeElement;
     if (!ref) return;
     const horas = Array.from({ length: 24 }, (_, i) => {
       const found = this.metricas.porHora.find(h => h.clave === String(i));
@@ -813,7 +814,7 @@ export class MapaEstadisticoComponent implements OnInit, AfterViewInit, OnDestro
   }
 
   private renderChartDia(): void {
-    const ref = this.chartDiaRef?.nativeElement;
+    const ref = this.chartDiaRef()?.nativeElement;
     if (!ref) return;
     const dias  = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
     const vals  = Array.from({ length: 7 }, (_, i) => {
@@ -840,7 +841,7 @@ export class MapaEstadisticoComponent implements OnInit, AfterViewInit, OnDestro
   }
 
   private renderChartMes(): void {
-    const ref = this.chartMesRef?.nativeElement;
+    const ref = this.chartMesRef()?.nativeElement;
     if (!ref) return;
     const meses = this.metricas.porMes;
     const text = this.chartTextColor();
@@ -865,7 +866,7 @@ export class MapaEstadisticoComponent implements OnInit, AfterViewInit, OnDestro
   }
 
   private renderChartPrioridad(): void {
-    const ref = this.chartPrioRef?.nativeElement;
+    const ref = this.chartPrioRef()?.nativeElement;
     if (!ref) return;
     const items = this.metricas.porPrioridad.filter(x => x.total > 0);
     this.charts.set('prio', new Chart(ref, {

@@ -1,15 +1,16 @@
 <!-- ══════════════════════════════════════════════════════════════════════
-     Login SECAD — Credenciales + modales 2FA
-     ══════════════════════════════════════════════════════════════════════ -->
+Login SECAD — Credenciales + modales 2FA
+══════════════════════════════════════════════════════════════════════ -->
 
 <!-- Slideshow de fondo -->
 <div class="background-carousel">
-  <div
-    class="slide"
-    *ngFor="let item of slides; let i = index"
-    [class.active]="i === currentSlideIndex"
-    [style.background-image]="'url(' + item.url + ')'">
-  </div>
+  @for (item of slides; track item; let i = $index) {
+    <div
+      class="slide"
+      [class.active]="i === currentSlideIndex"
+      [style.background-image]="'url(' + item.url + ')'">
+    </div>
+  }
 </div>
 
 <!-- ── Formulario principal ──────────────────────────────────────────────── -->
@@ -23,17 +24,17 @@
       <div class="input-group">
         <i class="fa fa-user"></i>
         <input type="text" name="usuario" [(ngModel)]="usuario"
-               placeholder="Usuario empresarial" autocomplete="username" required>
+          placeholder="Usuario empresarial" autocomplete="username" required>
       </div>
 
       <div class="input-group">
         <i class="fa fa-lock"></i>
         <input [type]="showPassword ? 'text' : 'password'" name="contrasena"
-               [(ngModel)]="contrasena" placeholder="Contraseña"
-               autocomplete="current-password" required>
+          [(ngModel)]="contrasena" placeholder="Contraseña"
+          autocomplete="current-password" required>
         <button type="button" class="toggle-password-btn"
-                (click)="togglePasswordVisibility()"
-                [attr.aria-label]="showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'">
+          (click)="togglePasswordVisibility()"
+          [attr.aria-label]="showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'">
           <i class="fa-solid" [ngClass]="showPassword ? 'fa-eye-slash' : 'fa-eye'"></i>
         </button>
       </div>
@@ -44,7 +45,9 @@
         </a>
       </div>
 
-      <p *ngIf="errorMessage" class="login-error">{{ errorMessage }}</p>
+      @if (errorMessage) {
+        <p class="login-error">{{ errorMessage }}</p>
+      }
 
       <p class="security-text">
         Está ingresando a un sistema de información de propiedad de la Policía Nacional,
@@ -61,8 +64,8 @@
   </div>
 </main>
 <!-- ══════════════════════════════════════════════════════════════════════════
-     Flujo 2FA — componente reutilizable @policia/mfa (enroll/verify/reset/…)
-     ══════════════════════════════════════════════════════════════════════════ -->
+Flujo 2FA — componente reutilizable @policia/mfa (enroll/verify/reset/…)
+══════════════════════════════════════════════════════════════════════════ -->
 <pmfa-flow
   [challenge]="mfaChallenge"
   [usuario]="usuario"

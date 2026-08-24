@@ -1,5 +1,5 @@
 ﻿import { Component, inject  } from '@angular/core';
-import { CommonModule } from '@angular/common';
+
 import { FormsModule } from '@angular/forms';
 import { ToastService } from '../../../core/services/toast.service';
 import { AlertService } from '../../../core/services/alert.service';
@@ -8,7 +8,7 @@ import { AlertService } from '../../../core/services/alert.service';
 @Component({
   selector: 'app-formularios',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [FormsModule],
   templateUrl: './formularios.html',
   styleUrls: ['./formularios.scss'],
 })

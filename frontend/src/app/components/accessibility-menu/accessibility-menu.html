@@ -1,34 +1,38 @@
 <div class="accessibility-menu">
   <!-- Botón Modo Oscuro -->
-  <button 
+  <button
     class="accessibility-btn dark-mode-btn"
     [class.active]="isDarkMode"
     (click)="toggleDarkMode()"
     title="Modo oscuro"
     aria-label="Activar o desactivar modo oscuro">
     <span class="icon" [attr.aria-hidden]="true">
-      <svg *ngIf="!isDarkMode" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <!-- Icono Sol -->
-        <circle cx="12" cy="12" r="5"></circle>
-        <line x1="12" y1="1" x2="12" y2="3"></line>
-        <line x1="12" y1="21" x2="12" y2="23"></line>
-        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
-        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
-        <line x1="1" y1="12" x2="3" y2="12"></line>
-        <line x1="21" y1="12" x2="23" y2="12"></line>
-        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
-        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
-      </svg>
-      <svg *ngIf="isDarkMode" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <!-- Icono Luna -->
-        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
-      </svg>
+      @if (!isDarkMode) {
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <!-- Icono Sol -->
+          <circle cx="12" cy="12" r="5"></circle>
+          <line x1="12" y1="1" x2="12" y2="3"></line>
+          <line x1="12" y1="21" x2="12" y2="23"></line>
+          <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+          <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+          <line x1="1" y1="12" x2="3" y2="12"></line>
+          <line x1="21" y1="12" x2="23" y2="12"></line>
+          <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+          <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+        </svg>
+      }
+      @if (isDarkMode) {
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <!-- Icono Luna -->
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+        </svg>
+      }
     </span>
     <span class="tooltip">{{ isDarkMode ? 'Modo claro' : 'Modo oscuro' }}</span>
   </button>
 
   <!-- Botón Aumentar Letra -->
-  <button 
+  <button
     class="accessibility-btn font-size-btn"
     [class.disabled]="isFontSizeLarge"
     (click)="increaseFontSize()"
@@ -47,7 +51,7 @@
   </button>
 
   <!-- Botón Disminuir Letra -->
-  <button 
+  <button
     class="accessibility-btn font-size-btn"
     [class.disabled]="isFontSizeSmall"
     (click)="decreaseFontSize()"
@@ -61,7 +65,7 @@
   </button>
 
   <!-- Botón Voz a Texto -->
-  <button 
+  <button
     class="accessibility-btn speech-to-text-btn"
     [class.active]="isListening"
     [class.disabled]="!speechToTextAvailable"
@@ -82,7 +86,7 @@
   </button>
 
   <!-- Botón Texto a Voz -->
-  <button 
+  <button
     class="accessibility-btn text-to-speech-btn "
     [class.active]="isSpeaking"
     [class.disabled]="!textToSpeechAvailable"

@@ -1,10 +1,11 @@
 <div class="app-shell" [class.menu-open]="isMenuOpen()">
   <app-sidebar class="app-sidebar"></app-sidebar>
 
-  <div class="app-backdrop"
-       *ngIf="isMenuOpen()"
-       (click)="closeMenu()"
-       aria-hidden="true"></div>
+  @if (isMenuOpen()) {
+    <div class="app-backdrop"
+      (click)="closeMenu()"
+    aria-hidden="true"></div>
+  }
 
   <div class="shell">
     <app-header></app-header>

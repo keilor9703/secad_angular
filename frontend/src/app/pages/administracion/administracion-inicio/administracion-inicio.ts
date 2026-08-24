@@ -1,4 +1,4 @@
-import { CommonModule } from '@angular/common';
+
 import { Component } from '@angular/core';
 import { RouterModule } from '@angular/router';
 
@@ -12,7 +12,7 @@ interface AdminSite {
 @Component({
   selector: 'app-administracion-inicio',
   standalone: true,
-  imports: [CommonModule, RouterModule],
+  imports: [RouterModule],
   templateUrl: './administracion-inicio.html',
   styleUrls: ['./administracion-inicio.scss']
 })

@@ -2,7 +2,7 @@ import {
   Component, EventEmitter, Inject, Input, Output, OnChanges, SimpleChanges,
   ViewEncapsulation,
 } from '@angular/core';
-import { CommonModule } from '@angular/common';
+
 import { FormsModule } from '@angular/forms';
 import { DomSanitizer, SafeUrl } from '@angular/platform-browser';
 import { MfaService } from '../mfa.service';
@@ -28,7 +28,7 @@ type MfaModal = 'enroll' | 'verify' | 'reset' | 'blocked' | 'svcdown' | null;
 @Component({
   selector:      'pmfa-flow',
   standalone:    true,
-  imports:       [CommonModule, FormsModule],
+  imports: [FormsModule],
   templateUrl:   './mfa-flow.component.html',
   styleUrls:     ['./mfa-flow.component.scss'],
   encapsulation: ViewEncapsulation.None,   // estilos globales como en el login original
