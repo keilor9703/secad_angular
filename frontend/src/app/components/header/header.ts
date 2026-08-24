@@ -1,4 +1,4 @@
-import { Component, HostListener, OnInit } from '@angular/core';
+import { Component, HostListener, OnInit, ChangeDetectionStrategy, inject, signal } from '@angular/core';
 
 import { Router, RouterModule } from '@angular/router';
 import { FormsModule } from '@angular/forms';
@@ -31,29 +31,37 @@ interface MiPerfilDto {
   standalone: true,
   imports: [RouterModule, FormsModule],
   templateUrl: './header.html',
-  styleUrls: ['./header.scss']
+  styleUrls: ['./header.scss'],
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class HeaderComponent implements OnInit {
-  isUserDropdownOpen = false;
-  userPhotoUrl: string | null = null;
-  profileModalOpen = false;
-  profileLoading = false;
-  perfil: MiPerfilDto | null = null;
-  
-  // Próximos eventos
-  proximosEventos: any[] = [];
-  isCalendarDropdownOpen = false;
-  selectedEvento: any | null = null;
-  isEventoModalOpen = false;
+  private readonly sidebarService  = inject(SidebarService);
+  private readonly authService     = inject(AuthService);
+  private readonly http            = inject(HttpClient);
+  private readonly router          = inject(Router);
+  private readonly brandingService = inject(BrandingService);
+  private readonly eventoService   = inject(EventoService);
 
-  constructor(
-    private SidebarService: SidebarService,
-    private authService: AuthService,
-    private http: HttpClient,
-    private router: Router,
-    private brandingService: BrandingService,
-    private eventoService: EventoService
-  ) {}
+  readonly isUserDropdownOpen     = signal(false);
+  readonly userPhotoUrl           = signal<string | null>(null);
+  readonly profileModalOpen       = signal(false);
+  readonly profileLoading         = signal(false);
+  readonly perfil                 = signal<MiPerfilDto | null>(null);
+
+  // Próximos eventos
+  readonly proximosEventos        = signal<any[]>([]);
+  readonly isCalendarDropdownOpen = signal(false);
+  readonly selectedEvento         = signal<any | null>(null);
+  readonly isEventoModalOpen      = signal(false);
+
+  readonly notifications = signal<Notification[]>([
+    { id: 4, icon: 'fa-calendar-check', color: 'primary', count: 0, tooltip: 'Eventos' }
+  ]);
+
+  searchQuery: string = '';
+  readonly userRole = signal('OFTIC');
+  /** Se resuelve una sola vez, de forma síncrona, en ngOnInit — antes del primer render. */
+  userName: string = 'Usuario';
 
   ngOnInit(): void {
     this.userName = this.authService.getUsuario();
@@ -63,18 +71,18 @@ export class HeaderComponent implements OnInit {
   }
 
   toggleMenu() {
-    this.SidebarService.toggleSidebar();
+    this.sidebarService.toggleSidebar();
   }
 
   toggleUserDropdown(event?: Event): void {
     if (event) {
       event.stopPropagation();
     }
-    this.isUserDropdownOpen = !this.isUserDropdownOpen;
+    this.isUserDropdownOpen.update(v => !v);
   }
 
   closeUserDropdown(): void {
-    this.isUserDropdownOpen = false;
+    this.isUserDropdownOpen.set(false);
   }
 
   @HostListener('document:click', ['$event'])
@@ -82,16 +90,16 @@ export class HeaderComponent implements OnInit {
     const target = event.target as HTMLElement;
 
     // Cierre de dropdown de usuario
-    if (this.isUserDropdownOpen) {
+    if (this.isUserDropdownOpen()) {
       if (!target.closest('.header-user')) {
         this.closeUserDropdown();
       }
     }
 
     // Cierre de dropdown de calendario
-    if (this.isCalendarDropdownOpen) {
+    if (this.isCalendarDropdownOpen()) {
       if (!target.closest('.notification-wrapper')) {
-        this.isCalendarDropdownOpen = false;
+        this.isCalendarDropdownOpen.set(false);
       }
     }
   }
@@ -99,25 +107,17 @@ export class HeaderComponent implements OnInit {
   @HostListener('document:keydown.escape')
   onEscape(): void {
     this.closeUserDropdown();
-    this.isCalendarDropdownOpen = false;
+    this.isCalendarDropdownOpen.set(false);
   }
-
-  notifications: Notification[] = [
-    { id: 4, icon: 'fa-calendar-check', color: 'primary', count: 0, tooltip: 'Eventos' }
-  ];
-
-  searchQuery: string = '';
-  userName: string = 'Usuario';
-  userRole: string = 'OFTIC';
 
   private loadBranding(): void {
     this.brandingService.getPublicConfig().subscribe({
       next: (cfg) => {
         const sigla = (cfg?.sistema ?? cfg?.systemName ?? '').trim();
-        this.userRole = sigla || 'OFTIC';
+        this.userRole.set(sigla || 'OFTIC');
       },
       error: () => {
-        this.userRole = 'OFTIC';
+        this.userRole.set('OFTIC');
       }
     });
   }
@@ -141,15 +141,14 @@ export class HeaderComponent implements OnInit {
           if (parts.length !== 3) return false;
 
           const startDate = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
-          
+
           return startDate.getTime() >= todayZero.getTime() && startDate.getTime() <= limit.getTime();
         });
 
-        this.proximosEventos = filtered;
-        const calendarNotif = this.notifications.find(n => n.id === 4);
-        if (calendarNotif) {
-          calendarNotif.count = filtered.length;
-        }
+        this.proximosEventos.set(filtered);
+        this.notifications.update(notifs =>
+          notifs.map(n => n.id === 4 ? { ...n, count: filtered.length } : n)
+        );
       }
     });
   }
@@ -159,20 +158,20 @@ export class HeaderComponent implements OnInit {
 
   onNotificationClick(notification: Notification): void {
     if (notification.id === 4) {
-      this.isCalendarDropdownOpen = !this.isCalendarDropdownOpen;
+      this.isCalendarDropdownOpen.update(v => !v);
     }
   }
 
   openEventoDetail(evento: any, event?: Event): void {
     if (event) event.stopPropagation();
-    this.selectedEvento = evento;
-    this.isEventoModalOpen = true;
-    this.isCalendarDropdownOpen = false;
+    this.selectedEvento.set(evento);
+    this.isEventoModalOpen.set(true);
+    this.isCalendarDropdownOpen.set(false);
   }
 
   closeEventoModal(): void {
-    this.isEventoModalOpen = false;
-    this.selectedEvento = null;
+    this.isEventoModalOpen.set(false);
+    this.selectedEvento.set(null);
   }
 
   getEventoImageUrl(raw: string | null | undefined): string {
@@ -180,7 +179,7 @@ export class HeaderComponent implements OnInit {
     if (!value) return '';
     if (value.startsWith('http://') || value.startsWith('https://') || value.startsWith('data:')) return value;
     if (value.startsWith('/')) return value;
-    
+
     // Usar el host externo para imágenes de eventos
     return `${environment.eventoMediaBaseUrl}/api/Evento/Image/${value}`;
   }
@@ -210,10 +209,10 @@ export class HeaderComponent implements OnInit {
       .get(`${environment.apiBaseUrl}/Usuario/MiFoto`, { responseType: 'text' })
       .subscribe({
         next: (raw) => {
-          this.userPhotoUrl = this.normalizePhoto(raw);
+          this.userPhotoUrl.set(this.normalizePhoto(raw));
         },
         error: () => {
-          this.userPhotoUrl = null;
+          this.userPhotoUrl.set(null);
         }
       });
   }
@@ -249,27 +248,27 @@ export class HeaderComponent implements OnInit {
   }
 
   openProfileModal(): void {
-    this.profileModalOpen = true;
+    this.profileModalOpen.set(true);
     this.closeUserDropdown();
 
-    if (this.perfil) {
+    if (this.perfil()) {
       return;
     }
 
-    this.profileLoading = true;
+    this.profileLoading.set(true);
     this.http.get<MiPerfilDto>(`${environment.apiBaseUrl}/Usuario/MiPerfil`).subscribe({
       next: (data) => {
-        this.perfil = data ?? {};
-        this.profileLoading = false;
+        this.perfil.set(data ?? {});
+        this.profileLoading.set(false);
       },
       error: () => {
-        this.perfil = null;
-        this.profileLoading = false;
+        this.perfil.set(null);
+        this.profileLoading.set(false);
       }
     });
   }
 
   closeProfileModal(): void {
-    this.profileModalOpen = false;
+    this.profileModalOpen.set(false);
   }
 }

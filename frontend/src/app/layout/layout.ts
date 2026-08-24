@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, ChangeDetectionStrategy, inject } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 
 import { SidebarComponent } from '../components/sidebar/sidebar';
@@ -15,9 +15,10 @@ import { SidebarService } from '../services/sidebar';
   styleUrls: ['./layout.scss'],
   standalone: true,
   imports: [RouterOutlet, SidebarComponent, HeaderComponent, FooterComponent, BreadcrumbComponent, AccessibilityMenuComponent, ContextBannerComponent],
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class LayoutComponent {
-  constructor(private sidebarService: SidebarService) {}
+  private readonly sidebarService = inject(SidebarService);
 
   isMenuOpen() {
     return this.sidebarService.isOpen();

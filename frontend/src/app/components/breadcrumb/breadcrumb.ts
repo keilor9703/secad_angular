@@ -1,4 +1,5 @@
-﻿import { Component } from '@angular/core';
+import { Component, ChangeDetectionStrategy, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 
 import { RouterModule, Router, NavigationEnd } from '@angular/router';
 import { filter } from 'rxjs/operators';
@@ -12,11 +13,12 @@ interface BreadcrumbItem {
   selector: 'app-breadcrumb',
   standalone: true,
   imports: [RouterModule],
+  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    @if (items.length > 0) {
+    @if (items().length > 0) {
       <nav class="breadcrumb-nav">
         <ol class="breadcrumb-list">
-          @for (item of items; track item; let last = $last) {
+          @for (item of items(); track item.route ?? item.label; let last = $last) {
             <li class="breadcrumb-item">
               @if (!last && item.route) {
                 <a [routerLink]="item.route" class="breadcrumb-link">{{ item.label }}</a>
@@ -79,9 +81,11 @@ interface BreadcrumbItem {
   `]
 })
 export class BreadcrumbComponent {
-  items: BreadcrumbItem[] = [];
+  private readonly router = inject(Router);
 
-  private routeLabels: Record<string, string> = {
+  readonly items = signal<BreadcrumbItem[]>([]);
+
+  private readonly routeLabels: Record<string, string> = {
     '/home': 'Inicio',
     '/administracion': 'Administración',
     '/administracion/usuarios': 'Usuarios',
@@ -98,43 +102,48 @@ export class BreadcrumbComponent {
     '/noticias': 'Noticias'
   };
 
-  constructor(private router: Router) {
+  constructor() {
     this.router.events
-      .pipe(filter((event) => event instanceof NavigationEnd))
+      .pipe(
+        filter((event) => event instanceof NavigationEnd),
+        takeUntilDestroyed()
+      )
       .subscribe(() => this.buildBreadcrumb());
-    
+
     this.buildBreadcrumb();
   }
 
   private buildBreadcrumb(): void {
     const url = this.router.url;
     const segments = url.split('/').filter(Boolean);
-    this.items = [];
+    const items: BreadcrumbItem[] = [];
 
     // Always add Home as first item
-    this.items.push({
+    items.push({
       label: 'Inicio',
       route: '/home'
     });
 
     let currentPath = '';
-    
+
     for (let i = 0; i < segments.length; i++) {
       currentPath += '/' + segments[i];
       const label = this.routeLabels[currentPath] || this.formatLabel(segments[i]);
-      
+
       const isLast = i === segments.length - 1;
-      
+
       // Skip adding if it's home (already added)
       if (currentPath === '/home') {
         continue;
       }
-      
-      this.items.push({
+
+      items.push({
         label,
         route: isLast ? undefined : currentPath
       });
     }
+
+    this.items.set(items);
   }
 
   private formatLabel(segment: string): string {
@@ -143,4 +152,3 @@ export class BreadcrumbComponent {
       .replace(/\b\w/g, (c) => c.toUpperCase());
   }
 }
-

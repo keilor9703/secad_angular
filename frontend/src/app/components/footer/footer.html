@@ -1,26 +1,26 @@
 <footer class="modern-footer">
   <div class="footer-left">
     <div class="radio-bar">
-      <img class="radio-logo" [src]="currentStationLogo" [alt]="'Logo ' + currentStationLabel">
-      <span class="radio-label">{{ currentStationLabel }}</span>
+      <img class="radio-logo" [src]="currentStationLogo()" [alt]="'Logo ' + currentStationLabel()">
+      <span class="radio-label">{{ currentStationLabel() }}</span>
 
-      <button class="radio-play" [class.is-playing]="isPlaying" type="button" (click)="togglePlay()" [title]="isPlaying ? 'Pausar radio' : 'Reproducir radio'">
-        <i class="fa-solid" [class.fa-play]="!isPlaying" [class.fa-pause]="isPlaying"></i>
+      <button class="radio-play" [class.is-playing]="isPlaying()" type="button" (click)="togglePlay()" [title]="isPlaying() ? 'Pausar radio' : 'Reproducir radio'">
+        <i class="fa-solid" [class.fa-play]="!isPlaying()" [class.fa-pause]="isPlaying()"></i>
       </button>
 
-      <select class="radio-select" [(ngModel)]="selectedStation" (ngModelChange)="onStationChange()">
-        @if (stations.length === 0) {
+      <select class="radio-select" [ngModel]="selectedStation()" (ngModelChange)="selectedStation.set($event); onStationChange()">
+        @if (stations().length === 0) {
           <option value="" disabled>Sin emisoras activas</option>
         }
-        @for (station of stations; track station) {
+        @for (station of stations(); track station.id) {
           <option [value]="station.id">{{ station.name }}</option>
         }
       </select>
     </div>
 
-    @if (errorMessage) {
+    @if (errorMessage()) {
       <div class="radio-error">
-        {{ errorMessage }}
+        {{ errorMessage() }}
       </div>
     }
   </div>
@@ -29,8 +29,8 @@
     <span class="footer-dot" aria-hidden="true"></span>
 
     <div class="footer-text">
-      <div class="footer-title">{{ systemDisplayName }}</div>
-      <div class="footer-meta">&copy; 2026 OFTIC - {{ systemName }} - Version 1</div>
+      <div class="footer-title">{{ systemDisplayName() }}</div>
+      <div class="footer-meta">&copy; 2026 OFTIC - {{ systemName() }} - Version 1</div>
     </div>
   </div>
 
