@@ -1,6 +1,6 @@
-import { Component, HostListener, OnInit } from '@angular/core';
+import { Component, HostListener, ChangeDetectionStrategy, OnInit, inject, signal } from '@angular/core';
 
-import { FormsModule } from '@angular/forms';
+import { FormBuilder, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterModule } from '@angular/router';
 import { ToastService } from '../../../core/services/toast.service';
 import { DominioService, DtoDominio } from '../../../core/services/administracion/dominio.service';
@@ -11,48 +11,45 @@ import { finalize } from 'rxjs';
 @Component({
   selector: 'app-cuentas-email',
   standalone: true,
-  imports: [FormsModule, RouterModule],
+  imports: [FormsModule, ReactiveFormsModule, RouterModule],
   templateUrl: './cuentas-email.html',
-  styleUrls: ['./cuentas-email.scss']
+  styleUrls: ['./cuentas-email.scss'],
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class CuentasEmailComponent implements OnInit {
-  loading = false;
-  saving = false;
+  private readonly toast               = inject(ToastService);
+  private readonly dominioService      = inject(DominioService);
+  private readonly cuentaEmailService  = inject(CuentaEmailService);
+  private readonly usuarioAdminService = inject(UsuarioAdminService);
+  private readonly fb                  = inject(FormBuilder);
 
-  listaCuentas: DtoCuentaEmail[] = [];
-  listaAutorizados: DtoCuentaEmailUsuario[] = [];
-  resultadosUsuarios: UsuarioListadoItem[] = [];
-  gruposCOEST: DtoDominio[] = [];
-  cuentaSeleccionadaAutorizacion: DtoCuentaEmail | null = null;
-  buscadorUsuarios = '';
-  loadingAutorizados = false;
-  loadingBusquedaUsuarios = false;
-  savingAutorizacion = false;
-  autorizadoPendienteEliminar: DtoCuentaEmailUsuario | null = null;
+  readonly loading = signal(false);
+  readonly saving  = signal(false);
 
-  editingId: number | null = null;
-  imagenEncabezadoPreview = '';
-  subiendoImagenEncabezado = false;
+  readonly listaCuentas       = signal<DtoCuentaEmail[]>([]);
+  readonly listaAutorizados   = signal<DtoCuentaEmailUsuario[]>([]);
+  readonly resultadosUsuarios = signal<UsuarioListadoItem[]>([]);
+  readonly gruposCOEST        = signal<DtoDominio[]>([]);
+  readonly cuentaSeleccionadaAutorizacion = signal<DtoCuentaEmail | null>(null);
+  readonly buscadorUsuarios          = signal('');
+  readonly loadingAutorizados        = signal(false);
+  readonly loadingBusquedaUsuarios   = signal(false);
+  readonly savingAutorizacion        = signal(false);
+  readonly autorizadoPendienteEliminar = signal<DtoCuentaEmailUsuario | null>(null);
 
-  form: DtoCuentaEmailRequest = {
-    IdDominioGrupo: 0,
-    NombreCuenta: '',
-    Email: '',
-    ServidorSmtp: '',
-    Puerto: 587,
-    UsuarioSmtp: '',
-    ClaveSmtp: '',
-    UsarSsl: 1,
-    Vigente: 1,
-    ImagenEncabezado: null
-  };
+  readonly editingId                 = signal<number | null>(null);
+  readonly imagenEncabezadoPreview   = signal('');
+  readonly subiendoImagenEncabezado  = signal(false);
+  /** No es un campo del formulario visible — se sube por separado (onChangeImagenEncabezado). */
+  private imagenEncabezado: string | null = null;
 
-  constructor(
-    private toast: ToastService,
-    private dominioService: DominioService,
-    private cuentaEmailService: CuentaEmailService,
-    private usuarioAdminService: UsuarioAdminService
-  ) {}
+  readonly form = this.fb.nonNullable.group({
+    idDominioGrupo: [0, [Validators.min(1)]],
+    nombreCuenta:   ['', [Validators.required]],
+    email:          ['', [Validators.required, Validators.email]],
+    claveSmtp:      [''],
+    vigente:        [1]
+  });
 
   ngOnInit(): void {
     this.cargarGrupos();
@@ -73,48 +70,44 @@ export class CuentasEmailComponent implements OnInit {
         );
 
         if (organigrama) {
-          const idOrganigrama = organigrama.idDominio;
-          this.gruposCOEST = [];
-          this.obtenerDescendencia(idOrganigrama, todos, 0);
+          const grupos: DtoDominio[] = [];
+          this.obtenerDescendencia(organigrama.idDominio, todos, 0, grupos);
+          this.gruposCOEST.set(grupos);
         }
       }
     });
   }
 
-  private obtenerDescendencia(idPadre: number, todos: DtoDominio[], nivel: number): void {
+  private obtenerDescendencia(idPadre: number, todos: DtoDominio[], nivel: number, out: DtoDominio[]): void {
     const hijos = todos.filter(d => d.idPadre === idPadre);
     hijos.forEach(h => {
       const sangria = '--'.repeat(nivel);
-      this.gruposCOEST.push({ ...h, descripcion: `${sangria} ${h.descripcion}` });
-      this.obtenerDescendencia(h.idDominio, todos, nivel + 1);
+      out.push({ ...h, descripcion: `${sangria} ${h.descripcion}` });
+      this.obtenerDescendencia(h.idDominio, todos, nivel + 1, out);
     });
   }
 
   cargarCuentas(): void {
-    this.loading = true;
+    this.loading.set(true);
     this.cuentaEmailService.getAll()
-      .pipe(finalize(() => this.loading = false))
+      .pipe(finalize(() => this.loading.set(false)))
       .subscribe({
-        next: (data) => { this.listaCuentas = data ?? []; },
+        next: (data) => { this.listaCuentas.set(data ?? []); },
         error: () => this.toast.error('Error', 'No se pudieron cargar las cuentas de correo')
       });
   }
 
   nuevo(): void {
-    this.editingId = null;
-    this.imagenEncabezadoPreview = '';
-    this.form = {
-      IdDominioGrupo: 0,
-      NombreCuenta: '',
-      Email: '',
-      ServidorSmtp: 'smtp.office365.com',
-      Puerto: 587,
-      UsuarioSmtp: '',
-      ClaveSmtp: '',
-      UsarSsl: 1,
-      Vigente: 1,
-      ImagenEncabezado: null
-    };
+    this.editingId.set(null);
+    this.imagenEncabezadoPreview.set('');
+    this.imagenEncabezado = null;
+    this.form.reset({
+      idDominioGrupo: 0,
+      nombreCuenta: '',
+      email: '',
+      claveSmtp: '',
+      vigente: 1
+    });
   }
 
   onChangeImagenEncabezado(event: Event): void {
@@ -122,14 +115,14 @@ export class CuentasEmailComponent implements OnInit {
     const file = input.files?.[0] ?? null;
     if (!file) return;
 
-    this.subiendoImagenEncabezado = true;
+    this.subiendoImagenEncabezado.set(true);
     this.cuentaEmailService.uploadImagenEncabezado(file)
-      .pipe(finalize(() => (this.subiendoImagenEncabezado = false)))
+      .pipe(finalize(() => this.subiendoImagenEncabezado.set(false)))
       .subscribe({
         next: (resp) => {
           if (!resp?.success) { this.toast.warning('Encabezado', 'No fue posible cargar la imagen.'); return; }
-          this.form.ImagenEncabezado = resp.url;
-          this.imagenEncabezadoPreview = resp.url;
+          this.imagenEncabezado = resp.url;
+          this.imagenEncabezadoPreview.set(resp.url);
           this.toast.success('Encabezado', 'Imagen cargada correctamente.');
         },
         error: () => this.toast.error('Encabezado', 'Error al subir la imagen.')
@@ -137,46 +130,53 @@ export class CuentasEmailComponent implements OnInit {
   }
 
   quitarImagenEncabezado(): void {
-    this.form.ImagenEncabezado = null;
-    this.imagenEncabezadoPreview = '';
+    this.imagenEncabezado = null;
+    this.imagenEncabezadoPreview.set('');
   }
 
   editar(item: DtoCuentaEmail): void {
-    this.editingId = item.idCuenta;
-    this.imagenEncabezadoPreview = item.imagenEncabezado ?? '';
-    this.form = {
-      IdDominioGrupo: item.idDominioGrupo,
-      NombreCuenta: item.nombreCuenta,
-      Email: item.email,
-      ServidorSmtp: item.servidorSmtp,
-      Puerto: item.puerto,
-      UsuarioSmtp: item.usuarioSmtp,
-      ClaveSmtp: item.claveSmtp,
-      UsarSsl: item.usarSsl,
-      Vigente: item.vigente,
-      ImagenEncabezado: item.imagenEncabezado ?? null
-    };
+    this.editingId.set(item.idCuenta);
+    this.imagenEncabezadoPreview.set(item.imagenEncabezado ?? '');
+    this.imagenEncabezado = item.imagenEncabezado ?? null;
+    this.form.reset({
+      idDominioGrupo: item.idDominioGrupo,
+      nombreCuenta: item.nombreCuenta,
+      email: item.email,
+      claveSmtp: item.claveSmtp,
+      vigente: item.vigente
+    });
   }
 
   guardar(): void {
-    if (!this.form.NombreCuenta || !this.form.Email || this.form.IdDominioGrupo === 0) {
+    const v = this.form.getRawValue();
+    if (!v.nombreCuenta || !v.email || v.idDominioGrupo === 0) {
+      this.form.markAllAsTouched();
       this.toast.warning('Validación', 'Por favor complete los campos obligatorios');
       return;
     }
 
-    this.saving = true;
-    this.form.ServidorSmtp = 'smtp.office365.com';
-    this.form.Puerto = 587;
-    this.form.UsarSsl = 1;
-    this.form.UsuarioSmtp = this.form.Email;
+    this.saving.set(true);
+    const request: DtoCuentaEmailRequest = {
+      IdDominioGrupo: v.idDominioGrupo,
+      NombreCuenta: v.nombreCuenta,
+      Email: v.email,
+      ServidorSmtp: 'smtp.office365.com',
+      Puerto: 587,
+      UsuarioSmtp: v.email,
+      ClaveSmtp: v.claveSmtp,
+      UsarSsl: 1,
+      Vigente: v.vigente,
+      ImagenEncabezado: this.imagenEncabezado
+    };
 
-    const op$ = this.editingId
-      ? this.cuentaEmailService.update(this.editingId, this.form)
-      : this.cuentaEmailService.create(this.form);
+    const editingId = this.editingId();
+    const op$ = editingId
+      ? this.cuentaEmailService.update(editingId, request)
+      : this.cuentaEmailService.create(request);
 
-    op$.pipe(finalize(() => this.saving = false)).subscribe({
+    op$.pipe(finalize(() => this.saving.set(false))).subscribe({
       next: () => {
-        this.toast.success('Éxito', this.editingId ? 'Cuenta actualizada correctamente' : 'Cuenta creada correctamente');
+        this.toast.success('Éxito', editingId ? 'Cuenta actualizada correctamente' : 'Cuenta creada correctamente');
         this.nuevo();
         this.cargarCuentas();
       },
@@ -193,79 +193,81 @@ export class CuentasEmailComponent implements OnInit {
   }
 
   abrirAutorizaciones(item: DtoCuentaEmail): void {
-    this.cuentaSeleccionadaAutorizacion = item;
-    this.buscadorUsuarios = '';
-    this.resultadosUsuarios = [];
+    this.cuentaSeleccionadaAutorizacion.set(item);
+    this.buscadorUsuarios.set('');
+    this.resultadosUsuarios.set([]);
     this.cargarAutorizaciones();
   }
 
   cerrarAutorizaciones(): void {
-    this.cuentaSeleccionadaAutorizacion = null;
-    this.listaAutorizados = [];
-    this.resultadosUsuarios = [];
-    this.buscadorUsuarios = '';
+    this.cuentaSeleccionadaAutorizacion.set(null);
+    this.listaAutorizados.set([]);
+    this.resultadosUsuarios.set([]);
+    this.buscadorUsuarios.set('');
   }
 
   cargarAutorizaciones(): void {
-    if (!this.cuentaSeleccionadaAutorizacion) return;
-    this.loadingAutorizados = true;
-    this.cuentaEmailService.getAutorizaciones(this.cuentaSeleccionadaAutorizacion.idCuenta, undefined, 1)
-      .pipe(finalize(() => this.loadingAutorizados = false))
+    const cuenta = this.cuentaSeleccionadaAutorizacion();
+    if (!cuenta) return;
+    this.loadingAutorizados.set(true);
+    this.cuentaEmailService.getAutorizaciones(cuenta.idCuenta, undefined, 1)
+      .pipe(finalize(() => this.loadingAutorizados.set(false)))
       .subscribe({
-        next: (data) => this.listaAutorizados = data ?? [],
+        next: (data) => this.listaAutorizados.set(data ?? []),
         error: () => this.toast.error('Error', 'No se pudieron cargar los usuarios autorizados')
       });
   }
 
   buscarUsuarios(): void {
-    const term = this.buscadorUsuarios.trim();
+    const term = this.buscadorUsuarios().trim();
     if (term.length < 3) { this.toast.warning('Búsqueda', 'Escribe al menos 3 caracteres'); return; }
-    this.loadingBusquedaUsuarios = true;
+    this.loadingBusquedaUsuarios.set(true);
     this.usuarioAdminService.getListadoUsuarios(term)
-      .pipe(finalize(() => this.loadingBusquedaUsuarios = false))
+      .pipe(finalize(() => this.loadingBusquedaUsuarios.set(false)))
       .subscribe({
-        next: (data) => this.resultadosUsuarios = data ?? [],
+        next: (data) => this.resultadosUsuarios.set(data ?? []),
         error: () => this.toast.error('Error', 'No se pudo consultar usuarios')
       });
   }
 
   agregarAutorizado(user: UsuarioListadoItem): void {
-    if (!this.cuentaSeleccionadaAutorizacion) return;
-    if (this.listaAutorizados.some(x => x.idUsuario === user.idUsuario)) {
+    const cuenta = this.cuentaSeleccionadaAutorizacion();
+    if (!cuenta) return;
+    if (this.listaAutorizados().some(x => x.idUsuario === user.idUsuario)) {
       this.toast.warning('Autorizaciones', 'El usuario ya está autorizado en esta cuenta');
       return;
     }
-    this.savingAutorizacion = true;
-    this.cuentaEmailService.crearAutorizacion({ idCuenta: this.cuentaSeleccionadaAutorizacion.idCuenta, idUsuario: user.idUsuario })
-      .pipe(finalize(() => this.savingAutorizacion = false))
+    this.savingAutorizacion.set(true);
+    this.cuentaEmailService.crearAutorizacion({ idCuenta: cuenta.idCuenta, idUsuario: user.idUsuario })
+      .pipe(finalize(() => this.savingAutorizacion.set(false)))
       .subscribe({
         next: () => { this.toast.success('Éxito', 'Usuario autorizado correctamente'); this.cargarAutorizaciones(); },
         error: (err) => this.toast.error('Error', err?.error?.message ?? 'No se pudo autorizar el usuario')
       });
   }
 
-  solicitarQuitarAutorizado(item: DtoCuentaEmailUsuario): void { this.autorizadoPendienteEliminar = item; }
-  cancelarQuitarAutorizado(): void { this.autorizadoPendienteEliminar = null; }
+  solicitarQuitarAutorizado(item: DtoCuentaEmailUsuario): void { this.autorizadoPendienteEliminar.set(item); }
+  cancelarQuitarAutorizado(): void { this.autorizadoPendienteEliminar.set(null); }
 
   @HostListener('document:keydown.escape')
   onEscapeKey(): void {
-    if (this.autorizadoPendienteEliminar && !this.savingAutorizacion) this.cancelarQuitarAutorizado();
+    if (this.autorizadoPendienteEliminar() && !this.savingAutorizacion()) this.cancelarQuitarAutorizado();
   }
 
   confirmarQuitarAutorizado(): void {
-    const item = this.autorizadoPendienteEliminar;
+    const item = this.autorizadoPendienteEliminar();
     if (!item) return;
-    this.savingAutorizacion = true;
+    this.savingAutorizacion.set(true);
     this.cuentaEmailService.eliminarAutorizacion(item.idCuentaUsuario)
-      .pipe(finalize(() => this.savingAutorizacion = false))
+      .pipe(finalize(() => this.savingAutorizacion.set(false)))
       .subscribe({
-        next: () => { this.toast.success('Éxito', 'Autorización removida'); this.autorizadoPendienteEliminar = null; this.cargarAutorizaciones(); },
+        next: () => { this.toast.success('Éxito', 'Autorización removida'); this.autorizadoPendienteEliminar.set(null); this.cargarAutorizaciones(); },
         error: (err) => this.toast.error('Error', err?.error?.message ?? 'No se pudo quitar la autorización')
       });
   }
 
   getNombreGrupo(idDominio: number): string {
-    const grupo = this.gruposCOEST.find(g => g.idDominio === idDominio);
+    const grupo = this.gruposCOEST().find(g => g.idDominio === idDominio);
     if (!grupo) return 'Desconocido';
     return grupo.descripcion.replace(/^-+ /, '');
   }

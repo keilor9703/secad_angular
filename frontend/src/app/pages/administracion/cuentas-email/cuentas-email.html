@@ -6,11 +6,11 @@
         Administración de Cuentas SMTP
       </div>
       <div class="ui-panel__actions ui-window-controls">
-        @if (!editingId) {
+        @if (!editingId()) {
           <span class="ui-badge info">Nueva Configuración</span>
         }
-        @if (editingId) {
-          <span class="ui-badge warning">Editando: {{ form.NombreCuenta }}</span>
+        @if (editingId()) {
+          <span class="ui-badge warning">Editando: {{ form.controls.nombreCuenta.value }}</span>
         }
       </div>
     </div>
@@ -19,14 +19,14 @@
       <div class="admin-grid">
         <!-- Formulario de Configuración -->
         <article class="tab-card form-card">
-          <h3>{{ editingId ? 'Actualizar Cuenta' : 'Registrar Nueva Cuenta' }}</h3>
+          <h3>{{ editingId() ? 'Actualizar Cuenta' : 'Registrar Nueva Cuenta' }}</h3>
 
-          <div class="ui-grid">
+          <form [formGroup]="form" class="ui-grid">
             <div class="ui-field ui-col-12">
               <label class="ui-label">Grupo Dueño (Organigrama COEST) *</label>
-              <select class="ui-control" [(ngModel)]="form.IdDominioGrupo">
+              <select class="ui-control" formControlName="idDominioGrupo">
                 <option [ngValue]="0">-- Seleccione el grupo --</option>
-                @for (g of gruposCOEST; track g) {
+                @for (g of gruposCOEST(); track g.idDominio) {
                   <option [ngValue]="g.idDominio">{{ g.descripcion }}</option>
                 }
               </select>
@@ -34,22 +34,22 @@
 
             <div class="ui-field ui-col-12">
               <label class="ui-label">Nombre Identificador de la Cuenta *</label>
-              <input class="ui-control" type="text" [(ngModel)]="form.NombreCuenta" placeholder="Ej: Prensa COEST">
+              <input class="ui-control" type="text" formControlName="nombreCuenta" placeholder="Ej: Prensa COEST">
             </div>
 
             <div class="ui-field ui-col-12">
               <label class="ui-label">Email de la Cuenta *</label>
-              <input class="ui-control" type="email" [(ngModel)]="form.Email" placeholder="ejemplo@ponal.gov.co">
+              <input class="ui-control" type="email" formControlName="email" placeholder="ejemplo@ponal.gov.co">
             </div>
 
             <div class="ui-field ui-col-12">
               <label class="ui-label">Contraseña SMTP (o de Aplicación) *</label>
-              <input class="ui-control" type="password" [(ngModel)]="form.ClaveSmtp" placeholder="••••••••">
+              <input class="ui-control" type="password" formControlName="claveSmtp" placeholder="••••••••">
             </div>
 
             <div class="ui-field ui-col-12">
               <label class="ui-label">Estado de la Cuenta</label>
-              <select class="ui-control" [(ngModel)]="form.Vigente">
+              <select class="ui-control" formControlName="vigente">
                 <option [ngValue]="1">Activa</option>
                 <option [ngValue]="0">Inactiva</option>
               </select>
@@ -58,17 +58,17 @@
             <div class="ui-field ui-col-12">
               <label class="ui-label">Imagen de Encabezado del Correo</label>
               <div class="encabezado-upload-area">
-                @if (!imagenEncabezadoPreview) {
-                  <label class="encabezado-upload-btn" [class.loading]="subiendoImagenEncabezado">
+                @if (!imagenEncabezadoPreview()) {
+                  <label class="encabezado-upload-btn" [class.loading]="subiendoImagenEncabezado()">
                     <input type="file" accept=".jpg,.jpeg,.png,.webp" (change)="onChangeImagenEncabezado($event)" style="display:none">
-                    <i class="fa-solid" [class.fa-image]="!subiendoImagenEncabezado" [class.fa-spinner]="subiendoImagenEncabezado" [class.fa-spin]="subiendoImagenEncabezado"></i>
-                    {{ subiendoImagenEncabezado ? 'Subiendo...' : 'Seleccionar imagen' }}
+                    <i class="fa-solid" [class.fa-image]="!subiendoImagenEncabezado()" [class.fa-spinner]="subiendoImagenEncabezado()" [class.fa-spin]="subiendoImagenEncabezado()"></i>
+                    {{ subiendoImagenEncabezado() ? 'Subiendo...' : 'Seleccionar imagen' }}
                   </label>
                   <span class="encabezado-hint">JPG, PNG o WEBP · máx. 3 MB · Se mostrará en la parte superior de cada correo enviado.</span>
                 }
-                @if (imagenEncabezadoPreview) {
+                @if (imagenEncabezadoPreview()) {
                   <div class="encabezado-preview">
-                    <img [src]="imagenEncabezadoPreview" alt="Encabezado" />
+                    <img [src]="imagenEncabezadoPreview()" alt="Encabezado" />
                     <button class="ui-btn icon-only danger" type="button" title="Quitar imagen" (click)="quitarImagenEncabezado()">
                       <i class="fa-solid fa-trash"></i>
                     </button>
@@ -76,13 +76,13 @@
                 }
               </div>
             </div>
-          </div>
+          </form>
 
           <div class="tab-actions">
             <button class="ui-btn secondary" type="button" (click)="nuevo()">Limpiar</button>
-            <button class="ui-btn primary" type="button" (click)="guardar()" [disabled]="saving">
+            <button class="ui-btn primary" type="button" (click)="guardar()" [disabled]="saving()">
               <i class="fa-solid fa-floppy-disk"></i>
-              {{ saving ? 'Procesando...' : 'Guardar Configuración' }}
+              {{ saving() ? 'Procesando...' : 'Guardar Configuración' }}
             </button>
           </div>
         </article>
@@ -91,11 +91,11 @@
         <article class="tab-card list-card">
           <h3>Cuentas Configuradas</h3>
 
-          @if (loading) {
+          @if (loading()) {
             <div class="list-loading">Cargando cuentas...</div>
           }
 
-          @if (!loading) {
+          @if (!loading()) {
             <div class="ui-table-wrap">
               <table class="ui-table">
                 <thead>
@@ -109,7 +109,7 @@
                   </tr>
                 </thead>
                 <tbody>
-                  @for (item of listaCuentas; track item) {
+                  @for (item of listaCuentas(); track item.idCuenta) {
                     <tr>
                       <td><strong>{{ getNombreGrupo(item.idDominioGrupo) }}</strong></td>
                       <td>{{ item.nombreCuenta }}</td>
@@ -135,7 +135,7 @@
                       </td>
                     </tr>
                   }
-                  @if (listaCuentas.length === 0) {
+                  @if (listaCuentas().length === 0) {
                     <tr>
                       <td colspan="6" class="text-center">No hay cuentas SMTP registradas.</td>
                     </tr>
@@ -147,10 +147,10 @@
         </article>
       </div>
 
-      @if (cuentaSeleccionadaAutorizacion) {
+      @if (cuentaSeleccionadaAutorizacion(); as cuenta) {
         <article class="tab-card mt-3">
           <div class="roles-head cuentas-head">
-            <h3>Usuarios autorizados - {{ cuentaSeleccionadaAutorizacion.nombreCuenta }}</h3>
+            <h3>Usuarios autorizados - {{ cuenta.nombreCuenta }}</h3>
             <button class="ui-btn secondary" type="button" (click)="cerrarAutorizaciones()">Cerrar</button>
           </div>
           <div class="ui-grid">
@@ -160,7 +160,8 @@
                 <input
                   class="ui-control search-input"
                   type="text"
-                  [(ngModel)]="buscadorUsuarios"
+                  [ngModel]="buscadorUsuarios()"
+                  (ngModelChange)="buscadorUsuarios.set($event)"
                   (keyup.enter)="buscarUsuarios()"
                   placeholder="Ej: jlopez o 12345678"
                   >
@@ -169,13 +170,13 @@
                   type="button"
                   title="Buscar"
                   (click)="buscarUsuarios()"
-                  [disabled]="loadingBusquedaUsuarios || savingAutorizacion">
-                  <i class="fa-solid" [class.fa-spinner]="loadingBusquedaUsuarios" [class.fa-spin]="loadingBusquedaUsuarios" [class.fa-magnifying-glass]="!loadingBusquedaUsuarios"></i>
+                  [disabled]="loadingBusquedaUsuarios() || savingAutorizacion()">
+                  <i class="fa-solid" [class.fa-spinner]="loadingBusquedaUsuarios()" [class.fa-spin]="loadingBusquedaUsuarios()" [class.fa-magnifying-glass]="!loadingBusquedaUsuarios()"></i>
                 </button>
               </div>
             </div>
           </div>
-          @if (resultadosUsuarios.length > 0) {
+          @if (resultadosUsuarios().length > 0) {
             <div class="ui-table-wrap">
               <table class="ui-table">
                 <thead>
@@ -189,7 +190,7 @@
                   </tr>
                 </thead>
                 <tbody>
-                  @for (u of resultadosUsuarios; track u) {
+                  @for (u of resultadosUsuarios(); track u.idUsuario) {
                     <tr>
                       <td>{{ u.idUsuario }}</td>
                       <td>{{ u.username }}</td>
@@ -197,7 +198,7 @@
                       <td>{{ u.nombreCompleto }}</td>
                       <td>{{ u.rol }}</td>
                       <td>
-                        <button class="ui-btn-icon" title="Autorizar" (click)="agregarAutorizado(u)" [disabled]="savingAutorizacion">
+                        <button class="ui-btn-icon" title="Autorizar" (click)="agregarAutorizado(u)" [disabled]="savingAutorizacion()">
                           <i class="fa-solid fa-user-plus"></i>
                         </button>
                       </td>
@@ -208,10 +209,10 @@
             </div>
           }
           <h4 class="mt-3">Autorizados actuales</h4>
-          @if (loadingAutorizados) {
+          @if (loadingAutorizados()) {
             <div class="list-loading">Cargando autorizados...</div>
           }
-          @if (!loadingAutorizados) {
+          @if (!loadingAutorizados()) {
             <div class="ui-table-wrap">
               <table class="ui-table">
                 <thead>
@@ -224,20 +225,20 @@
                   </tr>
                 </thead>
                 <tbody>
-                  @for (a of listaAutorizados; track a) {
+                  @for (a of listaAutorizados(); track a.idCuentaUsuario) {
                     <tr>
                       <td>{{ a.usuarioLogin }}</td>
                       <td>{{ a.identificacion }}</td>
                       <td>{{ a.nombreCompleto }}</td>
                       <td><span class="ui-badge success">Activo</span></td>
                       <td>
-                        <button class="ui-btn-icon danger" title="Quitar" (click)="solicitarQuitarAutorizado(a)" [disabled]="savingAutorizacion">
+                        <button class="ui-btn-icon danger" title="Quitar" (click)="solicitarQuitarAutorizado(a)" [disabled]="savingAutorizacion()">
                           <i class="fa-solid fa-user-minus"></i>
                         </button>
                       </td>
                     </tr>
                   }
-                  @if (listaAutorizados.length === 0) {
+                  @if (listaAutorizados().length === 0) {
                     <tr>
                       <td colspan="5" class="text-center">No hay usuarios autorizados para esta cuenta.</td>
                     </tr>
@@ -252,7 +253,7 @@
   </div>
 </section>
 
-@if (autorizadoPendienteEliminar) {
+@if (autorizadoPendienteEliminar(); as pendiente) {
   <div class="ui-alert">
     <div class="ui-alert__dialog">
       <div class="ui-alert__icon warning">
@@ -260,12 +261,12 @@
       </div>
       <h3 class="ui-alert__title">¿Quitar autorización?</h3>
       <p class="ui-alert__text">
-        Se quitará el acceso de <strong>{{ autorizadoPendienteEliminar.usuarioLogin }}</strong> a esta cuenta de correo.
+        Se quitará el acceso de <strong>{{ pendiente.usuarioLogin }}</strong> a esta cuenta de correo.
       </p>
       <div class="ui-alert__foot warning">
-        <button class="ui-btn secondary" type="button" (click)="cancelarQuitarAutorizado()" [disabled]="savingAutorizacion">Cancelar</button>
-        <button class="ui-btn danger" type="button" (click)="confirmarQuitarAutorizado()" [disabled]="savingAutorizacion">
-          {{ savingAutorizacion ? 'Procesando...' : 'Sí, quitar autorización' }}
+        <button class="ui-btn secondary" type="button" (click)="cancelarQuitarAutorizado()" [disabled]="savingAutorizacion()">Cancelar</button>
+        <button class="ui-btn danger" type="button" (click)="confirmarQuitarAutorizado()" [disabled]="savingAutorizacion()">
+          {{ savingAutorizacion() ? 'Procesando...' : 'Sí, quitar autorización' }}
         </button>
       </div>
     </div>
