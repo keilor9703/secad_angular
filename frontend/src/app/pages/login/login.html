@@ -4,10 +4,10 @@ Login SECAD — Credenciales + modales 2FA
 
 <!-- Slideshow de fondo -->
 <div class="background-carousel">
-  @for (item of slides; track item; let i = $index) {
+  @for (item of slides(); track item.fileName; let i = $index) {
     <div
       class="slide"
-      [class.active]="i === currentSlideIndex"
+      [class.active]="i === currentSlideIndex()"
       [style.background-image]="'url(' + item.url + ')'">
     </div>
   }
@@ -16,26 +16,25 @@ Login SECAD — Credenciales + modales 2FA
 <!-- ── Formulario principal ──────────────────────────────────────────────── -->
 <main class="login-container">
   <div class="glass-card">
-    <h1 class="system-title">{{ systemName }}</h1>
-    <img [src]="logoUrl" alt="Logo sistema" class="logo-institucional">
+    <h1 class="system-title">{{ systemName() }}</h1>
+    <img [src]="logoUrl()" alt="Logo sistema" class="logo-institucional">
 
-    <form class="login-form" (ngSubmit)="onSubmit()">
+    <form class="login-form" [formGroup]="credentialsForm" (ngSubmit)="onSubmit()">
 
       <div class="input-group">
         <i class="fa fa-user"></i>
-        <input type="text" name="usuario" [(ngModel)]="usuario"
-          placeholder="Usuario empresarial" autocomplete="username" required>
+        <input type="text" formControlName="usuario"
+          placeholder="Usuario empresarial" autocomplete="username">
       </div>
 
       <div class="input-group">
         <i class="fa fa-lock"></i>
-        <input [type]="showPassword ? 'text' : 'password'" name="contrasena"
-          [(ngModel)]="contrasena" placeholder="Contraseña"
-          autocomplete="current-password" required>
+        <input [type]="showPassword() ? 'text' : 'password'" formControlName="contrasena"
+          placeholder="Contraseña" autocomplete="current-password">
         <button type="button" class="toggle-password-btn"
           (click)="togglePasswordVisibility()"
-          [attr.aria-label]="showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'">
-          <i class="fa-solid" [ngClass]="showPassword ? 'fa-eye-slash' : 'fa-eye'"></i>
+          [attr.aria-label]="showPassword() ? 'Ocultar contraseña' : 'Mostrar contraseña'">
+          <i class="fa-solid" [ngClass]="showPassword() ? 'fa-eye-slash' : 'fa-eye'"></i>
         </button>
       </div>
 
@@ -45,8 +44,8 @@ Login SECAD — Credenciales + modales 2FA
         </a>
       </div>
 
-      @if (errorMessage) {
-        <p class="login-error">{{ errorMessage }}</p>
+      @if (errorMessage()) {
+        <p class="login-error">{{ errorMessage() }}</p>
       }
 
       <p class="security-text">
@@ -55,8 +54,8 @@ Login SECAD — Credenciales + modales 2FA
         de la Institución.
       </p>
 
-      <button type="submit" class="btn-login" [disabled]="isLoading">
-        <span>{{ isLoading ? 'Validando...' : 'Iniciar sesión' }}</span>
+      <button type="submit" class="btn-login" [disabled]="isLoading()">
+        <span>{{ isLoading() ? 'Validando...' : 'Iniciar sesión' }}</span>
         <i class="fas fa-key icon-key"></i>
       </button>
 
@@ -67,8 +66,8 @@ Login SECAD — Credenciales + modales 2FA
 Flujo 2FA — componente reutilizable @policia/mfa (enroll/verify/reset/…)
 ══════════════════════════════════════════════════════════════════════════ -->
 <pmfa-flow
-  [challenge]="mfaChallenge"
-  [usuario]="usuario"
+  [challenge]="mfaChallenge()"
+  [usuario]="credentialsForm.controls.usuario.value"
   (autenticado)="onMfaAutenticado($event)"
   (cancelado)="onMfaCancelado()">
 </pmfa-flow>

@@ -1,6 +1,6 @@
-import { Component, OnDestroy, OnInit } from '@angular/core';
+import { Component, ChangeDetectionStrategy, OnDestroy, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
+import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
 import { AuthService } from '../../core/auth/auth.service';
 import { MfaLoginChallenge, PoliciaMfaFlowComponent } from '@policia/mfa';
@@ -10,26 +10,35 @@ import { BrandingService } from '../../core/services/administracion/branding.ser
 @Component({
   selector:    'app-login',
   standalone:  true,
-  imports:     [CommonModule, RouterModule, FormsModule, PoliciaMfaFlowComponent],
+  imports:     [CommonModule, RouterModule, ReactiveFormsModule, PoliciaMfaFlowComponent],
   templateUrl: './login.html',
-  styleUrls:   ['./login.scss']
+  styleUrls:   ['./login.scss'],
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class LoginComponent implements OnInit, OnDestroy {
+  private readonly authService        = inject(AuthService);
+  private readonly router             = inject(Router);
+  private readonly loginVisualService = inject(LoginVisualService);
+  private readonly brandingService    = inject(BrandingService);
+  private readonly fb                 = inject(FormBuilder);
 
   // ── Branding ──────────────────────────────────────────────────────────────
-  systemName = 'OFTIC';
-  logoUrl    = '/escudo.png';
+  readonly systemName = signal('OFTIC');
+  readonly logoUrl     = signal('/escudo.png');
 
   // ── Formulario de credenciales ───────────────────────────────────────────
-  usuario    = '';
-  contrasena = '';
-  showPassword = false;
-  isLoading    = false;
-  errorMessage = '';
+  readonly credentialsForm = this.fb.nonNullable.group({
+    usuario:    ['', [Validators.required]],
+    contrasena: ['', [Validators.required]]
+  });
+
+  readonly showPassword = signal(false);
+  readonly isLoading    = signal(false);
+  readonly errorMessage = signal('');
 
   // ── Slideshow ─────────────────────────────────────────────────────────────
-  slides: LoginVisualPublicItem[] = [];
-  currentSlideIndex = 0;
+  readonly slides            = signal<LoginVisualPublicItem[]>([]);
+  readonly currentSlideIndex = signal(0);
 
   // ── 2FA ─────────────────────────────────────────────────────────────────
   /**
@@ -37,18 +46,11 @@ export class LoginComponent implements OnInit, OnDestroy {
    * reutilizable <pmfa-flow> (@policia/mfa) abre la modal correspondiente. Toda
    * la lógica de enrolamiento/verificación/reset vive ahora en la librería.
    */
-  mfaChallenge: MfaLoginChallenge | null = null;
+  readonly mfaChallenge = signal<MfaLoginChallenge | null>(null);
 
   // ── Timers ────────────────────────────────────────────────────────────────
   private loginTimeoutHandle: any = null;
   private slideTimerHandle:   any = null;
-
-  constructor(
-    private authService:        AuthService,
-    private router:             Router,
-    private loginVisualService: LoginVisualService,
-    private brandingService:    BrandingService
-  ) {}
 
   ngOnInit(): void {
     this.loadBranding();
@@ -66,10 +68,10 @@ export class LoginComponent implements OnInit, OnDestroy {
     this.brandingService.getPublicConfig().subscribe({
       next: cfg => {
         const sigla = (cfg?.sistema ?? cfg?.systemName ?? '').trim();
-        this.systemName = sigla || 'SECAD';
-        this.logoUrl    = (cfg?.logoUrl ?? '').trim() || '/escudo.png';
+        this.systemName.set(sigla || 'SECAD');
+        this.logoUrl.set((cfg?.logoUrl ?? '').trim() || '/escudo.png');
       },
-      error: () => { this.systemName = 'SECAD'; this.logoUrl = '/escudo.png'; }
+      error: () => { this.systemName.set('SECAD'); this.logoUrl.set('/escudo.png'); }
     });
   }
 
@@ -80,8 +82,8 @@ export class LoginComponent implements OnInit, OnDestroy {
       next: config => {
         const items = (config?.items ?? []).filter(x => !!x?.url).sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
         if (!items.length) { this.applyFallbackSlides(); return; }
-        this.slides            = items;
-        this.currentSlideIndex = 0;
+        this.slides.set(items);
+        this.currentSlideIndex.set(0);
         this.startSlideRotation(Number(config?.intervalMs ?? 6000));
       },
       error: () => this.applyFallbackSlides()
@@ -89,21 +91,22 @@ export class LoginComponent implements OnInit, OnDestroy {
   }
 
   private applyFallbackSlides(): void {
-    this.slides = [
+    this.slides.set([
       { fileName: 'banner1.jpg', url: '/background/banner1.jpg', order: 1 },
       { fileName: 'banner2.jpg', url: '/background/banner2.jpg', order: 2 },
       { fileName: 'banner3.jpg', url: '/background/banner3.jpg', order: 3 }
-    ];
-    this.currentSlideIndex = 0;
+    ]);
+    this.currentSlideIndex.set(0);
     this.startSlideRotation(6000);
   }
 
   private startSlideRotation(intervalMs: number): void {
     if (this.slideTimerHandle) { clearInterval(this.slideTimerHandle); this.slideTimerHandle = null; }
-    if (!this.slides || this.slides.length <= 1) return;
+    const total = this.slides().length;
+    if (total <= 1) return;
     const safe = Number.isFinite(intervalMs) && intervalMs >= 1500 ? intervalMs : 6000;
     this.slideTimerHandle = setInterval(() => {
-      this.currentSlideIndex = (this.currentSlideIndex + 1) % this.slides.length;
+      this.currentSlideIndex.update(i => (i + 1) % this.slides().length);
     }, safe);
   }
 
@@ -112,25 +115,36 @@ export class LoginComponent implements OnInit, OnDestroy {
   // ════════════════════════════════════════════════════════════════════════════
 
   onSubmit(): void {
-    this.errorMessage = '';
-    if (!this.usuario?.trim() || !this.contrasena?.trim()) {
-      this.errorMessage = 'Debe diligenciar usuario y contraseña.';
+    this.errorMessage.set('');
+    if (this.credentialsForm.invalid) {
+      this.credentialsForm.markAllAsTouched();
+      this.errorMessage.set('Debe diligenciar usuario y contraseña.');
       return;
     }
 
-    this.isLoading = true;
+    const { usuario, contrasena } = this.credentialsForm.getRawValue();
+    const usuarioTrim = usuario.trim();
+    if (!usuarioTrim || !contrasena.trim()) {
+      this.errorMessage.set('Debe diligenciar usuario y contraseña.');
+      return;
+    }
+
+    this.isLoading.set(true);
     this.loginTimeoutHandle = setTimeout(() => {
-      if (this.isLoading) { this.isLoading = false; this.errorMessage = 'La autenticación está tardando demasiado. Intente nuevamente.'; }
+      if (this.isLoading()) {
+        this.isLoading.set(false);
+        this.errorMessage.set('La autenticación está tardando demasiado. Intente nuevamente.');
+      }
     }, 35000);
 
-    this.authService.login(this.usuario.trim(), this.contrasena).subscribe({
+    this.authService.login(usuarioTrim, contrasena).subscribe({
       next: (resp: any) => {
         clearTimeout(this.loginTimeoutHandle);
-        this.isLoading = false;
+        this.isLoading.set(false);
 
         // ── 2FA requerido: delegar en la librería @policia/mfa ─────────────
         if (resp?.requiresMfa) {
-          this.mfaChallenge = resp as MfaLoginChallenge;
+          this.mfaChallenge.set(resp as MfaLoginChallenge);
           return;
         }
 
@@ -140,12 +154,12 @@ export class LoginComponent implements OnInit, OnDestroy {
           return;
         }
 
-        this.errorMessage = resp?.mensaje ?? resp?.message ?? 'No fue posible iniciar sesión.';
+        this.errorMessage.set(resp?.mensaje ?? resp?.message ?? 'No fue posible iniciar sesión.');
       },
       error: err => {
         clearTimeout(this.loginTimeoutHandle);
-        this.isLoading    = false;
-        this.errorMessage = err?.error?.mensaje ?? err?.error?.message ?? 'Error de conexión con el servicio de autenticación.';
+        this.isLoading.set(false);
+        this.errorMessage.set(err?.error?.mensaje ?? err?.error?.message ?? 'Error de conexión con el servicio de autenticación.');
       }
     });
   }
@@ -156,17 +170,17 @@ export class LoginComponent implements OnInit, OnDestroy {
 
   /** El componente MFA completó el 2FA y devolvió el JWT: guardar sesión y navegar. */
   onMfaAutenticado(token: string): void {
-    this.authService.storeLoginData(token, this.usuario);
-    this.mfaChallenge = null;
+    this.authService.storeLoginData(token, this.credentialsForm.getRawValue().usuario);
+    this.mfaChallenge.set(null);
     this.router.navigate(['/home']);
   }
 
   /** El usuario canceló / cerró el flujo 2FA: volver al formulario de credenciales. */
   onMfaCancelado(): void {
-    this.mfaChallenge = null;
+    this.mfaChallenge.set(null);
   }
 
   // ── UI helpers ────────────────────────────────────────────────────────────
 
-  togglePasswordVisibility(): void { this.showPassword = !this.showPassword; }
+  togglePasswordVisibility(): void { this.showPassword.update(v => !v); }
 }
