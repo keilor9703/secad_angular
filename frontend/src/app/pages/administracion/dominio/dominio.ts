@@ -1,75 +1,73 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, ChangeDetectionStrategy, OnInit, inject, signal } from '@angular/core';
 
-import { FormsModule } from '@angular/forms';
+import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterModule } from '@angular/router';
 import { ToastService } from '../../../core/services/toast.service';
 import { DominioService, DtoDominio, DtoDominioRequest } from '../../../core/services/administracion/dominio.service';
 
+interface DominioNodo { item: DtoDominio; children: DtoDominio[]; expanded: boolean; }
+interface DominioRaiz { item: DtoDominio; children: DominioNodo[]; expanded: boolean; }
+
 @Component({
   selector: 'app-dominio',
   standalone: true,
-  imports: [FormsModule, RouterModule],
+  imports: [ReactiveFormsModule, RouterModule],
   templateUrl: './dominio.html',
-  styleUrls: ['./dominio.scss']
+  styleUrls: ['./dominio.scss'],
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class DominioAdminComponent implements OnInit {
-  visible = true;
-  minimized = false;
+  private readonly toast          = inject(ToastService);
+  private readonly dominioService = inject(DominioService);
+  private readonly fb             = inject(FormBuilder);
 
-  loading = false;
-  saving = false;
+  readonly visible   = signal(true);
+  readonly minimized = signal(false);
 
-  listaDominios: DtoDominio[] = [];
-  dominiosTree: { item: DtoDominio; children: { item: DtoDominio; children: DtoDominio[]; expanded: boolean }[]; expanded: boolean }[] = [];
-  editingId: number | null = null;
+  readonly loading = signal(false);
+  readonly saving  = signal(false);
 
-  form: DtoDominioRequest = {
-    Descripcion: '',
-    IdPadre: 0,
-    Vigente: 1,
-    Abreviatura: '',
-    Observacion: ''
-  };
+  readonly listaDominios = signal<DtoDominio[]>([]);
+  readonly dominiosTree  = signal<DominioRaiz[]>([]);
+  readonly editingId     = signal<number | null>(null);
 
-  dominioOptions: { id: number; descripcion: string }[] = [];
+  readonly form = this.fb.nonNullable.group({
+    descripcion: ['', [Validators.required]],
+    idPadre:     [0],
+    vigente:     [1],
+    abreviatura: [''],
+    observacion: ['']
+  });
 
-  constructor(
-    private toast: ToastService,
-    private dominioService: DominioService
-  ) {}
+  readonly dominioOptions = signal<{ id: number; descripcion: string }[]>([]);
 
   ngOnInit(): void {
     this.cargarDominios();
   }
 
   cargarDominios(): void {
-    this.loading = true;
+    this.loading.set(true);
     this.dominioService.getAll().subscribe({
       next: (data) => {
-        this.listaDominios = (data ?? []).map((item) => this.normalizarDominio(item as any));
+        this.listaDominios.set((data ?? []).map((item) => this.normalizarDominio(item as any)));
         this.buildTree();
         this.actualizarOpcionesPadre();
-        this.loading = false;
+        this.loading.set(false);
       },
       error: () => {
-        this.loading = false;
+        this.loading.set(false);
         this.toast.error('Error', 'No se pudieron cargar los dominios');
       }
     });
   }
 
   private actualizarOpcionesPadre(): void {
-    this.dominioOptions = this.listaDominios
-      .filter(
-        d =>
-          d.idDominio !== 0 &&
-          d.idDominio !== (this.editingId ?? 0) &&
-          Number(d.idPadre) === 0
-      )
-      .map(d => ({
-        id: d.idDominio,
-        descripcion: d.descripcion
-      }));
+    const editing = this.editingId() ?? 0;
+    this.dominioOptions.set(
+      this.listaDominios()
+        .filter(d => d.idDominio !== 0 && d.idDominio !== editing && Number(d.idPadre) === 0)
+        .map(d => ({ id: d.idDominio, descripcion: d.descripcion }))
+    );
   }
 
   private normalizarDominio(item: any): DtoDominio {
@@ -84,9 +82,9 @@ export class DominioAdminComponent implements OnInit {
   }
 
   private buildTree(): void {
-    const noRaiz = this.listaDominios.filter(d => d.idDominio !== 0);
+    const noRaiz = this.listaDominios().filter(d => d.idDominio !== 0);
     const raiz = noRaiz.filter(d => !d.idPadre || d.idPadre === 0);
-    this.dominiosTree = raiz.map(padre => {
+    this.dominiosTree.set(raiz.map(padre => {
       const children = noRaiz.filter(hijo => hijo.idPadre === padre.idDominio);
       return {
         item: padre,
@@ -97,92 +95,83 @@ export class DominioAdminComponent implements OnInit {
         })),
         expanded: true
       };
-    });
+    }));
   }
 
   toggleExpand(index: number): void {
-    this.dominiosTree[index].expanded = !this.dominiosTree[index].expanded;
+    this.dominiosTree.update(tree => {
+      const next = [...tree];
+      next[index] = { ...next[index], expanded: !next[index].expanded };
+      return next;
+    });
   }
 
   toggleChildExpand(padreIndex: number, childIndex: number): void {
-    this.dominiosTree[padreIndex].children[childIndex].expanded = 
-      !this.dominiosTree[padreIndex].children[childIndex].expanded;
+    this.dominiosTree.update(tree => {
+      const next = [...tree];
+      const children = [...next[padreIndex].children];
+      children[childIndex] = { ...children[childIndex], expanded: !children[childIndex].expanded };
+      next[padreIndex] = { ...next[padreIndex], children };
+      return next;
+    });
   }
 
   nuevo(): void {
-    this.editingId = null;
-    this.form = {
-      Descripcion: '',
-      IdPadre: 0,
-      Vigente: 1,
-      Abreviatura: '',
-      Observacion: ''
-    };
+    this.editingId.set(null);
+    this.form.reset({ descripcion: '', idPadre: 0, vigente: 1, abreviatura: '', observacion: '' });
   }
 
   editar(item: DtoDominio): void {
-    this.editingId = item.idDominio;
-    this.form = {
-      Descripcion: item.descripcion,
-      IdPadre: item.idPadre,
-      Vigente: item.vigente,
-      Abreviatura: item.abreviatura || '',
-      Observacion: item.observacion || ''
-    };
+    this.editingId.set(item.idDominio);
+    this.form.reset({
+      descripcion: item.descripcion,
+      idPadre: item.idPadre,
+      vigente: item.vigente,
+      abreviatura: item.abreviatura || '',
+      observacion: item.observacion || ''
+    });
     this.actualizarOpcionesPadre();
   }
 
   guardar(): void {
-    if (!this.form.Descripcion?.trim()) {
+    if (this.form.invalid) {
+      this.form.markAllAsTouched();
       this.toast.warning('Guardar', 'La descripción es requerida');
       return;
     }
 
-    this.saving = true;
+    this.saving.set(true);
 
+    const v = this.form.getRawValue();
     const request: DtoDominioRequest = {
-      Descripcion: this.form.Descripcion.trim(),
-      IdPadre: this.form.IdPadre || 0,
-      Vigente: this.form.Vigente,
-      Abreviatura: this.form.Abreviatura?.trim() || '',
-      Observacion: this.form.Observacion?.trim() || ''
+      Descripcion: v.descripcion.trim(),
+      IdPadre: v.idPadre || 0,
+      Vigente: v.vigente,
+      Abreviatura: v.abreviatura?.trim() || '',
+      Observacion: v.observacion?.trim() || ''
     };
 
-    if (this.editingId) {
-      this.dominioService.update(this.editingId, request).subscribe({
-        next: (resp) => {
-          this.saving = false;
-          if (resp.success) {
-            this.toast.success('Guardar', resp.message);
-            this.nuevo();
-            this.cargarDominios();
-          } else {
-            this.toast.warning('Guardar', resp.message);
-          }
-        },
-        error: () => {
-          this.saving = false;
-          this.toast.error('Guardar', 'Error al actualizar dominio');
+    const editingId = this.editingId();
+    const request$ = editingId
+      ? this.dominioService.update(editingId, request)
+      : this.dominioService.create(request);
+
+    request$.subscribe({
+      next: (resp) => {
+        this.saving.set(false);
+        if (resp.success) {
+          this.toast.success('Guardar', resp.message);
+          this.nuevo();
+          this.cargarDominios();
+        } else {
+          this.toast.warning('Guardar', resp.message);
         }
-      });
-    } else {
-      this.dominioService.create(request).subscribe({
-        next: (resp) => {
-          this.saving = false;
-          if (resp.success) {
-            this.toast.success('Guardar', resp.message);
-            this.nuevo();
-            this.cargarDominios();
-          } else {
-            this.toast.warning('Guardar', resp.message);
-          }
-        },
-        error: () => {
-          this.saving = false;
-          this.toast.error('Guardar', 'Error al crear dominio');
-        }
-      });
-    }
+      },
+      error: () => {
+        this.saving.set(false);
+        this.toast.error('Guardar', `Error al ${editingId ? 'actualizar' : 'crear'} dominio`);
+      }
+    });
   }
 
   eliminar(item: DtoDominio): void {
@@ -234,15 +223,15 @@ export class DominioAdminComponent implements OnInit {
     if (!idPadre || idPadre === 0 || idPadre === '0' || idPadre === 'null') {
       return 'Raíz (sin padre)';
     }
-    const padre = this.listaDominios.find(d => d.idDominio === Number(idPadre));
+    const padre = this.listaDominios().find(d => d.idDominio === Number(idPadre));
     return padre?.descripcion || 'Sin padre';
   }
 
   toggleMinimize(): void {
-    this.minimized = !this.minimized;
+    this.minimized.update(v => !v);
   }
 
   closePanel(): void {
-    this.visible = false;
+    this.visible.set(false);
   }
 }
