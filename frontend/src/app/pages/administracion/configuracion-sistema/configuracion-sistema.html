@@ -12,7 +12,7 @@
       </div>
     </div>
 
-    @if (!videoPanelMinimized) {
+    @if (!videoPanelMinimized()) {
       <div class="ui-panel__body">
         <div class="video-grid">
           <article class="tab-card form-card">
@@ -26,27 +26,29 @@
                 (change)="onFileSelected($event)">
               <small class="meta">Se conserva un solo video activo. Al cargar uno nuevo se reemplaza el anterior.</small>
             </div>
-            <div class="ui-field">
-              <label class="ui-label">Descripción <span class="required">*</span></label>
-              <input
-                class="ui-control"
-                type="text"
-                maxlength="255"
-                [(ngModel)]="videoDescripcion"
-                placeholder="Ej: Video institucional 2025"
-                [disabled]="!selectedVideoFile">
+            <div [formGroup]="videoForm">
+              <div class="ui-field">
+                <label class="ui-label">Descripción <span class="required">*</span></label>
+                <input
+                  class="ui-control"
+                  type="text"
+                  maxlength="255"
+                  formControlName="videoDescripcion"
+                  placeholder="Ej: Video institucional 2025"
+                  [attr.disabled]="!selectedVideoFile() ? '' : null">
+              </div>
+              <div class="ui-field">
+                <label class="ui-label">Observaciones</label>
+                <textarea
+                  class="ui-control"
+                  rows="3"
+                  maxlength="500"
+                  formControlName="videoObservaciones"
+                  placeholder="Observaciones adicionales (opcional)"
+                  [attr.disabled]="!selectedVideoFile() ? '' : null"></textarea>
+              </div>
             </div>
-            <div class="ui-field">
-              <label class="ui-label">Observaciones</label>
-              <textarea
-                class="ui-control"
-                rows="3"
-                maxlength="500"
-                [(ngModel)]="videoObservaciones"
-                placeholder="Observaciones adicionales (opcional)"
-              [disabled]="!selectedVideoFile"></textarea>
-            </div>
-            @if (uploading) {
+            @if (uploading()) {
               <div class="list-loading">Cargando video, por favor espere...</div>
             }
             <div class="tab-actions">
@@ -54,46 +56,46 @@
                 class="ui-btn primary"
                 type="button"
                 (click)="saveVideo()"
-                [disabled]="uploading || !selectedVideoFile">
+                [disabled]="uploading() || !selectedVideoFile()">
                 <i class="fa-solid fa-floppy-disk"></i>
-                {{ uploading ? 'Guardando...' : 'Guardar video' }}
+                {{ uploading() ? 'Guardando...' : 'Guardar video' }}
               </button>
             </div>
           </article>
           <article class="tab-card list-card">
             <h3>Vista previa</h3>
-            @if (loading) {
+            @if (loading()) {
               <div class="list-loading">Consultando video actual...</div>
             }
-            @if (selectedVideoPreviewUrl) {
+            @if (selectedVideoPreviewUrl()) {
               <div class="video-preview">
                 <small class="meta">Nuevo video seleccionado (pendiente de guardar)</small>
                 <video class="video-player" controls preload="metadata">
-                  <source [src]="selectedVideoPreviewUrl">
+                  <source [src]="selectedVideoPreviewUrl()">
                   Tu navegador no soporta reproducción de video.
                 </video>
               </div>
             }
-            @if (!selectedVideoPreviewUrl && !loading && info?.hasVideo && previewUrl) {
+            @if (!selectedVideoPreviewUrl() && !loading() && info()?.hasVideo && previewUrl()) {
               <div class="video-preview">
                 <small class="meta">Video actual</small>
                 <video class="video-player" controls preload="metadata">
-                  <source [src]="previewUrl" type="video/mp4">
+                  <source [src]="previewUrl()" type="video/mp4">
                   Tu navegador no soporta reproducción de video.
                 </video>
                 <div class="meta mt-2">
-                  @if (info?.descripcion) {
-                    <div><strong>Descripción:</strong> {{ info?.descripcion }}</div>
+                  @if (info()?.descripcion) {
+                    <div><strong>Descripción:</strong> {{ info()?.descripcion }}</div>
                   }
-                  @if (info?.observaciones) {
-                    <div><strong>Observaciones:</strong> {{ info?.observaciones }}</div>
+                  @if (info()?.observaciones) {
+                    <div><strong>Observaciones:</strong> {{ info()?.observaciones }}</div>
                   }
-                  <div><strong>Archivo:</strong> {{ info?.fileName }}</div>
-                  <div><strong>Tamaño:</strong> {{ (info?.sizeBytes ?? 0) / 1048576 | number:'1.1-1' }} MB</div>
+                  <div><strong>Archivo:</strong> {{ info()?.fileName }}</div>
+                  <div><strong>Tamaño:</strong> {{ (info()?.sizeBytes ?? 0) / 1048576 | number:'1.1-1' }} MB</div>
                 </div>
               </div>
             }
-            @if (!selectedVideoPreviewUrl && !loading && !info?.hasVideo) {
+            @if (!selectedVideoPreviewUrl() && !loading() && !info()?.hasVideo) {
               <div class="news-state">
                 No hay video configurado.
               </div>
@@ -117,13 +119,13 @@
       </div>
     </div>
 
-    @if (!loginPanelMinimized) {
+    @if (!loginPanelMinimized()) {
       <div class="ui-panel__body">
         <div class="login-visual-grid">
           <article class="tab-card form-card">
             <div class="ui-field">
               <label class="ui-label">Intervalo de rotación (ms)</label>
-              <input class="ui-control" type="number" min="1500" step="500" [(ngModel)]="loginIntervalMs">
+              <input class="ui-control" type="number" min="1500" step="500" [ngModel]="loginIntervalMs()" (ngModelChange)="loginIntervalMs.set($event)">
             </div>
             <div class="ui-field">
               <label class="ui-label">Agregar imagen login</label>
@@ -134,29 +136,29 @@
                 (change)="onLoginImageSelected($event)">
               <small class="meta">Formatos: JPG, PNG, WEBP. Máximo 10MB.</small>
             </div>
-            @if (loginUploading) {
+            @if (loginUploading()) {
               <div class="list-loading">Cargando imagen login...</div>
             }
             <div class="tab-actions">
-              <button class="ui-btn primary" type="button" (click)="saveLoginConfig()" [disabled]="loginSaving">
+              <button class="ui-btn primary" type="button" (click)="saveLoginConfig()" [disabled]="loginSaving()">
                 <i class="fa-solid fa-floppy-disk"></i>
-                {{ loginSaving ? 'Guardando...' : 'Guardar imagen login' }}
+                {{ loginSaving() ? 'Guardando...' : 'Guardar imagen login' }}
               </button>
             </div>
           </article>
           <article class="tab-card list-card">
             <h3 class="sub-title">Imágenes login configuradas</h3>
-            @if (loginLoading) {
+            @if (loginLoading()) {
               <div class="list-loading">Cargando configuración de login...</div>
             }
-            @if (!loginLoading && loginItems.length === 0) {
+            @if (!loginLoading() && loginItems().length === 0) {
               <div class="news-state">
                 No hay imágenes de login configuradas.
               </div>
             }
-            @if (!loginLoading && loginItems.length > 0) {
+            @if (!loginLoading() && loginItems().length > 0) {
               <div class="login-list">
-                @for (item of loginItems; track item) {
+                @for (item of loginItems(); track item.file) {
                   <div class="login-item">
                     <div class="login-item__preview">
                       <img [src]="item.url || '/api/LoginVisual/image/' + item.file" alt="Visual login">
@@ -211,11 +213,11 @@
       </div>
     </div>
 
-    @if (!brandingPanelMinimized) {
+    @if (!brandingPanelMinimized()) {
       <div class="ui-panel__body">
         <div class="login-visual-grid">
-          <article class="tab-card form-card">
-            @if (brandingLoading) {
+          <article class="tab-card form-card" [formGroup]="brandingForm">
+            @if (brandingLoading()) {
               <div class="list-loading">Cargando configuracion de marca...</div>
             }
             <div class="ui-field">
@@ -225,7 +227,7 @@
                 class="ui-control"
                 type="text"
                 maxlength="10"
-                [(ngModel)]="brandingSistema"
+                formControlName="sistema"
                 placeholder="Ej: SECAD">
             </div>
             <div class="ui-field">
@@ -235,7 +237,7 @@
                 class="ui-control"
                 type="text"
                 maxlength="50"
-                [(ngModel)]="brandingNombreSistema"
+                formControlName="nombreSistema"
                 placeholder="Ej: Sistema de Gestion">
             </div>
             <div class="ui-field">
@@ -256,45 +258,45 @@
                 accept=".ico,.png,.webp,.svg,image/x-icon,image/vnd.microsoft.icon,image/png,image/webp,image/svg+xml"
                 (change)="onBrandingFaviconSelected($event)">
             </div>
-            @if (brandingUploading) {
+            @if (brandingUploading()) {
               <div class="list-loading">Cargando logo...</div>
             }
-            @if (brandingUploadingFavicon) {
+            @if (brandingUploadingFavicon()) {
               <div class="list-loading">Cargando favicon...</div>
             }
             <div class="tab-actions">
-              <button class="ui-btn primary" type="button" (click)="saveBrandingConfig()" [disabled]="brandingSaving">
+              <button class="ui-btn primary" type="button" (click)="saveBrandingConfig()" [disabled]="brandingSaving()">
                 <i class="fa-solid fa-floppy-disk"></i>
-                {{ brandingSaving ? 'Guardando...' : 'Guardar marca del sistema' }}
+                {{ brandingSaving() ? 'Guardando...' : 'Guardar marca del sistema' }}
               </button>
             </div>
           </article>
           <article class="tab-card list-card">
             <h3 class="sub-title">Vista previa</h3>
-            @if (!brandingLogoUrl && !brandingFaviconUrl) {
+            @if (!brandingLogoUrl() && !brandingFaviconUrl()) {
               <div class="news-state">No hay marca configurada.</div>
             }
-            @if (brandingLogoUrl) {
+            @if (brandingLogoUrl()) {
               <div class="login-item">
                 <div class="login-item__preview">
-                  <img [src]="brandingLogoUrl" alt="Logo del sistema">
+                  <img [src]="brandingLogoUrl()" alt="Logo del sistema">
                 </div>
                 <div class="login-item__content">
-                  <div><strong>Sistema:</strong> {{ brandingSistema }}</div>
-                  <div><strong>Nombre del sistema:</strong> {{ brandingNombreSistema }}</div>
-                  <small class="meta">Archivo logo: {{ brandingLogoFileName || 'N/D' }}</small>
-                  <small class="meta">Archivo favicon: {{ brandingFaviconFileName || 'N/D' }}</small>
+                  <div><strong>Sistema:</strong> {{ brandingForm.controls.sistema.value }}</div>
+                  <div><strong>Nombre del sistema:</strong> {{ brandingForm.controls.nombreSistema.value }}</div>
+                  <small class="meta">Archivo logo: {{ brandingLogoFileName() || 'N/D' }}</small>
+                  <small class="meta">Archivo favicon: {{ brandingFaviconFileName() || 'N/D' }}</small>
                 </div>
               </div>
             }
-            @if (brandingFaviconUrl) {
+            @if (brandingFaviconUrl()) {
               <div class="login-item">
                 <div class="login-item__preview">
-                  <img [src]="brandingFaviconUrl" alt="Favicon del sistema">
+                  <img [src]="brandingFaviconUrl()" alt="Favicon del sistema">
                 </div>
                 <div class="login-item__content">
                   <div><strong>Favicon actual</strong></div>
-                  <small class="meta">Archivo favicon: {{ brandingFaviconFileName || 'N/D' }}</small>
+                  <small class="meta">Archivo favicon: {{ brandingFaviconFileName() || 'N/D' }}</small>
                 </div>
               </div>
             }

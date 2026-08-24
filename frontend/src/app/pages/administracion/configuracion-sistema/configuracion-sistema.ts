@@ -1,6 +1,6 @@
-﻿import { Component, OnInit } from '@angular/core';
+import { Component, ChangeDetectionStrategy, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
+import { FormBuilder, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { VideoUnidadInfo, VideoUnidadService } from '../../../core/services/administracion/video-unidad.service';
 import { LoginVisualItem, LoginVisualService } from '../../../core/services/administracion/login-visual.service';
 import { BrandingService } from '../../../core/services/administracion/branding.service';
@@ -9,44 +9,53 @@ import { ToastService } from '../../../core/services/toast.service';
 @Component({
   selector: 'app-configuracion-sistema',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, ReactiveFormsModule],
   templateUrl: './configuracion-sistema.html',
-  styleUrls: ['./configuracion-sistema.scss']
+  styleUrls: ['./configuracion-sistema.scss'],
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class ConfiguracionSistemaComponent implements OnInit {
-  videoPanelMinimized = false;
-  loginPanelMinimized = false;
-  brandingPanelMinimized = false;
-  loading = false;
-  uploading = false;
-  info: VideoUnidadInfo | null = null;
-  previewUrl = '';
-  selectedVideoFile: File | null = null;
-  selectedVideoPreviewUrl = '';
-  videoDescripcion = '';
-  videoObservaciones = '';
-  loginLoading = false;
-  loginSaving = false;
-  loginUploading = false;
-  loginIntervalMs = 6000;
-  loginItems: LoginVisualItem[] = [];
-  brandingLoading = false;
-  brandingSaving = false;
-  brandingUploading = false;
-  brandingUploadingFavicon = false;
-  brandingSistema = 'SECAD';
-  brandingNombreSistema = 'SECAD';
-  brandingLogoFileName: string | null = null;
-  brandingLogoUrl: string | null = null;
-  brandingFaviconFileName: string | null = null;
-  brandingFaviconUrl: string | null = null;
+  private readonly videoService        = inject(VideoUnidadService);
+  private readonly loginVisualService  = inject(LoginVisualService);
+  private readonly brandingService     = inject(BrandingService);
+  private readonly toast               = inject(ToastService);
+  private readonly fb                  = inject(FormBuilder);
 
-  constructor(
-    private videoService: VideoUnidadService,
-    private loginVisualService: LoginVisualService,
-    private brandingService: BrandingService,
-    private toast: ToastService
-  ) {}
+  readonly videoPanelMinimized    = signal(false);
+  readonly loginPanelMinimized    = signal(false);
+  readonly brandingPanelMinimized = signal(false);
+
+  readonly loading    = signal(false);
+  readonly uploading  = signal(false);
+  readonly info        = signal<VideoUnidadInfo | null>(null);
+  readonly previewUrl  = signal('');
+  readonly selectedVideoFile        = signal<File | null>(null);
+  readonly selectedVideoPreviewUrl  = signal('');
+
+  readonly videoForm = this.fb.nonNullable.group({
+    videoDescripcion:   ['', [Validators.required]],
+    videoObservaciones: ['']
+  });
+
+  readonly loginLoading  = signal(false);
+  readonly loginSaving   = signal(false);
+  readonly loginUploading = signal(false);
+  readonly loginIntervalMs = signal(6000);
+  readonly loginItems     = signal<LoginVisualItem[]>([]);
+
+  readonly brandingLoading          = signal(false);
+  readonly brandingSaving           = signal(false);
+  readonly brandingUploading        = signal(false);
+  readonly brandingUploadingFavicon = signal(false);
+  readonly brandingLogoFileName    = signal<string | null>(null);
+  readonly brandingLogoUrl         = signal<string | null>(null);
+  readonly brandingFaviconFileName = signal<string | null>(null);
+  readonly brandingFaviconUrl      = signal<string | null>(null);
+
+  readonly brandingForm = this.fb.nonNullable.group({
+    sistema:        ['SECAD', [Validators.required, Validators.maxLength(10)]],
+    nombreSistema:  ['SECAD', [Validators.required, Validators.maxLength(50)]]
+  });
 
   ngOnInit(): void {
     this.loadCurrent();
@@ -56,28 +65,28 @@ export class ConfiguracionSistemaComponent implements OnInit {
 
   togglePanel(panel: 'video' | 'login' | 'branding'): void {
     if (panel === 'video') {
-      this.videoPanelMinimized = !this.videoPanelMinimized;
+      this.videoPanelMinimized.update(v => !v);
       return;
     }
     if (panel === 'login') {
-      this.loginPanelMinimized = !this.loginPanelMinimized;
+      this.loginPanelMinimized.update(v => !v);
       return;
     }
-    this.brandingPanelMinimized = !this.brandingPanelMinimized;
+    this.brandingPanelMinimized.update(v => !v);
   }
 
   loadCurrent(): void {
-    this.loading = true;
+    this.loading.set(true);
     this.videoService.getCurrent().subscribe({
       next: (info) => {
-        this.info = info;
-        this.previewUrl = info?.hasVideo ? info.url : '';
-        this.loading = false;
+        this.info.set(info);
+        this.previewUrl.set(info?.hasVideo ? info.url : '');
+        this.loading.set(false);
       },
       error: (err) => {
-        this.loading = false;
-        this.info = null;
-        this.previewUrl = '';
+        this.loading.set(false);
+        this.info.set(null);
+        this.previewUrl.set('');
         this.toast.error('Configuracion sistema', err?.error?.message ?? 'No fue posible consultar el video actual.');
       }
     });
@@ -103,54 +112,55 @@ export class ConfiguracionSistemaComponent implements OnInit {
       return;
     }
 
-    this.selectedVideoFile = file;
-    this.selectedVideoPreviewUrl = URL.createObjectURL(file);
+    this.selectedVideoFile.set(file);
+    this.selectedVideoPreviewUrl.set(URL.createObjectURL(file));
   }
 
   saveVideo(): void {
-    if (!this.selectedVideoFile) {
+    const file = this.selectedVideoFile();
+    if (!file) {
       this.toast.warning('Configuracion sistema', 'Seleccione un archivo de video.');
       return;
     }
 
-    const descripcion = (this.videoDescripcion ?? '').trim();
+    const v = this.videoForm.getRawValue();
+    const descripcion = v.videoDescripcion.trim();
     if (!descripcion) {
       this.toast.warning('Configuracion sistema', 'La descripción del video es obligatoria.');
       return;
     }
 
-    this.uploading = true;
+    this.uploading.set(true);
     this.videoService.upload(
-      this.selectedVideoFile,
+      file,
       descripcion,
-      (this.videoObservaciones ?? '').trim() || undefined
+      v.videoObservaciones.trim() || undefined
     ).subscribe({
       next: (resp) => {
-        this.uploading = false;
+        this.uploading.set(false);
         if (!resp?.success) {
           this.toast.warning('Configuracion sistema', resp?.message || 'No fue posible cargar el video.');
           return;
         }
         this.toast.success('Configuracion sistema', resp.message || 'Video cargado correctamente.');
-        this.selectedVideoFile = null;
-        this.selectedVideoPreviewUrl = '';
-        this.videoDescripcion = '';
-        this.videoObservaciones = '';
+        this.selectedVideoFile.set(null);
+        this.selectedVideoPreviewUrl.set('');
+        this.videoForm.reset({ videoDescripcion: '', videoObservaciones: '' });
         this.loadCurrent();
       },
       error: (err) => {
-        this.uploading = false;
+        this.uploading.set(false);
         this.toast.error('Configuracion sistema', err?.error?.detail ?? err?.error?.message ?? 'Error cargando video.');
       }
     });
   }
 
   loadLoginVisualConfig(): void {
-    this.loginLoading = true;
+    this.loginLoading.set(true);
     this.loginVisualService.getAdminConfig().subscribe({
       next: (config) => {
-        this.loginIntervalMs = Number(config?.intervalMs ?? 6000);
-        this.loginItems = (config?.items ?? [])
+        this.loginIntervalMs.set(Number(config?.intervalMs ?? 6000));
+        this.loginItems.set((config?.items ?? [])
           .map((x, idx) => ({
             file: x.file,
             active: x.active ?? true,
@@ -159,12 +169,12 @@ export class ConfiguracionSistemaComponent implements OnInit {
             subtitle: x.subtitle ?? '',
             url: x.url ?? ''
           }))
-          .sort((a, b) => a.order - b.order);
-        this.loginLoading = false;
+          .sort((a, b) => a.order - b.order));
+        this.loginLoading.set(false);
       },
       error: (err) => {
-        this.loginLoading = false;
-        this.loginItems = [];
+        this.loginLoading.set(false);
+        this.loginItems.set([]);
         this.toast.error('Visual Login', err?.error?.message ?? 'No fue posible cargar la configuración.');
       }
     });
@@ -190,44 +200,45 @@ export class ConfiguracionSistemaComponent implements OnInit {
       return;
     }
 
-    this.loginUploading = true;
+    this.loginUploading.set(true);
     this.loginVisualService.upload(file).subscribe({
       next: (resp) => {
-        this.loginUploading = false;
+        this.loginUploading.set(false);
         if (!resp?.success || !resp?.fileName) {
           this.toast.warning('Visual Login', resp?.message || 'No fue posible cargar la imagen.');
           return;
         }
 
-        const maxOrder = this.loginItems.length > 0
-          ? Math.max(...this.loginItems.map((x) => Number(x.order || 0)))
+        const items = this.loginItems();
+        const maxOrder = items.length > 0
+          ? Math.max(...items.map((x) => Number(x.order || 0)))
           : 0;
 
-        this.loginItems.push({
+        const nuevo: LoginVisualItem = {
           file: resp.fileName,
           active: true,
           order: maxOrder + 1,
           title: '',
           subtitle: '',
           url: resp.url
-        });
+        };
 
-        this.loginItems = this.loginItems.sort((a, b) => a.order - b.order);
+        this.loginItems.set([...items, nuevo].sort((a, b) => a.order - b.order));
         this.toast.success('Visual Login', resp.message || 'Imagen cargada correctamente.');
       },
       error: (err) => {
-        this.loginUploading = false;
+        this.loginUploading.set(false);
         this.toast.error('Visual Login', err?.error?.detail ?? err?.error?.message ?? 'Error cargando imagen.');
       }
     });
   }
 
   saveLoginConfig(): void {
-    this.loginSaving = true;
+    this.loginSaving.set(true);
 
     const payload = {
-      intervalMs: Number(this.loginIntervalMs || 6000),
-      items: this.loginItems
+      intervalMs: Number(this.loginIntervalMs() || 6000),
+      items: this.loginItems()
         .map((x) => ({
           file: (x.file ?? '').trim(),
           active: !!x.active,
@@ -240,7 +251,7 @@ export class ConfiguracionSistemaComponent implements OnInit {
 
     this.loginVisualService.saveConfig(payload).subscribe({
       next: (resp) => {
-        this.loginSaving = false;
+        this.loginSaving.set(false);
         if (!resp?.success) {
           this.toast.warning('Visual Login', resp?.message || 'No fue posible guardar la configuración.');
           return;
@@ -249,7 +260,7 @@ export class ConfiguracionSistemaComponent implements OnInit {
         this.loadLoginVisualConfig();
       },
       error: (err) => {
-        this.loginSaving = false;
+        this.loginSaving.set(false);
         this.toast.error('Visual Login', err?.error?.detail ?? err?.error?.message ?? 'Error guardando configuración.');
       }
     });
@@ -266,7 +277,7 @@ export class ConfiguracionSistemaComponent implements OnInit {
           return;
         }
         this.toast.success('Visual Login', resp.message || 'Imagen eliminada.');
-        this.loginItems = this.loginItems.filter((x) => x.file !== item.file);
+        this.loginItems.update(items => items.filter((x) => x.file !== item.file));
       },
       error: (err) => {
         this.toast.error('Visual Login', err?.error?.detail ?? err?.error?.message ?? 'Error eliminando imagen.');
@@ -275,19 +286,21 @@ export class ConfiguracionSistemaComponent implements OnInit {
   }
 
   loadBrandingConfig(): void {
-    this.brandingLoading = true;
+    this.brandingLoading.set(true);
     this.brandingService.getAdminConfig().subscribe({
       next: (cfg) => {
-        this.brandingSistema = (cfg?.sistema ?? 'SECAD').trim() || 'SECAD';
-        this.brandingNombreSistema = (cfg?.nombreSistema ?? cfg?.systemName ?? 'SECAD').trim() || 'SECAD';
-        this.brandingLogoFileName = cfg?.logoFileName ?? null;
-        this.brandingLogoUrl = cfg?.logoUrl ?? null;
-        this.brandingFaviconFileName = cfg?.faviconFileName ?? null;
-        this.brandingFaviconUrl = cfg?.faviconUrl ?? null;
-        this.brandingLoading = false;
+        this.brandingForm.reset({
+          sistema: (cfg?.sistema ?? 'SECAD').trim() || 'SECAD',
+          nombreSistema: (cfg?.nombreSistema ?? cfg?.systemName ?? 'SECAD').trim() || 'SECAD'
+        });
+        this.brandingLogoFileName.set(cfg?.logoFileName ?? null);
+        this.brandingLogoUrl.set(cfg?.logoUrl ?? null);
+        this.brandingFaviconFileName.set(cfg?.faviconFileName ?? null);
+        this.brandingFaviconUrl.set(cfg?.faviconUrl ?? null);
+        this.brandingLoading.set(false);
       },
       error: (err) => {
-        this.brandingLoading = false;
+        this.brandingLoading.set(false);
         this.toast.error('Marca del sistema', err?.error?.message ?? 'No fue posible cargar la configuración de marca.');
       }
     });
@@ -313,20 +326,20 @@ export class ConfiguracionSistemaComponent implements OnInit {
       return;
     }
 
-    this.brandingUploading = true;
+    this.brandingUploading.set(true);
     this.brandingService.uploadLogo(file).subscribe({
       next: (resp) => {
-        this.brandingUploading = false;
+        this.brandingUploading.set(false);
         if (!resp?.success) {
           this.toast.warning('Marca del sistema', resp?.message || 'No fue posible cargar el logo.');
           return;
         }
-        this.brandingLogoFileName = resp.fileName;
-        this.brandingLogoUrl = resp.logoUrl;
+        this.brandingLogoFileName.set(resp.fileName);
+        this.brandingLogoUrl.set(resp.logoUrl);
         this.toast.success('Marca del sistema', resp.message || 'Logo cargado correctamente.');
       },
       error: (err) => {
-        this.brandingUploading = false;
+        this.brandingUploading.set(false);
         this.toast.error('Marca del sistema', err?.error?.detail ?? err?.error?.message ?? 'Error cargando logo.');
       }
     });
@@ -352,55 +365,51 @@ export class ConfiguracionSistemaComponent implements OnInit {
       return;
     }
 
-    this.brandingUploadingFavicon = true;
+    this.brandingUploadingFavicon.set(true);
     this.brandingService.uploadFavicon(file).subscribe({
       next: (resp) => {
-        this.brandingUploadingFavicon = false;
+        this.brandingUploadingFavicon.set(false);
         if (!resp?.success) {
           this.toast.warning('Marca del sistema', resp?.message || 'No fue posible cargar el favicon.');
           return;
         }
-        this.brandingFaviconFileName = resp.fileName;
-        this.brandingFaviconUrl = resp.faviconUrl ?? null;
+        this.brandingFaviconFileName.set(resp.fileName);
+        this.brandingFaviconUrl.set(resp.faviconUrl ?? null);
         this.toast.success('Marca del sistema', resp.message || 'Favicon cargado correctamente.');
       },
       error: (err) => {
-        this.brandingUploadingFavicon = false;
+        this.brandingUploadingFavicon.set(false);
         this.toast.error('Marca del sistema', err?.error?.detail ?? err?.error?.message ?? 'Error cargando favicon.');
       }
     });
   }
 
   saveBrandingConfig(): void {
-    const sistema = (this.brandingSistema ?? '').trim();
-    const nombreSistema = (this.brandingNombreSistema ?? '').trim();
-
-    if (!sistema) {
-      this.toast.warning('Marca del sistema', 'El campo Sistema es obligatorio.');
-      return;
-    }
-    if (sistema.length > 10) {
-      this.toast.warning('Marca del sistema', 'El campo Sistema solo permite hasta 10 caracteres.');
-      return;
-    }
-    if (!nombreSistema) {
-      this.toast.warning('Marca del sistema', 'El campo Nombre del sistema es obligatorio.');
-      return;
-    }
-    if (nombreSistema.length > 50) {
-      this.toast.warning('Marca del sistema', 'Nombre del sistema solo permite hasta 50 caracteres.');
+    if (this.brandingForm.invalid) {
+      this.brandingForm.markAllAsTouched();
+      const v = this.brandingForm.getRawValue();
+      if (!v.sistema) {
+        this.toast.warning('Marca del sistema', 'El campo Sistema es obligatorio.');
+      } else if (v.sistema.length > 10) {
+        this.toast.warning('Marca del sistema', 'El campo Sistema solo permite hasta 10 caracteres.');
+      } else if (!v.nombreSistema) {
+        this.toast.warning('Marca del sistema', 'El campo Nombre del sistema es obligatorio.');
+      } else if (v.nombreSistema.length > 50) {
+        this.toast.warning('Marca del sistema', 'Nombre del sistema solo permite hasta 50 caracteres.');
+      }
       return;
     }
 
-    this.brandingSaving = true;
+    const v = this.brandingForm.getRawValue();
+    this.brandingSaving.set(true);
     this.brandingService.saveConfig({
-      sistema,
-      nombreSistema,
-      logoFileName: this.brandingLogoFileName,
-      faviconFileName: this.brandingFaviconFileName
+      sistema: v.sistema.trim(),
+      nombreSistema: v.nombreSistema.trim(),
+      logoFileName: this.brandingLogoFileName(),
+      faviconFileName: this.brandingFaviconFileName()
     }).subscribe({
       next: (resp) => {
-        this.brandingSaving = false;
+        this.brandingSaving.set(false);
         if (!resp?.success) {
           this.toast.warning('Marca del sistema', resp?.message || 'No fue posible guardar la configuración.');
           return;
@@ -409,11 +418,9 @@ export class ConfiguracionSistemaComponent implements OnInit {
         this.loadBrandingConfig();
       },
       error: (err) => {
-        this.brandingSaving = false;
+        this.brandingSaving.set(false);
         this.toast.error('Marca del sistema', err?.error?.detail ?? err?.error?.message ?? 'Error guardando configuración.');
       }
     });
   }
 }
-
-
