@@ -3,10 +3,10 @@
     <!-- Banner Slider -->
     <div class="slider-wrapper">
       <div class="main-slider">
-        @for (banner of banners; track banner; let i = $index) {
+        @for (banner of banners(); track banner; let i = $index) {
           <div
             class="slide-item"
-            [class.active]="i === currentBannerIndex">
+            [class.active]="i === currentBannerIndex()">
             <div class="slide-bg" [style.background-image]="'url(' + getBannerImageUrl(banner) + ')'"></div>
             <div class="slide-overlay"></div>
             <div class="slide-content">
@@ -23,10 +23,10 @@
         }
 
         <div class="slider-controls">
-          @for (_ of banners; track _; let i = $index) {
+          @for (_ of banners(); track _; let i = $index) {
             <button
               type="button"
-              [class.active]="i === currentBannerIndex"
+              [class.active]="i === currentBannerIndex()"
               (click)="goToBanner(i)"
             [attr.aria-label]="'Cambiar a banner ' + (i + 1)"></button>
           }
@@ -39,21 +39,21 @@
       <div class="stat-card">
         <div class="stat-icon blue"><i class="fa-solid fa-users"></i></div>
         <div class="stat-info">
-          <h3>{{ stats.usuariosActivos | number }}</h3>
+          <h3>{{ stats().usuariosActivos | number }}</h3>
           <p>Usuarios Activos</p>
         </div>
       </div>
       <div class="stat-card">
         <div class="stat-icon green"><i class="fa-solid fa-file-circle-check"></i></div>
         <div class="stat-info">
-          <h3>{{ stats.reportesGenerados | number }}</h3>
+          <h3>{{ stats().reportesGenerados | number }}</h3>
           <p>Reportes del Mes</p>
         </div>
       </div>
       <div class="stat-card">
         <div class="stat-icon orange"><i class="fa-solid fa-triangle-exclamation"></i></div>
         <div class="stat-info">
-          <h3>{{ stats.alertasSistema | number }}</h3>
+          <h3>{{ stats().alertasSistema | number }}</h3>
           <p>Roles por Vencer (7 dias)</p>
         </div>
       </div>
@@ -70,9 +70,9 @@
           </h3>
           <hr />
           <div class="video-institutional-wrapper">
-            @if (videoUnidadUrl) {
+            @if (videoUnidadUrl()) {
               <video class="video-iframe" controls preload="metadata">
-                <source [src]="videoUnidadUrl" type="video/mp4" />
+                <source [src]="videoUnidadUrl()" type="video/mp4" />
                 Tu navegador no soporta reproduccion de video.
               </video>
             } @else {
@@ -93,9 +93,9 @@
             </h3>
             <hr />
             <div class="video-box">
-              @if (videoInstitucionalUrl) {
+              @if (videoInstitucionalUrl()) {
                 <iframe
-                  [src]="videoInstitucionalUrl | safeUrl"
+                  [src]="videoInstitucionalUrl() | safeUrl"
                   class="video-frame"
                   frameborder="0"
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
@@ -147,7 +147,7 @@
           </div>
           <hr />
           <div class="news-list">
-            @for (item of news; track item) {
+            @for (item of news(); track item) {
               <article class="news-card" (click)="openNews(item)">
                 <div class="news-card__img" [style.background-image]="'url(' + item.image + ')'"></div>
                 <div class="news-card__content">
@@ -273,9 +273,9 @@
           </div>
         </div>
         <div class="card-body">
-          @if (lineaMando.length > 0) {
+          @if (lineaMando().length > 0) {
             <div class="cmd-row">
-              @for (item of lineaMando; track item) {
+              @for (item of lineaMando(); track item) {
                 <article class="cmd-item">
                   <button
                     class="cmd-photo-btn"
