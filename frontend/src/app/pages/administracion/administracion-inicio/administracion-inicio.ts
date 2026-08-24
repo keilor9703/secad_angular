@@ -1,5 +1,5 @@
 
-import { Component } from '@angular/core';
+import { Component, ChangeDetectionStrategy } from '@angular/core';
 import { RouterModule } from '@angular/router';
 
 interface AdminSite {
@@ -14,7 +14,8 @@ interface AdminSite {
   standalone: true,
   imports: [RouterModule],
   templateUrl: './administracion-inicio.html',
-  styleUrls: ['./administracion-inicio.scss']
+  styleUrls: ['./administracion-inicio.scss'],
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class AdministracionInicioComponent {
   readonly sites: AdminSite[] = [
