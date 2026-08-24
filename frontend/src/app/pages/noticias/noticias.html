@@ -19,20 +19,20 @@
 
       @if (!minimized && !closed) {
         <div class="ui-panel__body">
-          @if (isLoading) {
+          @if (isLoading()) {
             <div class="news-state">
               Cargando noticias...
             </div>
           }
-          @if (hasError) {
+          @if (hasError()) {
             <div class="news-state error">
-              <p>{{ errorMessage }}</p>
+              <p>{{ errorMessage() }}</p>
               <button class="ui-btn secondary" type="button" (click)="loadNoticias()">Reintentar</button>
             </div>
           }
-          @if (!isLoading && !hasError && news.length > 0) {
+          @if (!isLoading() && !hasError() && news().length > 0) {
             <div class="news-list">
-              @for (n of paginatedNews; track n) {
+              @for (n of paginatedNews(); track n) {
                 <article class="news-card" (click)="openNoticia(n)">
                   <div class="news-media">
                     <img class="news-img" [src]="getImageUrl(n)" [alt]="n.titulo">
@@ -61,23 +61,23 @@
               }
             </div>
           }
-          @if (!isLoading && !hasError && news.length === 0) {
+          @if (!isLoading() && !hasError() && news().length === 0) {
             <div class="news-state">
               No hay noticias disponibles.
             </div>
           }
-          @if (!isLoading && !hasError && totalPages > 1) {
+          @if (!isLoading() && !hasError() && totalPages() > 1) {
             <div class="pagination">
               <div class="pagination-info">
-                Mostrando {{ (currentPage - 1) * itemsPerPage + 1 }} -
-                {{ currentPage * itemsPerPage > news.length ? news.length : currentPage * itemsPerPage }}
-                de {{ news.length }} noticias
+                Mostrando {{ (currentPage() - 1) * itemsPerPage + 1 }} -
+                {{ currentPage() * itemsPerPage > news().length ? news().length : currentPage() * itemsPerPage }}
+                de {{ news().length }} noticias
               </div>
               <div class="pagination-controls">
                 <button
                   class="pagination-btn"
-                  [class.disabled]="currentPage === 1"
-                  [disabled]="currentPage === 1"
+                  [class.disabled]="currentPage() === 1"
+                  [disabled]="currentPage() === 1"
                   (click)="previousPage()"
                   type="button"
                   >
@@ -85,10 +85,10 @@
                   Anterior
                 </button>
                 <div class="pagination-numbers">
-                  @for (page of pageNumbers; track page) {
+                  @for (page of pageNumbers(); track page) {
                     <button
                       class="pagination-number"
-                      [class.active]="page === currentPage"
+                      [class.active]="page === currentPage()"
                       (click)="goToPage(page)"
                       type="button"
                       >
@@ -98,8 +98,8 @@
                 </div>
                 <button
                   class="pagination-btn"
-                  [class.disabled]="currentPage === totalPages"
-                  [disabled]="currentPage === totalPages"
+                  [class.disabled]="currentPage() === totalPages()"
+                  [disabled]="currentPage() === totalPages()"
                   (click)="nextPage()"
                   type="button"
                   >
@@ -137,7 +137,7 @@
                 class="news-modal__like-btn"
                 type="button"
                 (click)="selectedNoticia && likeNoticia(selectedNoticia, $event)"
-                [class.liked]="liked || (selectedNoticia && hasLiked(selectedNoticia.idNoticia))"
+                [class.liked]="liked() || (selectedNoticia && hasLiked(selectedNoticia.idNoticia))"
                 [disabled]="selectedNoticia && hasLiked(selectedNoticia.idNoticia)"
                 title="Me gusta"
                 >
