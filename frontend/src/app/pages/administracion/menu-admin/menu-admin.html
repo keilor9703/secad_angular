@@ -1,4 +1,4 @@
-@if (visible) {
+@if (visible()) {
   <section class="menu-admin-page">
     <div class="ui-panel">
       <div class="ui-panel__head">
@@ -12,21 +12,21 @@
           </button>
         </div>
       </div>
-      @if (!minimized) {
+      @if (!minimized()) {
         <div class="ui-panel__body">
           <div class="menu-grid">
             <article class="tab-card form-card">
-              <h3>{{ editingId ? 'Editar menú' : 'Nuevo menú' }}</h3>
-              <div class="ui-grid">
+              <h3>{{ editingId() ? 'Editar menú' : 'Nuevo menú' }}</h3>
+              <form [formGroup]="form" class="ui-grid">
                 <div class="ui-field ui-col-12">
                   <label class="ui-label">Descripción</label>
-                  <input class="ui-control" type="text" [(ngModel)]="form.descripcion" maxlength="255">
+                  <input class="ui-control" type="text" formControlName="descripcion" maxlength="255">
                 </div>
                 <div class="ui-field ui-col-6">
                   <label class="ui-label">Padre</label>
-                  <select class="ui-control" [(ngModel)]="form.idPadre">
+                  <select class="ui-control" formControlName="idPadre">
                     <option [ngValue]="0">Sin padre (0)</option>
-                    @for (parent of parentOptions; track parent) {
+                    @for (parent of parentOptions(); track parent.idMenu) {
                       <option [ngValue]="parent.idMenu">
                         {{ parent.idMenu }} - {{ parent.descripcion }}
                       </option>
@@ -35,11 +35,11 @@
                 </div>
                 <div class="ui-field ui-col-6">
                   <label class="ui-label">Posición</label>
-                  <input class="ui-control" type="number" min="0" [(ngModel)]="form.posicion">
+                  <input class="ui-control" type="number" min="0" formControlName="posicion">
                 </div>
                 <div class="ui-field ui-col-6">
                   <label class="ui-label">Tipo</label>
-                  <select class="ui-control" [(ngModel)]="form.tipo">
+                  <select class="ui-control" formControlName="tipo">
                     <option value="S">S (Submenú)</option>
                     <option value="frm">frm (Formulario)</option>
                     <option value="url">url (Hipervínculo)</option>
@@ -48,36 +48,36 @@
                 </div>
                 <div class="ui-field ui-col-6">
                   <label class="ui-label">Vigente</label>
-                  <select class="ui-control" [(ngModel)]="form.vigente">
+                  <select class="ui-control" formControlName="vigente">
                     <option [ngValue]="1">Sí</option>
                     <option [ngValue]="0">No</option>
                   </select>
                 </div>
                 <div class="ui-field ui-col-12">
                   <label class="ui-label">Icono</label>
-                  <input class="ui-control" type="text" [(ngModel)]="form.icono" placeholder="fa-solid fa-gear">
+                  <input class="ui-control" type="text" formControlName="icono" placeholder="fa-solid fa-gear">
                 </div>
                 <div class="ui-field ui-col-12">
                   <label class="ui-label">Detalle (ruta/url)</label>
-                  <input class="ui-control" type="text" [(ngModel)]="form.detalle" placeholder="/administracion/menu">
+                  <input class="ui-control" type="text" formControlName="detalle" placeholder="/administracion/menu">
                 </div>
-              </div>
+              </form>
               <div class="tab-actions">
                 <button class="ui-btn secondary" type="button" (click)="nuevo()">Limpiar</button>
-                <button class="ui-btn primary" type="button" (click)="guardar()" [disabled]="saving">
+                <button class="ui-btn primary" type="button" (click)="guardar()" [disabled]="saving()">
                   <i class="fa-solid fa-floppy-disk"></i>
-                  {{ saving ? 'Guardando...' : 'Guardar' }}
+                  {{ saving() ? 'Guardando...' : 'Guardar' }}
                 </button>
               </div>
             </article>
             <article class="tab-card list-card">
               <h3>Ítems de menú</h3>
-              @if (loading) {
+              @if (loading()) {
                 <div class="list-loading">Cargando menú...</div>
               }
-              @if (!loading && parentMenuItems.length > 0) {
+              @if (!loading() && parentMenuItems().length > 0) {
                 <div class="menu-list">
-                  @for (parent of parentMenuItems; track parent) {
+                  @for (parent of parentMenuItems(); track parent.idMenu) {
                     <div class="menu-parent-block">
                       <div class="menu-item menu-item--parent">
                         <div class="menu-item__content">
@@ -115,7 +115,7 @@
                               Este menú padre no tiene hijos.
                             </div>
                           }
-                          @for (child of getChildrenOf(parent.idMenu); track child) {
+                          @for (child of getChildrenOf(parent.idMenu); track child.idMenu) {
                             <div class="menu-item menu-item--child">
                               <div class="menu-item__content">
                                 <strong>{{ child.descripcion }}</strong>
@@ -144,21 +144,21 @@
                   }
                 </div>
               }
-              @if (!loading && parentMenuItems.length === 0) {
+              @if (!loading() && parentMenuItems().length === 0) {
                 <div class="news-state">
                   No hay menús padre (idPadre = 1) registrados.
                 </div>
               }
-              @if (selectedMenuForRoles) {
+              @if (selectedMenuForRoles(); as menuRoles) {
                 <div class="menu-roles-panel">
                   <h3>Permisos por rol</h3>
-                  <span class="meta">Menú seleccionado: {{ selectedMenuForRoles.descripcion }} (ID {{ selectedMenuForRoles.idMenu }})</span>
+                  <span class="meta">Menú seleccionado: {{ menuRoles.descripcion }} (ID {{ menuRoles.idMenu }})</span>
                   <div class="ui-grid mt-roles">
                     <div class="ui-field ui-col-8">
                       <label class="ui-label">Rol</label>
-                      <select class="ui-control" [(ngModel)]="selectedRolId">
+                      <select class="ui-control" [ngModel]="selectedRolId()" (ngModelChange)="selectedRolId.set($event)">
                         <option [ngValue]="null">Seleccione un rol</option>
-                        @for (rol of rolesCatalog; track rol) {
+                        @for (rol of rolesCatalog(); track rol.idRol) {
                           <option [ngValue]="rol.idRol">
                             {{ rol.descripcion }} ({{ rol.idRol }})
                           </option>
@@ -166,17 +166,17 @@
                       </select>
                     </div>
                     <div class="ui-field ui-col-4 role-action">
-                      <button class="ui-btn primary" type="button" (click)="asignarRolMenu()" [disabled]="savingRole">
-                        {{ savingRole ? 'Guardando...' : 'Asignar rol' }}
+                      <button class="ui-btn primary" type="button" (click)="asignarRolMenu()" [disabled]="savingRole()">
+                        {{ savingRole() ? 'Guardando...' : 'Asignar rol' }}
                       </button>
                     </div>
                   </div>
-                  @if (loadingRoles) {
+                  @if (loadingRoles()) {
                     <div class="list-loading">Consultando roles asignados...</div>
                   }
-                  @if (!loadingRoles && rolesAsignados.length > 0) {
+                  @if (!loadingRoles() && rolesAsignados().length > 0) {
                     <div class="menu-role-list">
-                      @for (r of rolesAsignados; track r) {
+                      @for (r of rolesAsignados(); track r.idMenuRol) {
                         <div class="menu-role-item">
                           <span><strong>{{ r.descripcionRol }}</strong> ({{ r.idRol }})</span>
                           <button class="ui-btn secondary" type="button" (click)="quitarRolMenu(r)">Quitar</button>
@@ -184,7 +184,7 @@
                       }
                     </div>
                   }
-                  @if (!loadingRoles && rolesAsignados.length === 0) {
+                  @if (!loadingRoles() && rolesAsignados().length === 0) {
                     <div class="news-state">
                       No hay roles asignados a este menú.
                     </div>
