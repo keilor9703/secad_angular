@@ -16,25 +16,25 @@
     </div>
 
     <!-- ── Cuerpo ────────────────────────────────────────────────────────── -->
-    @if (!minimized) {
+    @if (!minimized()) {
       <div class="ui-panel__body">
         <!-- Spinner inicial -->
-        @if (loading) {
+        @if (loading()) {
           <div class="asis-loading">
             <i class="fa-solid fa-spinner fa-spin"></i> Cargando…
           </div>
         }
-        @if (!loading) {
+        @if (!loading()) {
           <div class="asis-grid">
             <!-- ════════════════════════════════════════════════════════════════
             COLUMNA IZQUIERDA — Categorías
             ════════════════════════════════════════════════════════════════ -->
             <aside class="asis-col asis-col--cats">
               <!-- Formulario categoría -->
-              <div class="asis-card">
+              <div class="asis-card" [formGroup]="formCat">
                 <div class="asis-card__head">
-                  <i class="fa-solid" [ngClass]="editingCatId ? 'fa-pen' : 'fa-folder-plus'"></i>
-                  <span>{{ editingCatId ? 'Editar categoría' : 'Nueva categoría' }}</span>
+                  <i class="fa-solid" [ngClass]="editingCatId() ? 'fa-pen' : 'fa-folder-plus'"></i>
+                  <span>{{ editingCatId() ? 'Editar categoría' : 'Nueva categoría' }}</span>
                 </div>
                 <div class="asis-card__body">
                   <div class="ui-grid">
@@ -42,7 +42,7 @@
                     <div class="ui-field ui-col-12">
                       <label class="ui-label">Código <span class="asis-required">*</span></label>
                       <input class="ui-control" type="text"
-                        [(ngModel)]="formCat.Codigo"
+                        formControlName="Codigo"
                         maxlength="50"
                         placeholder="EJ: HURTO, ACCIDENTE_TRANSITO"
                         style="text-transform:uppercase">
@@ -52,7 +52,7 @@
                     <div class="ui-field ui-col-12">
                       <label class="ui-label">Descripción <span class="asis-required">*</span></label>
                       <input class="ui-control" type="text"
-                        [(ngModel)]="formCat.Descripcion"
+                        formControlName="Descripcion"
                         maxlength="200"
                         placeholder="Nombre legible de la categoría">
                     </div>
@@ -61,10 +61,10 @@
                       <label class="ui-label">Ícono (Font Awesome)</label>
                       <div class="asis-icon-row">
                         <span class="asis-icon-preview">
-                          <i class="fa-solid" [ngClass]="formCat.Icono || 'fa-circle-question'"></i>
+                          <i class="fa-solid" [ngClass]="formCat.controls.Icono.value || 'fa-circle-question'"></i>
                         </span>
                         <input class="ui-control" type="text"
-                          [(ngModel)]="formCat.Icono"
+                          formControlName="Icono"
                           maxlength="100"
                           placeholder="fa-circle-question">
                       </div>
@@ -73,12 +73,12 @@
                     <div class="ui-field ui-col-6">
                       <label class="ui-label">Orden</label>
                       <input class="ui-control" type="number"
-                        [(ngModel)]="formCat.Orden" min="0" max="999">
+                        formControlName="Orden" min="0" max="999">
                     </div>
                     <div class="ui-field ui-col-6 asis-field-check">
                       <label class="ui-label">&nbsp;</label>
                       <label class="asis-check-label">
-                        <input type="checkbox" [(ngModel)]="formCat.Activo">
+                        <input type="checkbox" formControlName="Activo">
                         <span class="asis-check-box"></span>
                         Activa
                       </label>
@@ -86,13 +86,13 @@
                   </div>
                   <div class="asis-form-actions">
                     <button class="ui-btn sm secondary" type="button"
-                      (click)="nuevaCategoria()" [disabled]="saving">
+                      (click)="nuevaCategoria()" [disabled]="saving()">
                       <i class="fa-solid fa-xmark"></i> Cancelar
                     </button>
                     <button class="ui-btn sm primary" type="button"
-                      (click)="guardarCategoria()" [disabled]="saving">
-                      <i class="fa-solid" [ngClass]="saving ? 'fa-spinner fa-spin' : 'fa-floppy-disk'"></i>
-                      {{ saving ? 'Guardando…' : (editingCatId ? 'Actualizar' : 'Crear') }}
+                      (click)="guardarCategoria()" [disabled]="saving()">
+                      <i class="fa-solid" [ngClass]="saving() ? 'fa-spinner fa-spin' : 'fa-floppy-disk'"></i>
+                      {{ saving() ? 'Guardando…' : (editingCatId() ? 'Actualizar' : 'Crear') }}
                     </button>
                   </div>
                 </div>
@@ -101,20 +101,20 @@
               <div class="asis-section-label">
                 <i class="fa-solid fa-layer-group"></i>
                 Categorías registradas
-                <span class="asis-count-badge">{{ categorias.length }}</span>
+                <span class="asis-count-badge">{{ categorias().length }}</span>
               </div>
               <div class="asis-cat-list">
-                @if (categorias.length === 0) {
+                @if (categorias().length === 0) {
                   <div class="asis-empty">
                     <i class="fa-solid fa-folder-open"></i>
                     <span>Sin categorías. Cree la primera arriba.</span>
                   </div>
                 }
-                @for (cat of categorias; track cat) {
+                @for (cat of categorias(); track cat.id) {
                   <button
                     type="button"
                     class="asis-cat-item"
-                    [class.is-active]="categoriaSeleccionada?.id === cat.id"
+                    [class.is-active]="categoriaSeleccionada()?.id === cat.id"
                     [class.is-inactive]="!cat.activo"
                     (click)="seleccionarCategoria(cat)">
                     <span class="asis-cat-icon">
@@ -151,33 +151,33 @@
             ════════════════════════════════════════════════════════════════ -->
             <main class="asis-col asis-col--pregs">
               <!-- Placeholder cuando no hay categoría seleccionada -->
-              @if (!categoriaSeleccionada) {
+              @if (!categoriaSeleccionada()) {
                 <div class="asis-placeholder">
                   <i class="fa-solid fa-hand-pointer"></i>
                   <p>Seleccione una categoría para gestionar sus preguntas</p>
                 </div>
               }
-              @if (categoriaSeleccionada) {
+              @if (categoriaSeleccionada(); as cat) {
                 <!-- Cabecera de sección preguntas -->
                 <div class="asis-preg-header">
                   <div class="asis-preg-header__left">
                     <span class="asis-preg-header__icon">
-                      <i class="fa-solid" [ngClass]="categoriaSeleccionada.icono || 'fa-circle-question'"></i>
+                      <i class="fa-solid" [ngClass]="cat.icono || 'fa-circle-question'"></i>
                     </span>
                     <div>
-                      <span class="asis-preg-title">{{ categoriaSeleccionada.descripcion }}</span>
+                      <span class="asis-preg-title">{{ cat.descripcion }}</span>
                       <span class="asis-preg-subtitle">
                         Preguntas que guían al despachador al tipificar este tipo de incidente
                       </span>
                     </div>
                   </div>
-                  <span class="asis-badge is-count">{{ preguntas.length }} preguntas</span>
+                  <span class="asis-badge is-count">{{ preguntas().length }} preguntas</span>
                 </div>
                 <!-- Formulario pregunta -->
-                <div class="asis-card">
+                <div class="asis-card" [formGroup]="formPreg">
                   <div class="asis-card__head">
-                    <i class="fa-solid" [ngClass]="editingPregId ? 'fa-pen' : 'fa-plus'"></i>
-                    <span>{{ editingPregId ? 'Editar pregunta' : 'Nueva pregunta' }}</span>
+                    <i class="fa-solid" [ngClass]="editingPregId() ? 'fa-pen' : 'fa-plus'"></i>
+                    <span>{{ editingPregId() ? 'Editar pregunta' : 'Nueva pregunta' }}</span>
                   </div>
                   <div class="asis-card__body">
                     <div class="ui-grid">
@@ -185,7 +185,7 @@
                       <div class="ui-field ui-col-12">
                         <label class="ui-label">Pregunta <span class="asis-required">*</span></label>
                         <textarea class="ui-control" rows="2"
-                          [(ngModel)]="formPreg.Pregunta"
+                          formControlName="Pregunta"
                           maxlength="500"
                         placeholder="¿Cuántas personas están involucradas?"></textarea>
                       </div>
@@ -193,15 +193,15 @@
                       <div class="ui-field ui-col-12">
                         <label class="ui-label">Ayuda / hint</label>
                         <input class="ui-control" type="text"
-                          [(ngModel)]="formPreg.Ayuda"
+                          formControlName="Ayuda"
                           maxlength="500"
                           placeholder="Texto de ayuda para el despachador (opcional)">
                       </div>
                       <!-- Tipo respuesta + Orden -->
                       <div class="ui-field ui-col-6">
                         <label class="ui-label">Tipo de respuesta</label>
-                        <select class="ui-control" [(ngModel)]="formPreg.TipoRespuesta">
-                          @for (t of TIPOS_RESPUESTA; track t) {
+                        <select class="ui-control" formControlName="TipoRespuesta">
+                          @for (t of TIPOS_RESPUESTA; track t.valor) {
                             <option [value]="t.valor">
                               {{ t.label }}
                             </option>
@@ -211,65 +211,65 @@
                       <div class="ui-field ui-col-6">
                         <label class="ui-label">Orden</label>
                         <input class="ui-control" type="number"
-                          [(ngModel)]="formPreg.Orden" min="0" max="999">
+                          formControlName="Orden" min="0" max="999">
                       </div>
                       <!-- Checkboxes -->
                       <div class="ui-field ui-col-12">
                         <div class="asis-checks-row">
                           <label class="asis-check-label">
-                            <input type="checkbox" [(ngModel)]="formPreg.Obligatoria">
+                            <input type="checkbox" formControlName="Obligatoria">
                             <span class="asis-check-box"></span>
                             Obligatoria
                           </label>
                           <label class="asis-check-label">
-                            <input type="checkbox" [(ngModel)]="formPreg.Activo">
+                            <input type="checkbox" formControlName="Activo">
                             <span class="asis-check-box"></span>
                             Activa
                           </label>
                         </div>
                       </div>
                       <!-- Opciones (solo SELECCION) -->
-                      @if (formPreg.TipoRespuesta === 'SELECCION') {
+                      @if (formPreg.controls.TipoRespuesta.value === 'SELECCION') {
                         <div class="ui-field ui-col-12">
                           <label class="ui-label">
                             Opciones
                             <span class="asis-hint-field">&nbsp;(una por línea)</span>
                           </label>
                           <textarea class="ui-control" rows="4"
-                            [(ngModel)]="opcionesTexto"
+                            [ngModel]="opcionesTexto()" (ngModelChange)="opcionesTexto.set($event)" [ngModelOptions]="{standalone: true}"
                           placeholder="Leve&#10;Grave&#10;Muy grave"></textarea>
                         </div>
                       }
                     </div>
                     <div class="asis-form-actions">
                       <button class="ui-btn sm secondary" type="button"
-                        (click)="nuevaPregunta()" [disabled]="saving">
+                        (click)="nuevaPregunta()" [disabled]="saving()">
                         <i class="fa-solid fa-xmark"></i> Cancelar
                       </button>
                       <button class="ui-btn sm primary" type="button"
-                        (click)="guardarPregunta()" [disabled]="saving">
-                        <i class="fa-solid" [ngClass]="saving ? 'fa-spinner fa-spin' : 'fa-floppy-disk'"></i>
-                        {{ saving ? 'Guardando…' : (editingPregId ? 'Actualizar' : 'Agregar') }}
+                        (click)="guardarPregunta()" [disabled]="saving()">
+                        <i class="fa-solid" [ngClass]="saving() ? 'fa-spinner fa-spin' : 'fa-floppy-disk'"></i>
+                        {{ saving() ? 'Guardando…' : (editingPregId() ? 'Actualizar' : 'Agregar') }}
                       </button>
                     </div>
                   </div>
                 </div>
                 <!-- Spinner preguntas -->
-                @if (loadingPreg) {
+                @if (loadingPreg()) {
                   <div class="asis-loading">
                     <i class="fa-solid fa-spinner fa-spin"></i> Cargando preguntas…
                   </div>
                 }
                 <!-- Lista de preguntas -->
-                @if (!loadingPreg) {
+                @if (!loadingPreg()) {
                   <div class="asis-preg-list">
-                    @if (preguntas.length === 0) {
+                    @if (preguntas().length === 0) {
                       <div class="asis-empty">
                         <i class="fa-solid fa-question-circle"></i>
                         <span>Sin preguntas. Cree la primera usando el formulario de arriba.</span>
                       </div>
                     }
-                    @for (p of preguntas; track p; let i = $index) {
+                    @for (p of preguntas(); track p.id; let i = $index) {
                       <div
                         class="asis-preg-item"
                         [class.is-inactive]="!p.activo">
