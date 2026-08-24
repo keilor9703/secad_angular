@@ -1,10 +1,10 @@
 namespace Servicios.ApiInterfaz
 {
     /// <summary>
-    /// Envío de SMS saliente — abstrae el proveedor real (operador celular,
-    /// gateway comercial, etc.) que aún no está contratado. Mientras tanto,
-    /// <see cref="Servicios.Api.LogOnlyProveedorSms"/> registra el mensaje sin
-    /// enviarlo de verdad, para no bloquear el resto del flujo de videollamada.
+    /// Envío de SMS saliente — abstrae el proveedor real. Implementado por
+    /// <see cref="Servicios.Api.InfobipProveedorSms"/>; si Infobip no está
+    /// configurado (o falla), simplemente devuelve false sin bloquear el resto
+    /// del flujo de videollamada — el link sigue disponible para el despachador.
     /// </summary>
     public interface IProveedorSms
     {

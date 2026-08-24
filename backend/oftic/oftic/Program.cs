@@ -160,10 +160,11 @@ builder.Services.AddSingleton<MfaSessionTokenService>();
 
 // ── Videollamada en vivo con el ciudadano (WebRTC señalizado por VideoSignalingHub) ──
 // VideoSessionTokenService: singleton, mismo criterio que MfaSessionTokenService.
-// IProveedorSms: sin proveedor de SMS saliente contratado todavía — LogOnlyProveedorSms
-// deja el link en el log y en la respuesta HTTP para copiarlo manualmente mientras tanto.
+// IProveedorSms → Infobip (sección "Sms:Infobip" en appsettings). Si el ApiKey no
+// está configurado, InfobipProveedorSms degrada solo (log + false) sin romper el flujo.
 builder.Services.AddSingleton<VideoSessionTokenService>();
-builder.Services.AddScoped<IProveedorSms, LogOnlyProveedorSms>();
+builder.Services.AddHttpClient<IProveedorSms, InfobipProveedorSms>(c =>
+    c.Timeout = TimeSpan.FromSeconds(15));
 builder.Services.AddScoped<IDbVideoLlamadaRepository, DbVideoLlamadaRepository>();
 builder.Services.AddScoped<IDbVideoLlamadaService, DbVideoLlamadaService>();
 builder.Services.AddSignalR();
