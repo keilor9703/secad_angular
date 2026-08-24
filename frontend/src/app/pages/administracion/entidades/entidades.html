@@ -10,7 +10,7 @@
         Entidades / Fuerzas de Despacho
       </div>
       <div class="ui-panel__actions">
-        <span class="ui-badge info">{{ conteoVigentes }} activas de {{ conteoTotal }}</span>
+        <span class="ui-badge info">{{ conteoVigentes() }} activas de {{ conteoTotal() }}</span>
       </div>
     </div>
 
@@ -35,16 +35,16 @@
             </div>
 
             <!-- Spinner -->
-            @if (loading) {
+            @if (loading()) {
               <div class="loading-row">
                 <i class="fa-solid fa-spinner fa-spin"></i> Cargando…
               </div>
             }
 
             <!-- Lista -->
-            @if (!loading) {
+            @if (!loading()) {
               <ul class="fuerzas-list">
-                @for (f of fuerzas; track f) {
+                @for (f of fuerzas(); track f.id) {
                   <li
                     class="fuerza-item"
                     [class.fuerza-item--selected]="estaSeleccionada(f)"
@@ -86,7 +86,7 @@
                   </li>
                 }
                 <!-- Sin fuerzas -->
-                @if (fuerzas.length === 0) {
+                @if (fuerzas().length === 0) {
                   <li class="empty-item">
                     <i class="fa-solid fa-circle-info"></i>
                     No hay fuerzas registradas. Crea la primera.
@@ -104,28 +104,28 @@
         <main>
 
           <!-- ── Formulario nueva / edición de fuerza ────────────────── -->
-          @if (modoFuerza !== 'ninguno') {
+          @if (modoFuerza() !== 'ninguno') {
             <article class="tab-card">
               <h3>
                 <i class="fa-solid fa-building-user"></i>
-                {{ modoFuerza === 'nueva' ? 'Nueva Fuerza / Entidad' : 'Editar Fuerza' }}
+                {{ modoFuerza() === 'nueva' ? 'Nueva Fuerza / Entidad' : 'Editar Fuerza' }}
               </h3>
-              <div class="ui-grid">
+              <form [formGroup]="formFuerza" class="ui-grid">
                 <!-- Código — editable solo en creación, de solo lectura en edición -->
                 <div class="ui-field ui-col-6">
                   <label class="ui-label">
                     Código <span class="required">*</span>
                   </label>
                   <input class="ui-control" type="number"
-                    [(ngModel)]="formFuerza.id"
-                    [readonly]="modoFuerza === 'editando'"
-                    [style.background]="modoFuerza === 'editando' ? 'rgba(21,27,59,.04)' : ''"
+                    formControlName="id"
+                    [readonly]="modoFuerza() === 'editando'"
+                    [style.background]="modoFuerza() === 'editando' ? 'rgba(21,27,59,.04)' : ''"
                     placeholder="Ej. 1, 2, 10…"
                     min="1" />
                 </div>
                 <div class="ui-field ui-col-6">
                   <label class="ui-label">Estado</label>
-                  <select class="ui-control" [(ngModel)]="formFuerza.vigente">
+                  <select class="ui-control" formControlName="vigente">
                     <option value="S">Activa</option>
                     <option value="N">Inactiva</option>
                   </select>
@@ -135,119 +135,120 @@
                     Descripción <span class="required">*</span>
                   </label>
                   <input class="ui-control" type="text"
-                    [(ngModel)]="formFuerza.descripcion"
+                    formControlName="descripcion"
                     placeholder="Nombre completo de la fuerza o entidad"
                     maxlength="200" />
                 </div>
                 <div class="ui-field ui-col-12">
                   <label class="ui-label">Abreviatura</label>
                   <input class="ui-control" type="text"
-                    [(ngModel)]="formFuerza.abreviatura"
+                    formControlName="abreviatura"
                     placeholder="SIJIN, MEVAL, BOMBEROS…"
                     maxlength="50" />
                 </div>
-              </div>
+              </form>
               <div class="tab-actions">
                 <button class="ui-btn secondary" type="button"
                   (click)="cancelarFuerza()">
                   Cancelar
                 </button>
                 <button class="ui-btn primary" type="button"
-                  (click)="guardarFuerza()" [disabled]="saving">
+                  (click)="guardarFuerza()" [disabled]="saving()">
                   <i class="fa-solid fa-floppy-disk"></i>
-                  {{ saving ? 'Guardando…' : 'Guardar' }}
+                  {{ saving() ? 'Guardando…' : 'Guardar' }}
                 </button>
               </div>
             </article>
           }
 
           <!-- ── Detalle de la fuerza seleccionada ───────────────────── -->
-          @if (fuerzaSeleccionada && modoFuerza === 'ninguno') {
+          @if (fuerzaSeleccionada(); as fuerza) {
+            @if (modoFuerza() === 'ninguno') {
             <!-- Header del detalle -->
             <div class="detail-header">
               <div>
                 <h2 class="detail-header__nombre">
-                  {{ fuerzaSeleccionada.descripcion }}
+                  {{ fuerza.descripcion }}
                 </h2>
                 <div class="detail-header__meta">
-                  @if (fuerzaSeleccionada.abreviatura) {
+                  @if (fuerza.abreviatura) {
                     <span
                       class="tag tag--abrev">
-                      {{ fuerzaSeleccionada.abreviatura }}
+                      {{ fuerza.abreviatura }}
                     </span>
                   }
                   <span class="tag"
-                    [class.tag--activa]="fuerzaSeleccionada.vigente === 'S'"
-                    [class.tag--inactiva]="fuerzaSeleccionada.vigente !== 'S'">
-                    {{ fuerzaSeleccionada.vigente === 'S' ? 'Activa' : 'Inactiva' }}
+                    [class.tag--activa]="fuerza.vigente === 'S'"
+                    [class.tag--inactiva]="fuerza.vigente !== 'S'">
+                    {{ fuerza.vigente === 'S' ? 'Activa' : 'Inactiva' }}
                   </span>
                   <span class="tag tag--stat">
                     <i class="fa-solid fa-radio"></i>
-                    {{ fuerzaSeleccionada.totalCanales }} canales
+                    {{ fuerza.totalCanales }} canales
                   </span>
                   <span class="tag tag--stat">
                     <i class="fa-solid fa-users"></i>
-                    {{ fuerzaSeleccionada.totalUsuarios }} usuarios
+                    {{ fuerza.totalUsuarios }} usuarios
                   </span>
                 </div>
               </div>
               <button class="ui-btn secondary sm" type="button"
-                (click)="editarFuerza(fuerzaSeleccionada, $event)">
+                (click)="editarFuerza(fuerza, $event)">
                 <i class="fa-solid fa-pen"></i> Editar
               </button>
             </div>
             <!-- Tabs del detalle -->
             <div class="detail-tabs">
               <button class="detail-tab"
-                [class.detail-tab--active]="tabDetalle === 'canales'"
+                [class.detail-tab--active]="tabDetalle() === 'canales'"
                 (click)="setTab('canales')">
                 <i class="fa-solid fa-radio"></i> Canales
               </button>
               <button class="detail-tab"
-                [class.detail-tab--active]="tabDetalle === 'usuarios'"
+                [class.detail-tab--active]="tabDetalle() === 'usuarios'"
                 (click)="setTab('usuarios')">
                 <i class="fa-solid fa-users"></i> Usuarios
               </button>
             </div>
             <!-- ── TAB: Canales ─────────────────────────────────────── -->
-            @if (tabDetalle === 'canales') {
+            @if (tabDetalle() === 'canales') {
               <article class="tab-card">
                 <!-- Formulario inline de canal -->
-                @if (modoCanal !== 'ninguno') {
+                @if (modoCanal() !== 'ninguno') {
                   <div class="inline-form">
                     <div class="inline-form__title">
                       <i class="fa-solid fa-radio"></i>
-                      {{ modoCanal === 'nuevo'
+                      {{ modoCanal() === 'nuevo'
                       ? 'Nuevo Canal'
-                      : 'Editar Canal #' + editingCanalCodigo }}
+                      : 'Editar Canal #' + editingCanalCodigo() }}
                     </div>
-                    <div class="ui-grid">
+                    <form [formGroup]="formCanal" class="ui-grid">
                       <div class="ui-field ui-col-12">
                         <label class="ui-label">
                           Descripción <span class="required">*</span>
                         </label>
                         <input class="ui-control" type="text"
-                          [(ngModel)]="formCanal.descripcion"
+                          formControlName="descripcion"
                           placeholder="Ej. Canal 1 — SIJIN Norte"
                           maxlength="200" />
                       </div>
                       <div class="ui-field ui-col-6">
                         <label class="ui-label">Estado</label>
-                        <select class="ui-control" [(ngModel)]="formCanal.vigente">
+                        <select class="ui-control" formControlName="vigente">
                           <option value="S">Activo</option>
                           <option value="N">Inactivo</option>
                         </select>
                       </div>
-                    </div>
+                    </form>
                     <div class="tab-actions">
                       <button class="ui-btn secondary sm" type="button"
                         (click)="cancelarCanal()">
                         Cancelar
                       </button>
                       <button class="ui-btn primary sm" type="button"
-                        (click)="guardarCanal()" [disabled]="saving">
+                        (click)="guardarCanal()" [disabled]="saving()">
                         <i class="fa-solid fa-floppy-disk"></i>
-                        {{ saving ? 'Guardando…' : 'Guardar' }}
+                        {{ saving() ? 'Guardando…' : 'Guardar' }}
                       </button>
                     </div>
                   </div>
@@ -255,7 +256,7 @@
                 <!-- Barra de herramientas -->
                 <div class="tab-toolbar">
                   <span></span>
-                  @if (modoCanal === 'ninguno') {
+                  @if (modoCanal() === 'ninguno') {
                     <button class="ui-btn primary sm" type="button"
                       (click)="nuevoCanal()">
                       <i class="fa-solid fa-plus"></i> Nuevo Canal
@@ -263,13 +264,13 @@
                   }
                 </div>
                 <!-- Spinner -->
-                @if (loadingCanales) {
+                @if (loadingCanales()) {
                   <div class="loading-row">
                     <i class="fa-solid fa-spinner fa-spin"></i> Cargando canales…
                   </div>
                 }
                 <!-- Tabla de canales -->
-                @if (!loadingCanales && canales.length > 0) {
+                @if (!loadingCanales() && canales().length > 0) {
                   <table
                     class="ui-table">
                     <thead>
@@ -281,7 +282,7 @@
                       </tr>
                     </thead>
                     <tbody>
-                      @for (c of canales; track c) {
+                      @for (c of canales(); track c.codigo) {
                         <tr
                           [class.row-inactivo]="c.vigente !== 'S'">
                           <td>{{ c.codigo }}</td>
@@ -311,7 +312,7 @@
                   </table>
                 }
                 <!-- Sin canales -->
-                @if (!loadingCanales && canales.length === 0) {
+                @if (!loadingCanales() && canales().length === 0) {
                   <div
                     class="empty-msg">
                     <i class="fa-solid fa-circle-info"></i>
@@ -321,7 +322,7 @@
               </article>
             }
             <!-- ── TAB: Usuarios ────────────────────────────────────── -->
-            @if (tabDetalle === 'usuarios') {
+            @if (tabDetalle() === 'usuarios') {
               <article class="tab-card">
                 <div class="tab-toolbar">
                   <span class="tab-hint">
@@ -333,13 +334,13 @@
                   </span>
                 </div>
                 <!-- Spinner -->
-                @if (loadingUsuarios) {
+                @if (loadingUsuarios()) {
                   <div class="loading-row">
                     <i class="fa-solid fa-spinner fa-spin"></i> Cargando usuarios…
                   </div>
                 }
                 <!-- Tabla de usuarios -->
-                @if (!loadingUsuarios && usuariosEnFuerza.length > 0) {
+                @if (!loadingUsuarios() && usuariosEnFuerza().length > 0) {
                   <table
                     class="ui-table">
                     <thead>
@@ -351,7 +352,7 @@
                       </tr>
                     </thead>
                     <tbody>
-                      @for (u of usuariosEnFuerza; track u) {
+                      @for (u of usuariosEnFuerza(); track u.username) {
                         <tr>
                           <td><code>{{ u.username }}</code></td>
                           <td>{{ u.nombreCompleto }}</td>
@@ -386,7 +387,7 @@
                   </table>
                 }
                 <!-- Sin usuarios -->
-                @if (!loadingUsuarios && usuariosEnFuerza.length === 0) {
+                @if (!loadingUsuarios() && usuariosEnFuerza().length === 0) {
                   <div
                     class="empty-msg">
                     <i class="fa-solid fa-circle-info"></i>
@@ -395,10 +396,11 @@
                 }
               </article>
             }
+            }
           }
 
           <!-- ── Estado vacío (nada seleccionado) ───────────────────── -->
-          @if (!fuerzaSeleccionada && modoFuerza === 'ninguno') {
+          @if (!fuerzaSeleccionada() && modoFuerza() === 'ninguno') {
             <div
               class="empty-state">
               <i class="fa-solid fa-building fa-3x"></i>
