@@ -18,16 +18,16 @@
   </div>
 
   <!-- Loading -->
-  @if (loading) {
+  @if (loading()) {
     <div class="ui-loading">
       <i class="fa-solid fa-spinner fa-spin"></i> Cargando agencias…
     </div>
   }
 
   <!-- Tabla -->
-  @if (!loading) {
+  @if (!loading()) {
     <div class="ui-card">
-      @if (agencias.length) {
+      @if (agencias().length) {
         <table class="ui-table">
           <thead>
             <tr>
@@ -41,7 +41,7 @@
             </tr>
           </thead>
           <tbody>
-            @for (a of agencias; track a) {
+            @for (a of agencias(); track a.id) {
               <tr>
                 <td>
                   <strong>{{ a.nombre }}</strong>
@@ -105,31 +105,31 @@
 <!-- ══════════════════════════════════════════════════════════
 MODAL: Crear / Editar agencia
 ══════════════════════════════════════════════════════════ -->
-@if (showModal) {
+@if (showModal()) {
   <div class="ui-modal" (click)="closeModal()">
     <div class="ui-modal__dialog ag-modal" (click)="$event.stopPropagation()">
       <div class="ui-modal__head">
         <div class="ui-modal__title">
-          <i class="fa-solid" [ngClass]="modalMode === 'create' ? 'fa-plus-circle' : 'fa-pen-to-square'"></i>
-          {{ modalMode === 'create' ? 'Nueva agencia externa' : 'Editar agencia' }}
+          <i class="fa-solid" [ngClass]="modalMode() === 'create' ? 'fa-plus-circle' : 'fa-pen-to-square'"></i>
+          {{ modalMode() === 'create' ? 'Nueva agencia externa' : 'Editar agencia' }}
         </div>
         <button class="ui-icon-btn" type="button" (click)="closeModal()">
           <i class="fa-solid fa-xmark"></i>
         </button>
       </div>
       <div class="ui-modal__body">
-        <div class="ag-form">
+        <div [formGroup]="form" class="ag-form">
           <!-- ── Fila 1: Nombre (ancho) + Tipo ───────────────────────────── -->
           <div class="ag-row">
             <div class="ag-field ag-field--grow">
               <label class="ui-label">Nombre <span class="ag-req">*</span></label>
-              <input class="ui-control" [(ngModel)]="form.nombre"
+              <input class="ui-control" formControlName="nombre"
                 placeholder="Ej: Bomberos Bogotá" maxlength="100">
             </div>
             <div class="ag-field ag-field--tipo">
               <label class="ui-label">Tipo de agencia</label>
-              <select class="ui-control" [(ngModel)]="form.tipoAgencia">
-                @for (t of tiposAgencia; track t) {
+              <select class="ui-control" formControlName="tipoAgencia">
+                @for (t of tiposAgencia; track t.value) {
                   <option [value]="t.value">{{ t.label }}</option>
                 }
               </select>
@@ -138,7 +138,7 @@ MODAL: Crear / Editar agencia
           <!-- ── Fila 2: Descripción ──────────────────────────────────────── -->
           <div class="ag-field">
             <label class="ui-label">Descripción</label>
-            <input class="ui-control" [(ngModel)]="form.descripcion"
+            <input class="ui-control" formControlName="descripcion"
               placeholder="Descripción opcional" maxlength="255">
           </div>
           <!-- ── Sección: Configuración de API ───────────────────────────── -->
@@ -149,12 +149,12 @@ MODAL: Crear / Editar agencia
           <div class="ag-row">
             <div class="ag-field ag-field--grow">
               <label class="ui-label">URL del endpoint</label>
-              <input class="ui-control" [(ngModel)]="form.apiUrl"
+              <input class="ui-control" formControlName="apiUrl"
                 placeholder="https://api.agencia.gov.co/incidentes" maxlength="500">
               </div>
               <div class="ag-field ag-field--metodo">
                 <label class="ui-label">Método</label>
-                <select class="ui-control" [(ngModel)]="form.apiMetodo">
+                <select class="ui-control" formControlName="apiMetodo">
                   <option value="POST">POST</option>
                   <option value="PUT">PUT</option>
                 </select>
@@ -164,15 +164,15 @@ MODAL: Crear / Editar agencia
             <div class="ag-field">
               <label class="ui-label">
                 Token de autenticación (Bearer)
-                @if (modalMode === 'edit') {
+                @if (modalMode() === 'edit') {
                   <span class="tenant-section-hint">
                     · Deje vacío para mantener el existente
                   </span>
                 }
               </label>
-              <input class="ui-control" type="password" [(ngModel)]="form.apiToken"
+              <input class="ui-control" type="password" formControlName="apiToken"
                 autocomplete="new-password"
-                [placeholder]="modalMode === 'edit' ? '••••••••' : 'Token de autenticación'">
+                [placeholder]="modalMode() === 'edit' ? '••••••••' : 'Token de autenticación'">
             </div>
             <!-- ── Sección: JSON avanzado ───────────────────────────────────── -->
             <div class="tenant-section-title" style="margin-top:0.5rem">
@@ -187,7 +187,7 @@ MODAL: Crear / Editar agencia
                   · Formato: clave / valor en JSON
                 </span>
               </label>
-              <textarea class="ui-control ag-json-area" [(ngModel)]="formCabeceras" rows="2"
+              <textarea class="ui-control ag-json-area" [ngModel]="formCabeceras()" (ngModelChange)="formCabeceras.set($event)" [ngModelOptions]="{standalone: true}" rows="2"
                 placeholder='{"X-Api-Key": "abc123", "X-Source": "SECAD"}'
               spellcheck="false"></textarea>
             </div>
@@ -199,7 +199,7 @@ MODAL: Crear / Editar agencia
                   · JSON: campo SECAD → campo de la agencia destino
                 </span>
               </label>
-              <textarea class="ui-control ag-json-area" [(ngModel)]="formMapeo" rows="3"
+              <textarea class="ui-control ag-json-area" [ngModel]="formMapeo()" (ngModelChange)="formMapeo.set($event)" [ngModelOptions]="{standalone: true}" rows="3"
                 placeholder='{"codiPedido": "tipo_incidente", "direCaso": "direccion", "latitud": "lat"}'
               spellcheck="false"></textarea>
               <small class="sub-text" style="display:block;margin-top:3px">
@@ -210,7 +210,7 @@ MODAL: Crear / Editar agencia
             <!-- Estado -->
             <div class="ag-field ag-field--estado">
               <label class="ui-label">Estado</label>
-              <select class="ui-control" [(ngModel)]="form.activa">
+              <select class="ui-control" formControlName="activa">
                 <option [ngValue]="true">Activa</option>
                 <option [ngValue]="false">Inactiva</option>
               </select>
@@ -221,9 +221,9 @@ MODAL: Crear / Editar agencia
           <button class="ui-btn sm ghost" type="button" (click)="closeModal()">
             <i class="fa-solid fa-xmark"></i> Cancelar
           </button>
-          <button class="ui-btn sm primary" type="button" (click)="save()" [disabled]="saving">
-            <i class="fa-solid" [ngClass]="saving ? 'fa-spinner fa-spin' : 'fa-floppy-disk'"></i>
-            {{ saving ? 'Guardando...' : 'Guardar' }}
+          <button class="ui-btn sm primary" type="button" (click)="save()" [disabled]="saving()">
+            <i class="fa-solid" [ngClass]="saving() ? 'fa-spinner fa-spin' : 'fa-floppy-disk'"></i>
+            {{ saving() ? 'Guardando...' : 'Guardar' }}
           </button>
         </div>
       </div>
