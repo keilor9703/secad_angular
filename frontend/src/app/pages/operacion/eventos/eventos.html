@@ -9,7 +9,7 @@
   <!-- ════════════════════════════════════════════════════════════
        SELECTOR DE CANAL (overlay cuando el usuario no tiene canal)
        ════════════════════════════════════════════════════════════ -->
-  @if (mostrarSelectorCanal) {
+  @if (mostrarSelectorCanal()) {
     <div class="ui-modal" (click)="cancelarSelector()">
       <div class="ui-modal__dialog ev-modal-canal" (click)="$event.stopPropagation()">
 
@@ -25,14 +25,14 @@
         </div>
 
         <div class="ui-modal__body">
-          @if (canalesDisponibles.length === 0) {
+          @if (canalesDisponibles().length === 0) {
             <div class="ev-empty-state">
               <i class="fa-solid fa-tower-broadcast"></i>
               <p>No hay canales configurados para este sitio.</p>
             </div>
           } @else {
             <div class="ev-canal-grid">
-              @for (c of canalesDisponibles; track c.codigo + '::' + c.fuerzaId) {
+              @for (c of canalesDisponibles(); track c.codigo + '::' + c.fuerzaId) {
                 <button class="ev-canal-card" (click)="seleccionarCanal(c.codigo, c.fuerzaId)">
                   <span class="ev-canal-card__fuerza">{{ c.fuerzaDesc }}</span>
                   <span class="ev-canal-card__nombre">{{ c.descripcion }}</span>
@@ -63,7 +63,7 @@
       <div class="ui-panel__title">
         <i class="fa-solid fa-tower-broadcast"></i>
         Módulo de Eventos
-        <span class="ev-canal-tag">{{ canalNombre }}</span>
+        <span class="ev-canal-tag">{{ canalNombre() }}</span>
       </div>
 
       <div class="ev-head-right">
@@ -80,10 +80,10 @@
           </button>
         }
         <button class="ui-btn sm ghost ev-head-btn" type="button"
-                [disabled]="cargando"
+                [disabled]="cargando()"
                 (click)="recargarAhora()">
           <i class="fa-solid fa-rotate"></i>
-          {{ cargando ? 'Cargando…' : 'Recargar' }}
+          {{ cargando() ? 'Cargando…' : 'Recargar' }}
         </button>
       </div>
     </div><!-- /ui-panel__head -->
@@ -92,7 +92,7 @@
     <div class="ui-panel__body ev-panel-body">
 
       <!-- Aviso inline: sin canal configurado (no bloquea la navegación) -->
-      @if (canalSeleccionado <= 0 && !mostrarSelectorCanal) {
+      @if (canalSeleccionado <= 0 && !mostrarSelectorCanal()) {
         <div class="ev-no-canal-banner">
           <i class="fa-solid fa-triangle-exclamation"></i>
           <span>No tiene un canal de despacho configurado.</span>
@@ -132,8 +132,8 @@
               <button class="ev-pill" [class.ev-pill--on]="filtroEstado === ''"
                       (click)="filtrarPorEstado('')">
                 Todos
-                @if (conteos.total > 0) {
-                  <span class="ev-pill__count">{{ conteos.total }}</span>
+                @if (conteos().total > 0) {
+                  <span class="ev-pill__count">{{ conteos().total }}</span>
                 }
               </button>
 
@@ -141,8 +141,8 @@
               <button class="ev-pill" [class.ev-pill--on]="filtroEstado === 'A'"
                       (click)="filtrarPorEstado('A')">
                 Activos
-                @if (conteos.activos > 0) {
-                  <span class="ev-pill__count">{{ conteos.activos }}</span>
+                @if (conteos().activos > 0) {
+                  <span class="ev-pill__count">{{ conteos().activos }}</span>
                 }
               </button>
 
@@ -150,8 +150,8 @@
               <button class="ev-pill" [class.ev-pill--on]="filtroEstado === 'P'"
                       (click)="filtrarPorEstado('P')">
                 Pendientes
-                @if (conteos.pendientes > 0) {
-                  <span class="ev-pill__count">{{ conteos.pendientes }}</span>
+                @if (conteos().pendientes > 0) {
+                  <span class="ev-pill__count">{{ conteos().pendientes }}</span>
                 }
               </button>
 
@@ -159,8 +159,8 @@
               <button class="ev-pill" [class.ev-pill--on]="filtroEstado === 'E'"
                       (click)="filtrarPorEstado('E')">
                 En proceso
-                @if (conteos.enProceso > 0) {
-                  <span class="ev-pill__count">{{ conteos.enProceso }}</span>
+                @if (conteos().enProceso > 0) {
+                  <span class="ev-pill__count">{{ conteos().enProceso }}</span>
                 }
               </button>
 
@@ -168,8 +168,8 @@
               <button class="ev-pill" [class.ev-pill--on]="filtroEstado === 'T'"
                       (click)="filtrarPorEstado('T')">
                 Seguimiento
-                @if (conteos.seguimiento > 0) {
-                  <span class="ev-pill__count">{{ conteos.seguimiento }}</span>
+                @if (conteos().seguimiento > 0) {
+                  <span class="ev-pill__count">{{ conteos().seguimiento }}</span>
                 }
               </button>
 
@@ -177,22 +177,22 @@
               <button class="ev-pill" [class.ev-pill--on]="filtroEstado === 'R'"
                       (click)="filtrarPorEstado('R')">
                 Revisión
-                @if (conteos.revision > 0) {
-                  <span class="ev-pill__count">{{ conteos.revision }}</span>
+                @if (conteos().revision > 0) {
+                  <span class="ev-pill__count">{{ conteos().revision }}</span>
                 }
               </button>
 
               <!-- Cerrados (turno actual) — filtro exclusivo para eventos del turno vigente -->
               <button class="ev-pill ev-pill--cerrados"
                       [class.ev-pill--on]="filtroEstado === 'C'"
-                      [title]="'Solo cerrados del turno ' + (conteos.turnoActual || 'actual')"
+                      [title]="'Solo cerrados del turno ' + (conteos().turnoActual || 'actual')"
                       (click)="filtrarPorEstado('C')">
                 Cerrados
-                @if (conteos.cerradosTurno > 0) {
-                  <span class="ev-pill__count ev-pill__count--cerrados">{{ conteos.cerradosTurno }}</span>
+                @if (conteos().cerradosTurno > 0) {
+                  <span class="ev-pill__count ev-pill__count--cerrados">{{ conteos().cerradosTurno }}</span>
                 }
-                @if (conteos.turnoActual) {
-                  <span class="ev-pill__turno">{{ conteos.turnoActual }}</span>
+                @if (conteos().turnoActual) {
+                  <span class="ev-pill__turno">{{ conteos().turnoActual }}</span>
                 }
               </button>
 
@@ -201,17 +201,17 @@
 
           <!-- Meta info -->
           <div class="ev-list-meta">
-            @if (errorCarga) {
+            @if (errorCarga()) {
               <span class="ev-err">
                 <i class="fa-solid fa-triangle-exclamation"></i>
-                {{ errorCarga }}
+                {{ errorCarga() }}
               </span>
             } @else {
               <span>{{ totalMostrados }} evento(s)</span>
-              @if (filtroEstado === 'C' && conteos.turnoActual) {
+              @if (filtroEstado === 'C' && conteos().turnoActual) {
                 <span class="ev-list-meta__turno">
                   <i class="fa-solid fa-clock-rotate-left"></i>
-                  Turno {{ conteos.turnoActual }}
+                  Turno {{ conteos().turnoActual }}
                 </span>
               }
             }
@@ -233,16 +233,16 @@
             <div class="ev-search-results">
               <div class="ev-search-results__head">
                 <i class="fa-solid fa-magnifying-glass"></i>
-                @if (buscandoBackend) { Buscando… }
-                @else { {{ resultadosBusqueda.length }} resultado(s) en todo el histórico }
+                @if (buscandoBackend()) { Buscando… }
+                @else { {{ resultadosBusqueda().length }} resultado(s) en todo el histórico }
               </div>
-              @if (!buscandoBackend && resultadosBusqueda.length === 0) {
+              @if (!buscandoBackend() && resultadosBusqueda().length === 0) {
                 <div class="ev-empty-state">
                   <i class="fa-solid fa-inbox"></i>
                   <p>Sin coincidencias en el histórico.</p>
                 </div>
               }
-              @for (ev of resultadosBusqueda; track ev.id) {
+              @for (ev of resultadosBusqueda(); track ev.id) {
                 <div class="ev-search-item" (click)="abrirDetalle(ev)">
                   <span class="ev-estado-badge sm" [ngClass]="getEstadoClase(ev.estado)">{{ getEstadoLabel(ev.estado) }}</span>
                   <span class="ev-search-item__main">
@@ -262,7 +262,7 @@
           <!-- Lista scrollable (cola en vivo) — se oculta durante la búsqueda backend -->
           <div class="ev-list" [class.ev-list--oculta]="mostrarResultadosBusqueda">
 
-            @if (cargando && eventos.length === 0) {
+            @if (cargando() && eventos().length === 0) {
               <div class="ev-empty-state">
                 <i class="fa-solid fa-hourglass-half fa-spin"></i>
                 <p>Cargando eventos…</p>
@@ -282,7 +282,7 @@
                     'semaforo-verde':      getSemaforoClass(ev) === 'semaforo-verde',
                     'semaforo-amarillo':   getSemaforoClass(ev) === 'semaforo-amarillo',
                     'semaforo-rojo':       getSemaforoClass(ev) === 'semaforo-rojo',
-                    'ev-item--sel':        detalle?.id === ev.id,
+                    'ev-item--sel':        detalle()?.id === ev.id,
                     'ev-item--nuevo':      esEventoNuevo(ev),
                     'ev-item--en-gestion': esEventoEnGestion(ev)
                   }"
@@ -363,7 +363,7 @@
         <!-- ═════════════ COLUMNA DERECHA – Detalle del evento ═════════════ -->
         <main class="ev-col-detail">
 
-          @if (!detalle) {
+          @if (!detalle()) {
 
             <!-- Placeholder: sin selección -->
             <div class="ev-placeholder">
@@ -371,7 +371,7 @@
               <p>Seleccione un evento de la lista para gestionarlo.</p>
             </div>
 
-          } @else {
+          } @else if (detalle(); as detalle) {
 
             <!-- ── Cabecera del detalle ─────────────────────────────────── -->
             <div class="ev-detail-head" [ngClass]="getSemaforoClass(detalle)">
@@ -406,10 +406,10 @@
                   }
                 </span>
                 <!-- Presencia: otros despachadores viendo el mismo caso ahora -->
-                @if (presenciaUsuarios.length) {
+                @if (presenciaUsuarios().length) {
                   <span class="ev-presencia" title="Otros despachadores viendo este caso en los últimos 5 minutos">
                     <i class="fa-solid fa-user-group"></i>
-                    También lo está viendo: {{ presenciaUsuarios.join(', ') }}
+                    También lo está viendo: {{ presenciaUsuarios().join(', ') }}
                   </span>
                 }
                 <!-- Caso vinculado (mismo incidente reportado por otra llamada) -->
@@ -418,7 +418,7 @@
                     <i class="fa-solid fa-link"></i>
                     Vinculado al caso #{{ detalle.pedidoPadreNum }}
                     <button class="ev-vinculo-quitar" type="button"
-                            [disabled]="vinculandoId"
+                            [disabled]="vinculandoId()"
                             (click)="desvincularCaso()" title="Quitar vínculo">
                       <i class="fa-solid fa-xmark"></i>
                     </button>
@@ -445,7 +445,7 @@
                       <button class="ui-btn sm ghost ev-est-btn"
                               [ngClass]="est.clase"
                               type="button"
-                              [disabled]="cambiandoEstado"
+                              [disabled]="cambiandoEstado()"
                               (click)="abrirModalCambiarEstado(est.valor)">
                         {{ est.label }}
                       </button>
@@ -453,12 +453,12 @@
                   }
                 }
                 <!-- Historial de cambios de estado (auditoría) -->
-                @if (estadoHistorial.length) {
+                @if (estadoHistorial().length) {
                   <button class="ui-btn sm ghost ev-hist-btn" type="button"
                           (click)="historialEstadoAbierto = !historialEstadoAbierto"
                           title="Ver el historial de cambios de estado de este caso">
                     <i class="fa-solid fa-clock-rotate-left"></i>
-                    Historial ({{ estadoHistorial.length }})
+                    Historial ({{ estadoHistorial().length }})
                   </button>
                 }
               </div>
@@ -478,7 +478,7 @@
               } @else {
                 <!-- Evento cerrado → permitir reabrir (con motivo obligatorio) -->
                 <button class="ui-btn sm warning" type="button"
-                        [disabled]="cambiandoEstado"
+                        [disabled]="cambiandoEstado()"
                         (click)="reabrirEvento()"
                         title="Reabrir este caso cerrado (requiere motivo)">
                   <i class="fa-solid fa-lock-open"></i>
@@ -488,14 +488,14 @@
             </div>
 
             <!-- ── Historial de estado (desplegable) ─────────────────────── -->
-            @if (historialEstadoAbierto && estadoHistorial.length) {
+            @if (historialEstadoAbierto && estadoHistorial().length) {
               <div class="ev-hist-panel">
                 <div class="ev-hist-panel__head">
                   <i class="fa-solid fa-clock-rotate-left"></i>
                   Historial de cambios de estado
                 </div>
                 <ul class="ev-hist-list">
-                  @for (h of estadoHistorial; track $index) {
+                  @for (h of estadoHistorial(); track $index) {
                     <li class="ev-hist-item">
                       <span class="ev-hist-item__estados">
                         @if (h.estadoAnterior) {
@@ -515,7 +515,7 @@
             }
 
             <!-- Cargando detalle -->
-            @if (cargandoDetalle) {
+            @if (cargandoDetalle()) {
               <div class="ev-empty-state" style="padding:24px 0">
                 <i class="fa-solid fa-hourglass-half fa-spin"></i>
                 <p>Cargando detalle…</p>
@@ -523,12 +523,12 @@
             }
 
             <!-- ── Banner: duplicados / contexto histórico de dirección ──── -->
-            @if (!duplicadosDescartados && duplicados.length && detalle.estado !== 'C') {
+            @if (!duplicadosDescartados && duplicados().length && detalle.estado !== 'C') {
               <div class="ev-dup-banner">
                 <div class="ev-dup-banner__head">
                   <span class="ev-dup-banner__title">
                     <i class="fa-solid fa-triangle-exclamation"></i>
-                    {{ duplicados.length }} caso(s) reciente(s) en la misma zona — posible duplicado o reincidencia
+                    {{ duplicados().length }} caso(s) reciente(s) en la misma zona — posible duplicado o reincidencia
                   </span>
                   <button class="ev-dup-banner__close" type="button"
                           (click)="descartarDuplicados()" title="Descartar aviso">
@@ -536,7 +536,7 @@
                   </button>
                 </div>
                 <ul class="ev-dup-list">
-                  @for (d of duplicados; track d.id) {
+                  @for (d of duplicados(); track d.id) {
                     <li class="ev-dup-item">
                       <span class="ev-dup-item__info">
                         <span class="ev-estado-badge sm" [ngClass]="getEstadoClase(d.estado || '')">{{ getEstadoLabel(d.estado || '') }}</span>
@@ -549,11 +549,11 @@
                       </span>
                       @if (!detalle.pedidoPadreNum) {
                         <button class="ui-btn xs ghost" type="button"
-                                [disabled]="vinculandoId === d.id"
+                                [disabled]="vinculandoId() === d.id"
                                 (click)="vincularCaso(d)"
                                 title="Marcar este caso como el mismo incidente (vincular)">
                           <i class="fa-solid fa-link"></i>
-                          {{ vinculandoId === d.id ? '…' : 'Vincular' }}
+                          {{ vinculandoId() === d.id ? '…' : 'Vincular' }}
                         </button>
                       }
                     </li>
@@ -669,7 +669,8 @@
               </app-panel-colapsable><!-- /DATOS -->
 
               <!-- CANALES Y AGENCIAS ASIGNADOS (visibilidad multi-canal) -->
-              @if (canalesAsignados && (canalesAsignados.canales.length > 1 || canalesAsignados.agenciasExternas.length > 0)) {
+              @if (canalesAsignados(); as canalesAsignados) {
+              @if (canalesAsignados.canales.length > 1 || canalesAsignados.agenciasExternas.length > 0) {
                 <app-panel-colapsable titulo="Canales y agencias asignados" icono="fa-solid fa-diagram-project"
                                       [(abierto)]="canalesAsignadosAbierto">
                   <div class="ev-canales-panel">
@@ -718,6 +719,7 @@
                   </div>
                 </app-panel-colapsable>
               }
+              }
 
               <!-- RECURSOS Y UBICACIÓN EN TIEMPO REAL (mapa + despacho) -->
               @if (canalSeleccionado > 0) {
@@ -732,13 +734,13 @@
 
                     <!-- Cabecera y última actualización -->
                     <div class="ev-rec-meta">
-                      @if (ultimaActRecursos) {
+                      @if (ultimaActRecursos()) {
                         <span class="ev-rec-time">
                           <i class="fa-regular fa-clock"></i>
-                          Actualizado {{ ultimaActRecursos | date:'HH:mm:ss' }}
+                          Actualizado {{ ultimaActRecursos() | date:'HH:mm:ss' }}
                         </span>
                       }
-                      <span class="ev-rec-count">{{ recursos.length }} recurso(s)</span>
+                      <span class="ev-rec-count">{{ recursos().length }} recurso(s)</span>
                       <button type="button" class="ui-btn xs ghost ev-rec-btn"
                               (click)="sugerirRecursoCercano()"
                               title="Sugerir el cuadrante libre más cercano al sitio del hecho">
@@ -751,35 +753,35 @@
                           {{ detalle.latitudCaso || '—' }}, {{ detalle.longitudCaso || '—' }}
                         </span>
                       }
-                      @if (errorRecursos) {
+                      @if (errorRecursos()) {
                         <span class="ev-err">
                           <i class="fa-solid fa-triangle-exclamation"></i>
-                          {{ errorRecursos }}
+                          {{ errorRecursos() }}
                         </span>
                       }
                     </div>
 
                     <!-- Sugerencia de cuadrante más cercano (PostGIS) — visible arriba,
                          antes de la fila lista+mapa, para que nunca requiera scroll. -->
-                    @if (mostrarSugerencia) {
+                    @if (mostrarSugerencia()) {
                       <div class="ev-sugerencia-box">
                         <div class="ev-sugerencia-box__head">
                           <i class="fa-solid fa-location-crosshairs"></i>
                           Recomendación — más cercano al hecho
                           <button type="button" class="ev-sugerencia-box__close"
-                                  (click)="mostrarSugerencia = false">
+                                  (click)="mostrarSugerencia.set(false)">
                             <i class="fa-solid fa-xmark"></i>
                           </button>
                         </div>
-                        @if (cargandoSugerencia) {
+                        @if (cargandoSugerencia()) {
                           <div class="ev-empty-state" style="padding:10px 0">
                             <i class="fa-solid fa-spinner fa-spin"></i>
                             <p>Buscando el más cercano…</p>
                           </div>
-                        } @else if (errorSugerencia) {
-                          <div class="ev-sugerencia-box__empty">{{ errorSugerencia }}</div>
+                        } @else if (errorSugerencia()) {
+                          <div class="ev-sugerencia-box__empty">{{ errorSugerencia() }}</div>
                         } @else {
-                          @for (s of sugerenciasRecurso; track s.medioId; let i = $index) {
+                          @for (s of sugerenciasRecurso(); track s.medioId; let i = $index) {
                             <div class="ev-sugerencia-item" [class.ev-sugerencia-item--top]="i === 0">
                               <span class="ev-sugerencia-item__rank">{{ i + 1 }}</span>
                               <div class="ev-sugerencia-item__info">
@@ -794,7 +796,7 @@
                                 }
                               </span>
                               <button type="button" class="ui-btn xs primary"
-                                      [disabled]="!!asignandoMedioId"
+                                      [disabled]="!!asignandoMedioId()"
                                       (click)="asignarSugerido(s)">
                                 Asignar
                               </button>
@@ -812,18 +814,18 @@
 
                       <!-- Lista lateral: solo identificación — nombre de patrulla + personal -->
                       <div class="ev-recmap-list">
-                        @if (cargandoRecursos && recursos.length === 0) {
+                        @if (cargandoRecursos() && recursos().length === 0) {
                           <div class="ev-empty-state" style="padding:20px 0">
                             <i class="fa-solid fa-hourglass-half fa-spin"></i>
                             <p>Consultando…</p>
                           </div>
-                        } @else if (recursos.length === 0) {
+                        } @else if (recursos().length === 0) {
                           <div class="ev-empty-state" style="padding:16px 0">
                             <i class="fa-solid fa-car-side"></i>
                             <p>Sin recursos activos en turno para este canal.</p>
                           </div>
                         } @else {
-                          @for (r of recursos; track r.id) {
+                          @for (r of recursos(); track r.id) {
                             <div class="ev-recmap-item"
                                  [class.ev-recmap-item--ocupado]="r.estado === 28 || r.estado === 30"
                                  [class.ev-recmap-item--asignado]="medioAsignadoAEsteEvento(r)">
@@ -869,11 +871,11 @@
                               <div class="ev-recmap-item__actions">
                                 @if (r.estado === 27 && !medioAsignadoAEsteEvento(r) && !r.eventoId) {
                                   <button class="ui-btn xs primary" type="button"
-                                          [disabled]="!!asignandoMedioId || detalle!.estado === 'C'"
+                                          [disabled]="!!asignandoMedioId() || detalle!.estado === 'C'"
                                           (click)="asignarRecursoAlEvento(r)"
                                           title="Paso 1: Asignar recurso a este incidente">
                                     <i class="fa-solid fa-plus"></i>
-                                    {{ asignandoMedioId === r.id ? '…' : 'Asignar' }}
+                                    {{ asignandoMedioId() === r.id ? '…' : 'Asignar' }}
                                   </button>
                                 }
                                 @if (r.estado === 27 && r.eventoId && !medioAsignadoAEsteEvento(r)) {
@@ -907,12 +909,12 @@
                     </div><!-- /ev-recmap-main -->
 
                     <!-- Error de asignación -->
-                    @if (errorAsignacion) {
+                    @if (errorAsignacion()) {
                       <div class="ev-assign-error">
                         <i class="fa-solid fa-triangle-exclamation"></i>
-                        {{ errorAsignacion }}
+                        {{ errorAsignacion() }}
                         <button class="ev-assign-error__close" type="button"
-                                (click)="errorAsignacion = ''">
+                                (click)="errorAsignacion.set('')">
                           <i class="fa-solid fa-xmark"></i>
                         </button>
                       </div>
@@ -931,29 +933,29 @@
                 <!-- Solo cuenta P/D/A (recursos realmente desplegados o en camino) -->
                 <span extra class="ev-dispatch-count">
                   {{ actuacionesActivas.length }} activa(s)
-                  @if (actuaciones.length > actuacionesActivas.length) {
+                  @if (actuaciones().length > actuacionesActivas.length) {
                     <span class="ev-dispatch-count__hist"
                           title="Incluye cerradas y/o anuladas">
-                      · {{ actuaciones.length }} total
+                      · {{ actuaciones().length }} total
                     </span>
                   }
                   </span>
 
                 <div style="padding:10px 14px">
 
-                  @if (errorActuaciones) {
+                  @if (errorActuaciones()) {
                     <p class="ev-err">
                       <i class="fa-solid fa-triangle-exclamation"></i>
-                      {{ errorActuaciones }}
+                      {{ errorActuaciones() }}
                     </p>
                   }
 
-                  @if (cargandoActuaciones && actuaciones.length === 0) {
+                  @if (cargandoActuaciones() && actuaciones().length === 0) {
                     <div class="ev-empty-state" style="padding:16px 0">
                       <i class="fa-solid fa-hourglass-half fa-spin"></i>
                       <p>Cargando actuaciones…</p>
                     </div>
-                  } @else if (actuaciones.length === 0) {
+                  } @else if (actuaciones().length === 0) {
                     <div class="ev-empty-state" style="padding:14px 0">
                       <i class="fa-solid fa-route"></i>
                       <p>Sin recursos asignados a este evento.<br>
@@ -962,9 +964,9 @@
                   } @else {
 
                     <div class="ev-dispatch-list">
-                      @for (act of actuaciones; track act.id) {
+                      @for (act of actuaciones(); track act.id) {
                         <!-- Separador visual antes del primer anulado (V) -->
-                        @if (act.estado === 'V' && ($index === 0 || actuaciones[$index - 1].estado !== 'V')) {
+                        @if (act.estado === 'V' && ($index === 0 || actuaciones()[$index - 1].estado !== 'V')) {
                           <div class="ev-dispatch-separator">
                             <i class="fa-solid fa-link-slash"></i>
                             Recursos anulados / desasignados
@@ -1074,11 +1076,11 @@
                                 <!-- Paso 2: Despachar → En ruta -->
                                 <button class="ui-btn xs primary ev-dispatch-btn"
                                         type="button"
-                                        [disabled]="operandoActuacionId === act.id"
+                                        [disabled]="operandoActuacionId() === act.id"
                                         (click)="marcarEnRuta(act)"
                                         title="Paso 2: Marcar recurso en ruta hacia el lugar">
                                   <i class="fa-solid fa-truck-fast"></i>
-                                  {{ operandoActuacionId === act.id ? '…' : 'Salió en ruta' }}
+                                  {{ operandoActuacionId() === act.id ? '…' : 'Salió en ruta' }}
                                 </button>
                               }
 
@@ -1090,11 +1092,11 @@
                                         [class.success]="sugiereLlegada(act)"
                                         [class.ev-dispatch-btn--sugerido]="sugiereLlegada(act)"
                                         type="button"
-                                        [disabled]="operandoActuacionId === act.id"
+                                        [disabled]="operandoActuacionId() === act.id"
                                         (click)="marcarEnSitio(act)"
                                         [title]="sugiereLlegada(act) ? 'El GPS indica que el recurso ya llegó al lugar' : 'Paso 3: Marcar que el recurso llegó al lugar'">
                                   <i class="fa-solid fa-map-pin"></i>
-                                  {{ operandoActuacionId === act.id ? '…' : (sugiereLlegada(act) ? '¿Llegó? (GPS cerca)' : 'Llegó al lugar') }}
+                                  {{ operandoActuacionId() === act.id ? '…' : (sugiereLlegada(act) ? '¿Llegó? (GPS cerca)' : 'Llegó al lugar') }}
                                 </button>
                               }
 
@@ -1102,18 +1104,18 @@
                                 <!-- Paso 4: Atendió → cerrar actuación -->
                                 <button class="ui-btn xs success ev-dispatch-btn"
                                         type="button"
-                                        [disabled]="operandoActuacionId === act.id"
+                                        [disabled]="operandoActuacionId() === act.id"
                                         (click)="abrirCierreActuacion(act)"
                                         title="Paso 4: Marcar que el recurso atendió el incidente">
                                   <i class="fa-solid fa-circle-check"></i>
-                                  {{ operandoActuacionId === act.id ? '…' : 'Atendió' }}
+                                  {{ operandoActuacionId() === act.id ? '…' : 'Atendió' }}
                                 </button>
                               }
 
                               <!-- Cancelar recurso: en P sin motivo; en D/A con motivo obligatorio -->
                               <button class="ui-btn xs danger ev-dispatch-btn"
                                       type="button"
-                                      [disabled]="operandoActuacionId === act.id"
+                                      [disabled]="operandoActuacionId() === act.id"
                                       (click)="abrirModalDesasignar(act)"
                                       [title]="act.estado === 'P' ? 'Desasignar recurso' : 'Cancelar recurso ya despachado (requiere motivo)'">
                                 <i class="fa-solid fa-link-slash"></i>
@@ -1124,7 +1126,7 @@
                               @if (act.solicitaApoyo) {
                                 <button class="ui-btn xs success ev-dispatch-btn"
                                         type="button"
-                                        [disabled]="solicitandoApoyoId === act.id"
+                                        [disabled]="solicitandoApoyoId() === act.id"
                                         (click)="atenderApoyo(act)"
                                         title="Marcar la solicitud de apoyo como atendida">
                                   <i class="fa-solid fa-check-double"></i>
@@ -1133,7 +1135,7 @@
                               } @else {
                                 <button class="ui-btn xs ev-dispatch-btn ev-btn-apoyo"
                                         type="button"
-                                        [disabled]="solicitandoApoyoId === act.id"
+                                        [disabled]="solicitandoApoyoId() === act.id"
                                         (click)="solicitarApoyo(act)"
                                         title="Solicitar apoyo urgente para este recurso (seguridad del funcionario)">
                                   <i class="fa-solid fa-tower-broadcast"></i>
@@ -1173,7 +1175,7 @@
                     <!-- Selector de categoría -->
                     <div class="ev-asistente__cat-row">
                       <label class="ui-label">Tipo de incidente</label>
-                      @if (asistenteLoadingCat) {
+                      @if (asistenteLoadingCat()) {
                         <span class="ev-asistente__spin">
                           <i class="fa-solid fa-spinner fa-spin"></i> Cargando categorías…
                         </span>
@@ -1182,7 +1184,7 @@
                                 [(ngModel)]="asistenteCategoriaSel"
                                 (change)="onAsistenteCategoriaChange(asistenteCategoriaSel)">
                           <option value="">— Seleccione el tipo de incidente —</option>
-                          @for (cat of asistenteCategorias; track cat.id) {
+                          @for (cat of asistenteCategorias(); track cat.id) {
                             <option [value]="cat.id">
                               {{ cat.descripcion }}
                               @if (cat.totalPreguntas) { ({{ cat.totalPreguntas }}) }
@@ -1193,12 +1195,12 @@
                     </div>
 
                     <!-- Spinner / vacío -->
-                    @if (asistenteLoadingPreg) {
+                    @if (asistenteLoadingPreg()) {
                       <div class="ev-asistente__spin">
                         <i class="fa-solid fa-spinner fa-spin"></i> Cargando preguntas…
                       </div>
                     }
-                    @if (!asistenteLoadingPreg && asistenteCategoriaSel && asistentePreguntas.length === 0) {
+                    @if (!asistenteLoadingPreg() && asistenteCategoriaSel && asistentePreguntas().length === 0) {
                       <p class="ev-asistente__empty">
                         <i class="fa-solid fa-circle-info"></i>
                         Sin preguntas configuradas para esta categoría.
@@ -1206,9 +1208,9 @@
                     }
 
                     <!-- Lista de preguntas orientadoras -->
-                    @if (asistentePreguntas.length > 0) {
+                    @if (asistentePreguntas().length > 0) {
                       <ol class="ev-asistente__list">
-                        @for (preg of asistentePreguntas; track preg.id) {
+                        @for (preg of asistentePreguntas(); track preg.id) {
                           <li class="ev-asistente__item">
                             <span class="ev-asistente__q">
                               {{ preg.pregunta }}
@@ -1252,12 +1254,12 @@
               </app-panel-colapsable><!-- /ASISTENTE -->
 
               <!-- FOTOS ADJUNTAS DEL CASO -->
-              @if (adjuntos.length > 0) {
+              @if (adjuntos().length > 0) {
                 <app-panel-colapsable titulo="Fotos del caso" icono="fa-solid fa-camera"
                                       [(abierto)]="fotosAbierto">
-                  <span extra class="ev-badge" style="margin-left:auto;">{{ adjuntos.length }}</span>
+                  <span extra class="ev-badge" style="margin-left:auto;">{{ adjuntos().length }}</span>
                   <div class="ev-adjuntos-grid">
-                    @for (adj of adjuntos; track adj.id) {
+                    @for (adj of adjuntos(); track adj.id) {
                       <a [href]="adj.urlPublica" target="_blank"
                          class="ev-adjunto-card" [title]="adj.nombreOriginal">
                         <div class="ev-adjunto-card__img">
@@ -1281,7 +1283,7 @@
                 <app-panel-colapsable titulo="Videollamada con el ciudadano" icono="fa-solid fa-video"
                                       [(abierto)]="videollamadaAbierta">
                   <div style="padding:12px 14px;">
-                    @if (videollamadaEstado === 'inactiva' || videollamadaEstado === 'finalizada') {
+                    @if (videollamadaEstado() === 'inactiva' || videollamadaEstado() === 'finalizada') {
                       <div class="ui-grid" style="gap:10px; align-items:end;">
                         <div class="ui-field ui-col-8">
                           <label class="ui-label">Teléfono del ciudadano</label>
@@ -1291,16 +1293,16 @@
                         </div>
                         <div class="ui-col-4">
                           <button type="button" class="ui-btn ui-btn-primary" style="width:100%;"
-                                  [disabled]="creandoVideollamada"
+                                  [disabled]="creandoVideollamada()"
                                   (click)="iniciarVideollamada()">
-                            @if (creandoVideollamada) { Creando… } @else { <i class="fa-solid fa-video"></i> Iniciar }
+                            @if (creandoVideollamada()) { Creando… } @else { <i class="fa-solid fa-video"></i> Iniciar }
                           </button>
                         </div>
                       </div>
                     } @else {
                       <div class="ev-video-panel">
                         <div class="ev-video-estado">
-                          @switch (videollamadaEstado) {
+                          @switch (videollamadaEstado()) {
                             @case ('esperando')  { <span class="ui-badge ui-badge-warning">Esperando al ciudadano…</span> }
                             @case ('conectando') { <span class="ui-badge ui-badge-warning">Conectando…</span> }
                             @case ('conectada')  { <span class="ui-badge ui-badge-success">Conectada</span> }
@@ -1308,25 +1310,25 @@
                           }
                         </div>
 
-                        @if (videollamadaLink) {
+                        @if (videollamadaLink()) {
                           <div class="ev-video-link">
-                            <input class="ui-control" type="text" readonly [value]="videollamadaLink">
+                            <input class="ui-control" type="text" readonly [value]="videollamadaLink()">
                             <button type="button" class="ui-btn ui-btn-secondary" (click)="copiarLinkVideollamada()">
                               <i class="fa-solid fa-copy"></i> Copiar
                             </button>
                           </div>
-                          @if (videollamadaMensaje) {
-                            <p class="ev-video-mensaje">{{ videollamadaMensaje }}</p>
+                          @if (videollamadaMensaje()) {
+                            <p class="ev-video-mensaje">{{ videollamadaMensaje() }}</p>
                           }
                         }
 
-                        @if (videollamadaEstado === 'conectada') {
+                        @if (videollamadaEstado() === 'conectada') {
                           <video #videoRemoto autoplay playsinline class="ev-video-remoto"
-                                 [srcObject]="videollamadaRemoteStream"></video>
+                                 [srcObject]="videollamadaRemoteStream()"></video>
                         }
 
                         <div class="ev-video-controles">
-                          @if (videollamadaEstado === 'conectada') {
+                          @if (videollamadaEstado() === 'conectada') {
                             <button type="button" class="ui-btn"
                                     [class.ui-btn-danger]="grabandoVideollamada"
                                     [class.ui-btn-secondary]="!grabandoVideollamada"
@@ -1358,8 +1360,8 @@
                         <div class="ui-field ui-col-6">
                           <label class="ui-label">Tipo</label>
                           <select class="ui-control"
-                                  [(ngModel)]="nuevaAnotacion.tipoAnotacion"
-                                  (change)="onTipoAnotacionChange()">
+                                  [ngModel]="nuevaAnotacion().tipoAnotacion"
+                                  (ngModelChange)="onTipoAnotacionChange($event)">
                             <option value="GENERAL">General</option>
                             <option value="OPERATIVA">Operativa</option>
                             <option value="PREVENTIVA">Preventiva</option>
@@ -1371,19 +1373,20 @@
                         <div class="ui-field ui-col-6">
                           <label class="ui-label">Título</label>
                           <input class="ui-control" type="text"
-                                 [(ngModel)]="nuevaAnotacion.titulo"
+                                 [ngModel]="nuevaAnotacion().titulo"
+                                 (ngModelChange)="setAnotacionTitulo($event)"
                                  placeholder="Título breve…">
                         </div>
 
                         <!-- Sub-campos OPERATIVA dinámicos -->
-                        @if (nuevaAnotacion.tipoAnotacion === 'OPERATIVA') {
+                        @if (nuevaAnotacion().tipoAnotacion === 'OPERATIVA') {
                           <div class="ui-field ui-col-12">
                             <label class="ui-label">Tipo de actividad</label>
                             <select class="ui-control"
-                                    [value]="anotActividadCodigo"
+                                    [value]="anotActividadCodigo()"
                                     (change)="onAnotActividadChange($event)">
                               <option value="">— Seleccione —</option>
-                              @for (a of actividadesPoliciales; track a.codigo) {
+                              @for (a of actividadesPoliciales(); track a.codigo) {
                                 <!-- <option> no soporta íconos (FontAwesome ni Material) — un
                                      <select> nativo solo renderiza texto plano dentro de las
                                      opciones, a diferencia de los emoji Unicode que sí se veían
@@ -1397,20 +1400,22 @@
                             </select>
                           </div>
 
-                          @if (anotRequiereDelito) {
+                          @if (anotRequiereDelito()) {
                             <div class="ui-field ui-col-6">
                               <label class="ui-label">
                                 Artículo del delito
                               </label>
                               <input class="ui-control" type="text"
-                                     [(ngModel)]="anotDelitoArticulo"
+                                     [ngModel]="anotDelitoArticulo()"
+                                     (ngModelChange)="anotDelitoArticulo.set($event)"
                                      placeholder="Ej: Art. 239, Art. 103…"
                                      style="text-transform:uppercase">
                             </div>
                             <div class="ui-field ui-col-6">
                               <label class="ui-label">Nombre del delito</label>
                               <input class="ui-control" type="text"
-                                     [(ngModel)]="anotDelitoDesc"
+                                     [ngModel]="anotDelitoDesc()"
+                                     (ngModelChange)="anotDelitoDesc.set($event)"
                                      placeholder="Ej: Hurto calificado…">
                             </div>
                           }
@@ -1422,7 +1427,8 @@
                           </label>
                           <textarea class="ui-control ev-anot-textarea"
                                     rows="3"
-                                    [(ngModel)]="nuevaAnotacion.anotacion"
+                                    [ngModel]="nuevaAnotacion().anotacion"
+                                    (ngModelChange)="setAnotacionTexto($event)"
                                     placeholder="Registre la novedad o información relevante…">
                           </textarea>
                           <!-- Plantillas rápidas: rellenan/anexan texto frecuente -->
@@ -1439,15 +1445,15 @@
                       </div>
                       <div class="ev-anot-actions">
                         <button class="ui-btn sm primary" type="button"
-                                [disabled]="guardandoAnotacion || !nuevaAnotacion.anotacion.trim()"
+                                [disabled]="guardandoAnotacion() || !nuevaAnotacion().anotacion.trim()"
                                 (click)="guardarAnotacion()">
                           <i class="fa-solid fa-floppy-disk"></i>
-                          {{ guardandoAnotacion ? 'Guardando…' : 'Registrar anotación' }}
+                          {{ guardandoAnotacion() ? 'Guardando…' : 'Registrar anotación' }}
                         </button>
-                        @if (mensajeAnotacion) {
+                        @if (mensajeAnotacion()) {
                           <span class="ev-msg-ok">
                             <i class="fa-solid fa-circle-check"></i>
-                            {{ mensajeAnotacion }}
+                            {{ mensajeAnotacion() }}
                           </span>
                         }
                       </div>
@@ -1496,7 +1502,7 @@
 <!-- ══════════════════════════════════════════════════════════════
      MODAL: Cerrar actuación (Paso 4 — Atendió) — EXPANDIDO
      ══════════════════════════════════════════════════════════════ -->
-@if (modalCierreActuacion) {
+@if (modalCierreActuacion()) {
   <div class="ui-modal" (click)="cancelarCierreActuacion()">
     <div class="ui-modal__dialog ev-modal-cierre-act" (click)="$event.stopPropagation()">
 
@@ -1514,7 +1520,7 @@
       <div class="ui-modal__body ev-cierre-body">
 
         <!-- ── Resumen del recurso ──────────────────────────────────────── -->
-        @if (actuacionACerrar) {
+        @if (actuacionACerrar(); as actuacionACerrar) {
           <div class="ev-modal-act-info">
             <i class="fa-solid fa-car-side"></i>
             <strong>{{ nombreUnidad(actuacionACerrar) }}</strong>
@@ -1547,7 +1553,7 @@
                    [value]="cierreCodBusqueda"
                    (input)="onCierreCodInput($any($event.target).value)"
                    (blur)="cerrarSugerenciasCierre()"
-                   (focus)="mostrarSugerenciasCierre = cierreCodBusqueda.length > 0"
+                   (focus)="mostrarSugerenciasCierre.set(cierreCodBusqueda.length > 0)"
                    placeholder="Buscar código de caso (tipificación)…">
             <button class="ui-btn xs ghost" type="button"
                     title="Agregar código tal como está escrito"
@@ -1555,9 +1561,9 @@
                     [disabled]="!cierreCodBusqueda.trim()">
               <i class="fa-solid fa-plus"></i> Agregar
             </button>
-            @if (mostrarSugerenciasCierre && cierreSugerencias.length > 0) {
+            @if (mostrarSugerenciasCierre() && cierreSugerencias().length > 0) {
               <ul class="rec-suggest-list">
-                @for (s of cierreSugerencias; track s.codigo) {
+                @for (s of cierreSugerencias(); track s.codigo) {
                   <li class="rec-suggest-item"
                       (mousedown)="seleccionarCierreCod(s)">
                     <strong>{{ s.codigo }}</strong>
@@ -1647,9 +1653,9 @@
                      (input)="onCierreDelitoInput($any($event.target).value)"
                      (blur)="cerrarSugerenciasDelito()"
                      placeholder="Buscar artículo o nombre del delito…">
-              @if (mostrarSugerenciasDelito && cierreDelitoSugs.length > 0) {
+              @if (mostrarSugerenciasDelito() && cierreDelitoSugs().length > 0) {
                 <ul class="rec-suggest-list">
-                  @for (d of cierreDelitoSugs; track d.id) {
+                  @for (d of cierreDelitoSugs(); track d.id) {
                     <li class="rec-suggest-item"
                         (mousedown)="seleccionarCierreDelito(d)">
                       <strong>{{ d.articulo }}</strong> — {{ d.descripcion }}
@@ -1719,10 +1725,10 @@
           </div>
         </div>
 
-        @if (errorCierreActuacion) {
+        @if (errorCierreActuacion()) {
           <p class="ev-err" style="margin-top:8px">
             <i class="fa-solid fa-triangle-exclamation"></i>
-            {{ errorCierreActuacion }}
+            {{ errorCierreActuacion() }}
           </p>
         }
       </div><!-- /ui-modal__body -->
@@ -1733,10 +1739,10 @@
           <i class="fa-solid fa-xmark"></i> Cancelar
         </button>
         <button class="ui-btn sm success" type="button"
-                [disabled]="cerrandoActuacion || !cierreCodsSeleccionados.length || cerrarEventoAlAtender === null"
+                [disabled]="cerrandoActuacion() || !cierreCodsSeleccionados.length || cerrarEventoAlAtender === null"
                 (click)="confirmarCierreActuacion()">
           <i class="fa-solid fa-circle-check"></i>
-          {{ cerrandoActuacion ? 'Cerrando…' : 'Confirmar: Atendió' }}
+          {{ cerrandoActuacion() ? 'Cerrando…' : 'Confirmar: Atendió' }}
         </button>
       </div>
 
@@ -1747,14 +1753,14 @@
 <!-- ══════════════════════════════════════════════════════════════
      MODAL: Cambiar estado del evento (motivo obligatorio)
      ══════════════════════════════════════════════════════════════ -->
-@if (modalCambiarEstadoVisible) {
+@if (modalCambiarEstadoVisible()) {
   <div class="ui-modal" (click)="cancelarCambiarEstado()">
     <div class="ui-modal__dialog ev-modal-cambiar-estado" (click)="$event.stopPropagation()">
 
       <div class="ui-modal__head">
         <div class="ui-modal__title">
           <i class="fa-solid fa-arrows-rotate"></i>
-          Cambiar estado a "{{ getEstadoLabel(estadoNuevoPendiente) }}"
+          Cambiar estado a "{{ getEstadoLabel(estadoNuevoPendiente()) }}"
         </div>
         <button class="ui-icon-btn" type="button"
                 title="Cancelar" (click)="cancelarCambiarEstado()">
@@ -1773,10 +1779,10 @@
                     [(ngModel)]="motivoCambioEstado"
                     placeholder="Explique brevemente por qué cambia el estado del caso…"></textarea>
         </div>
-        @if (errorCambioEstado) {
+        @if (errorCambioEstado()) {
           <p class="ev-err" style="margin-top:10px">
             <i class="fa-solid fa-triangle-exclamation"></i>
-            {{ errorCambioEstado }}
+            {{ errorCambioEstado() }}
           </p>
         }
       </div>
@@ -1786,10 +1792,10 @@
           <i class="fa-solid fa-xmark"></i> Cancelar
         </button>
         <button class="ui-btn sm primary" type="button"
-                [disabled]="cambiandoEstado || !motivoCambioEstado.trim()"
+                [disabled]="cambiandoEstado() || !motivoCambioEstado.trim()"
                 (click)="confirmarCambiarEstado()">
           <i class="fa-solid fa-check"></i>
-          {{ cambiandoEstado ? 'Guardando…' : 'Confirmar cambio' }}
+          {{ cambiandoEstado() ? 'Guardando…' : 'Confirmar cambio' }}
         </button>
       </div>
 
@@ -1800,14 +1806,14 @@
 <!-- ══════════════════════════════════════════════════════════════
      MODAL: Desasignar recurso
      ══════════════════════════════════════════════════════════════ -->
-@if (modalDesasignarVisible) {
+@if (modalDesasignarVisible()) {
   <div class="ui-modal" (click)="cancelarDesasignar()">
     <div class="ui-modal__dialog ev-modal-desasignar" (click)="$event.stopPropagation()">
 
       <div class="ui-modal__head">
         <div class="ui-modal__title ev-modal-title-danger">
           <i class="fa-solid fa-link-slash"></i>
-          {{ actuacionADesasignar && actuacionADesasignar.estado !== 'P' ? 'Cancelar recurso despachado' : 'Desasignar recurso' }}
+          {{ actuacionADesasignar() && actuacionADesasignar()?.estado !== 'P' ? 'Cancelar recurso despachado' : 'Desasignar recurso' }}
         </div>
         <button class="ui-icon-btn" type="button"
                 title="Cancelar" (click)="cancelarDesasignar()">
@@ -1817,7 +1823,7 @@
 
       <div class="ui-modal__body">
 
-        @if (actuacionADesasignar) {
+        @if (actuacionADesasignar(); as actuacionADesasignar) {
           <div class="ev-modal-act-info">
             <i class="fa-solid fa-car-side"></i>
             Recurso: <strong>{{ nombreUnidad(actuacionADesasignar) }}</strong>
@@ -1845,7 +1851,7 @@
           <div class="ui-field ui-col-12">
             <label class="ui-label">
               Motivo
-              @if (actuacionADesasignar && actuacionADesasignar.estado !== 'P') { <span class="ev-req">*</span> (obligatorio) }
+              @if (actuacionADesasignar() && actuacionADesasignar()?.estado !== 'P') { <span class="ev-req">*</span> (obligatorio) }
               @else { (opcional) }
             </label>
             <input class="ui-control" type="text"
@@ -1854,10 +1860,10 @@
           </div>
         </div>
 
-        @if (errorDesasignar) {
+        @if (errorDesasignar()) {
           <p class="ev-err" style="margin-top:10px">
             <i class="fa-solid fa-triangle-exclamation"></i>
-            {{ errorDesasignar }}
+            {{ errorDesasignar() }}
           </p>
         }
       </div>
@@ -1867,10 +1873,10 @@
           <i class="fa-solid fa-xmark"></i> Cancelar
         </button>
         <button class="ui-btn sm danger" type="button"
-                [disabled]="desasignando"
+                [disabled]="desasignando()"
                 (click)="confirmarDesasignar()">
           <i class="fa-solid fa-link-slash"></i>
-          {{ desasignando ? 'Procesando…' : (actuacionADesasignar && actuacionADesasignar.estado !== 'P' ? 'Confirmar cancelación' : 'Confirmar desasignado') }}
+          {{ desasignando() ? 'Procesando…' : (actuacionADesasignar() && actuacionADesasignar()?.estado !== 'P' ? 'Confirmar cancelación' : 'Confirmar desasignado') }}
         </button>
       </div>
 
@@ -1881,7 +1887,7 @@
 <!-- ══════════════════════════════════════════════════════════════
      MODAL: Registrar novedad operativa
      ══════════════════════════════════════════════════════════════ -->
-@if (modalNovedadVisible) {
+@if (modalNovedadVisible()) {
   <div class="ui-modal" (click)="cancelarNovedad()">
     <div class="ui-modal__dialog ev-modal-novedad" (click)="$event.stopPropagation()">
 
@@ -1898,7 +1904,7 @@
 
       <div class="ui-modal__body">
 
-        @if (actuacionNovedad) {
+        @if (actuacionNovedad(); as actuacionNovedad) {
           <div class="ev-modal-act-info">
             <i class="fa-solid fa-car-side"></i>
             Recurso: <strong>{{ nombreUnidad(actuacionNovedad) }}</strong>
@@ -1930,10 +1936,10 @@
           </div>
         </div>
 
-        @if (errorNovedad) {
+        @if (errorNovedad()) {
           <p class="ev-err" style="margin-top:8px">
             <i class="fa-solid fa-triangle-exclamation"></i>
-            {{ errorNovedad }}
+            {{ errorNovedad() }}
           </p>
         }
       </div>
@@ -1943,10 +1949,10 @@
           <i class="fa-solid fa-xmark"></i> Cancelar
         </button>
         <button class="ui-btn sm warning" type="button"
-                [disabled]="guardandoNovedad || !novedadTexto.trim()"
+                [disabled]="guardandoNovedad() || !novedadTexto.trim()"
                 (click)="confirmarNovedad()">
           <i class="fa-solid fa-circle-exclamation"></i>
-          {{ guardandoNovedad ? 'Guardando…' : 'Registrar novedad' }}
+          {{ guardandoNovedad() ? 'Guardando…' : 'Registrar novedad' }}
         </button>
       </div>
 
@@ -1957,7 +1963,7 @@
 <!-- ══════════════════════════════════════════════════════════════
      MODAL: Cerrar evento
      ══════════════════════════════════════════════════════════════ -->
-@if (modalCerrarVisible) {
+@if (modalCerrarVisible()) {
   <div class="ui-modal" (click)="cancelarCierre()">
     <div class="ui-modal__dialog ev-modal-cierre" (click)="$event.stopPropagation()">
 
@@ -1975,7 +1981,7 @@
       <div class="ui-modal__body">
 
         <!-- Evento info -->
-        @if (detalle) {
+        @if (detalle(); as detalle) {
           <div class="ev-modal-act-info" style="margin-bottom:12px">
             <i class="fa-solid fa-file-shield"></i>
             <strong>{{ detalle.codiPedido || ('Evento #' + detalle.id) }}</strong>
@@ -1996,7 +2002,7 @@
                    [value]="eventoCodBusqueda"
                    (input)="onEventoCodInput($any($event.target).value)"
                    (blur)="cerrarSugerenciasEvento()"
-                   (focus)="mostrarSugerenciasEvento = eventoCodBusqueda.length > 0"
+                   (focus)="mostrarSugerenciasEvento.set(eventoCodBusqueda.length > 0)"
                    placeholder="Buscar código de tipificación…">
             <button class="ui-btn xs ghost" type="button"
                     title="Agregar código"
@@ -2004,9 +2010,9 @@
                     [disabled]="!eventoCodBusqueda.trim()">
               <i class="fa-solid fa-plus"></i> Agregar
             </button>
-            @if (mostrarSugerenciasEvento && eventoSugerencias.length > 0) {
+            @if (mostrarSugerenciasEvento() && eventoSugerencias().length > 0) {
               <ul class="rec-suggest-list">
-                @for (s of eventoSugerencias; track s.codigo) {
+                @for (s of eventoSugerencias(); track s.codigo) {
                   <li class="rec-suggest-item"
                       (mousedown)="seleccionarEventoCod(s)">
                     <strong>{{ s.codigo }}</strong>
@@ -2060,10 +2066,10 @@
           <i class="fa-solid fa-xmark"></i> Cancelar
         </button>
         <button class="ui-btn sm danger" type="button"
-                [disabled]="cerrandoEvento || !cierreConfirmado || (!cerrarComentario.trim() && !eventoCodsSelec.length)"
+                [disabled]="cerrandoEvento() || !cierreConfirmado || (!cerrarComentario.trim() && !eventoCodsSelec.length)"
                 (click)="confirmarCierre()">
           <i class="fa-solid fa-lock"></i>
-          {{ cerrandoEvento ? 'Cerrando…' : 'Confirmar cierre' }}
+          {{ cerrandoEvento() ? 'Cerrando…' : 'Confirmar cierre' }}
         </button>
       </div>
 
@@ -2074,14 +2080,14 @@
 <!-- ══════════════════════════════════════════════════════════════════════════
      MODAL §6.1 — Remitir caso a agencia
      ══════════════════════════════════════════════════════════════════════════ -->
-@if (modalRemitirVisible) {
+@if (modalRemitirVisible()) {
   <div class="ui-modal" (click)="cancelarRemitir()">
     <div class="ui-modal__dialog ev-remitir-modal" (click)="$event.stopPropagation()">
 
       <div class="ui-modal__head">
         <div class="ui-modal__title">
           <i class="fa-solid fa-share-from-square"></i>
-          Remitir caso a agencia — Evento #{{ detalle?.id }}
+          Remitir caso a agencia — Evento #{{ detalle()?.id }}
         </div>
         <button class="ui-icon-btn" type="button" (click)="cancelarRemitir()">
           <i class="fa-solid fa-xmark"></i>
@@ -2114,13 +2120,13 @@
               seleccionados. Útil para corregir el canal de destino o para que otra
               agencia conozca el caso.
             </p>
-            @if (remitirCanalesGrupos.length === 0) {
+            @if (remitirCanalesGrupos().length === 0) {
               <div class="ev-empty-state" style="padding:1.5rem 0">
                 <i class="fa-solid fa-spinner fa-spin"></i>
                 <p>Cargando canales...</p>
               </div>
             }
-            @for (grupo of remitirCanalesGrupos; track grupo.fuerza) {
+            @for (grupo of remitirCanalesGrupos(); track grupo.fuerza) {
               <div class="ev-remitir-canal-grupo">
                 <div class="ev-remitir-canal-grupo__head">
                   <i class="fa-solid fa-shield-halved"></i>
@@ -2182,7 +2188,7 @@
               Los datos del caso se enviarán a la API REST de la agencia seleccionada.
               El resultado queda registrado en la trazabilidad del evento.
             </p>
-            @if (remitirAgencias.length === 0) {
+            @if (remitirAgencias().length === 0) {
               <div class="ev-empty-state" style="padding:1.5rem 0">
                 <i class="fa-solid fa-building-shield"></i>
                 <p>No hay agencias externas configuradas.<br>
@@ -2190,7 +2196,7 @@
               </div>
             } @else {
               <div class="ev-agencias-grid">
-                @for (ag of remitirAgencias; track ag.id) {
+                @for (ag of remitirAgencias(); track ag.id) {
                   <button type="button"
                           class="ev-agencia-card"
                           [class.ev-agencia-card--sel]="remitirAgenciasSelec.has(ag.id)"
@@ -2207,9 +2213,9 @@
           </div>
         }
 
-        @if (remitirError) {
+        @if (remitirError()) {
           <div class="ev-remitir-error">
-            <i class="fa-solid fa-circle-exclamation"></i> {{ remitirError }}
+            <i class="fa-solid fa-circle-exclamation"></i> {{ remitirError() }}
           </div>
         }
 
@@ -2228,10 +2234,10 @@
           <i class="fa-solid fa-xmark"></i> Cancelar
         </button>
         <button class="ui-btn sm primary" type="button"
-                [disabled]="remitirEnviando || remitirTotalSelec === 0 || !remitirConfirmado"
+                [disabled]="remitirEnviando() || remitirTotalSelec === 0 || !remitirConfirmado"
                 (click)="confirmarRemitir()">
-          <i class="fa-solid" [ngClass]="remitirEnviando ? 'fa-spinner fa-spin' : 'fa-share-from-square'"></i>
-          {{ remitirEnviando ? 'Enviando...' : 'Remitir (' + remitirTotalSelec + ')' }}
+          <i class="fa-solid" [ngClass]="remitirEnviando() ? 'fa-spinner fa-spin' : 'fa-share-from-square'"></i>
+          {{ remitirEnviando() ? 'Enviando...' : 'Remitir (' + remitirTotalSelec + ')' }}
         </button>
       </div>
 
