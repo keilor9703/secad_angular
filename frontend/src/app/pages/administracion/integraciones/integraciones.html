@@ -15,25 +15,25 @@
 
   <!-- ── Tabs ─────────────────────────────────────────────────────────────── -->
   <div class="integ-tabs">
-    <button class="integ-tab" [class.integ-tab--active]="tab === 'salientes'"
+    <button class="integ-tab" [class.integ-tab--active]="tab() === 'salientes'"
             (click)="setTab('salientes')">
       <i class="fa-solid fa-arrow-up-right-from-square"></i>
       Integraciones Salientes
-      <span class="integ-tab__badge">{{ salientes.length }}</span>
+      <span class="integ-tab__badge">{{ salientes().length }}</span>
     </button>
-    <button class="integ-tab" [class.integ-tab--active]="tab === 'entrantes'"
+    <button class="integ-tab" [class.integ-tab--active]="tab() === 'entrantes'"
             (click)="setTab('entrantes')">
       <i class="fa-solid fa-arrow-down-to-bracket"></i>
       Integraciones Entrantes
-      <span class="integ-tab__badge">{{ entrantes.length }}</span>
+      <span class="integ-tab__badge">{{ entrantes().length }}</span>
     </button>
-    <button class="integ-tab" [class.integ-tab--active]="tab === 'camaras'"
+    <button class="integ-tab" [class.integ-tab--active]="tab() === 'camaras'"
             (click)="setTab('camaras')">
       <i class="fa-solid fa-video"></i>
       Cámaras (VMS)
-      <span class="integ-tab__badge">{{ camaras.length }}</span>
+      <span class="integ-tab__badge">{{ camaras().length }}</span>
     </button>
-    <button class="integ-tab" [class.integ-tab--active]="tab === 'auditoria'"
+    <button class="integ-tab" [class.integ-tab--active]="tab() === 'auditoria'"
             (click)="setTab('auditoria')">
       <i class="fa-solid fa-clock-rotate-left"></i>
       Auditoría
@@ -44,7 +44,7 @@
        TAB: INTEGRACIONES SALIENTES
        Agencias externas que RECIBEN casos desde SECAD
        ══════════════════════════════════════════════════════════════════════════ -->
-  @if (tab === 'salientes') {
+  @if (tab() === 'salientes') {
     <div class="integ-panel">
 
       <div class="integ-panel__toolbar">
@@ -61,15 +61,15 @@
       <!-- ── Ejemplo de configuración ─────────────────────────────────────── -->
       <div class="integ-ejemplo-sal">
         <button class="integ-ejemplo-sal__toggle"
-                (click)="mostrarEjemploSal = !mostrarEjemploSal">
+                (click)="mostrarEjemploSal.set(!mostrarEjemploSal())">
           <i class="fa-solid fa-circle-question"></i>
           <span>¿Cómo configurar una agencia saliente?</span>
           <i class="fa-solid integ-ejemplo-sal__chevron"
-             [class.fa-chevron-up]="mostrarEjemploSal"
-             [class.fa-chevron-down]="!mostrarEjemploSal"></i>
+             [class.fa-chevron-up]="mostrarEjemploSal()"
+             [class.fa-chevron-down]="!mostrarEjemploSal()"></i>
         </button>
 
-        @if (mostrarEjemploSal) {
+        @if (mostrarEjemploSal()) {
           <div class="integ-ejemplo-sal__body">
 
             <p class="integ-ejemplo-sal__intro">
@@ -85,8 +85,8 @@
             <div class="integ-auth-tabs">
               @for (m of authModes; track m.value) {
                 <button class="integ-auth-tab"
-                        [class.integ-auth-tab--active]="formSalAuthExampleTab === m.value"
-                        (click)="formSalAuthExampleTab = m.value">
+                        [class.integ-auth-tab--active]="formSalAuthExampleTab() === m.value"
+                        (click)="formSalAuthExampleTab.set(m.value)">
                   <i class="fa-solid" [ngClass]="m.icon"></i>
                   {{ m.label }}
                 </button>
@@ -94,7 +94,7 @@
             </div>
 
             <!-- NONE -->
-            @if (formSalAuthExampleTab === 'NONE') {
+            @if (formSalAuthExampleTab() === 'NONE') {
               <div class="integ-auth-example">
                 <p class="integ-ejemplo-sal__note">
                   La agencia <strong>no exige ningún mecanismo de autenticación</strong>. SECAD enviará el caso sin cabecera <code>Authorization</code>.
@@ -105,7 +105,7 @@
             }
 
             <!-- BEARER -->
-            @if (formSalAuthExampleTab === 'BEARER') {
+            @if (formSalAuthExampleTab() === 'BEARER') {
               <div class="integ-auth-example">
                 <p class="integ-ejemplo-sal__note">
                   La agencia entrega a SECAD un <strong>token JWT o API Key estático</strong> que se envía en cada request como <code>Authorization: Bearer &lt;token&gt;</code>.
@@ -116,7 +116,7 @@
             }
 
             <!-- BASIC -->
-            @if (formSalAuthExampleTab === 'BASIC') {
+            @if (formSalAuthExampleTab() === 'BASIC') {
               <div class="integ-auth-example">
                 <p class="integ-ejemplo-sal__note">
                   La agencia exige <strong>usuario y contraseña</strong>. SECAD los codifica en Base64 (<code>usuario:contraseña</code>) y los envía como <code>Authorization: Basic &lt;base64&gt;</code> en cada request.
@@ -126,7 +126,7 @@
             }
 
             <!-- OAUTH2 -->
-            @if (formSalAuthExampleTab === 'OAUTH2') {
+            @if (formSalAuthExampleTab() === 'OAUTH2') {
               <div class="integ-auth-example">
                 <p class="integ-ejemplo-sal__note">
                   La agencia tiene un <strong>servidor OAuth2</strong>. Antes de enviar el caso, SECAD solicita automáticamente un token con las credenciales (<code>client_credentials</code>) y luego lo usa como <code>Bearer</code>.
@@ -137,7 +137,7 @@
             }
 
             <!-- API_KEY -->
-            @if (formSalAuthExampleTab === 'API_KEY') {
+            @if (formSalAuthExampleTab() === 'API_KEY') {
               <div class="integ-auth-example">
                 <p class="integ-ejemplo-sal__note">
                   La agencia usa una <strong>API Key en una cabecera personalizada</strong> (no Bearer).
@@ -148,7 +148,7 @@
             }
 
             <!-- CREDS_BODY -->
-            @if (formSalAuthExampleTab === 'CREDS_BODY') {
+            @if (formSalAuthExampleTab() === 'CREDS_BODY') {
               <div class="integ-auth-example">
                 <p class="integ-ejemplo-sal__note">
                   La agencia <strong>no usa cabecera Authorization</strong> sino que exige recibir el usuario y la contraseña dentro del <em>body JSON</em> del request, junto con los datos del caso.
@@ -159,7 +159,7 @@
             }
 
             <!-- PIP_TOKEN -->
-            @if (formSalAuthExampleTab === 'PIP_TOKEN') {
+            @if (formSalAuthExampleTab() === 'PIP_TOKEN') {
               <div class="integ-auth-example">
                 <div class="integ-apikey-banner" style="margin-bottom:4px">
                   <i class="fa-solid fa-shield-halved"></i>
@@ -203,9 +203,9 @@
         }
       </div><!-- /integ-ejemplo-sal -->
 
-      @if (loadingSal) {
+      @if (loadingSal()) {
         <div class="integ-loading"><i class="fa-solid fa-spinner fa-spin"></i> Cargando…</div>
-      } @else if (salientes.length === 0) {
+      } @else if (salientes().length === 0) {
         <div class="integ-empty">
           <i class="fa-solid fa-building-shield"></i>
           <p>No hay agencias externas configuradas.</p>
@@ -226,7 +226,7 @@
               </tr>
             </thead>
             <tbody>
-              @for (a of salientes; track a.id) {
+              @for (a of salientes(); track a.id) {
                 <tr [class.integ-row--inactiva]="!a.activa">
                   <td>
                     <strong>{{ a.nombre }}</strong>
@@ -299,7 +299,7 @@
        TAB: INTEGRACIONES ENTRANTES
        Canales por los que sistemas externos ENVÍAN casos a SECAD
        ══════════════════════════════════════════════════════════════════════════ -->
-  @if (tab === 'entrantes') {
+  @if (tab() === 'entrantes') {
     <div class="integ-panel">
 
       <div class="integ-panel__toolbar">
@@ -325,9 +325,9 @@
         </div>
       </div>
 
-      @if (loadingEnt) {
+      @if (loadingEnt()) {
         <div class="integ-loading"><i class="fa-solid fa-spinner fa-spin"></i> Cargando…</div>
-      } @else if (entrantes.length === 0) {
+      } @else if (entrantes().length === 0) {
         <div class="integ-empty">
           <i class="fa-solid fa-arrow-down-to-bracket"></i>
           <p>No hay integraciones entrantes configuradas.</p>
@@ -335,7 +335,7 @@
         </div>
       } @else {
         <div class="integ-entrantes-grid">
-          @for (e of entrantes; track e.id) {
+          @for (e of entrantes(); track e.id) {
             <div class="integ-entrante-card" [class.integ-entrante-card--inactiva]="!e.activa">
 
               <div class="integ-entrante-card__head">
@@ -402,7 +402,7 @@
        TAB: CÁMARAS (integraciones VMS)
        Configura la conexión a un VMS (HikCentral, ONVIF/RTSP…) por municipio
        ══════════════════════════════════════════════════════════════════════════ -->
-  @if (tab === 'camaras') {
+  @if (tab() === 'camaras') {
     <div class="integ-panel">
 
       <div class="integ-panel__toolbar">
@@ -417,9 +417,9 @@
         </button>
       </div>
 
-      @if (loadingCam) {
+      @if (loadingCam()) {
         <div class="integ-empty"><i class="fa-solid fa-spinner fa-spin"></i> Cargando…</div>
-      } @else if (camaras.length === 0) {
+      } @else if (camaras().length === 0) {
         <div class="integ-empty">
           <i class="fa-solid fa-video-slash"></i>
           <p>No hay integraciones de cámaras configuradas.</p>
@@ -438,7 +438,7 @@
               </tr>
             </thead>
             <tbody>
-              @for (c of camaras; track c.id) {
+              @for (c of camaras(); track c.id) {
                 <tr>
                   <td>
                     <strong>{{ c.nombre }}</strong>
@@ -478,22 +478,22 @@
        TAB: AUDITORÍA
        Log de todos los mensajes enviados y recibidos
        ══════════════════════════════════════════════════════════════════════════ -->
-  @if (tab === 'auditoria') {
+  @if (tab() === 'auditoria') {
     <div class="integ-panel">
 
       <!-- Sub-tabs auditoría -->
       <div class="integ-aud-subtabs">
-        <button class="integ-aud-subtab" [class.integ-aud-subtab--active]="audTab === 'salientes'"
+        <button class="integ-aud-subtab" [class.integ-aud-subtab--active]="audTab() === 'salientes'"
                 (click)="setAudTab('salientes')">
           <i class="fa-solid fa-arrow-up-right-from-square"></i>
           Despachos Salientes
-          <span class="integ-tab__badge">{{ audSalientes.length }}</span>
+          <span class="integ-tab__badge">{{ audSalientes().length }}</span>
         </button>
-        <button class="integ-aud-subtab" [class.integ-aud-subtab--active]="audTab === 'entrantes'"
+        <button class="integ-aud-subtab" [class.integ-aud-subtab--active]="audTab() === 'entrantes'"
                 (click)="setAudTab('entrantes')">
           <i class="fa-solid fa-arrow-down-to-bracket"></i>
           Recepciones Entrantes
-          <span class="integ-tab__badge">{{ audEntrantes.length }}</span>
+          <span class="integ-tab__badge">{{ audEntrantes().length }}</span>
         </button>
         <div style="flex:1"></div>
         <button class="ui-btn ghost sm" (click)="loadAuditoria()">
@@ -502,13 +502,13 @@
         </button>
       </div>
 
-      @if (loadingAud) {
+      @if (loadingAud()) {
         <div class="integ-loading"><i class="fa-solid fa-spinner fa-spin"></i> Cargando…</div>
       }
 
       <!-- ── Auditoría Salientes ──────────────────────────────────────────── -->
-      @if (audTab === 'salientes') {
-        @if (!loadingAud && audSalientes.length === 0) {
+      @if (audTab() === 'salientes') {
+        @if (!loadingAud() && audSalientes().length === 0) {
           <div class="integ-empty">
             <i class="fa-solid fa-inbox"></i>
             <p>No hay despachos registrados aún.</p>
@@ -529,7 +529,7 @@
                 </tr>
               </thead>
               <tbody>
-                @for (d of audSalientes; track d.id) {
+                @for (d of audSalientes(); track d.id) {
                   <tr [class.integ-row--error]="!d.exitoso">
 
                     <td class="integ-fecha integ-aud-fecha">{{ d.fechaEnvio }}</td>
@@ -608,7 +608,7 @@
       }
 
       <!-- ── Auditoría Entrantes ──────────────────────────────────────────── -->
-      @if (audTab === 'entrantes') {
+      @if (audTab() === 'entrantes') {
 
         <!-- Filtro por canal -->
         <div class="integ-aud-filtros">
@@ -622,7 +622,7 @@
           </select>
         </div>
 
-        @if (!loadingAud && audEntrantes.length === 0) {
+        @if (!loadingAud() && audEntrantes().length === 0) {
           <div class="integ-empty">
             <i class="fa-solid fa-inbox"></i>
             <p>No hay recepciones registradas aún.</p>
@@ -642,7 +642,7 @@
                 </tr>
               </thead>
               <tbody>
-                @for (r of audEntrantes; track r.id) {
+                @for (r of audEntrantes(); track r.id) {
                   <tr [class.integ-row--error]="!r.procesado && r.error">
                     <td class="integ-fecha">{{ r.fechaRecepcion }}</td>
                     <td>
@@ -692,28 +692,28 @@
 <!-- ══════════════════════════════════════════════════════════════════════════
      MODAL: Crear / Editar Agencia Saliente
      ══════════════════════════════════════════════════════════════════════════ -->
-@if (modal === 'saliente-create' || modal === 'saliente-edit') {
+@if (modal() === 'saliente-create' || modal() === 'saliente-edit') {
   <div class="ui-modal" (click)="closeModal()">
     <div class="ui-modal__dialog integ-modal" (click)="$event.stopPropagation()">
 
       <div class="ui-modal__head">
         <div class="ui-modal__title">
           <i class="fa-solid fa-building-shield"></i>
-          {{ modal === 'saliente-create' ? 'Nueva agencia saliente' : 'Editar agencia' }}
+          {{ modal() === 'saliente-create' ? 'Nueva agencia saliente' : 'Editar agencia' }}
         </div>
         <button class="ui-icon-btn" (click)="closeModal()"><i class="fa-solid fa-xmark"></i></button>
       </div>
 
-      <div class="ui-modal__body integ-form">
+      <div class="ui-modal__body integ-form" [formGroup]="formSal">
 
         <div class="integ-form-row">
           <div class="ui-field integ-form-field--grow">
             <label class="ui-label">Nombre <span class="req">*</span></label>
-            <input class="ui-control" [(ngModel)]="formSal.nombre" placeholder="Ej: Bomberos Bogotá">
+            <input class="ui-control" formControlName="nombre" placeholder="Ej: Bomberos Bogotá">
           </div>
           <div class="ui-field integ-form-field--tipo">
             <label class="ui-label">Tipo</label>
-            <select class="ui-control" [(ngModel)]="formSal.tipoAgencia">
+            <select class="ui-control" formControlName="tipoAgencia">
               @for (t of tiposAgencia; track t.value) {
                 <option [value]="t.value">{{ t.label }}</option>
               }
@@ -723,18 +723,18 @@
 
         <div class="ui-field">
           <label class="ui-label">Descripción</label>
-          <input class="ui-control" [(ngModel)]="formSal.descripcion" placeholder="Descripción opcional">
+          <input class="ui-control" formControlName="descripcion" placeholder="Descripción opcional">
         </div>
 
         <div class="integ-form-row">
           <div class="ui-field integ-form-field--grow">
             <label class="ui-label">URL del endpoint externo</label>
-            <input class="ui-control" type="url" [(ngModel)]="formSal.apiUrl"
+            <input class="ui-control" type="url" formControlName="apiUrl"
                    placeholder="https://api.agencia.gov.co/recibir-caso">
           </div>
           <div class="ui-field integ-form-field--metodo">
             <label class="ui-label">Método</label>
-            <select class="ui-control" [(ngModel)]="formSal.apiMetodo">
+            <select class="ui-control" formControlName="apiMetodo">
               <option value="POST">POST</option>
               <option value="PUT">PUT</option>
             </select>
@@ -744,7 +744,7 @@
         <!-- ── Modo de autenticación ──────────────────────────────────────── -->
         <div class="ui-field">
           <label class="ui-label">Modo de autenticación <span class="req">*</span></label>
-          <select class="ui-control" [(ngModel)]="formSal.tipoAuth">
+          <select class="ui-control" formControlName="tipoAuth">
             <option value="NONE">Sin autenticación</option>
             <option value="BEARER">Bearer token estático</option>
             <option value="BASIC">Basic Auth (usuario + contraseña)</option>
@@ -756,47 +756,47 @@
         </div>
 
         <!-- BEARER: token estático -->
-        @if (formSal.tipoAuth === 'BEARER') {
+        @if (formSal.controls.tipoAuth.value === 'BEARER') {
           <div class="ui-field">
             <label class="ui-label">
               Bearer token
-              @if (modal === 'saliente-edit') {
+              @if (modal() === 'saliente-edit') {
                 <span class="integ-hint"> — Deje vacío para mantener el existente</span>
               }
             </label>
-            <input class="ui-control" type="password" [(ngModel)]="formSal.apiToken"
+            <input class="ui-control" type="password" formControlName="apiToken"
                    placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9…"
                    autocomplete="new-password">
           </div>
         }
 
         <!-- BASIC / OAUTH2 / CREDS_BODY: usuario + contraseña -->
-        @if (formSal.tipoAuth === 'BASIC' || formSal.tipoAuth === 'OAUTH2' || formSal.tipoAuth === 'CREDS_BODY') {
+        @if (formSal.controls.tipoAuth.value === 'BASIC' || formSal.controls.tipoAuth.value === 'OAUTH2' || formSal.controls.tipoAuth.value === 'CREDS_BODY') {
           <div class="integ-form-row">
             <div class="ui-field integ-form-field--grow">
               <label class="ui-label">Usuario
-                @if (formSal.tipoAuth === 'OAUTH2') { <span class="integ-hint"> (client_id)</span> }
+                @if (formSal.controls.tipoAuth.value === 'OAUTH2') { <span class="integ-hint"> (client_id)</span> }
               </label>
-              <input class="ui-control" [(ngModel)]="formSal.apiUsuario"
+              <input class="ui-control" formControlName="apiUsuario"
                      placeholder="usuario_secad" autocomplete="off">
             </div>
             <div class="ui-field integ-form-field--grow">
               <label class="ui-label">
                 Contraseña
-                @if (formSal.tipoAuth === 'OAUTH2') { <span class="integ-hint"> (client_secret)</span> }
-                @if (modal === 'saliente-edit') { <span class="integ-hint"> — Vacío = mantener</span> }
+                @if (formSal.controls.tipoAuth.value === 'OAUTH2') { <span class="integ-hint"> (client_secret)</span> }
+                @if (modal() === 'saliente-edit') { <span class="integ-hint"> — Vacío = mantener</span> }
               </label>
-              <input class="ui-control" type="password" [(ngModel)]="formSal.apiPassword"
+              <input class="ui-control" type="password" formControlName="apiPassword"
                      placeholder="••••••••" autocomplete="new-password">
             </div>
           </div>
         }
 
         <!-- OAUTH2: URL del endpoint de token -->
-        @if (formSal.tipoAuth === 'OAUTH2') {
+        @if (formSal.controls.tipoAuth.value === 'OAUTH2') {
           <div class="ui-field">
             <label class="ui-label">URL del endpoint de token <span class="req">*</span></label>
-            <input class="ui-control" type="url" [(ngModel)]="formSalTokenUrl"
+            <input class="ui-control" type="url" [ngModel]="formSalTokenUrl()" (ngModelChange)="formSalTokenUrl.set($event)" [ngModelOptions]="{standalone: true}"
                    placeholder="https://auth.agencia.gov.co/oauth2/token">
             <p class="integ-hint" style="margin:4px 0 0">
               SECAD enviará POST con grant_type=client_credentials y recibirá el access_token
@@ -805,35 +805,35 @@
         }
 
         <!-- API_KEY: nombre del header + valor -->
-        @if (formSal.tipoAuth === 'API_KEY') {
+        @if (formSal.controls.tipoAuth.value === 'API_KEY') {
           <div class="integ-form-row">
             <div class="ui-field" style="flex:0 0 200px">
               <label class="ui-label">Nombre del header</label>
-              <input class="ui-control" [(ngModel)]="formSalKeyHeader"
+              <input class="ui-control" [ngModel]="formSalKeyHeader()" (ngModelChange)="formSalKeyHeader.set($event)" [ngModelOptions]="{standalone: true}"
                      placeholder="X-Api-Key">
             </div>
             <div class="ui-field integ-form-field--grow">
               <label class="ui-label">
                 Valor del API Key
-                @if (modal === 'saliente-edit') { <span class="integ-hint"> — Vacío = mantener</span> }
+                @if (modal() === 'saliente-edit') { <span class="integ-hint"> — Vacío = mantener</span> }
               </label>
-              <input class="ui-control" type="password" [(ngModel)]="formSal.apiToken"
+              <input class="ui-control" type="password" formControlName="apiToken"
                      placeholder="sk-xxxxxxxxxxxxxxxx" autocomplete="new-password">
             </div>
           </div>
         }
 
         <!-- CREDS_BODY: nombres de los campos en el body -->
-        @if (formSal.tipoAuth === 'CREDS_BODY') {
+        @if (formSal.controls.tipoAuth.value === 'CREDS_BODY') {
           <div class="integ-form-row">
             <div class="ui-field integ-form-field--grow">
               <label class="ui-label">Campo usuario en body</label>
-              <input class="ui-control" [(ngModel)]="formSalBodyUserField"
+              <input class="ui-control" [ngModel]="formSalBodyUserField()" (ngModelChange)="formSalBodyUserField.set($event)" [ngModelOptions]="{standalone: true}"
                      placeholder="usuario">
             </div>
             <div class="ui-field integ-form-field--grow">
               <label class="ui-label">Campo contraseña en body</label>
-              <input class="ui-control" [(ngModel)]="formSalBodyPassField"
+              <input class="ui-control" [ngModel]="formSalBodyPassField()" (ngModelChange)="formSalBodyPassField.set($event)" [ngModelOptions]="{standalone: true}"
                      placeholder="contrasena">
             </div>
           </div>
@@ -848,7 +848,7 @@
             <span class="integ-hint"> — JSON: {{"{ \"X-Header\": \"valor\" }"}}</span>
           </label>
           <textarea class="ui-control integ-json-area" rows="3"
-                    [(ngModel)]="formSalCabeceras"
+                    [ngModel]="formSalCabeceras()" (ngModelChange)="formSalCabeceras.set($event)" [ngModelOptions]="{standalone: true}"
                     placeholder='{}'></textarea>
         </div>
 
@@ -858,18 +858,18 @@
             <span class="integ-hint"> — JSON: {{"{ \"campoNuestro\": \"campoDeEllos\" }"}}</span>
           </label>
           <textarea class="ui-control integ-json-area" rows="4"
-                    [(ngModel)]="formSalMapeo"
+                    [ngModel]="formSalMapeo()" (ngModelChange)="formSalMapeo.set($event)" [ngModelOptions]="{standalone: true}"
                     placeholder='{ "direCaso": "address", "codiPedido": "incidentType" }'></textarea>
         </div>
 
         <div class="ui-field">
           <label class="ui-label">Formato del payload</label>
-          <select class="ui-control" [(ngModel)]="formSal.formatoPayload">
+          <select class="ui-control" formControlName="formatoPayload">
             <option value="PLANO">Plano (recomendado) — solo los campos del caso con el mapeo aplicado</option>
             <option value="ESTRUCTURADO">Estructurado — body jerárquico completo (_secad, caso, ubicacion, reportante…)</option>
           </select>
           <p class="integ-hint" style="margin:4px 0 0">
-            @if (formSal.formatoPayload === 'ESTRUCTURADO') {
+            @if (formSal.controls.formatoPayload.value === 'ESTRUCTURADO') {
               <i class="fa-solid fa-triangle-exclamation"></i>
               Solo para agencias sofisticadas o integraciones SECAD-a-SECAD.
             } @else {
@@ -882,8 +882,8 @@
         <div class="integ-toggle-row">
           <label class="ui-label">Estado</label>
           <label class="integ-toggle-label">
-            <input type="checkbox" [(ngModel)]="formSal.activa">
-            <span>{{ formSal.activa ? 'Activa' : 'Inactiva' }}</span>
+            <input type="checkbox" formControlName="activa">
+            <span>{{ formSal.controls.activa.value ? 'Activa' : 'Inactiva' }}</span>
           </label>
         </div>
 
@@ -891,8 +891,8 @@
 
       <div class="ui-modal__foot">
         <button class="ui-btn ghost" (click)="closeModal()">Cancelar</button>
-        <button class="ui-btn primary" (click)="saveSal()" [disabled]="saving">
-          @if (saving) { <i class="fa-solid fa-spinner fa-spin"></i> } Guardar
+        <button class="ui-btn primary" (click)="saveSal()" [disabled]="saving()">
+          @if (saving()) { <i class="fa-solid fa-spinner fa-spin"></i> } Guardar
         </button>
       </div>
 
@@ -904,29 +904,29 @@
 <!-- ══════════════════════════════════════════════════════════════════════════
      MODAL: Crear / Editar Integración Entrante
      ══════════════════════════════════════════════════════════════════════════ -->
-@if (modal === 'entrante-create' || modal === 'entrante-edit') {
+@if (modal() === 'entrante-create' || modal() === 'entrante-edit') {
   <div class="ui-modal" (click)="closeModal()">
     <div class="ui-modal__dialog integ-modal" (click)="$event.stopPropagation()">
 
       <div class="ui-modal__head">
         <div class="ui-modal__title">
           <i class="fa-solid fa-arrow-down-to-bracket"></i>
-          {{ modal === 'entrante-create' ? 'Nueva integración entrante' : 'Editar integración' }}
+          {{ modal() === 'entrante-create' ? 'Nueva integración entrante' : 'Editar integración' }}
         </div>
         <button class="ui-icon-btn" (click)="closeModal()"><i class="fa-solid fa-xmark"></i></button>
       </div>
 
-      <div class="ui-modal__body integ-form">
+      <div class="ui-modal__body integ-form" [formGroup]="formEnt">
 
         <div class="integ-form-row">
           <div class="ui-field integ-form-field--grow">
             <label class="ui-label">Nombre <span class="req">*</span></label>
-            <input class="ui-control" [(ngModel)]="formEnt.nombre"
+            <input class="ui-control" formControlName="nombre"
                    placeholder="Ej: WhatsApp Canal Principal">
           </div>
           <div class="ui-field integ-form-field--tipo">
             <label class="ui-label">Tipo de canal</label>
-            <select class="ui-control" [(ngModel)]="formEnt.tipoCanal">
+            <select class="ui-control" formControlName="tipoCanal">
               @for (t of tiposCanal; track t.value) {
                 <option [value]="t.value">{{ t.label }}</option>
               }
@@ -936,20 +936,20 @@
 
         <div class="ui-field">
           <label class="ui-label">Descripción</label>
-          <input class="ui-control" [(ngModel)]="formEnt.descripcion"
+          <input class="ui-control" formControlName="descripcion"
                  placeholder="Descripción del canal de integración">
         </div>
 
         <div class="integ-form-row">
           <div class="ui-field integ-form-field--grow">
             <label class="ui-label">Endpoint relativo <span class="req">*</span></label>
-            <input class="ui-control" [(ngModel)]="formEnt.endpointRelativo"
+            <input class="ui-control" formControlName="endpointRelativo"
                    placeholder="/api/RecepcionExterna/chat">
           </div>
           <div class="ui-field integ-form-field--sg">
             <label class="ui-label">Sitio grabación defecto</label>
             <input class="ui-control" type="number" min="0"
-                   [(ngModel)]="formEnt.sitioGrabaDefecto">
+                   formControlName="sitioGrabaDefecto">
           </div>
         </div>
 
@@ -959,7 +959,7 @@
             <span class="integ-hint"> — JSON con los headers que debe enviar el sistema externo</span>
           </label>
           <textarea class="ui-control integ-json-area" rows="3"
-                    [(ngModel)]="formEntHeaders"
+                    [ngModel]="formEntHeaders()" (ngModelChange)="formEntHeaders.set($event)" [ngModelOptions]="{standalone: true}"
                     placeholder='{ "X-Api-Key": "...", "X-Cod-Dane": "11001" }'></textarea>
         </div>
 
@@ -969,22 +969,22 @@
             <span class="integ-hint"> — JSON de referencia para el sistema externo</span>
           </label>
           <textarea class="ui-control integ-json-area" rows="6"
-                    [(ngModel)]="formEntPayload"
+                    [ngModel]="formEntPayload()" (ngModelChange)="formEntPayload.set($event)" [ngModelOptions]="{standalone: true}"
                     placeholder='{ "sitioGraba": 1, "nombreReportante": "...", ... }'></textarea>
         </div>
 
         <div class="ui-field">
           <label class="ui-label">Notas</label>
           <textarea class="ui-control" rows="2"
-                    [(ngModel)]="formEnt.notas"
+                    formControlName="notas"
                     placeholder="Notas o instrucciones para el equipo técnico"></textarea>
         </div>
 
         <div class="integ-toggle-row">
           <label class="ui-label">Estado</label>
           <label class="integ-toggle-label">
-            <input type="checkbox" [(ngModel)]="formEnt.activa">
-            <span>{{ formEnt.activa ? 'Activa' : 'Inactiva' }}</span>
+            <input type="checkbox" formControlName="activa">
+            <span>{{ formEnt.controls.activa.value ? 'Activa' : 'Inactiva' }}</span>
           </label>
         </div>
 
@@ -992,8 +992,8 @@
 
       <div class="ui-modal__foot">
         <button class="ui-btn ghost" (click)="closeModal()">Cancelar</button>
-        <button class="ui-btn primary" (click)="saveEnt()" [disabled]="saving">
-          @if (saving) { <i class="fa-solid fa-spinner fa-spin"></i> } Guardar
+        <button class="ui-btn primary" (click)="saveEnt()" [disabled]="saving()">
+          @if (saving()) { <i class="fa-solid fa-spinner fa-spin"></i> } Guardar
         </button>
       </div>
 
@@ -1005,25 +1005,25 @@
 <!-- ══════════════════════════════════════════════════════════════════════════
      MODAL: Visor de Payload (JSON)
      ══════════════════════════════════════════════════════════════════════════ -->
-@if (modal === 'payload-viewer') {
+@if (modal() === 'payload-viewer') {
   <div class="ui-modal" (click)="closeModal()">
     <div class="ui-modal__dialog integ-modal integ-modal--payload" (click)="$event.stopPropagation()">
 
       <div class="ui-modal__head">
         <div class="ui-modal__title">
           <i class="fa-solid fa-file-code"></i>
-          {{ payloadViewerTitle }}
+          {{ payloadViewerTitle() }}
         </div>
         <button class="ui-icon-btn" (click)="closeModal()"><i class="fa-solid fa-xmark"></i></button>
       </div>
 
       <div class="ui-modal__body" style="padding:0">
-        <pre class="integ-payload-viewer">{{ payloadViewer }}</pre>
+        <pre class="integ-payload-viewer">{{ payloadViewer() }}</pre>
       </div>
 
       <div class="ui-modal__foot" style="gap:8px">
         <span class="integ-hint" style="flex:1;font-size:11px">
-          @if (payloadViewerTitle.startsWith('Payload que SECAD')) {
+          @if (payloadViewerTitle().startsWith('Payload que SECAD')) {
             Datos de ejemplo con el campo_mapeo real aplicado.
             Los valores reales se toman del caso en el momento del despacho.
           }
@@ -1038,14 +1038,14 @@
 <!-- ══════════════════════════════════════════════════════════════════════════
      MODAL: Crear / Editar integración de cámaras (VMS) — formulario dinámico
      ══════════════════════════════════════════════════════════════════════════ -->
-@if (modal === 'camara-create' || modal === 'camara-edit') {
+@if (modal() === 'camara-create' || modal() === 'camara-edit') {
   <div class="ui-modal" (click)="closeModal()">
     <div class="ui-modal__dialog integ-modal" (click)="$event.stopPropagation()">
 
       <div class="ui-modal__head">
         <div class="ui-modal__title">
           <i class="fa-solid fa-video"></i>
-          {{ modal === 'camara-edit' ? 'Editar integración de cámaras' : 'Nueva integración de cámaras' }}
+          {{ modal() === 'camara-edit' ? 'Editar integración de cámaras' : 'Nueva integración de cámaras' }}
         </div>
         <button class="ui-icon-btn" (click)="closeModal()"><i class="fa-solid fa-xmark"></i></button>
       </div>
@@ -1054,30 +1054,31 @@
 
         <div class="ui-field">
           <label class="ui-label">Nombre <span class="integ-req">*</span></label>
-          <input class="ui-control" [(ngModel)]="camNombre" placeholder="Ej: HikCentral Tunja">
+          <input class="ui-control" [ngModel]="camNombre()" (ngModelChange)="camNombre.set($event)" [ngModelOptions]="{standalone: true}" placeholder="Ej: HikCentral Tunja">
         </div>
 
         <div class="ui-field">
           <label class="ui-label">Descripción</label>
-          <input class="ui-control" [(ngModel)]="camDescripcion" placeholder="Opcional">
+          <input class="ui-control" [ngModel]="camDescripcion()" (ngModelChange)="camDescripcion.set($event)" [ngModelOptions]="{standalone: true}" placeholder="Opcional">
         </div>
 
         <!-- Selección de driver / marca -->
         <div class="ui-field">
           <label class="ui-label">Proveedor / Driver <span class="integ-req">*</span></label>
           <select class="ui-control"
-                  [ngModel]="camDriver?.driver || ''"
+                  [ngModel]="camDriver()?.driver || ''"
                   (ngModelChange)="onCamDriverChange($event)"
-                  [disabled]="modal === 'camara-edit'">
+                  [ngModelOptions]="{standalone: true}"
+                  [disabled]="modal() === 'camara-edit'">
             <option value="">— Seleccione el VMS —</option>
-            @for (d of drivers; track d.driver) {
+            @for (d of drivers(); track d.driver) {
               <option [value]="d.driver">{{ d.nombre }}</option>
             }
           </select>
-          @if (camDriver) {
+          @if (camDriver(); as driver) {
             <p class="integ-hint">
-              {{ camDriver.descripcion }}
-              @if (camDriver.requiereGateway) {
+              {{ driver.descripcion }}
+              @if (driver.requiereGateway) {
                 <br><i class="fa-solid fa-triangle-exclamation"></i>
                 Requiere un media gateway (go2rtc/MediaMTX) para llevar el video al navegador.
               }
@@ -1086,32 +1087,33 @@
         </div>
 
         <!-- Campos dinámicos del driver -->
-        @if (camDriver) {
+        @if (camDriver()) {
           <div class="integ-driver-fields">
             @for (campo of camCampos; track campo.key) {
               <div class="ui-field">
                 <label class="ui-label">
                   {{ campo.nombre }}
                   @if (campo.requerido) { <span class="integ-req">*</span> }
-                  @if (campo.secreto && modal === 'camara-edit') {
+                  @if (campo.secreto && modal() === 'camara-edit') {
                     <span class="integ-hint"> — Vacío = mantener actual</span>
                   }
                 </label>
 
                 @if (campo.tipo === 'select') {
-                  <select class="ui-control" [(ngModel)]="camForm[campo.key]">
+                  <select class="ui-control" [(ngModel)]="camForm[campo.key]" [ngModelOptions]="{standalone: true}">
                     <option value="">—</option>
                     @for (op of campo.opciones || []; track op) {
                       <option [value]="op">{{ op }}</option>
                     }
                   </select>
                 } @else if (campo.tipo === 'textarea') {
-                  <textarea class="ui-control" rows="2" [(ngModel)]="camForm[campo.key]"
+                  <textarea class="ui-control" rows="2" [(ngModel)]="camForm[campo.key]" [ngModelOptions]="{standalone: true}"
                             [placeholder]="campo.ejemplo || ''"></textarea>
                 } @else {
                   <input class="ui-control"
                          [type]="campo.tipo === 'password' ? 'password' : (campo.tipo === 'number' ? 'number' : 'text')"
                          [(ngModel)]="camForm[campo.key]"
+                         [ngModelOptions]="{standalone: true}"
                          [placeholder]="campo.ejemplo || ''"
                          [attr.autocomplete]="campo.secreto ? 'new-password' : null">
                 }
@@ -1122,23 +1124,23 @@
         }
 
         <label class="integ-check">
-          <input type="checkbox" [(ngModel)]="camActiva"> Integración activa
+          <input type="checkbox" [ngModel]="camActiva()" (ngModelChange)="camActiva.set($event)" [ngModelOptions]="{standalone: true}"> Integración activa
         </label>
 
-        @if (camPrueba) {
-          <div class="integ-prueba"><i class="fa-solid fa-circle-info"></i> {{ camPrueba }}</div>
+        @if (camPrueba()) {
+          <div class="integ-prueba"><i class="fa-solid fa-circle-info"></i> {{ camPrueba() }}</div>
         }
       </div>
 
       <div class="ui-modal__foot" style="gap:8px">
-        <button class="ui-btn ghost" [disabled]="!camDriver" (click)="probarCam()">
+        <button class="ui-btn ghost" [disabled]="!camDriver()" (click)="probarCam()">
           <i class="fa-solid fa-vial-circle-check"></i> Validar configuración
         </button>
         <span style="flex:1"></span>
         <button class="ui-btn ghost" (click)="closeModal()">Cancelar</button>
-        <button class="ui-btn primary" [disabled]="saving || !camDriver" (click)="saveCam()">
+        <button class="ui-btn primary" [disabled]="saving() || !camDriver()" (click)="saveCam()">
           <i class="fa-solid fa-floppy-disk"></i>
-          {{ saving ? 'Guardando…' : 'Guardar' }}
+          {{ saving() ? 'Guardando…' : 'Guardar' }}
         </button>
       </div>
 

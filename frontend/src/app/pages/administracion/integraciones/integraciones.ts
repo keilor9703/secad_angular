@@ -1,6 +1,6 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, ChangeDetectionStrategy, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
+import { FormBuilder, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import {
   IntegracionesService,
   DtoIntegracionEntrante,
@@ -33,25 +33,32 @@ type ModalT  = 'saliente-create' | 'saliente-edit'
 @Component({
   selector:    'app-integraciones',
   standalone:  true,
-  imports:     [CommonModule, FormsModule],
+  imports:     [CommonModule, FormsModule, ReactiveFormsModule],
   templateUrl: './integraciones.html',
-  styleUrls:   ['./integraciones.scss']
+  styleUrls:   ['./integraciones.scss'],
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class IntegracionesComponent implements OnInit {
+  private readonly svc    = inject(IntegracionesService);
+  private readonly agSvc  = inject(AgenciaExternaService);
+  private readonly camSvc = inject(CamaraIntegracionService);
+  private readonly toast  = inject(ToastService);
+  private readonly auth   = inject(AuthService);
+  private readonly fb     = inject(FormBuilder);
 
   // ── Tab activa ──────────────────────────────────────────────────────────────
-  tab: Tab = 'salientes';
+  readonly tab = signal<Tab>('salientes');
 
   // ── Estado de carga ─────────────────────────────────────────────────────────
-  loadingSal  = false;
-  loadingEnt  = false;
-  loadingAud  = false;
-  saving      = false;
+  readonly loadingSal = signal(false);
+  readonly loadingEnt = signal(false);
+  readonly loadingAud = signal(false);
+  readonly saving     = signal(false);
 
   // ── Tab Salientes ───────────────────────────────────────────────────────────
-  salientes:    DtoAgenciaExterna[] = [];
+  readonly salientes = signal<DtoAgenciaExterna[]>([]);
   readonly tiposAgencia = TIPOS_AGENCIA;
-  mostrarEjemploSal = false;
+  readonly mostrarEjemploSal = signal(false);
 
   // ── Ejemplos por modo de auth (strings en TS para evitar conflictos con {} en plantilla) ──
   readonly authModes = [
@@ -63,7 +70,7 @@ export class IntegracionesComponent implements OnInit {
     { value: 'CREDS_BODY'as const, label: 'Creds en body',   icon: 'fa-file-code'        },
     { value: 'PIP_TOKEN' as const, label: 'PIP Institucional',icon: 'fa-shield-halved'   },
   ];
-  formSalAuthExampleTab: 'NONE'|'BEARER'|'BASIC'|'OAUTH2'|'API_KEY'|'CREDS_BODY'|'PIP_TOKEN' = 'BEARER';
+  readonly formSalAuthExampleTab = signal<'NONE'|'BEARER'|'BASIC'|'OAUTH2'|'API_KEY'|'CREDS_BODY'|'PIP_TOKEN'>('BEARER');
 
   readonly ejemploSalCabeceras = '{\n  "X-Sistema-Origen": "SECAD-POLICIA",\n  "X-Version": "2"\n}';
   readonly ejemploSalMapeo     = '{\n  "direCaso":      "direccion_emergencia",\n  "codiPedido":    "tipo_incidente",\n  "latitudCaso":   "gps.latitud",\n  "longitudCaso":  "gps.longitud",\n  "prioridad":     "nivel_urgencia",\n  "nomb_llamante": "reportado_por"\n}';
@@ -135,63 +142,80 @@ export class IntegracionesComponent implements OnInit {
     '  ...\n' +
     '}';
 
-  formSal:  DtoAgenciaExternaRequest = this.emptySal();
-  formSalCabeceras   = '';
-  formSalMapeo       = '';
-  editSalId          = '';
+  readonly formSal = this.fb.nonNullable.group({
+    nombre:         ['', [Validators.required]],
+    descripcion:    [''],
+    tipoAgencia:    ['OTRA'],
+    apiUrl:         [''],
+    apiMetodo:      ['POST'],
+    tipoAuth:       ['BEARER'],
+    apiToken:       [''],
+    apiUsuario:     [''],
+    apiPassword:    [''],
+    formatoPayload: ['PLANO'],
+    activa:         [true]
+  });
+  readonly formSalCabeceras = signal('');
+  readonly formSalMapeo     = signal('');
+  readonly editSalId        = signal('');
 
   // ── Campos de auth descompuestos (se serializan a authExtra al guardar) ────
-  formSalTokenUrl      = '';   // OAUTH2
-  formSalKeyHeader     = 'X-Api-Key';  // API_KEY
-  formSalBodyUserField = 'usuario';    // CREDS_BODY
-  formSalBodyPassField = 'contrasena'; // CREDS_BODY
+  readonly formSalTokenUrl      = signal('');   // OAUTH2
+  readonly formSalKeyHeader     = signal('X-Api-Key');  // API_KEY
+  readonly formSalBodyUserField = signal('usuario');    // CREDS_BODY
+  readonly formSalBodyPassField = signal('contrasena'); // CREDS_BODY
 
   // ── Tab Entrantes ───────────────────────────────────────────────────────────
-  entrantes:    DtoIntegracionEntrante[] = [];
+  readonly entrantes = signal<DtoIntegracionEntrante[]>([]);
   readonly tiposCanal = TIPOS_CANAL_ENTRANTE;
 
-  formEnt:  DtoIntegracionEntranteRequest = this.emptyEnt();
-  formEntHeaders  = '';
-  formEntPayload  = '';
-  editEntId       = '';
+  readonly formEnt = this.fb.nonNullable.group({
+    nombre:            ['', [Validators.required]],
+    descripcion:       [''],
+    tipoCanal:         ['OTRA'],
+    endpointRelativo:  ['', [Validators.required]],
+    sitioGrabaDefecto: [0],
+    activa:            [true],
+    notas:             ['']
+  });
+  readonly formEntHeaders = signal('');
+  readonly formEntPayload = signal('');
+  readonly editEntId      = signal('');
 
   // ── Tab Cámaras (integraciones VMS) ─────────────────────────────────────────
-  camaras:        DtoCamaraIntegracion[] = [];
-  loadingCam      = false;
-  drivers:        DtoVmsDriverDescriptor[] = [];
+  readonly camaras   = signal<DtoCamaraIntegracion[]>([]);
+  readonly loadingCam = signal(false);
+  readonly drivers    = signal<DtoVmsDriverDescriptor[]>([]);
   /** Driver seleccionado en el formulario (para pintar sus campos). */
-  camDriver:      DtoVmsDriverDescriptor | null = null;
-  /** Valores del formulario dinámico (config + secretos), por key de campo. */
-  camForm:        Record<string, string> = {};
-  camNombre       = '';
-  camDescripcion  = '';
-  camActiva       = true;
-  editCamId       = '';
-  camPrueba       = '';        // resultado de "validar configuración"
+  readonly camDriver  = signal<DtoVmsDriverDescriptor | null>(null);
+  /** Valores del formulario dinámico (config + secretos), por key de campo — el
+   *  set de claves depende del driver elegido, así que no encaja en un FormGroup
+   *  de forma fija; se mantiene como registro simple mutado por fila (mismo
+   *  criterio que loginItems en configuracion-sistema). */
+  camForm: Record<string, string> = {};
+  readonly camNombre      = signal('');
+  readonly camDescripcion = signal('');
+  readonly camActiva      = signal(true);
+  readonly editCamId      = signal('');
+  readonly camPrueba      = signal('');        // resultado de "validar configuración"
 
   // ── Tab Auditoría ───────────────────────────────────────────────────────────
-  audTab:       'salientes' | 'entrantes' = 'salientes';
-  audSalientes: DtoDespachoAuditoria[]   = [];
-  audEntrantes: DtoRecepcionAuditoria[]  = [];
-  audSalLimit   = 50;
-  audEntLimit   = 50;
+  readonly audTab       = signal<'salientes' | 'entrantes'>('salientes');
+  readonly audSalientes = signal<DtoDespachoAuditoria[]>([]);
+  readonly audEntrantes = signal<DtoRecepcionAuditoria[]>([]);
+  readonly audSalLimit  = signal(50);
+  readonly audEntLimit  = signal(50);
   audCanalFiltro = '';
 
   // ── Modal ───────────────────────────────────────────────────────────────────
-  modal: ModalT = null;
-  payloadViewer      = '';
-  payloadViewerTitle = 'Payload JSON';  // se cambia al abrir cada modal
+  readonly modal = signal<ModalT>(null);
+  readonly payloadViewer      = signal('');
+  readonly payloadViewerTitle = signal('Payload JSON');  // se cambia al abrir cada modal
 
   /** cod_dane del usuario logueado — se embebe en la callbackUrl del preview. */
   private readonly codDane: string;
 
-  constructor(
-    private svc:        IntegracionesService,
-    private agSvc:      AgenciaExternaService,
-    private camSvc:     CamaraIntegracionService,
-    private toast:      ToastService,
-    private auth:       AuthService
-  ) {
+  constructor() {
     this.codDane = this.auth.getJwtClaims().codDane ?? '';
   }
 
@@ -203,19 +227,19 @@ export class IntegracionesComponent implements OnInit {
   // ── Navegación de tabs ──────────────────────────────────────────────────────
 
   setTab(t: Tab): void {
-    this.tab = t;
-    if (t === 'auditoria' && !this.audSalientes.length && !this.audEntrantes.length)
+    this.tab.set(t);
+    if (t === 'auditoria' && !this.audSalientes().length && !this.audEntrantes().length)
       this.loadAuditoria();
     if (t === 'camaras') {
-      if (!this.drivers.length) this.loadDrivers();
+      if (!this.drivers().length) this.loadDrivers();
       this.loadCamaras();
     }
   }
 
   setAudTab(t: 'salientes' | 'entrantes'): void {
-    this.audTab = t;
-    if (t === 'salientes' && !this.audSalientes.length) this.loadAudSalientes();
-    if (t === 'entrantes' && !this.audEntrantes.length) this.loadAudEntrantes();
+    this.audTab.set(t);
+    if (t === 'salientes' && !this.audSalientes().length) this.loadAudSalientes();
+    if (t === 'entrantes' && !this.audEntrantes().length) this.loadAudEntrantes();
   }
 
   // ════════════════════════════════════════════════════════════════════════════
@@ -223,35 +247,35 @@ export class IntegracionesComponent implements OnInit {
   // ════════════════════════════════════════════════════════════════════════════
 
   loadSalientes(): void {
-    this.loadingSal = true;
+    this.loadingSal.set(true);
     this.svc.getSalientes().subscribe({
-      next:  d => { this.salientes = d; this.loadingSal = false; },
-      error: () => { this.loadingSal = false; this.toast.error('Error', 'No se pudieron cargar las agencias.'); }
+      next:  d => { this.salientes.set(d); this.loadingSal.set(false); },
+      error: () => { this.loadingSal.set(false); this.toast.error('Error', 'No se pudieron cargar las agencias.'); }
     });
   }
 
   openCreateSal(): void {
-    this.formSal              = this.emptySal();
-    this.formSalCabeceras     = '';
-    this.formSalMapeo         = '';
-    this.formSalTokenUrl      = '';
-    this.formSalKeyHeader     = 'X-Api-Key';
-    this.formSalBodyUserField = 'usuario';
-    this.formSalBodyPassField = 'contrasena';
-    this.editSalId            = '';
-    this.modal                = 'saliente-create';
+    this.formSal.reset(this.emptySal());
+    this.formSalCabeceras.set('');
+    this.formSalMapeo.set('');
+    this.formSalTokenUrl.set('');
+    this.formSalKeyHeader.set('X-Api-Key');
+    this.formSalBodyUserField.set('usuario');
+    this.formSalBodyPassField.set('contrasena');
+    this.editSalId.set('');
+    this.modal.set('saliente-create');
     document.body.classList.add('ui-modal-open');
   }
 
   openEditSal(a: DtoAgenciaExterna): void {
-    this.editSalId = a.id;
+    this.editSalId.set(a.id);
     // Deserializar authExtra para los campos individuales
     const extra = this.parseAuthExtra(a.authExtra);
-    this.formSalTokenUrl      = extra['tokenUrl']      ?? '';
-    this.formSalKeyHeader     = extra['keyHeader']     ?? 'X-Api-Key';
-    this.formSalBodyUserField = extra['bodyUserField'] ?? 'usuario';
-    this.formSalBodyPassField = extra['bodyPassField'] ?? 'contrasena';
-    this.formSal = {
+    this.formSalTokenUrl.set(extra['tokenUrl']      ?? '');
+    this.formSalKeyHeader.set(extra['keyHeader']     ?? 'X-Api-Key');
+    this.formSalBodyUserField.set(extra['bodyUserField'] ?? 'usuario');
+    this.formSalBodyPassField.set(extra['bodyPassField'] ?? 'contrasena');
+    this.formSal.reset({
       nombre:         a.nombre,
       descripcion:    a.descripcion ?? '',
       tipoAgencia:    a.tipoAgencia,
@@ -261,39 +285,44 @@ export class IntegracionesComponent implements OnInit {
       apiToken:       '',         // vacío = mantener existente
       apiUsuario:     a.apiUsuario ?? '',
       apiPassword:    '',         // vacío = mantener existente
-      apiCabeceras:   a.apiCabeceras ?? '',
-      campoMapeo:     a.campoMapeo ?? '',
       formatoPayload: a.formatoPayload ?? 'PLANO',
       activa:         a.activa,
-    };
-    this.formSalCabeceras = a.apiCabeceras ?? '';
-    this.formSalMapeo     = a.campoMapeo ?? '';
-    this.modal            = 'saliente-edit';
+    });
+    this.formSalCabeceras.set(a.apiCabeceras ?? '');
+    this.formSalMapeo.set(a.campoMapeo ?? '');
+    this.modal.set('saliente-edit');
     document.body.classList.add('ui-modal-open');
   }
 
   saveSal(): void {
-    if (!this.formSal.nombre.trim())
+    const v = this.formSal.getRawValue();
+    if (!v.nombre.trim())
       return void this.toast.warning('Validar', 'El nombre es obligatorio.');
 
-    if (this.formSalCabeceras.trim() && !this.isValidJson(this.formSalCabeceras))
+    const cabeceras = this.formSalCabeceras();
+    const mapeo     = this.formSalMapeo();
+    if (cabeceras.trim() && !this.isValidJson(cabeceras))
       return void this.toast.warning('JSON inválido', 'Las cabeceras HTTP no son un JSON válido.');
-    if (this.formSalMapeo.trim() && !this.isValidJson(this.formSalMapeo))
+    if (mapeo.trim() && !this.isValidJson(mapeo))
       return void this.toast.warning('JSON inválido', 'El mapeo de campos no es un JSON válido.');
 
-    this.formSal.apiCabeceras = this.formSalCabeceras.trim() || undefined;
-    this.formSal.campoMapeo   = this.formSalMapeo.trim()     || undefined;
-    // Serializar campos específicos de auth extra
-    this.formSal.authExtra    = this.buildAuthExtra();
+    const request: DtoAgenciaExternaRequest = {
+      ...v,
+      apiCabeceras: cabeceras.trim() || undefined,
+      campoMapeo:   mapeo.trim()     || undefined,
+      // Serializar campos específicos de auth extra
+      authExtra:    this.buildAuthExtra(v.tipoAuth),
+    };
 
-    this.saving = true;
-    const obs = this.editSalId
-      ? this.svc.actualizarSaliente(this.editSalId, this.formSal)
-      : this.svc.crearSaliente(this.formSal);
+    this.saving.set(true);
+    const editId = this.editSalId();
+    const obs = editId
+      ? this.svc.actualizarSaliente(editId, request)
+      : this.svc.crearSaliente(request);
 
     obs.subscribe({
       next: r => {
-        this.saving = false;
+        this.saving.set(false);
         if (r.success) {
           this.toast.success('Agencia', r.message);
           this.closeModal();
@@ -302,7 +331,7 @@ export class IntegracionesComponent implements OnInit {
           this.toast.warning('Agencia', r.message);
         }
       },
-      error: () => { this.saving = false; this.toast.error('Error', 'No se pudo guardar.'); }
+      error: () => { this.saving.set(false); this.toast.error('Error', 'No se pudo guardar.'); }
     });
   }
 
@@ -321,62 +350,68 @@ export class IntegracionesComponent implements OnInit {
   // ════════════════════════════════════════════════════════════════════════════
 
   loadEntrantes(): void {
-    this.loadingEnt = true;
+    this.loadingEnt.set(true);
     this.svc.getEntrantes().subscribe({
-      next:  r => { this.entrantes = r.data ?? []; this.loadingEnt = false; },
-      error: () => { this.loadingEnt = false; this.toast.error('Error', 'No se pudieron cargar las integraciones entrantes.'); }
+      next:  r => { this.entrantes.set(r.data ?? []); this.loadingEnt.set(false); },
+      error: () => { this.loadingEnt.set(false); this.toast.error('Error', 'No se pudieron cargar las integraciones entrantes.'); }
     });
   }
 
   openCreateEnt(): void {
-    this.formEnt        = this.emptyEnt();
-    this.formEntHeaders = '';
-    this.formEntPayload = '';
-    this.editEntId      = '';
-    this.modal          = 'entrante-create';
+    this.formEnt.reset(this.emptyEnt());
+    this.formEntHeaders.set('');
+    this.formEntPayload.set('');
+    this.editEntId.set('');
+    this.modal.set('entrante-create');
     document.body.classList.add('ui-modal-open');
   }
 
   openEditEnt(e: DtoIntegracionEntrante): void {
-    this.editEntId = e.id;
-    this.formEnt = {
+    this.editEntId.set(e.id);
+    this.formEnt.reset({
       nombre:            e.nombre,
       descripcion:       e.descripcion ?? '',
       tipoCanal:         e.tipoCanal,
       endpointRelativo:  e.endpointRelativo,
-      headersRequeridos: e.headersRequeridos ?? '',
-      ejemploPayload:    e.ejemploPayload ?? '',
       sitioGrabaDefecto: e.sitioGrabaDefecto,
       activa:            e.activa,
       notas:             e.notas ?? '',
-    };
-    this.formEntHeaders = e.headersRequeridos ?? '';
-    this.formEntPayload = e.ejemploPayload ?? '';
-    this.modal          = 'entrante-edit';
+    });
+    this.formEntHeaders.set(e.headersRequeridos ?? '');
+    this.formEntPayload.set(e.ejemploPayload ?? '');
+    this.modal.set('entrante-edit');
     document.body.classList.add('ui-modal-open');
   }
 
   saveEnt(): void {
-    if (!this.formEnt.nombre.trim())
+    const v = this.formEnt.getRawValue();
+    if (!v.nombre.trim())
       return void this.toast.warning('Validar', 'El nombre es obligatorio.');
-    if (!this.formEnt.endpointRelativo.trim())
+    if (!v.endpointRelativo.trim())
       return void this.toast.warning('Validar', 'El endpoint es obligatorio.');
-    if (this.formEntHeaders.trim() && !this.isValidJson(this.formEntHeaders))
+
+    const headers = this.formEntHeaders();
+    const payload = this.formEntPayload();
+    if (headers.trim() && !this.isValidJson(headers))
       return void this.toast.warning('JSON inválido', 'Los headers requeridos no son un JSON válido.');
-    if (this.formEntPayload.trim() && !this.isValidJson(this.formEntPayload))
+    if (payload.trim() && !this.isValidJson(payload))
       return void this.toast.warning('JSON inválido', 'El payload de ejemplo no es un JSON válido.');
 
-    this.formEnt.headersRequeridos = this.formEntHeaders.trim() || undefined;
-    this.formEnt.ejemploPayload    = this.formEntPayload.trim() || undefined;
+    const request: DtoIntegracionEntranteRequest = {
+      ...v,
+      headersRequeridos: headers.trim() || undefined,
+      ejemploPayload:    payload.trim() || undefined,
+    };
 
-    this.saving = true;
-    const obs = this.editEntId
-      ? this.svc.actualizarEntrante(this.editEntId, this.formEnt)
-      : this.svc.crearEntrante(this.formEnt);
+    this.saving.set(true);
+    const editId = this.editEntId();
+    const obs = editId
+      ? this.svc.actualizarEntrante(editId, request)
+      : this.svc.crearEntrante(request);
 
     obs.subscribe({
       next: r => {
-        this.saving = false;
+        this.saving.set(false);
         if (r.success) {
           this.toast.success('Integración', r.message);
           this.closeModal();
@@ -385,7 +420,7 @@ export class IntegracionesComponent implements OnInit {
           this.toast.warning('Integración', r.message);
         }
       },
-      error: () => { this.saving = false; this.toast.error('Error', 'No se pudo guardar.'); }
+      error: () => { this.saving.set(false); this.toast.error('Error', 'No se pudo guardar.'); }
     });
   }
 
@@ -400,10 +435,10 @@ export class IntegracionesComponent implements OnInit {
   }
 
   verEjemplo(e: DtoIntegracionEntrante): void {
-    this.payloadViewer = e.ejemploPayload
+    this.payloadViewer.set(e.ejemploPayload
       ? this.prettyJson(e.ejemploPayload)
-      : '{}';
-    this.modal = 'payload-viewer';
+      : '{}');
+    this.modal.set('payload-viewer');
     document.body.classList.add('ui-modal-open');
   }
 
@@ -413,54 +448,55 @@ export class IntegracionesComponent implements OnInit {
 
   loadDrivers(): void {
     this.camSvc.getDrivers().subscribe({
-      next:  d => { this.drivers = d; },
+      next:  d => { this.drivers.set(d); },
       error: () => { this.toast.error('Error', 'No se pudieron cargar los drivers de VMS.'); }
     });
   }
 
   loadCamaras(): void {
-    this.loadingCam = true;
+    this.loadingCam.set(true);
     this.camSvc.getAll().subscribe({
-      next:  d => { this.camaras = d; this.loadingCam = false; },
-      error: () => { this.loadingCam = false; this.toast.error('Error', 'No se pudieron cargar las integraciones de cámaras.'); }
+      next:  d => { this.camaras.set(d); this.loadingCam.set(false); },
+      error: () => { this.loadingCam.set(false); this.toast.error('Error', 'No se pudieron cargar las integraciones de cámaras.'); }
     });
   }
 
   /** Campo actual del driver seleccionado (para el template). */
-  get camCampos() { return this.camDriver?.campos ?? []; }
+  get camCampos() { return this.camDriver()?.campos ?? []; }
 
   onCamDriverChange(driverId: string): void {
-    this.camDriver = this.drivers.find(d => d.driver === driverId) ?? null;
+    this.camDriver.set(this.drivers().find(d => d.driver === driverId) ?? null);
     // Reiniciar valores del formulario a los campos del nuevo driver.
     this.camForm = {};
-    for (const c of this.camDriver?.campos ?? []) this.camForm[c.key] = '';
+    for (const c of this.camDriver()?.campos ?? []) this.camForm[c.key] = '';
   }
 
   openCreateCam(): void {
-    this.editCamId      = '';
-    this.camNombre      = '';
-    this.camDescripcion = '';
-    this.camActiva      = true;
-    this.camPrueba      = '';
-    this.camDriver      = null;
-    this.camForm        = {};
-    if (!this.drivers.length) this.loadDrivers();
-    this.modal = 'camara-create';
+    this.editCamId.set('');
+    this.camNombre.set('');
+    this.camDescripcion.set('');
+    this.camActiva.set(true);
+    this.camPrueba.set('');
+    this.camDriver.set(null);
+    this.camForm = {};
+    if (!this.drivers().length) this.loadDrivers();
+    this.modal.set('camara-create');
     document.body.classList.add('ui-modal-open');
   }
 
   openEditCam(c: DtoCamaraIntegracion): void {
-    this.editCamId      = c.id;
-    this.camNombre      = c.nombre;
-    this.camDescripcion = c.descripcion ?? '';
-    this.camActiva      = c.activa;
-    this.camPrueba      = '';
-    this.camDriver      = this.drivers.find(d => d.driver === c.driver) ?? null;
+    this.editCamId.set(c.id);
+    this.camNombre.set(c.nombre);
+    this.camDescripcion.set(c.descripcion ?? '');
+    this.camActiva.set(c.activa);
+    this.camPrueba.set('');
+    const driver = this.drivers().find(d => d.driver === c.driver) ?? null;
+    this.camDriver.set(driver);
     // Cargar valores no secretos; los secretos quedan vacíos (write-only).
     this.camForm = {};
-    for (const campo of this.camDriver?.campos ?? [])
+    for (const campo of driver?.campos ?? [])
       this.camForm[campo.key] = campo.secreto ? '' : (c.config[campo.key] ?? '');
-    this.modal = 'camara-edit';
+    this.modal.set('camara-edit');
     document.body.classList.add('ui-modal-open');
   }
 
@@ -468,50 +504,52 @@ export class IntegracionesComponent implements OnInit {
   private buildCamRequest(): DtoCamaraIntegracionRequest {
     const config: Record<string, string> = {};
     const secretos: Record<string, string> = {};
-    for (const campo of this.camDriver?.campos ?? []) {
+    const driver = this.camDriver();
+    for (const campo of driver?.campos ?? []) {
       const v = (this.camForm[campo.key] ?? '').trim();
       if (campo.secreto) { if (v) secretos[campo.key] = v; }
       else               { config[campo.key] = v; }
     }
     return {
-      nombre:      this.camNombre.trim(),
-      descripcion: this.camDescripcion.trim() || undefined,
-      driver:      this.camDriver?.driver ?? '',
+      nombre:      this.camNombre().trim(),
+      descripcion: this.camDescripcion().trim() || undefined,
+      driver:      driver?.driver ?? '',
       config,
       secretos,
-      activa:      this.camActiva
+      activa:      this.camActiva()
     };
   }
 
   probarCam(): void {
-    if (!this.camDriver) { this.toast.warning('Cámaras', 'Seleccione un driver.'); return; }
+    if (!this.camDriver()) { this.toast.warning('Cámaras', 'Seleccione un driver.'); return; }
     this.camSvc.validar(this.buildCamRequest()).subscribe({
-      next:  r => { this.camPrueba = r.mensaje; if (r.ok) this.toast.success('Validación', r.mensaje); else this.toast.warning('Validación', r.mensaje); },
-      error: e => { this.camPrueba = e.error?.mensaje ?? 'Error al validar.'; }
+      next:  r => { this.camPrueba.set(r.mensaje); if (r.ok) this.toast.success('Validación', r.mensaje); else this.toast.warning('Validación', r.mensaje); },
+      error: e => { this.camPrueba.set(e.error?.mensaje ?? 'Error al validar.'); }
     });
   }
 
   saveCam(): void {
-    if (!this.camNombre.trim()) { this.toast.warning('Cámaras', 'El nombre es obligatorio.'); return; }
-    if (!this.camDriver)        { this.toast.warning('Cámaras', 'Seleccione un driver.'); return; }
-    this.saving = true;
+    if (!this.camNombre().trim()) { this.toast.warning('Cámaras', 'El nombre es obligatorio.'); return; }
+    if (!this.camDriver())        { this.toast.warning('Cámaras', 'Seleccione un driver.'); return; }
+    this.saving.set(true);
     const req = this.buildCamRequest();
-    const obs = this.editCamId
-      ? this.camSvc.actualizar(this.editCamId, req)
+    const editId = this.editCamId();
+    const obs = editId
+      ? this.camSvc.actualizar(editId, req)
       : this.camSvc.crear(req);
     obs.subscribe({
       next: r => {
-        this.saving = false;
+        this.saving.set(false);
         if (r.success) { this.toast.success('Cámaras', r.message); this.closeModal(); this.loadCamaras(); }
         else           { this.toast.warning('Cámaras', r.message); }
       },
-      error: e => { this.saving = false; this.toast.error('Cámaras', e.error?.message ?? 'Error al guardar.'); }
+      error: e => { this.saving.set(false); this.toast.error('Cámaras', e.error?.message ?? 'Error al guardar.'); }
     });
   }
 
   toggleCam(c: DtoCamaraIntegracion): void {
     this.camSvc.toggle(c.id).subscribe({
-      next:  () => { c.activa = !c.activa; },
+      next:  () => { this.camaras.update(items => items.map(x => x.id === c.id ? { ...x, activa: !x.activa } : x)); },
       error: () => { this.toast.error('Cámaras', 'No se pudo cambiar el estado.'); }
     });
   }
@@ -534,35 +572,35 @@ export class IntegracionesComponent implements OnInit {
   }
 
   loadAudSalientes(): void {
-    this.loadingAud = true;
-    this.svc.getAuditoriaSalientes(this.audSalLimit).subscribe({
-      next:  r => { this.audSalientes = r.data ?? []; this.loadingAud = false; },
-      error: () => { this.loadingAud = false; }
+    this.loadingAud.set(true);
+    this.svc.getAuditoriaSalientes(this.audSalLimit()).subscribe({
+      next:  r => { this.audSalientes.set(r.data ?? []); this.loadingAud.set(false); },
+      error: () => { this.loadingAud.set(false); }
     });
   }
 
   loadAudEntrantes(): void {
-    this.loadingAud = true;
-    this.svc.getAuditoriaEntrantes(this.audEntLimit, this.audCanalFiltro || undefined).subscribe({
-      next:  r => { this.audEntrantes = r.data ?? []; this.loadingAud = false; },
-      error: () => { this.loadingAud = false; }
+    this.loadingAud.set(true);
+    this.svc.getAuditoriaEntrantes(this.audEntLimit(), this.audCanalFiltro || undefined).subscribe({
+      next:  r => { this.audEntrantes.set(r.data ?? []); this.loadingAud.set(false); },
+      error: () => { this.loadingAud.set(false); }
     });
   }
 
   verPayload(json: string | null): void {
-    this.payloadViewerTitle = 'Payload enviado → agencia externa';
-    this.payloadViewer = json ? this.prettyJson(json) : '{}';
-    this.modal = 'payload-viewer';
+    this.payloadViewerTitle.set('Payload enviado → agencia externa');
+    this.payloadViewer.set(json ? this.prettyJson(json) : '{}');
+    this.modal.set('payload-viewer');
     document.body.classList.add('ui-modal-open');
   }
 
   verRespuestaApi(d: DtoDespachoAuditoria): void {
-    this.payloadViewerTitle =
-      `Respuesta API — ${d.agenciaNombre} · HTTP ${d.httpStatus ?? '—'}`;
-    this.payloadViewer = d.respuestaApi
+    this.payloadViewerTitle.set(
+      `Respuesta API — ${d.agenciaNombre} · HTTP ${d.httpStatus ?? '—'}`);
+    this.payloadViewer.set(d.respuestaApi
       ? this.prettyJson(d.respuestaApi)
-      : '(sin respuesta)';
-    this.modal = 'payload-viewer';
+      : '(sin respuesta)');
+    this.modal.set('payload-viewer');
     document.body.classList.add('ui-modal-open');
   }
 
@@ -575,9 +613,9 @@ export class IntegracionesComponent implements OnInit {
 
   /** Muestra el payload REAL que SECAD enviaría a esta agencia, con el mapeo aplicado. */
   verPayloadSaliente(a: DtoAgenciaExterna): void {
-    this.payloadViewerTitle = `Payload que SECAD envía → ${a.nombre}`;
-    this.payloadViewer      = this.generarPayloadSaliente(a);
-    this.modal              = 'payload-viewer';
+    this.payloadViewerTitle.set(`Payload que SECAD envía → ${a.nombre}`);
+    this.payloadViewer.set(this.generarPayloadSaliente(a));
+    this.modal.set('payload-viewer');
     document.body.classList.add('ui-modal-open');
   }
 
@@ -781,7 +819,7 @@ export class IntegracionesComponent implements OnInit {
   // ── Modal helpers ────────────────────────────────────────────────────────────
 
   closeModal(): void {
-    this.modal = null;
+    this.modal.set(null);
     document.body.classList.remove('ui-modal-open');
   }
 
@@ -803,7 +841,7 @@ export class IntegracionesComponent implements OnInit {
 
   // ── Builders ──────────────────────────────────────────────────────────────────
 
-  private emptySal(): DtoAgenciaExternaRequest {
+  private emptySal() {
     return { nombre: '', descripcion: '', tipoAgencia: 'OTRA',
              apiUrl: '', apiMetodo: 'POST',
              tipoAuth: 'BEARER', apiToken: '', apiUsuario: '', apiPassword: '',
@@ -812,16 +850,15 @@ export class IntegracionesComponent implements OnInit {
   }
 
   /** Serializa los campos individuales de authExtra al JSON que espera el backend. */
-  private buildAuthExtra(): string | undefined {
-    const mode = this.formSal.tipoAuth;
+  private buildAuthExtra(mode: string): string | undefined {
     const obj: Record<string, string> = {};
-    if (mode === 'OAUTH2'     && this.formSalTokenUrl.trim())
-      obj['tokenUrl']      = this.formSalTokenUrl.trim();
-    if (mode === 'API_KEY'    && this.formSalKeyHeader.trim())
-      obj['keyHeader']     = this.formSalKeyHeader.trim();
+    if (mode === 'OAUTH2'     && this.formSalTokenUrl().trim())
+      obj['tokenUrl']      = this.formSalTokenUrl().trim();
+    if (mode === 'API_KEY'    && this.formSalKeyHeader().trim())
+      obj['keyHeader']     = this.formSalKeyHeader().trim();
     if (mode === 'CREDS_BODY') {
-      if (this.formSalBodyUserField.trim()) obj['bodyUserField'] = this.formSalBodyUserField.trim();
-      if (this.formSalBodyPassField.trim()) obj['bodyPassField'] = this.formSalBodyPassField.trim();
+      if (this.formSalBodyUserField().trim()) obj['bodyUserField'] = this.formSalBodyUserField().trim();
+      if (this.formSalBodyPassField().trim()) obj['bodyPassField'] = this.formSalBodyPassField().trim();
     }
     return Object.keys(obj).length ? JSON.stringify(obj) : undefined;
   }
@@ -832,8 +869,8 @@ export class IntegracionesComponent implements OnInit {
     try { return JSON.parse(json); } catch { return {}; }
   }
 
-  private emptyEnt(): DtoIntegracionEntranteRequest {
+  private emptyEnt() {
     return { nombre: '', descripcion: '', tipoCanal: 'OTRA',
-             endpointRelativo: '', sitioGrabaDefecto: 0, activa: true };
+             endpointRelativo: '', sitioGrabaDefecto: 0, activa: true, notas: '' };
   }
 }
