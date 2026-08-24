@@ -20,10 +20,10 @@
         <!-- ════════════════════════════════════════════
         FORMULARIO (izquierda)
         ════════════════════════════════════════════ -->
-        <aside class="anot-form-panel" id="formAnotacion">
+        <aside class="anot-form-panel" id="formAnotacion" [formGroup]="form">
           <div class="anot-form-header">
-            <i class="fa-solid" [class.fa-plus]="!modoEdicion" [class.fa-pen]="modoEdicion"></i>
-            {{ modoEdicion ? 'Editar Anotación' : 'Nueva Anotación' }}
+            <i class="fa-solid" [class.fa-plus]="!modoEdicion()" [class.fa-pen]="modoEdicion()"></i>
+            {{ modoEdicion() ? 'Editar Anotación' : 'Nueva Anotación' }}
           </div>
 
           <div class="anot-form-body">
@@ -32,13 +32,13 @@
             <div class="ui-field">
               <label class="ui-label">Tipo *</label>
               <div class="tipo-grid">
-                @for (t of tipos; track t) {
+                @for (t of tipos; track t.valor) {
                   <button
                     class="tipo-btn"
-                    [class.active]="form.tipo === t.valor"
+                    [class.active]="form.controls.tipo.value === t.valor"
                     [style.--tipo-color]="t.color"
                     type="button"
-                    (click)="form.tipo = t.valor">
+                    (click)="setTipoForm(t.valor)">
                     <i class="fa-solid" [ngClass]="t.icono"></i>
                     <span>{{ t.label }}</span>
                   </button>
@@ -52,7 +52,7 @@
               <input
                 class="ui-control"
                 type="text"
-                [(ngModel)]="form.titulo"
+                formControlName="titulo"
                 placeholder="Ej: Comunicado No. 015 — Restricción de movimiento"
                 maxlength="200">
             </div>
@@ -62,27 +62,27 @@
               <label class="ui-label">Descripción *</label>
               <textarea
                 class="ui-control anot-textarea"
-                [(ngModel)]="form.descripcion"
+                formControlName="descripcion"
                 placeholder="Detalle la anotación, novedad, comunicado o actividad registrada durante el turno..."
                 rows="6"
                 maxlength="4000">
               </textarea>
-              <span class="char-count">{{ form.descripcion.length }} / 4000</span>
+              <span class="char-count">{{ form.controls.descripcion.value.length }} / 4000</span>
             </div>
           </div>
 
           <div class="anot-form-footer">
-            @if (modoEdicion) {
-              <button class="ui-btn neutral" type="button" (click)="cancelar()" [disabled]="guardando">
+            @if (modoEdicion()) {
+              <button class="ui-btn neutral" type="button" (click)="cancelar()" [disabled]="guardando()">
                 <i class="fa-solid fa-xmark"></i> Cancelar
               </button>
             }
-            <button class="ui-btn primary" type="button" (click)="guardar()" [disabled]="guardando">
+            <button class="ui-btn primary" type="button" (click)="guardar()" [disabled]="guardando()">
               <i class="fa-solid"
-                [class.fa-floppy-disk]="!guardando"
-                [class.fa-spinner]="guardando"
-              [class.fa-spin]="guardando"></i>
-              {{ guardando ? 'Guardando...' : (modoEdicion ? 'Actualizar' : 'Registrar') }}
+                [class.fa-floppy-disk]="!guardando()"
+                [class.fa-spinner]="guardando()"
+              [class.fa-spin]="guardando()"></i>
+              {{ guardando() ? 'Guardando...' : (modoEdicion() ? 'Actualizar' : 'Registrar') }}
             </button>
           </div>
         </aside>
@@ -103,7 +103,7 @@
                 <label class="ui-label">Hasta</label>
                 <input type="date" class="ui-control" [(ngModel)]="filtroHasta">
               </div>
-              <button class="ui-btn primary filter-btn" type="button" (click)="cargar()" [disabled]="cargando">
+              <button class="ui-btn primary filter-btn" type="button" (click)="cargar()" [disabled]="cargando()">
                 <i class="fa-solid fa-magnifying-glass"></i>
                 Buscar
               </button>
@@ -114,16 +114,16 @@
               <button
                 class="tipo-badge"
                 [class.active]="filtroTipo === ''"
-                (click)="filtroTipo = ''; p = 1">
-                Todos <span class="badge-count">{{ anotaciones.length }}</span>
+                (click)="irFiltro('')">
+                Todos <span class="badge-count">{{ anotaciones().length }}</span>
               </button>
-              @for (t of tipos; track t) {
+              @for (t of tipos; track t.valor) {
                 @if (contarPorTipo(t.valor) > 0) {
                   <button
                     class="tipo-badge"
                     [class.active]="filtroTipo === t.valor"
                     [style.--tipo-color]="t.color"
-                    (click)="filtroTipo = t.valor; p = 1">
+                    (click)="irFiltro(t.valor)">
                     <i class="fa-solid" [ngClass]="t.icono"></i>
                     {{ t.label }}
                     <span class="badge-count">{{ contarPorTipo(t.valor) }}</span>
@@ -134,17 +134,17 @@
           </div>
 
           <!-- Estado de carga -->
-          @if (cargando) {
+          @if (cargando()) {
             <div class="anot-loading">
               <i class="fa-solid fa-spinner fa-spin"></i> Cargando bitácora...
             </div>
           }
-          @if (errorCarga && !cargando) {
+          @if (errorCarga() && !cargando()) {
             <div class="anot-error">
-              <i class="fa-solid fa-circle-exclamation"></i> {{ errorCarga }}
+              <i class="fa-solid fa-circle-exclamation"></i> {{ errorCarga() }}
             </div>
           }
-          @if (posibleTruncamiento && !cargando) {
+          @if (posibleTruncamiento() && !cargando()) {
             <div class="anot-warning">
               <i class="fa-solid fa-triangle-exclamation"></i>
               Se muestran los 500 registros más recientes del rango — puede haber más.
@@ -153,7 +153,7 @@
           }
 
           <!-- Lista vacía -->
-          @if (!cargando && !errorCarga && anotacionesFiltradas.length === 0) {
+          @if (!cargando() && !errorCarga() && anotacionesFiltradas().length === 0) {
             <div class="anot-empty">
               <i class="fa-solid fa-book-open fa-2x"></i>
               <p>No hay anotaciones para este período.</p>
@@ -162,9 +162,9 @@
           }
 
           <!-- Tarjetas de anotaciones -->
-          @if (!cargando && paginadas.length > 0) {
+          @if (!cargando() && paginadas().length > 0) {
             <div class="anot-cards">
-              @for (a of paginadas; track a) {
+              @for (a of paginadas(); track a.id) {
                 <div
                   class="anot-card"
                   [style.--tipo-color]="getTipoInfo(a.tipo).color">
@@ -216,16 +216,16 @@
           }
 
           <!-- Paginación -->
-          @if (anotacionesFiltradas.length > pageSize) {
+          @if (anotacionesFiltradas().length > pageSize) {
             <div class="anot-pagination">
               <span class="pagination-summary">
-                Página {{ p }} de {{ totalPages }} | {{ anotacionesFiltradas.length }} registros
+                Página {{ p() }} de {{ totalPages() }} | {{ anotacionesFiltradas().length }} registros
               </span>
               <div class="pagination-actions">
-                <button class="ui-btn secondary" (click)="prevPage()" [disabled]="p === 1">
+                <button class="ui-btn secondary" (click)="prevPage()" [disabled]="p() === 1">
                   <i class="fa-solid fa-chevron-left"></i> Anterior
                 </button>
-                <button class="ui-btn secondary" (click)="nextPage()" [disabled]="p === totalPages">
+                <button class="ui-btn secondary" (click)="nextPage()" [disabled]="p() === totalPages()">
                   Siguiente <i class="fa-solid fa-chevron-right"></i>
                 </button>
               </div>
@@ -242,7 +242,7 @@
 <!-- ══════════════════════════════════════════════════════
 MODAL DE CONFIRMACIÓN DE BORRADO
 ══════════════════════════════════════════════════════ -->
-@if (itemAEliminar) {
+@if (itemAEliminar(); as item) {
   <div class="ui-alert">
     <div class="ui-alert__dialog">
       <div class="ui-alert__icon warning">
@@ -251,21 +251,21 @@ MODAL DE CONFIRMACIÓN DE BORRADO
       <h3 class="ui-alert__title">¿Eliminar anotación?</h3>
       <p class="ui-alert__text">
         Se eliminará permanentemente la anotación
-        <strong>{{ itemAEliminar.titulo || ('ID: ' + itemAEliminar.id) }}</strong>.
+        <strong>{{ item.titulo || ('ID: ' + item.id) }}</strong>.
         Esta acción no se puede deshacer.
       </p>
       <div class="ui-alert__foot warning">
         <button class="ui-btn secondary" type="button"
-          (click)="cancelarEliminar()" [disabled]="eliminando">
+          (click)="cancelarEliminar()" [disabled]="eliminando()">
           Cancelar
         </button>
         <button class="ui-btn danger" type="button"
-          (click)="confirmarEliminar()" [disabled]="eliminando">
+          (click)="confirmarEliminar()" [disabled]="eliminando()">
           <i class="fa-solid"
-            [class.fa-trash]="!eliminando"
-            [class.fa-spinner]="eliminando"
-          [class.fa-spin]="eliminando"></i>
-          {{ eliminando ? 'Eliminando...' : 'Sí, eliminar' }}
+            [class.fa-trash]="!eliminando()"
+            [class.fa-spinner]="eliminando()"
+          [class.fa-spin]="eliminando()"></i>
+          {{ eliminando() ? 'Eliminando...' : 'Sí, eliminar' }}
         </button>
       </div>
     </div>
