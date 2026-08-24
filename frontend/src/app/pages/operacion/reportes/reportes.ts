@@ -1,7 +1,7 @@
 import {
-  Component, OnInit, OnDestroy,
+  Component, ChangeDetectionStrategy, OnInit, OnDestroy,
   AfterViewInit, ElementRef,
-  ChangeDetectorRef,
+  inject, signal,
   viewChild
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
@@ -27,7 +27,8 @@ declare const Chart: any;
   standalone:  true,
   imports:     [CommonModule, FormsModule],
   templateUrl: './reportes.html',
-  styleUrls:   ['./reportes.scss']
+  styleUrls:   ['./reportes.scss'],
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class ReportesComponent implements OnInit, AfterViewInit, OnDestroy {
 
@@ -40,16 +41,16 @@ export class ReportesComponent implements OnInit, AfterViewInit, OnDestroy {
   seccion: 'dashboard' | 'detallados' = 'dashboard';
 
   // ── Estado dashboard ──────────────────────────────────────────────────────
-  cargando    = false;
-  error       = '';
-  datos: DtoReporteCompleto | null = null;
+  readonly cargando = signal(false);
+  readonly error    = signal('');
+  readonly datos    = signal<DtoReporteCompleto | null>(null);
 
   // ── Filtros compartidos ───────────────────────────────────────────────────
   desde            = this.hoy();
   hasta            = this.hoy();
   fuerzaId         = 0;
   turnoVigilancia  = 0;   // 0=Todos, 1=Segundo, 2=Tercer, 3=Cuarto
-  fuerzas: DtoFuerza[] = [];
+  readonly fuerzas = signal<DtoFuerza[]>([]);
 
   readonly turnos = ReportesService.TURNOS;
 
@@ -65,12 +66,12 @@ export class ReportesComponent implements OnInit, AfterViewInit, OnDestroy {
   ];
 
   // ── R1 — Calidad ─────────────────────────────────────────────────────────
-  calidad:      DtoPorCalidad[] = [];
-  cargandoCal   = false;
+  readonly calidad    = signal<DtoPorCalidad[]>([]);
+  readonly cargandoCal = signal(false);
 
   // ── R2 — Pedidos efectivos / con detalle ─────────────────────────────────
-  efectivos:    DtoPagedResult<DtoPedidoEfectivo> | null = null;
-  cargandoEfe   = false;
+  readonly efectivos  = signal<DtoPagedResult<DtoPedidoEfectivo> | null>(null);
+  readonly cargandoEfe = signal(false);
   filtroCalidad = '';    // vacío = todos; 'REAL' = solo efectivos
   paginaEfe     = 1;
   limitEfe      = 100;
@@ -86,18 +87,18 @@ export class ReportesComponent implements OnInit, AfterViewInit, OnDestroy {
   ];
 
   // ── R3 — Tiempos detalle ──────────────────────────────────────────────────
-  tiemposDetalle: DtoPagedResult<DtoTiempoDetalleItem> | null = null;
-  cargandoTieDet  = false;
+  readonly tiemposDetalle = signal<DtoPagedResult<DtoTiempoDetalleItem> | null>(null);
+  readonly cargandoTieDet = signal(false);
   paginaTieDet    = 1;
   limitTieDet     = 100;
 
   // ── R4 — Operadores ───────────────────────────────────────────────────────
-  operadores:   DtoTrabajoOperador[] = [];
-  cargandoOpe   = false;
+  readonly operadores = signal<DtoTrabajoOperador[]>([]);
+  readonly cargandoOpe = signal(false);
 
   // ── R5 — Códigos ─────────────────────────────────────────────────────────
-  codigos:      DtoTopCaso[] = [];
-  cargandoCod   = false;
+  readonly codigos    = signal<DtoTopCaso[]>([]);
+  readonly cargandoCod = signal(false);
   topCodigos    = 50;
 
   // ── Charts ───────────────────────────────────────────────────────────────
@@ -109,20 +110,17 @@ export class ReportesComponent implements OnInit, AfterViewInit, OnDestroy {
 
   private destroy$ = new Subject<void>();
 
-  constructor(
-    readonly svc:      ReportesService,   // readonly para acceso desde el template
-    private fuerzaSvc: FuerzaService,
-    private authSvc:   AuthService,
-    private toast:     ToastService,
-    private cdr:       ChangeDetectorRef
-  ) {}
+  readonly svc = inject(ReportesService);   // público para acceso desde el template
+  private readonly fuerzaSvc = inject(FuerzaService);
+  private readonly authSvc   = inject(AuthService);
+  private readonly toast     = inject(ToastService);
 
   ngOnInit(): void {
     const claims = this.authSvc.getJwtClaims();
     this.fuerzaId = claims.fuerzaId;
     // Cargar lista de fuerzas para el filtro
     this.fuerzaSvc.getFuerzas().pipe(takeUntil(this.destroy$)).subscribe({
-      next: r => this.fuerzas = (r.data ?? []).filter(f => f.vigente === 'S'),
+      next: r => this.fuerzas.set((r.data ?? []).filter(f => f.vigente === 'S')),
       error: () => this.toast.error('Error', 'No se pudo cargar la lista de fuerzas.')
     });
     this.cargar();
@@ -130,7 +128,7 @@ export class ReportesComponent implements OnInit, AfterViewInit, OnDestroy {
 
   ngAfterViewInit(): void {
     this.chartsListo = true;
-    if (this.datos) this.renderCharts();
+    if (this.datos()) this.renderCharts();
   }
 
   ngOnDestroy(): void {
@@ -153,24 +151,23 @@ export class ReportesComponent implements OnInit, AfterViewInit, OnDestroy {
 
   cargar(): void {
     if (!this.rangoValido()) return;
-    this.cargando = true;
-    this.error    = '';
+    this.cargando.set(true);
+    this.error.set('');
     this.svc.getReporte({ desde: this.desde, hasta: this.hasta, fuerzaId: this.fuerzaId, turnoVigilancia: this.turnoVigilancia || undefined })
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: r => {
-          this.cargando = false;
+          this.cargando.set(false);
           if (r.success) {
-            this.datos = r.data;
-            this.cdr.detectChanges();
+            this.datos.set(r.data);
             if (this.chartsListo) this.renderCharts();
           } else {
-            this.error = 'No se pudieron cargar los reportes.';
+            this.error.set('No se pudieron cargar los reportes.');
           }
         },
         error: () => {
-          this.cargando = false;
-          this.error = 'Error de comunicación con el servidor.';
+          this.cargando.set(false);
+          this.error.set('Error de comunicación con el servidor.');
         }
       });
   }
@@ -204,7 +201,7 @@ export class ReportesComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private renderCharts(): void {
-    if (!this.datos) return;
+    if (!this.datos()) return;
     this.destruirCharts();
     if (this.chartsTimeoutId !== null) clearTimeout(this.chartsTimeoutId);
     // Pequeño delay para asegurar que los canvas están en el DOM
@@ -218,8 +215,8 @@ export class ReportesComponent implements OnInit, AfterViewInit, OnDestroy {
 
   private renderChartOrigen(): void {
     const el = this.canvasOrigen()?.nativeElement;
-    if (!el || !this.datos?.porOrigen.length) return;
-    const data = this.datos.porOrigen;
+    if (!el || !this.datos()?.porOrigen.length) return;
+    const data = this.datos()!.porOrigen;
     this.chartOrigen = new Chart(el, {
       type: 'doughnut',
       data: {
@@ -251,8 +248,8 @@ export class ReportesComponent implements OnInit, AfterViewInit, OnDestroy {
 
   private renderChartHoras(): void {
     const el = this.canvasHoras()?.nativeElement;
-    if (!el || !this.datos?.porHora.length) return;
-    const data = this.datos.porHora;
+    if (!el || !this.datos()?.porHora.length) return;
+    const data = this.datos()!.porHora;
     const max  = Math.max(...data.map(h => h.total), 1);
     this.chartHoras = new Chart(el, {
       type: 'bar',
@@ -285,8 +282,8 @@ export class ReportesComponent implements OnInit, AfterViewInit, OnDestroy {
 
   private renderChartPrio(): void {
     const el = this.canvasPrio()?.nativeElement;
-    if (!el || !this.datos) return;
-    const r = this.datos.resumen;
+    if (!el || !this.datos()) return;
+    const r = this.datos()!.resumen;
     this.chartPrio = new Chart(el, {
       type: 'bar',
       data: {
@@ -320,13 +317,13 @@ export class ReportesComponent implements OnInit, AfterViewInit, OnDestroy {
 
   // ── Helpers de presentación ───────────────────────────────────────────────
 
-  get resumen(): DtoResumenReporte         { return this.datos!.resumen; }
-  get tiempos(): DtoTiemposAtencion        { return this.datos!.tiempos; }
-  get porOrigen(): DtoPorOrigen[]          { return this.datos!.porOrigen; }
-  get porFuerza(): DtoPorFuerza[]          { return this.datos!.porFuerza; }
-  get topCasos(): DtoTopCaso[]             { return this.datos!.topCasos; }
-  get sla(): DtoSlaItem[]                  { return this.datos!.sla; }
-  get porHora(): DtoPorHora[]              { return this.datos!.porHora; }
+  get resumen(): DtoResumenReporte         { return this.datos()!.resumen; }
+  get tiempos(): DtoTiemposAtencion        { return this.datos()!.tiempos; }
+  get porOrigen(): DtoPorOrigen[]          { return this.datos()!.porOrigen; }
+  get porFuerza(): DtoPorFuerza[]          { return this.datos()!.porFuerza; }
+  get topCasos(): DtoTopCaso[]             { return this.datos()!.topCasos; }
+  get sla(): DtoSlaItem[]                  { return this.datos()!.sla; }
+  get porHora(): DtoPorHora[]              { return this.datos()!.porHora; }
 
   formatMin = (m: number | null) => this.svc.formatMinutos(m);
   origenLbl = (o: string)         => this.svc.origenLabel(o);
@@ -369,23 +366,23 @@ export class ReportesComponent implements OnInit, AfterViewInit, OnDestroy {
   // ── R1 — Calidad ─────────────────────────────────────────────────────────
 
   cargarCalidad(): void {
-    this.cargandoCal = true;
+    this.cargandoCal.set(true);
     this.svc.getPorCalidad({ desde: this.desde, hasta: this.hasta, turnoVigilancia: this.turnoVigilancia || undefined })
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next:  r => {
-          this.calidad = r.data ?? [];
-          this._maxCalidad = Math.max(...this.calidad.map(c => c.total), 1);
-          this.cargandoCal = false;
-          this.cdr.detectChanges();
+          const data = r.data ?? [];
+          this.calidad.set(data);
+          this._maxCalidad = Math.max(...data.map(c => c.total), 1);
+          this.cargandoCal.set(false);
         },
-        error: () => { this.cargandoCal = false; this.toast.error('Error', 'No se pudo cargar el reporte de calidad.'); }
+        error: () => { this.cargandoCal.set(false); this.toast.error('Error', 'No se pudo cargar el reporte de calidad.'); }
       });
   }
 
   exportarCalidad(): void {
     this.svc.exportarCSV(
-      this.calidad as unknown as Record<string, unknown>[],
+      this.calidad() as unknown as Record<string, unknown>[],
       [
         { key: 'caliPedido',  label: 'Calidad' },
         { key: 'descripcion', label: 'Descripción' },
@@ -398,12 +395,12 @@ export class ReportesComponent implements OnInit, AfterViewInit, OnDestroy {
 
   private _maxCalidad = 1;
   maxCalidad(): number  { return this._maxCalidad; }
-  get totalCalidad(): number { return this.calidad.reduce((s, c) => s + c.total, 0); }
+  get totalCalidad(): number { return this.calidad().reduce((s, c) => s + c.total, 0); }
 
   // ── R2 — Pedidos efectivos ────────────────────────────────────────────────
 
   cargarEfectivos(): void {
-    this.cargandoEfe = true;
+    this.cargandoEfe.set(true);
     this.svc.getEfectivos({
       desde: this.desde, hasta: this.hasta,
       fuerzaId: this.fuerzaId || undefined,
@@ -412,22 +409,24 @@ export class ReportesComponent implements OnInit, AfterViewInit, OnDestroy {
       page: this.paginaEfe, limit: this.limitEfe,
     }).pipe(takeUntil(this.destroy$))
       .subscribe({
-        next:  r => { this.efectivos = r.data; this.cargandoEfe = false; this.cdr.detectChanges(); },
-        error: () => { this.cargandoEfe = false; this.toast.error('Error', 'No se pudo cargar el reporte.'); }
+        next:  r => { this.efectivos.set(r.data); this.cargandoEfe.set(false); },
+        error: () => { this.cargandoEfe.set(false); this.toast.error('Error', 'No se pudo cargar el reporte.'); }
       });
   }
 
   paginaAnteriorEfe(): void { if (this.paginaEfe > 1) { this.paginaEfe--; this.cargarEfectivos(); } }
   paginaSiguienteEfe(): void {
-    if (this.efectivos && this.paginaEfe * this.limitEfe < this.efectivos.total) {
+    const efectivos = this.efectivos();
+    if (efectivos && this.paginaEfe * this.limitEfe < efectivos.total) {
       this.paginaEfe++; this.cargarEfectivos();
     }
   }
 
   exportarEfectivos(): void {
-    if (!this.efectivos?.data.length) return;
+    const efectivos = this.efectivos();
+    if (!efectivos?.data.length) return;
     this.svc.exportarCSV(
-      this.efectivos.data as unknown as Record<string, unknown>[],
+      efectivos.data as unknown as Record<string, unknown>[],
       [
         { key: 'numeTelefono',   label: 'Teléfono'      },
         { key: 'numeLlamada',    label: 'Nro. Llamada'   },
@@ -453,7 +452,7 @@ export class ReportesComponent implements OnInit, AfterViewInit, OnDestroy {
   // ── R3 — Tiempos detalle ──────────────────────────────────────────────────
 
   cargarTiempos(): void {
-    this.cargandoTieDet = true;
+    this.cargandoTieDet.set(true);
     this.svc.getTiemposDetalle({
       desde: this.desde, hasta: this.hasta,
       fuerzaId: this.fuerzaId || undefined,
@@ -461,22 +460,24 @@ export class ReportesComponent implements OnInit, AfterViewInit, OnDestroy {
       turnoVigilancia: this.turnoVigilancia || undefined,
     }).pipe(takeUntil(this.destroy$))
       .subscribe({
-        next:  r => { this.tiemposDetalle = r.data; this.cargandoTieDet = false; this.cdr.detectChanges(); },
-        error: () => { this.cargandoTieDet = false; this.toast.error('Error', 'No se pudo cargar el reporte.'); }
+        next:  r => { this.tiemposDetalle.set(r.data); this.cargandoTieDet.set(false); },
+        error: () => { this.cargandoTieDet.set(false); this.toast.error('Error', 'No se pudo cargar el reporte.'); }
       });
   }
 
   paginaAnteriorTie(): void { if (this.paginaTieDet > 1) { this.paginaTieDet--; this.cargarTiempos(); } }
   paginaSiguienteTie(): void {
-    if (this.tiemposDetalle && this.paginaTieDet * this.limitTieDet < this.tiemposDetalle.total) {
+    const tiemposDetalle = this.tiemposDetalle();
+    if (tiemposDetalle && this.paginaTieDet * this.limitTieDet < tiemposDetalle.total) {
       this.paginaTieDet++; this.cargarTiempos();
     }
   }
 
   exportarTiempos(): void {
-    if (!this.tiemposDetalle?.data.length) return;
+    const tiemposDetalle = this.tiemposDetalle();
+    if (!tiemposDetalle?.data.length) return;
     this.svc.exportarCSV(
-      this.tiemposDetalle.data as unknown as Record<string, unknown>[],
+      tiemposDetalle.data as unknown as Record<string, unknown>[],
       [
         { key: 'seccional',            label: 'Seccional'       },
         { key: 'unidad',               label: 'Unidad'          },
@@ -500,18 +501,18 @@ export class ReportesComponent implements OnInit, AfterViewInit, OnDestroy {
   // ── R4 — Operadores ───────────────────────────────────────────────────────
 
   cargarOperadores(): void {
-    this.cargandoOpe = true;
+    this.cargandoOpe.set(true);
     this.svc.getTrabajoOperadores({ desde: this.desde, hasta: this.hasta, fuerzaId: this.fuerzaId || undefined, turnoVigilancia: this.turnoVigilancia || undefined })
       .pipe(takeUntil(this.destroy$))
       .subscribe({
-        next:  r => { this.operadores = r.data ?? []; this.cargandoOpe = false; this.cdr.detectChanges(); },
-        error: () => { this.cargandoOpe = false; this.toast.error('Error', 'No se pudo cargar el reporte.'); }
+        next:  r => { this.operadores.set(r.data ?? []); this.cargandoOpe.set(false); },
+        error: () => { this.cargandoOpe.set(false); this.toast.error('Error', 'No se pudo cargar el reporte.'); }
       });
   }
 
   exportarOperadores(): void {
     this.svc.exportarCSV(
-      this.operadores as unknown as Record<string, unknown>[],
+      this.operadores() as unknown as Record<string, unknown>[],
       [
         { key: 'usuario',            label: 'Usuario'              },
         { key: 'casosRecibidos',     label: 'Casos Recibidos'      },
@@ -529,7 +530,7 @@ export class ReportesComponent implements OnInit, AfterViewInit, OnDestroy {
   // ── R5 — Códigos ─────────────────────────────────────────────────────────
 
   cargarCodigos(): void {
-    this.cargandoCod = true;
+    this.cargandoCod.set(true);
     this.svc.getPorCodigo({
       desde: this.desde, hasta: this.hasta,
       fuerzaId: this.fuerzaId || undefined,
@@ -538,18 +539,18 @@ export class ReportesComponent implements OnInit, AfterViewInit, OnDestroy {
     }).pipe(takeUntil(this.destroy$))
       .subscribe({
         next:  r => {
-          this.codigos = r.data ?? [];
-          this._maxCodigo = Math.max(...this.codigos.map(c => c.total), 1);
-          this.cargandoCod = false;
-          this.cdr.detectChanges();
+          const data = r.data ?? [];
+          this.codigos.set(data);
+          this._maxCodigo = Math.max(...data.map(c => c.total), 1);
+          this.cargandoCod.set(false);
         },
-        error: () => { this.cargandoCod = false; this.toast.error('Error', 'No se pudo cargar el reporte.'); }
+        error: () => { this.cargandoCod.set(false); this.toast.error('Error', 'No se pudo cargar el reporte.'); }
       });
   }
 
   exportarCodigos(): void {
     this.svc.exportarCSV(
-      this.codigos as unknown as Record<string, unknown>[],
+      this.codigos() as unknown as Record<string, unknown>[],
       [
         { key: 'codigoCaso',  label: 'Código'      },
         { key: 'descripcion', label: 'Descripción' },

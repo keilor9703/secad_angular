@@ -11,16 +11,16 @@
         <i class="fa-solid fa-chart-bar"></i>
         Reportes y Estadísticas
       </h1>
-      @if (datos) {
+      @if (datos()) {
         <span class="rep-periodo">
           <i class="fa-regular fa-calendar"></i>
-          {{ datos.resumen.fechaDesde }} — {{ datos.resumen.fechaHasta }}
+          {{ datos()!.resumen.fechaDesde }} — {{ datos()!.resumen.fechaHasta }}
         </span>
       }
     </div>
-    <button class="ui-btn ghost sm" (click)="cargar()" [disabled]="cargando"
+    <button class="ui-btn ghost sm" (click)="cargar()" [disabled]="cargando()"
             title="Actualizar">
-      <i class="fa-solid fa-arrows-rotate" [class.fa-spin]="cargando"></i>
+      <i class="fa-solid fa-arrows-rotate" [class.fa-spin]="cargando()"></i>
       Actualizar
     </button>
   </div>
@@ -69,7 +69,7 @@
       <select id="rep-filtro-fuerza" class="ui-control rep-date-input"
               [(ngModel)]="fuerzaId" (change)="onFiltroChange()">
         <option [ngValue]="0">Todas las fuerzas</option>
-        @for (f of fuerzas; track f.id) {
+        @for (f of fuerzas(); track f.id) {
           <option [ngValue]="f.id">{{ f.descripcion }}</option>
         }
       </select>
@@ -101,14 +101,14 @@
   </div>
 
   <!-- ── Error ─────────────────────────────────────────────────────────── -->
-  @if (error) {
+  @if (error()) {
     <div class="rep-error">
-      <i class="fa-solid fa-triangle-exclamation"></i> {{ error }}
+      <i class="fa-solid fa-triangle-exclamation"></i> {{ error() }}
     </div>
   }
 
   <!-- ── Loading ───────────────────────────────────────────────────────── -->
-  @if (cargando && !datos) {
+  @if (cargando() && !datos()) {
     <div class="rep-loading">
       <i class="fa-solid fa-spinner fa-spin fa-2x"></i>
       <p>Calculando estadísticas…</p>
@@ -118,7 +118,7 @@
   <!-- ═══════════════════════════════════════════════════════════════════
        SECCIÓN: DASHBOARD (existente)
        ═══════════════════════════════════════════════════════════════════ -->
-  @if (seccion === 'dashboard' && datos) {
+  @if (seccion === 'dashboard' && datos()) {
 
     <!-- ── KPI Cards ────────────────────────────────────────────────── -->
     <div class="rep-kpis">
@@ -441,25 +441,25 @@
               </p>
             </div>
             <div class="rep-det__actions">
-              <button class="ui-btn ghost sm" (click)="cargarCalidad()" [disabled]="cargandoCal">
-                <i class="fa-solid fa-arrows-rotate" [class.fa-spin]="cargandoCal"></i>
+              <button class="ui-btn ghost sm" (click)="cargarCalidad()" [disabled]="cargandoCal()">
+                <i class="fa-solid fa-arrows-rotate" [class.fa-spin]="cargandoCal()"></i>
                 Actualizar
               </button>
-              <button class="ui-btn ghost sm" (click)="exportarCalidad()" [disabled]="!calidad.length">
+              <button class="ui-btn ghost sm" (click)="exportarCalidad()" [disabled]="!calidad().length">
                 <i class="fa-solid fa-file-csv"></i>
                 Exportar CSV
               </button>
             </div>
           </div>
 
-          @if (cargandoCal) {
+          @if (cargandoCal()) {
             <div class="rep-loading"><i class="fa-solid fa-spinner fa-spin"></i><p>Cargando…</p></div>
-          } @else if (!calidad.length) {
+          } @else if (!calidad().length) {
             <div class="rep-empty">Sin datos para el período seleccionado.</div>
           } @else {
             <!-- Tabla + barras visuales -->
             <div class="rep-cal-grid">
-              @for (c of calidad; track c.caliPedido) {
+              @for (c of calidad(); track c.caliPedido) {
                 <div class="rep-cal-row">
                   <div class="rep-cal-dot" [style.background]="calidadClr(c.caliPedido)"></div>
                   <div class="rep-cal-lbl">{{ c.descripcion }}</div>
@@ -501,26 +501,26 @@
                   <option [value]="op.value">{{ op.label }}</option>
                 }
               </select>
-              <button class="ui-btn ghost sm" (click)="cargarEfectivos()" [disabled]="cargandoEfe">
-                <i class="fa-solid fa-arrows-rotate" [class.fa-spin]="cargandoEfe"></i>
+              <button class="ui-btn ghost sm" (click)="cargarEfectivos()" [disabled]="cargandoEfe()">
+                <i class="fa-solid fa-arrows-rotate" [class.fa-spin]="cargandoEfe()"></i>
                 Actualizar
               </button>
               <button class="ui-btn ghost sm" (click)="exportarEfectivos()"
-                      [disabled]="!efectivos?.data?.length">
+                      [disabled]="!efectivos()?.data?.length">
                 <i class="fa-solid fa-file-csv"></i>
                 Exportar CSV
               </button>
             </div>
           </div>
 
-          @if (cargandoEfe) {
+          @if (cargandoEfe()) {
             <div class="rep-loading"><i class="fa-solid fa-spinner fa-spin"></i><p>Cargando…</p></div>
-          } @else if (!efectivos?.data?.length) {
+          } @else if (!efectivos()?.data?.length) {
             <div class="rep-empty">Sin datos para el período y filtro seleccionados.</div>
           } @else {
             <!-- Paginación -->
             <div class="rep-pag-bar">
-              <span class="rep-pag-info">{{ paginaInfo(efectivos!, paginaEfe, limitEfe) }}</span>
+              <span class="rep-pag-info">{{ paginaInfo(efectivos()!, paginaEfe, limitEfe) }}</span>
               <div class="rep-pag-btns">
                 <button class="ui-btn ghost xs" (click)="paginaAnteriorEfe()" [disabled]="paginaEfe <= 1"
                         aria-label="Página anterior">
@@ -528,7 +528,7 @@
                 </button>
                 <span class="rep-pag-page">Pág. {{ paginaEfe }}</span>
                 <button class="ui-btn ghost xs" (click)="paginaSiguienteEfe()"
-                        [disabled]="paginaEfe * limitEfe >= (efectivos?.total ?? 0)"
+                        [disabled]="paginaEfe * limitEfe >= (efectivos()?.total ?? 0)"
                         aria-label="Página siguiente">
                   <i class="fa-solid fa-chevron-right"></i>
                 </button>
@@ -556,7 +556,7 @@
                   </tr>
                 </thead>
                 <tbody>
-                  @for (r of efectivos!.data; track r.numeLlamada) {
+                  @for (r of efectivos()!.data; track r.numeLlamada) {
                     <tr [class.rep-row-efectivo]="r.caliPedido === 'REAL'">
                       <td class="rep-td-mono">{{ r.numeTelefono || '—' }}</td>
                       <td class="rep-td-mono rep-td-id">{{ r.numeLlamada }}</td>
@@ -603,25 +603,25 @@
               </p>
             </div>
             <div class="rep-det__actions">
-              <button class="ui-btn ghost sm" (click)="cargarTiempos()" [disabled]="cargandoTieDet">
-                <i class="fa-solid fa-arrows-rotate" [class.fa-spin]="cargandoTieDet"></i>
+              <button class="ui-btn ghost sm" (click)="cargarTiempos()" [disabled]="cargandoTieDet()">
+                <i class="fa-solid fa-arrows-rotate" [class.fa-spin]="cargandoTieDet()"></i>
                 Actualizar
               </button>
               <button class="ui-btn ghost sm" (click)="exportarTiempos()"
-                      [disabled]="!tiemposDetalle?.data?.length">
+                      [disabled]="!tiemposDetalle()?.data?.length">
                 <i class="fa-solid fa-file-csv"></i>
                 Exportar CSV
               </button>
             </div>
           </div>
 
-          @if (cargandoTieDet) {
+          @if (cargandoTieDet()) {
             <div class="rep-loading"><i class="fa-solid fa-spinner fa-spin"></i><p>Cargando…</p></div>
-          } @else if (!tiemposDetalle?.data?.length) {
+          } @else if (!tiemposDetalle()?.data?.length) {
             <div class="rep-empty">Sin datos para el período seleccionado.</div>
           } @else {
             <div class="rep-pag-bar">
-              <span class="rep-pag-info">{{ paginaInfo(tiemposDetalle!, paginaTieDet, limitTieDet) }}</span>
+              <span class="rep-pag-info">{{ paginaInfo(tiemposDetalle()!, paginaTieDet, limitTieDet) }}</span>
               <div class="rep-pag-btns">
                 <button class="ui-btn ghost xs" (click)="paginaAnteriorTie()" [disabled]="paginaTieDet <= 1"
                         aria-label="Página anterior">
@@ -629,7 +629,7 @@
                 </button>
                 <span class="rep-pag-page">Pág. {{ paginaTieDet }}</span>
                 <button class="ui-btn ghost xs" (click)="paginaSiguienteTie()"
-                        [disabled]="paginaTieDet * limitTieDet >= (tiemposDetalle?.total ?? 0)"
+                        [disabled]="paginaTieDet * limitTieDet >= (tiemposDetalle()?.total ?? 0)"
                         aria-label="Página siguiente">
                   <i class="fa-solid fa-chevron-right"></i>
                 </button>
@@ -655,7 +655,7 @@
                   </tr>
                 </thead>
                 <tbody>
-                  @for (r of tiemposDetalle!.data; track r.nroLlamada + r.unidad) {
+                  @for (r of tiemposDetalle()!.data; track r.nroLlamada + r.unidad) {
                     <tr>
                       <td class="rep-td-sm">{{ r.seccional }}</td>
                       <td class="rep-td-sm">
@@ -698,20 +698,20 @@
               </p>
             </div>
             <div class="rep-det__actions">
-              <button class="ui-btn ghost sm" (click)="cargarOperadores()" [disabled]="cargandoOpe">
-                <i class="fa-solid fa-arrows-rotate" [class.fa-spin]="cargandoOpe"></i>
+              <button class="ui-btn ghost sm" (click)="cargarOperadores()" [disabled]="cargandoOpe()">
+                <i class="fa-solid fa-arrows-rotate" [class.fa-spin]="cargandoOpe()"></i>
                 Actualizar
               </button>
-              <button class="ui-btn ghost sm" (click)="exportarOperadores()" [disabled]="!operadores.length">
+              <button class="ui-btn ghost sm" (click)="exportarOperadores()" [disabled]="!operadores().length">
                 <i class="fa-solid fa-file-csv"></i>
                 Exportar CSV
               </button>
             </div>
           </div>
 
-          @if (cargandoOpe) {
+          @if (cargandoOpe()) {
             <div class="rep-loading"><i class="fa-solid fa-spinner fa-spin"></i><p>Cargando…</p></div>
-          } @else if (!operadores.length) {
+          } @else if (!operadores().length) {
             <div class="rep-empty">Sin datos para el período seleccionado.</div>
           } @else {
             <div class="rep-tabla-scroll">
@@ -729,7 +729,7 @@
                   </tr>
                 </thead>
                 <tbody>
-                  @for (op of operadores; track op.usuario; let i = $index) {
+                  @for (op of operadores(); track op.usuario; let i = $index) {
                     <tr [class.rep-row-top]="i < 3">
                       <td>
                         <div class="rep-op-usuario">
@@ -784,24 +784,24 @@
                   <option [ngValue]="999">Todos</option>
                 </select>
               </div>
-              <button class="ui-btn ghost sm" (click)="cargarCodigos()" [disabled]="cargandoCod">
-                <i class="fa-solid fa-arrows-rotate" [class.fa-spin]="cargandoCod"></i>
+              <button class="ui-btn ghost sm" (click)="cargarCodigos()" [disabled]="cargandoCod()">
+                <i class="fa-solid fa-arrows-rotate" [class.fa-spin]="cargandoCod()"></i>
                 Actualizar
               </button>
-              <button class="ui-btn ghost sm" (click)="exportarCodigos()" [disabled]="!codigos.length">
+              <button class="ui-btn ghost sm" (click)="exportarCodigos()" [disabled]="!codigos().length">
                 <i class="fa-solid fa-file-csv"></i>
                 Exportar CSV
               </button>
             </div>
           </div>
 
-          @if (cargandoCod) {
+          @if (cargandoCod()) {
             <div class="rep-loading"><i class="fa-solid fa-spinner fa-spin"></i><p>Cargando…</p></div>
-          } @else if (!codigos.length) {
+          } @else if (!codigos().length) {
             <div class="rep-empty">Sin datos para el período seleccionado.</div>
           } @else {
             <div class="rep-cod-list">
-              @for (c of codigos; track c.codigoCaso; let i = $index) {
+              @for (c of codigos(); track c.codigoCaso; let i = $index) {
                 <div class="rep-cod-row">
                   <span class="rep-cod-rank">{{ i + 1 }}</span>
                   <span class="rep-badge-cod rep-badge-cod--lg">{{ c.codigoCaso }}</span>
