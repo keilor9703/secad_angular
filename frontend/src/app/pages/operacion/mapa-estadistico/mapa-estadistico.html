@@ -61,13 +61,13 @@
         <select id="gisCiudad" class="gis-input"
                 [(ngModel)]="filtro.ciudad"
                 (ngModelChange)="onCiudadChange()"
-                [disabled]="cargandoListas">
+                [disabled]="cargandoListas()">
           <option value="">Todas las ciudades</option>
-          @for (c of ciudades; track c) {
+          @for (c of ciudades(); track c) {
             <option [value]="c">{{ c }}</option>
           }
         </select>
-        @if (cargandoListas) {
+        @if (cargandoListas()) {
           <span class="gis-lista-cargando">
             <i class="fa-solid fa-spinner fa-spin"></i> Cargando…
           </span>
@@ -90,13 +90,13 @@
       <label class="gis-label" for="gisBarrio">Barrio / Sector</label>
       <select id="gisBarrio" class="gis-input"
               [(ngModel)]="filtro.barrio"
-              [disabled]="cargandoListas || barrios.length === 0">
+              [disabled]="cargandoListas() || barrios().length === 0">
         <option value="">Todos los barrios</option>
-        @for (b of barrios; track b) {
+        @for (b of barrios(); track b) {
           <option [value]="b">{{ b }}</option>
         }
       </select>
-      @if (!cargandoListas && barrios.length === 0) {
+      @if (!cargandoListas() && barrios().length === 0) {
         <span class="gis-lista-hint">Sin barrios disponibles</span>
       }
     </div>
@@ -111,14 +111,14 @@
 
     <!-- Acciones -->
     <div class="gis-filtros__acciones">
-      <button class="gis-btn gis-btn--primario" (click)="consultar()" [disabled]="cargando">
-        <i class="fa-solid fa-{{ cargando ? 'spinner fa-spin' : 'magnifying-glass-chart' }}"></i>
-        {{ cargando ? 'Analizando…' : 'Analizar' }}
+      <button class="gis-btn gis-btn--primario" (click)="consultar()" [disabled]="cargando()">
+        <i class="fa-solid fa-{{ cargando() ? 'spinner fa-spin' : 'magnifying-glass-chart' }}"></i>
+        {{ cargando() ? 'Analizando…' : 'Analizar' }}
       </button>
-      <button class="gis-btn gis-btn--secundario" (click)="limpiarFiltros()" [disabled]="cargando">
+      <button class="gis-btn gis-btn--secundario" (click)="limpiarFiltros()" [disabled]="cargando()">
         <i class="fa-solid fa-xmark"></i> Limpiar
       </button>
-      @if (consultado && !cargando) {
+      @if (consultado() && !cargando()) {
         <button class="gis-btn gis-btn--informe" (click)="generarInforme()"
                 title="Exportar informe para imprimir o guardar como PDF">
           <i class="fa-solid fa-file-pdf"></i> Generar informe
@@ -126,7 +126,7 @@
       }
     </div>
 
-    @if (errorCarga) {
+    @if (errorCarga()) {
       <div class="gis-error">
         <i class="fa-solid fa-triangle-exclamation"></i>
         Error al consultar. Verifique la conexión.
@@ -134,34 +134,34 @@
     }
 
     <!-- Resumen rápido (post-consulta) -->
-    @if (consultado) {
+    @if (consultado()) {
       <div class="gis-resumen">
         <div class="gis-resumen__titulo">
           <i class="fa-solid fa-chart-pie"></i> Resumen
         </div>
         <div class="gis-resumen__fila">
           <span>Total incidentes</span>
-          <strong>{{ metricas.total | number }}</strong>
+          <strong>{{ metricas().total | number }}</strong>
         </div>
         <div class="gis-resumen__fila gis-resumen__fila--flash">
           <span>Flash</span>
-          <strong>{{ metricas.totalFlash | number }}</strong>
+          <strong>{{ metricas().totalFlash | number }}</strong>
         </div>
         <div class="gis-resumen__fila gis-resumen__fila--inmd">
           <span>Inmediata</span>
-          <strong>{{ metricas.totalInmd | number }}</strong>
+          <strong>{{ metricas().totalInmd | number }}</strong>
         </div>
         <div class="gis-resumen__fila gis-resumen__fila--rut">
           <span>Rutina</span>
-          <strong>{{ metricas.totalRutina | number }}</strong>
+          <strong>{{ metricas().totalRutina | number }}</strong>
         </div>
         <div class="gis-resumen__fila">
           <span>Con coordenadas</span>
-          <strong>{{ metricas.conCoordenadas | number }}</strong>
+          <strong>{{ metricas().conCoordenadas | number }}</strong>
         </div>
         <div class="gis-resumen__fila">
           <span>En mapa</span>
-          <strong>{{ puntos.length | number }}</strong>
+          <strong>{{ puntos().length | number }}</strong>
         </div>
         @if (topCaso) {
           <div class="gis-resumen__insight">
@@ -214,7 +214,7 @@
       </div>
 
       <!-- Leyenda de calor -->
-      @if (capaActiva === 'calor' && consultado) {
+      @if (capaActiva === 'calor' && consultado()) {
         <div class="gis-leyenda-calor">
           <div class="gis-leyenda-calor__titulo">Densidad delincuencial</div>
           <div class="gis-leyenda-calor__barra"></div>
@@ -262,21 +262,21 @@
       }
 
       <!-- Estado vacío pre-consulta -->
-      @if (!consultado && !cargando) {
+      @if (!consultado() && !cargando()) {
         <div class="gis-mapa-overlay">
           <i class="fa-solid fa-magnifying-glass-chart fa-2x" style="color:#ccc"></i>
           <p>Configure los filtros y presione <strong>Analizar</strong></p>
         </div>
       }
 
-      @if (cargando) {
+      @if (cargando()) {
         <div class="gis-mapa-overlay">
           <i class="fa-solid fa-spinner fa-spin fa-2x" style="color:#003087"></i>
           <p>Procesando análisis estadístico…</p>
         </div>
       }
 
-      @if (consultado && puntos.length === 0 && !cargando) {
+      @if (consultado() && puntos().length === 0 && !cargando()) {
         <div class="gis-mapa-overlay">
           <i class="fa-solid fa-map-location-dot fa-2x" style="color:#ccc"></i>
           <p>No se encontraron incidentes con coordenadas<br>en el rango seleccionado.</p>
@@ -292,14 +292,14 @@
     <!-- ─── PANEL DE ESTADÍSTICAS ─────────────────────────────────────────── -->
     <div class="gis-stats">
 
-      @if (!consultado) {
+      @if (!consultado()) {
         <div class="gis-stats-vacio">
           <i class="fa-solid fa-chart-bar fa-2x" style="opacity:.2"></i>
           <p>Las estadísticas aparecerán<br>después de consultar.</p>
         </div>
       }
 
-      @if (consultado) {
+      @if (consultado()) {
 
         <!-- Distribución por prioridad (donut) -->
         <div class="gis-chart-card">
@@ -317,7 +317,7 @@
             <i class="fa-solid fa-ranking-star"></i> Top tipos de caso
           </div>
           <div class="gis-chart-wrap"
-               [style.height.px]="metricas.porTipoCaso.slice(0,12).length * 22 + 20"
+               [style.height.px]="metricas().porTipoCaso.slice(0,12).length * 22 + 20"
                style="min-height:120px">
             <canvas #chartTipo role="img" aria-label="Gráfica de los tipos de caso más frecuentes"></canvas>
           </div>
@@ -354,19 +354,19 @@
         </div>
 
         <!-- Top ciudades -->
-        @if (metricas.porCiudad.length > 0) {
+        @if (metricas().porCiudad.length > 0) {
           <div class="gis-chart-card">
             <div class="gis-chart-titulo">
               <i class="fa-solid fa-city"></i> Top ciudades / municipios
             </div>
             <div class="gis-lista-ciudad">
-              @for (c of metricas.porCiudad.slice(0, 8); track c.clave) {
+              @for (c of metricas().porCiudad.slice(0, 8); track c.clave) {
                 <div class="gis-ciudad-row">
                   <span class="gis-ciudad-nombre">{{ c.descripcion }}</span>
                   <div class="gis-ciudad-barra-track">
                     <div class="gis-ciudad-barra-fill"
-                         [style.width.%]="metricas.porCiudad[0]?.total
-                           ? (c.total / metricas.porCiudad[0].total * 100) : 0">
+                         [style.width.%]="metricas().porCiudad[0]?.total
+                           ? (c.total / metricas().porCiudad[0].total * 100) : 0">
                     </div>
                   </div>
                   <span class="gis-ciudad-total">{{ c.total | number }}</span>

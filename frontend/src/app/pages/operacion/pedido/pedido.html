@@ -21,19 +21,19 @@
         <!-- Tabs de navegación -->
         <div class="seg-tabs">
           <button type="button" class="seg-tab"
-                  [class.seg-tab--active]="vista === 'dashboard'"
+                  [class.seg-tab--active]="vista() === 'dashboard'"
                   (click)="setVista('dashboard')">
             <i class="fa-solid fa-chart-line"></i>
             <span>Dashboard</span>
           </button>
           <button type="button" class="seg-tab"
-                  [class.seg-tab--active]="vista === 'incidentes'"
+                  [class.seg-tab--active]="vista() === 'incidentes'"
                   (click)="setVista('incidentes')">
             <i class="fa-solid fa-list-check"></i>
             <span>Incidentes</span>
           </button>
           <button type="button" class="seg-tab"
-                  [class.seg-tab--active]="vista === 'kpis'"
+                  [class.seg-tab--active]="vista() === 'kpis'"
                   (click)="setVista('kpis')">
             <i class="fa-solid fa-chart-bar"></i>
             <span>KPIs</span>
@@ -43,8 +43,8 @@
         <!-- Acciones de cabecera -->
         <div class="seg-head-actions">
           <span class="seg-refresh-label">
-            <i class="fa-solid fa-arrows-rotate" [class.fa-spin]="loading"></i>
-            {{ lastRefresh | date:'HH:mm:ss' }}
+            <i class="fa-solid fa-arrows-rotate" [class.fa-spin]="loading()"></i>
+            {{ lastRefresh() | date:'HH:mm:ss' }}
           </span>
           <button type="button" class="ui-btn sm secondary"
                   title="Actualizar ahora" (click)="cargarLista()">
@@ -74,11 +74,11 @@
       <!-- ════════════════════════════════════════════════════════════════════════
            TAB: DASHBOARD — Panorama situacional en tiempo real
            ════════════════════════════════════════════════════════════════════════ -->
-      @if (vista === 'dashboard') {
+      @if (vista() === 'dashboard') {
         <div class="seg-dashboard">
 
           <!-- Estado de carga inicial -->
-          @if (loading && stats.total === 0) {
+          @if (loading() && stats().total === 0) {
             <div class="seg-loading">
               <i class="fa-solid fa-spinner fa-spin"></i>
               Cargando panorama del turno…
@@ -86,7 +86,7 @@
           }
 
           <!-- ── Banda informativa del turno vigente ────────────────────── -->
-          @if (conteos) {
+          @if (conteos(); as conteos) {
             <div class="seg-turno-strip">
               <i class="fa-solid fa-shield-halved"></i>
               <span class="seg-turno-strip__nombre">{{ getTurnoLabel() }}</span>
@@ -108,7 +108,7 @@
 
             <div class="seg-stat-card seg-stat-card--total">
               <i class="fa-solid fa-inbox seg-stat-card__ico"></i>
-              <div class="seg-stat-card__val">{{ stats.total }}</div>
+              <div class="seg-stat-card__val">{{ stats().total }}</div>
               <div class="seg-stat-card__lbl">En cola CAD</div>
               <div class="seg-stat-card__sub">activos + pendientes + cerrados</div>
             </div>
@@ -116,27 +116,27 @@
             <div class="seg-stat-card seg-stat-card--activo"
                  (click)="filtroEstado='A'; setVista('incidentes')" style="cursor:pointer">
               <i class="fa-solid fa-circle-dot seg-stat-card__ico"></i>
-              <div class="seg-stat-card__val">{{ stats.activos }}</div>
+              <div class="seg-stat-card__val">{{ stats().activos }}</div>
               <div class="seg-stat-card__lbl">Activos</div>
             </div>
 
             <div class="seg-stat-card seg-stat-card--pendiente"
                  (click)="filtroEstado='P'; setVista('incidentes')" style="cursor:pointer">
               <i class="fa-solid fa-clock seg-stat-card__ico"></i>
-              <div class="seg-stat-card__val">{{ stats.pendientes }}</div>
+              <div class="seg-stat-card__val">{{ stats().pendientes }}</div>
               <div class="seg-stat-card__lbl">Pendientes</div>
             </div>
 
             <div class="seg-stat-card seg-stat-card--cerrado"
                  (click)="filtroEstado='C'; setVista('incidentes')" style="cursor:pointer">
               <i class="fa-solid fa-check-circle seg-stat-card__ico"></i>
-              <div class="seg-stat-card__val">{{ stats.cerrados }}</div>
+              <div class="seg-stat-card__val">{{ stats().cerrados }}</div>
               <div class="seg-stat-card__lbl">Cerrados</div>
             </div>
 
             <div class="seg-stat-card seg-stat-card--critico">
               <i class="fa-solid fa-triangle-exclamation seg-stat-card__ico"></i>
-              <div class="seg-stat-card__val">{{ stats.criticos }}</div>
+              <div class="seg-stat-card__val">{{ stats().criticos }}</div>
               <div class="seg-stat-card__lbl">Críticos 🔴</div>
             </div>
 
@@ -157,28 +157,28 @@
                   <span class="seg-prio-bar__label prio-flash-label">FLASH</span>
                   <div class="seg-prio-bar__track">
                     <div class="seg-prio-bar__fill seg-prio-bar__fill--flash"
-                         [style.width.%]="stats.total ? (stats.flash / stats.total * 100) : 0">
+                         [style.width.%]="stats().total ? (stats().flash / stats().total * 100) : 0">
                     </div>
                   </div>
-                  <span class="seg-prio-bar__count">{{ stats.flash }}</span>
+                  <span class="seg-prio-bar__count">{{ stats().flash }}</span>
                 </div>
                 <div class="seg-prio-bar">
                   <span class="seg-prio-bar__label prio-inmd-label">INMEDIATA</span>
                   <div class="seg-prio-bar__track">
                     <div class="seg-prio-bar__fill seg-prio-bar__fill--inmediata"
-                         [style.width.%]="stats.total ? (stats.inmediata / stats.total * 100) : 0">
+                         [style.width.%]="stats().total ? (stats().inmediata / stats().total * 100) : 0">
                     </div>
                   </div>
-                  <span class="seg-prio-bar__count">{{ stats.inmediata }}</span>
+                  <span class="seg-prio-bar__count">{{ stats().inmediata }}</span>
                 </div>
                 <div class="seg-prio-bar">
                   <span class="seg-prio-bar__label prio-rutina-label">RUTINA</span>
                   <div class="seg-prio-bar__track">
                     <div class="seg-prio-bar__fill seg-prio-bar__fill--rutina"
-                         [style.width.%]="stats.total ? (stats.rutina / stats.total * 100) : 0">
+                         [style.width.%]="stats().total ? (stats().rutina / stats().total * 100) : 0">
                     </div>
                   </div>
-                  <span class="seg-prio-bar__count">{{ stats.rutina }}</span>
+                  <span class="seg-prio-bar__count">{{ stats().rutina }}</span>
                 </div>
               </div>
 
@@ -203,10 +203,10 @@
                   <span class="seg-origen-label">{{ getOrigenLabel(key) }}</span>
                   <div class="seg-origen-bar__track">
                     <div class="seg-origen-bar__fill"
-                         [style.width.%]="stats.total ? (stats.porOrigen[key] / stats.total * 100) : 0">
+                         [style.width.%]="stats().total ? (stats().porOrigen[key] / stats().total * 100) : 0">
                     </div>
                   </div>
-                  <span class="seg-origen-count">{{ stats.porOrigen[key] }}</span>
+                  <span class="seg-origen-count">{{ stats().porOrigen[key] }}</span>
                 </div>
               }
             </div>
@@ -215,12 +215,12 @@
 
 
           <!-- ── Incidentes críticos ────────────────────────────────────── -->
-          @if (stats.criticos > 0) {
+          @if (stats().criticos > 0) {
             <div class="seg-criticos-block">
               <div class="seg-criticos-block__head">
                 <i class="fa-solid fa-siren-on" style="color:#ef4444"></i>
                 Incidentes que superan el umbral de tiempo
-                <span class="seg-criticos-block__badge">{{ stats.criticos }}</span>
+                <span class="seg-criticos-block__badge">{{ stats().criticos }}</span>
                 <span class="seg-criticos-block__sub">— haga clic para ver la trazabilidad</span>
               </div>
               <div class="seg-criticos-list">
@@ -249,7 +249,7 @@
             </div>
           }
 
-          @if (!loading && stats.total === 0) {
+          @if (!loading() && stats().total === 0) {
             <div class="seg-empty-state">
               <i class="fa-solid fa-shield-halved"></i>
               <p>No hay incidentes registrados en el turno actual.<br>
@@ -264,7 +264,7 @@
       <!-- ════════════════════════════════════════════════════════════════════════
            TAB: INCIDENTES — Lista + Trazabilidad
            ════════════════════════════════════════════════════════════════════════ -->
-      @if (vista === 'incidentes') {
+      @if (vista() === 'incidentes') {
         <div class="seg-inc-layout">
 
           <!-- ═══ COLUMNA IZQUIERDA — lista ════════════════════════════════════ -->
@@ -350,17 +350,17 @@
               </span>
               <button type="button" class="seg-refresh-btn"
                       (click)="cargarLista()" title="Actualizar">
-                <i class="fa-solid fa-arrows-rotate" [class.fa-spin]="loading"></i>
+                <i class="fa-solid fa-arrows-rotate" [class.fa-spin]="loading()"></i>
               </button>
             </div>
 
             <!-- Estado de carga / vacío -->
-            @if (loading && listadoFiltrado.length === 0) {
+            @if (loading() && listadoFiltrado.length === 0) {
               <div class="seg-list-loading">
                 <i class="fa-solid fa-spinner fa-spin"></i> Cargando incidentes…
               </div>
             }
-            @if (!loading && listadoFiltrado.length === 0) {
+            @if (!loading() && listadoFiltrado.length === 0) {
               <div class="seg-empty-list">
                 <i class="fa-solid fa-inbox"></i>
                 <p>Sin resultados para los filtros aplicados.</p>
@@ -372,7 +372,7 @@
               @for (item of listadoFiltrado; track item.id) {
                 <div class="seg-item"
                      [ngClass]="getSemaforoClass(item)"
-                     [class.seg-item--sel]="item.id === selectedId"
+                     [class.seg-item--sel]="item.id === selectedId()"
                      (click)="seleccionarIncidente(item)">
 
                   <div class="seg-item__strip"></div>
@@ -439,15 +439,15 @@
             @if (totalPaginas > 1) {
               <div class="seg-pager">
                 <button type="button" class="ui-btn xs ghost"
-                        [disabled]="paginaActual <= 1 || loading"
+                        [disabled]="paginaActual <= 1 || loading()"
                         (click)="irAPagina(paginaActual - 1)">
                   <i class="fa-solid fa-chevron-left"></i>
                 </button>
                 <span class="seg-pager__info">
-                  Página {{ paginaActual }} de {{ totalPaginas }} · {{ totalPedidos }} en total
+                  Página {{ paginaActual }} de {{ totalPaginas }} · {{ totalPedidos() }} en total
                 </span>
                 <button type="button" class="ui-btn xs ghost"
-                        [disabled]="paginaActual >= totalPaginas || loading"
+                        [disabled]="paginaActual >= totalPaginas || loading()"
                         (click)="irAPagina(paginaActual + 1)">
                   <i class="fa-solid fa-chevron-right"></i>
                 </button>
@@ -461,7 +461,7 @@
           <div class="seg-col-detail">
 
             <!-- Estado vacío: ningún incidente seleccionado -->
-            @if (!selectedId) {
+            @if (!selectedId()) {
               <div class="seg-empty-state">
                 <i class="fa-solid fa-timeline"></i>
                 <p>Seleccione un incidente de la lista<br>para visualizar su trazabilidad completa.</p>
@@ -469,14 +469,14 @@
             }
 
             <!-- Cargando detalle -->
-            @if (selectedId && loadingDetalle) {
+            @if (selectedId() && loadingDetalle()) {
               <div class="seg-loading">
                 <i class="fa-solid fa-spinner fa-spin"></i> Cargando trazabilidad…
               </div>
             }
 
             <!-- Detalle completo -->
-            @if (selectedId && !loadingDetalle && detalle) {
+            @if (selectedId() && !loadingDetalle() && detalle(); as detalle) {
               <div class="seg-detail-scroll">
 
                 <!-- Cabecera del detalle (color semáforo) -->
@@ -557,7 +557,7 @@
                 </div>
 
                 <!-- ── Canal del evento (cuando no hay actuaciones registradas) ── -->
-                @if (actuaciones.length === 0 && (detalle.canalDescripcion || detalle.fuerzaDescripcion)) {
+                @if (actuaciones().length === 0 && (detalle.canalDescripcion || detalle.fuerzaDescripcion)) {
                   <div class="seg-canales-bloque">
                     <div class="seg-canales-bloque__titulo">
                       <i class="fa-solid fa-headset"></i>
@@ -590,17 +590,17 @@
                 }
 
                 <!-- ── Canales de atención con recursos despachados ────────── -->
-                @if (actuaciones.length > 0) {
+                @if (actuaciones().length > 0) {
                   <div class="seg-canales-bloque">
                     <div class="seg-canales-bloque__titulo">
                       <i class="fa-solid fa-headset"></i>
                       Canales de atención
                       <span class="seg-canales-bloque__badge">
-                        {{ actuaciones.length }} canal{{ actuaciones.length !== 1 ? 'es' : '' }}
+                        {{ actuaciones().length }} canal{{ actuaciones().length !== 1 ? 'es' : '' }}
                       </span>
                     </div>
                     <div class="seg-canales-lista">
-                      @for (act of actuaciones; track act.id) {
+                      @for (act of actuaciones(); track act.id) {
                         <div class="seg-canal-item"
                              [class.seg-canal-item--activo]="act.estado === 'D' || act.estado === 'A'"
                              [class.seg-canal-item--cerrado]="act.estado === 'C' || act.estado === 'V'">
@@ -649,7 +649,7 @@
                       }
                     </div>
                   </div>
-                } @else if (!loadingDetalle) {
+                } @else if (!loadingDetalle()) {
                   <div class="seg-canales-bloque seg-canales-bloque--vacio">
                     <i class="fa-solid fa-headset" style="opacity:.4"></i>
                     <span>Sin canales de atención asignados</span>
@@ -845,21 +845,21 @@
                       <i class="fa-solid fa-timeline"></i>
                       Historia clínica del incidente
                       <span class="seg-tl-count">
-                        {{ timeline.length }} evento{{ timeline.length !== 1 ? 's' : '' }}
+                        {{ timeline().length }} evento{{ timeline().length !== 1 ? 's' : '' }}
                       </span>
                     </div>
 
                     @if (detalle.estado !== 'C') {
                       <button type="button" class="ui-btn sm primary"
-                              (click)="showAnotForm = !showAnotForm">
-                        <i class="fa-solid fa-{{ showAnotForm ? 'xmark' : 'eye' }}"></i>
-                        {{ showAnotForm ? 'Cancelar' : 'Anotar supervisión' }}
+                              (click)="showAnotForm.set(!showAnotForm())">
+                        <i class="fa-solid fa-{{ showAnotForm() ? 'xmark' : 'eye' }}"></i>
+                        {{ showAnotForm() ? 'Cancelar' : 'Anotar supervisión' }}
                       </button>
                     }
                   </div>
 
                   <!-- Formulario anotación supervisora -->
-                  @if (showAnotForm) {
+                  @if (showAnotForm()) {
                     <div class="seg-anot-form">
                       <div class="seg-anot-form__tag">
                         <i class="fa-solid fa-eye"></i> Jefe de Turno — Supervisión
@@ -883,16 +883,16 @@
                       </div>
                       <div class="seg-anot-form__foot">
                         <button type="button" class="ui-btn sm secondary"
-                                (click)="showAnotForm = false">
+                                (click)="showAnotForm.set(false)">
                           <i class="fa-solid fa-xmark"></i> Cancelar
                         </button>
                         <button type="button" class="ui-btn sm primary"
                                 (click)="guardarAnotacion()"
-                                [disabled]="savingAnotacion">
+                                [disabled]="savingAnotacion()">
                           <i class="fa-solid fa-{{
-                            savingAnotacion ? 'spinner fa-spin' : 'eye'
+                            savingAnotacion() ? 'spinner fa-spin' : 'eye'
                           }}"></i>
-                          {{ savingAnotacion ? 'Registrando…' : 'Registrar en trazabilidad' }}
+                          {{ savingAnotacion() ? 'Registrando…' : 'Registrar en trazabilidad' }}
                         </button>
                       </div>
                     </div>
@@ -900,14 +900,14 @@
 
                   <!-- Timeline de eventos -->
                   <div class="seg-timeline">
-                    @if (timeline.length === 0) {
+                    @if (timeline().length === 0) {
                       <div class="seg-tl-empty">
                         <i class="fa-solid fa-timeline"></i>
                         Sin eventos registrados en la trazabilidad.
                       </div>
                     }
 
-                    @for (ev of timeline; track $index) {
+                    @for (ev of timeline(); track $index) {
                       <div class="seg-tl-item" [class]="'seg-tl-item--' + ev.colorClass">
 
                         <!-- Marcador izquierdo: ícono + línea vertical -->
@@ -998,12 +998,12 @@
                                       class="seg-tl-act-equipo-btn"
                                       (click)="toggleEquipo(ev.actuacion.actId)">
                                 <i class="fa-solid fa-{{
-                                  equipoCargando[ev.actuacion.actId] ? 'spinner fa-spin' :
-                                  (equipoExpandido[ev.actuacion.actId] ? 'chevron-up' : 'users')
+                                  equipoCargando()[ev.actuacion.actId] ? 'spinner fa-spin' :
+                                  (equipoExpandido()[ev.actuacion.actId] ? 'chevron-up' : 'users')
                                 }}"></i>
-                                @if (equipoCargando[ev.actuacion.actId]) {
+                                @if (equipoCargando()[ev.actuacion.actId]) {
                                   Cargando…
-                                } @else if (equipoExpandido[ev.actuacion.actId]) {
+                                } @else if (equipoExpandido()[ev.actuacion.actId]) {
                                   Ocultar equipo
                                 } @else {
                                   Ver equipo ({{ ev.actuacion.totalUnidades }})
@@ -1012,15 +1012,15 @@
                             </div>
 
                             <!-- Panel de equipo expandible (lazy) -->
-                            @if (equipoExpandido[ev.actuacion.actId]) {
+                            @if (equipoExpandido()[ev.actuacion.actId]) {
                               <div class="seg-tl-act-equipo">
-                                @if (!equipoDetalle[ev.actuacion.actId] || equipoDetalle[ev.actuacion.actId].length === 0) {
+                                @if (!equipoDetalle()[ev.actuacion.actId] || equipoDetalle()[ev.actuacion.actId].length === 0) {
                                   <p class="seg-tl-act-equipo__vacio">
                                     <i class="fa-solid fa-info-circle"></i>
                                     Solo la unidad principal está registrada.
                                   </p>
                                 }
-                                @for (u of (equipoDetalle[ev.actuacion.actId] ?? []); track u.id) {
+                                @for (u of (equipoDetalle()[ev.actuacion.actId] ?? []); track u.id) {
                                   <div class="seg-tl-act-equipo__item">
                                     <i class="fa-solid fa-user-shield"></i>
                                     <span class="seg-tl-act-equipo__cod">{{ u.unidadCodigo }}</span>
@@ -1072,15 +1072,15 @@
                 </div><!-- /seg-tl-section -->
 
                 <!-- FOTOS ADJUNTAS DEL CASO -->
-                @if (adjuntos.length > 0) {
+                @if (adjuntos().length > 0) {
                   <div class="seg-section seg-tl-section">
                     <div class="seg-section__head">
                       <i class="fa-solid fa-camera"></i>
                       Fotos adjuntas
-                      <span class="seg-badge">{{ adjuntos.length }}</span>
+                      <span class="seg-badge">{{ adjuntos().length }}</span>
                     </div>
                     <div class="ev-adjuntos-grid">
-                      @for (adj of adjuntos; track adj.id) {
+                      @for (adj of adjuntos(); track adj.id) {
                         <a [href]="adj.urlPublica" target="_blank"
                            class="ev-adjunto-card" [title]="adj.nombreOriginal">
                           <div class="ev-adjunto-card__img">
@@ -1111,7 +1111,7 @@
       <!-- ════════════════════════════════════════════════════════════════════════
            TAB: KPIs — Indicadores de eficiencia operativa
            ════════════════════════════════════════════════════════════════════════ -->
-      @if (vista === 'kpis') {
+      @if (vista() === 'kpis') {
         <div class="seg-kpis-view">
 
           <!-- Título y meta-info -->
@@ -1121,17 +1121,17 @@
               Indicadores de eficiencia — Cola CAD completa
             </div>
             <div class="seg-kpis-header__meta">
-              {{ stats.total }} incidentes · Actualizado: {{ lastRefresh | date:'HH:mm:ss' }}
+              {{ stats().total }} incidentes · Actualizado: {{ lastRefresh() | date:'HH:mm:ss' }}
               <button type="button" class="seg-refresh-btn" (click)="cargarLista()"
                       title="Recalcular">
-                <i class="fa-solid fa-arrows-rotate" [class.fa-spin]="loading"></i>
+                <i class="fa-solid fa-arrows-rotate" [class.fa-spin]="loading()"></i>
               </button>
             </div>
           </div>
 
           <!-- Tarjetas KPI -->
           <div class="seg-kpi-grid">
-            @for (kpi of kpis; track kpi.label) {
+            @for (kpi of kpis(); track kpi.label) {
               <div class="seg-kpi-card"
                    [class.seg-kpi-card--ok]="kpi.cumple"
                    [class.seg-kpi-card--alert]="!kpi.cumple">
@@ -1172,7 +1172,7 @@
               Distribución por operador / receptor
             </div>
 
-            @if (operadores.length === 0) {
+            @if (operadores().length === 0) {
               <p class="seg-empty-hint">Sin datos de operadores disponibles.</p>
             } @else {
               <div class="seg-op-table-wrap">
@@ -1188,7 +1188,7 @@
                     </tr>
                   </thead>
                   <tbody>
-                    @for (op of operadores; track op.username) {
+                    @for (op of operadores(); track op.username) {
                       <tr [class.seg-op-row--alert]="op.criticos > 0">
                         <td><strong>{{ op.username }}</strong></td>
                         <td>{{ op.total }}</td>

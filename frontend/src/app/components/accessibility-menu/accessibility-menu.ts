@@ -1,70 +1,67 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { Component, OnInit, OnDestroy, ChangeDetectionStrategy, computed, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+
 import { AccessibilityService, AccessibilityState } from '../../core/services/accessibility.service';
 import { SpeechToTextService } from '../../core/services/speech-to-text.service';
 import { TextToSpeechService } from '../../core/services/text-to-speech.service';
-import { Subject } from 'rxjs';
-import { takeUntil } from 'rxjs/operators';
 
 @Component({
   selector: 'app-accessibility-menu',
   templateUrl: './accessibility-menu.html',
   styleUrls: ['./accessibility-menu.scss'],
   standalone: true,
-  imports: [CommonModule],
+  imports: [],
   host: {
     'class': 'accessibility-menu-host'
-  }
+  },
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class AccessibilityMenuComponent implements OnInit, OnDestroy {
-  accessibility: AccessibilityState = {
+  private readonly accessibilityService = inject(AccessibilityService);
+  private readonly speechToTextService  = inject(SpeechToTextService);
+  private readonly textToSpeechService  = inject(TextToSpeechService);
+
+  readonly accessibility = signal<AccessibilityState>({
     darkMode: false,
     fontSize: 2 // nivel por defecto (normal)
-  };
+  });
 
-  isListening = false;
-  isSpeaking = false;
-  speechToTextAvailable = false;
-  textToSpeechAvailable = false;
+  readonly isListening = signal(false);
+  readonly isSpeaking  = signal(false);
 
-  private destroy$ = new Subject<void>();
+  /** Se resuelve una sola vez al construir — no cambia durante la vida del componente. */
+  readonly speechToTextAvailable = this.speechToTextService.isAvailable();
+  readonly textToSpeechAvailable = this.textToSpeechService.isAvailable();
 
-  constructor(
-    private accessibilityService: AccessibilityService,
-    private speechToTextService: SpeechToTextService,
-    private textToSpeechService: TextToSpeechService
-  ) {
-    this.speechToTextAvailable = this.speechToTextService.isAvailable();
-    this.textToSpeechAvailable = this.textToSpeechService.isAvailable();
-  }
+  readonly isDarkMode      = computed(() => this.accessibility().darkMode);
+  readonly isFontSizeSmall = computed(() => this.accessibility().fontSize === 0);
+  readonly isFontSizeLarge = computed(() => this.accessibility().fontSize === 6);
+  readonly currentFontLevel = computed(() => `${this.accessibility().fontSize + 1}/7`);
+  readonly fontSizeLabel = computed(() => {
+    const labels = ['Muy pequeña', 'Pequeña', 'Normal', 'Mediana', 'Grande', 'Muy grande', 'Extra grande'];
+    return labels[this.accessibility().fontSize] || 'Normal';
+  });
 
   ngOnInit(): void {
     // Suscribirse a cambios de accesibilidad
     this.accessibilityService.accessibility$
-      .pipe(takeUntil(this.destroy$))
-      .subscribe((state) => {
-        this.accessibility = state;
-      });
+      .pipe(takeUntilDestroyed())
+      .subscribe((state) => this.accessibility.set(state));
 
     // Suscribirse al estado de escucha
     this.speechToTextService.listening$
-      .pipe(takeUntil(this.destroy$))
-      .subscribe((listening) => {
-        this.isListening = listening;
-      });
+      .pipe(takeUntilDestroyed())
+      .subscribe((listening) => this.isListening.set(listening));
 
     // Suscribirse al estado de síntesis
     this.textToSpeechService.speaking$
-      .pipe(takeUntil(this.destroy$))
-      .subscribe((speaking) => {
-        this.isSpeaking = speaking;
-      });
+      .pipe(takeUntilDestroyed())
+      .subscribe((speaking) => this.isSpeaking.set(speaking));
   }
 
   ngOnDestroy(): void {
-    this.destroy$.next();
-    this.destroy$.complete();
-    // Detener cualquier proceso de voz pendiente
+    // Detener cualquier proceso de voz pendiente — no es limpieza de suscripción
+    // (eso ya lo hace takeUntilDestroyed), es apagar micrófono/síntesis activos.
     this.speechToTextService.stopListening();
     this.textToSpeechService.stop();
   }
@@ -86,33 +83,12 @@ export class AccessibilityMenuComponent implements OnInit, OnDestroy {
   }
 
   toggleTextToSpeech(): void {
-    if (this.isSpeaking) {
+    if (this.isSpeaking()) {
       this.textToSpeechService.stop();
-      this.isSpeaking = false;
+      this.isSpeaking.set(false);
     } else {
-      this.isSpeaking = true;
+      this.isSpeaking.set(true);
       this.textToSpeechService.toggleSpeaking();
     }
-  }
-
-  get isDarkMode(): boolean {
-    return this.accessibility.darkMode;
-  }
-
-  get isFontSizeSmall(): boolean {
-    return this.accessibility.fontSize === 0;
-  }
-
-  get isFontSizeLarge(): boolean {
-    return this.accessibility.fontSize === 6;
-  }
-
-  get currentFontLevel(): string {
-    return `${this.accessibility.fontSize + 1}/7`;
-  }
-
-  get fontSizeLabel(): string {
-    const labels = ['Muy pequeña', 'Pequeña', 'Normal', 'Mediana', 'Grande', 'Muy grande', 'Extra grande'];
-    return labels[this.accessibility.fontSize] || 'Normal';
   }
 }

@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, ChangeDetectionStrategy, OnInit, inject, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { NoticiaService, DtoNoticia } from '../../core/services/administracion/noticia.service';
 import { environment } from '../../../environments/environment';
@@ -8,84 +8,79 @@ import { environment } from '../../../environments/environment';
   standalone: true,
   imports: [CommonModule],
   templateUrl: './noticias.html',
-  styleUrl: './noticias.scss'
+  styleUrl: './noticias.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class NoticiasWeb implements OnInit {
+  private readonly noticiaService = inject(NoticiaService);
+
   minimized = false;
   closed = false;
-  isLoading = true;
-  hasError = false;
-  errorMessage = '';
+  readonly isLoading = signal(true);
+  readonly hasError = signal(false);
+  readonly errorMessage = signal('');
 
-  currentPage = 1;
-  itemsPerPage = 8;
-  totalPages = 0;
+  readonly currentPage = signal(1);
+  readonly itemsPerPage = 8;
+  readonly totalPages = computed(() => Math.ceil(this.news().length / this.itemsPerPage));
 
-  news: DtoNoticia[] = [];
+  readonly news = signal<DtoNoticia[]>([]);
 
   modalOpen = false;
   selectedNoticia: DtoNoticia | null = null;
-  liked = false;
+  readonly liked = signal(false);
 
-  constructor(private noticiaService: NoticiaService) {}
+  readonly paginatedNews = computed(() => {
+    const startIndex = (this.currentPage() - 1) * this.itemsPerPage;
+    return this.news().slice(startIndex, startIndex + this.itemsPerPage);
+  });
+
+  readonly pageNumbers = computed(() =>
+    Array.from({ length: this.totalPages() }, (_, i) => i + 1)
+  );
 
   ngOnInit(): void {
     this.loadNoticias();
   }
 
   loadNoticias(): void {
-    this.isLoading = true;
-    this.hasError = false;
-    this.errorMessage = '';
+    this.isLoading.set(true);
+    this.hasError.set(false);
+    this.errorMessage.set('');
 
     this.noticiaService.getActivas().subscribe({
       next: (news) => {
-        this.news = news.sort((a, b) => 
+        this.news.set(news.sort((a, b) =>
           new Date(b.fechaCreacion).getTime() - new Date(a.fechaCreacion).getTime()
-        );
-        this.currentPage = 1;
-        this.calculateTotalPages();
-        this.isLoading = false;
+        ));
+        this.currentPage.set(1);
+        this.isLoading.set(false);
       },
       error: () => {
-        this.isLoading = false;
-        this.hasError = true;
-        this.errorMessage = 'No fue posible cargar las noticias. Intente nuevamente.';
+        this.isLoading.set(false);
+        this.hasError.set(true);
+        this.errorMessage.set('No fue posible cargar las noticias. Intente nuevamente.');
       }
     });
   }
 
-  calculateTotalPages(): void {
-    this.totalPages = Math.ceil(this.news.length / this.itemsPerPage);
-  }
-
-  get paginatedNews(): DtoNoticia[] {
-    const startIndex = (this.currentPage - 1) * this.itemsPerPage;
-    const endIndex = startIndex + this.itemsPerPage;
-    return this.news.slice(startIndex, endIndex);
-  }
-
-  get pageNumbers(): number[] {
-    return Array.from({ length: this.totalPages }, (_, i) => i + 1);
-  }
-
   goToPage(page: number): void {
-    if (page >= 1 && page <= this.totalPages) {
-      this.currentPage = page;
+    if (page >= 1 && page <= this.totalPages()) {
+      this.currentPage.set(page);
       this.scrollToTop();
     }
   }
 
   previousPage(): void {
-    if (this.currentPage > 1) {
-      this.currentPage--;
+    if (this.currentPage() > 1) {
+      this.currentPage.update(p => p - 1);
       this.scrollToTop();
     }
   }
 
   nextPage(): void {
-    if (this.currentPage < this.totalPages) {
-      this.currentPage++;
+    if (this.currentPage() < this.totalPages()) {
+      this.currentPage.update(p => p + 1);
       this.scrollToTop();
     }
   }
@@ -94,9 +89,9 @@ export class NoticiasWeb implements OnInit {
     const raw = (noticia.imagenNoticia ?? '').trim();
     if (!raw) return '/imagenes/actividades/news2.jpg';
     if (raw.startsWith('http://') || raw.startsWith('https://') || raw.startsWith('data:')) return raw;
-    
+
     const baseUrl = environment.sliderMediaBaseUrl || 'https://srvdockergusof.policia.gov.co:8088';
-    
+
     // Si la imagen viene como /api/... o simplemente el nombre, apuntamos al servidor externo
     if (raw.startsWith('/api/')) {
       return `${baseUrl}${raw}`;
@@ -124,22 +119,27 @@ export class NoticiasWeb implements OnInit {
 
   likeNoticia(noticia: DtoNoticia, event: Event): void {
     event.stopPropagation();
-    
+
     const likedNews = this.getLikedNews();
     if (likedNews.includes(noticia.idNoticia)) {
       return;
     }
-    
-    this.liked = true;
+
+    this.liked.set(true);
     this.noticiaService.darLike(noticia.idNoticia).subscribe({
       next: () => {
-        noticia.megusta = (noticia.megusta || 0) + 1;
+        const nuevoConteo = (noticia.megusta || 0) + 1;
+        noticia.megusta = nuevoConteo;
+        this.news.update(list => list.map(n => n.idNoticia === noticia.idNoticia ? { ...n, megusta: nuevoConteo } : n));
+        if (this.selectedNoticia?.idNoticia === noticia.idNoticia) {
+          this.selectedNoticia = { ...this.selectedNoticia, megusta: nuevoConteo };
+        }
         this.saveLikedNews(noticia.idNoticia);
-        setTimeout(() => this.liked = false, 1000);
+        setTimeout(() => this.liked.set(false), 1000);
       },
       error: (err) => {
         console.error('Error dando like:', err);
-        this.liked = false;
+        this.liked.set(false);
       }
     });
   }

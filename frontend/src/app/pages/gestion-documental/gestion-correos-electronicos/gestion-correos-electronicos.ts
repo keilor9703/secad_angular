@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnDestroy, OnInit } from '@angular/core';
-import { FormsModule } from '@angular/forms';
+import { Component, ChangeDetectionStrategy, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
+import { FormBuilder, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
 import { environment } from '../../../../environments/environment';
 import { ToastService } from '../../../core/services/toast.service';
@@ -33,49 +33,52 @@ interface CorreoEnviado {
 @Component({
   selector: 'app-gestion-correos-electronicos',
   standalone: true,
-  imports: [CommonModule, FormsModule, NgxEditorModule],
+  imports: [CommonModule, FormsModule, ReactiveFormsModule, NgxEditorModule],
   templateUrl: './gestion-correos-electronicos.html',
   styleUrls: ['./gestion-correos-electronicos.scss'],
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class GestionCorreosElectronicosComponent implements OnInit, OnDestroy {
-  view: 'compose' | 'history' | 'settings' = 'compose';
+  private readonly http  = inject(HttpClient);
+  private readonly toast = inject(ToastService);
+  private readonly fb    = inject(FormBuilder);
+
+  readonly view = signal<'compose' | 'history' | 'settings'>('compose');
   private apiUrl = `${environment.apiBaseUrl}`;
 
-  cuentas: CuentaEmail[] = [];
-  selectedCuentaId: number | null = null;
+  readonly cuentas          = signal<CuentaEmail[]>([]);
+  readonly selectedCuentaId = signal<number | null>(null);
 
-  emailForm = {
-    para: '',
-    cc: '',
-    asunto: '',
-    cuerpo: '',
-    idClasificacion: null as number | null,
-    prioridadAlta: false,
-    acuseRecibido: false
-  };
+  readonly emailForm = this.fb.nonNullable.group({
+    para:            [''],
+    cc:              [''],
+    asunto:          [''],
+    cuerpo:          [''],
+    idClasificacion: this.fb.control<number | null>(null),
+    prioridadAlta:   [false],
+    acuseRecibido:   [false]
+  });
 
-  clasificaciones: any[] = [];
-  adjuntos: File[] = [];
-  historial: CorreoEnviado[] = [];
-  isSending = false;
-  showSuccessModal = false;
-  lastRadicado = '';
-  selectedCorreo: CorreoEnviado | null = null;
+  readonly clasificaciones = signal<any[]>([]);
+  readonly adjuntos        = signal<File[]>([]);
+  readonly historial       = signal<CorreoEnviado[]>([]);
+  readonly isSending       = signal(false);
+  readonly showSuccessModal = signal(false);
+  readonly lastRadicado    = signal('');
+  readonly selectedCorreo  = signal<CorreoEnviado | null>(null);
 
-  p: number = 1;
-  pageSize: number = 10;
+  readonly p        = signal(1);
+  readonly pageSize = 10;
 
-  get paginatedHistorial(): CorreoEnviado[] {
-    const start = (this.p - 1) * this.pageSize;
-    return this.historial.slice(start, start + this.pageSize);
-  }
+  readonly paginatedHistorial = computed(() => {
+    const start = (this.p() - 1) * this.pageSize;
+    return this.historial().slice(start, start + this.pageSize);
+  });
 
-  get totalPages(): number {
-    return Math.ceil(this.historial.length / this.pageSize);
-  }
+  readonly totalPages = computed(() => Math.ceil(this.historial().length / this.pageSize));
 
-  nextPage(): void { if (this.p < this.totalPages) this.p++; }
-  prevPage(): void { if (this.p > 1) this.p--; }
+  nextPage(): void { if (this.p() < this.totalPages()) this.p.update(v => v + 1); }
+  prevPage(): void { if (this.p() > 1) this.p.update(v => v - 1); }
 
   editor!: Editor;
   detailEditor!: Editor;
@@ -89,8 +92,6 @@ export class GestionCorreosElectronicosComponent implements OnInit, OnDestroy {
     ['text_color', 'background_color'],
     ['align_left', 'align_center', 'align_right', 'align_justify'],
   ];
-
-  constructor(private http: HttpClient, private toast: ToastService) {}
 
   ngOnInit(): void {
     this.editor = new Editor({ schema, history: true, keyboardShortcuts: true });
@@ -124,7 +125,7 @@ export class GestionCorreosElectronicosComponent implements OnInit, OnDestroy {
 
   cargarClasificaciones(): void {
     this.http.get<any[]>(`${this.apiUrl}/Dominio`).subscribe({
-      next: (data) => { this.clasificaciones = data.filter(d => d.idPadre === 198 && d.vigente === 1); },
+      next: (data) => { this.clasificaciones.set(data.filter(d => d.idPadre === 198 && d.vigente === 1)); },
       error: (err) => console.error('Error cargando clasificaciones', err)
     });
   }
@@ -132,12 +133,13 @@ export class GestionCorreosElectronicosComponent implements OnInit, OnDestroy {
   cargarCuentas(): void {
     this.http.get<any[]>(`${this.apiUrl}/CuentaEmail/mis-cuentas`).subscribe({
       next: (data) => {
-        this.cuentas = data.filter(c => c.vigente === 1);
-        if (this.cuentas.length > 0) {
-          this.selectedCuentaId = this.cuentas[0].idCuenta;
-          this.prefillOpcionesDesdeCuenta(this.cuentas[0]);
+        const activas = data.filter(c => c.vigente === 1);
+        this.cuentas.set(activas);
+        if (activas.length > 0) {
+          this.selectedCuentaId.set(activas[0].idCuenta);
+          this.prefillOpcionesDesdeCuenta(activas[0]);
         } else {
-          this.selectedCuentaId = null;
+          this.selectedCuentaId.set(null);
         }
       },
       error: (err) => console.error('Error cargando cuentas SMTP', err)
@@ -145,24 +147,26 @@ export class GestionCorreosElectronicosComponent implements OnInit, OnDestroy {
   }
 
   setView(newView: 'compose' | 'history' | 'settings'): void {
-    this.view = newView;
+    this.view.set(newView);
     if (newView === 'history') this.cargarHistorial();
   }
 
   onCuentaChange(): void {
-    const cuenta = this.cuentas.find(c => c.idCuenta === this.selectedCuentaId);
+    const cuenta = this.cuentas().find(c => c.idCuenta === this.selectedCuentaId());
     if (cuenta) this.prefillOpcionesDesdeCuenta(cuenta);
   }
 
   private prefillOpcionesDesdeCuenta(cuenta: CuentaEmail): void {
-    this.emailForm.prioridadAlta = cuenta.prioridadAlta === 1;
-    this.emailForm.acuseRecibido = cuenta.acuseRecibido === 1;
+    this.emailForm.patchValue({
+      prioridadAlta: cuenta.prioridadAlta === 1,
+      acuseRecibido: cuenta.acuseRecibido === 1
+    });
   }
 
   cargarHistorial(): void {
     this.http.get<any[]>(`${this.apiUrl}/GestionCorreos/historico`).subscribe({
       next: (data) => {
-        this.historial = data.map(h => ({
+        this.historial.set(data.map(h => ({
           idEnvio: h.idEnvio,
           radicado: h.radicado,
           deEmail: h.deEmail,
@@ -175,7 +179,7 @@ export class GestionCorreosElectronicosComponent implements OnInit, OnDestroy {
           username: h.username,
           nombreCompleto: h.nombreCompleto,
           clasificacion: h.clasificacion
-        }));
+        })));
       },
       error: (err) => console.error('Error cargando historial', err)
     });
@@ -184,55 +188,62 @@ export class GestionCorreosElectronicosComponent implements OnInit, OnDestroy {
   onFileSelected(event: any): void {
     const files = event.target.files;
     if (files) {
-      for (let i = 0; i < files.length; i++) this.adjuntos.push(files[i]);
+      const nuevos = [...this.adjuntos()];
+      for (let i = 0; i < files.length; i++) nuevos.push(files[i]);
+      this.adjuntos.set(nuevos);
     }
   }
 
-  removeAttachment(index: number): void { this.adjuntos.splice(index, 1); }
+  removeAttachment(index: number): void {
+    this.adjuntos.update(items => items.filter((_, i) => i !== index));
+  }
 
   enviarCorreo(): void {
-    if (!this.selectedCuentaId || (!this.emailForm.para?.trim() && !this.emailForm.cc?.trim()) || !this.emailForm.asunto || !this.emailForm.idClasificacion) {
+    const v = this.emailForm.getRawValue();
+    const cuentaId = this.selectedCuentaId();
+    if (!cuentaId || (!v.para?.trim() && !v.cc?.trim()) || !v.asunto || !v.idClasificacion) {
       this.toast.warning('Campos requeridos', 'Por favor complete al menos un destinatario (Para o CCO), asunto y clasificación.');
       return;
     }
 
-    this.isSending = true;
+    this.isSending.set(true);
     const formData = new FormData();
-    formData.append('idCuentaEmail', this.selectedCuentaId.toString());
-    if (this.emailForm.para?.trim()) formData.append('para', this.emailForm.para.trim());
-    if (this.emailForm.cc?.trim())  formData.append('cc', this.emailForm.cc.trim());
-    formData.append('asunto', this.emailForm.asunto);
-    formData.append('cuerpo', this.emailForm.cuerpo);
-    formData.append('prioridadAlta', this.emailForm.prioridadAlta ? 'true' : 'false');
-    formData.append('acuseRecibido', this.emailForm.acuseRecibido ? 'true' : 'false');
+    formData.append('idCuentaEmail', cuentaId.toString());
+    if (v.para?.trim()) formData.append('para', v.para.trim());
+    if (v.cc?.trim())  formData.append('cc', v.cc.trim());
+    formData.append('asunto', v.asunto);
+    formData.append('cuerpo', v.cuerpo);
+    formData.append('prioridadAlta', v.prioridadAlta ? 'true' : 'false');
+    formData.append('acuseRecibido', v.acuseRecibido ? 'true' : 'false');
 
-    if (this.emailForm.idClasificacion) {
-      formData.append('idClasificacion', this.emailForm.idClasificacion.toString());
-      const clasif = this.clasificaciones.find(c => c.idDominio === this.emailForm.idClasificacion);
+    if (v.idClasificacion) {
+      formData.append('idClasificacion', v.idClasificacion.toString());
+      const clasif = this.clasificaciones().find(c => c.idDominio === v.idClasificacion);
       if (clasif) formData.append('nombreClasificacion', clasif.descripcion);
     }
 
-    this.adjuntos.forEach(file => formData.append('adjuntos', file, file.name));
+    const adjuntos = this.adjuntos();
+    adjuntos.forEach(file => formData.append('adjuntos', file, file.name));
 
     this.http.post<any>(`${this.apiUrl}/GestionCorreos/enviar`, formData).subscribe({
       next: (res) => {
-        this.isSending = false;
-        const cuenta = this.cuentas.find(c => c.idCuenta === this.selectedCuentaId);
-        this.historial.unshift({
+        this.isSending.set(false);
+        const cuenta = this.cuentas().find(c => c.idCuenta === cuentaId);
+        this.historial.update(items => [{
           idEnvio: Date.now(), radicado: res.radicado || 'COR-GEN',
           deEmail: cuenta?.email || '', nombreCuenta: cuenta?.nombreCuenta || '',
-          para: this.emailForm.para, asunto: this.emailForm.asunto, cuerpo: this.emailForm.cuerpo,
-          fecha: new Date(), tieneAdjuntos: this.adjuntos.length > 0,
+          para: v.para, asunto: v.asunto, cuerpo: v.cuerpo,
+          fecha: new Date(), tieneAdjuntos: adjuntos.length > 0,
           username: '', nombreCompleto: '', clasificacion: ''
-        });
-        this.lastRadicado = res.radicado;
-        this.showSuccessModal = true;
+        }, ...items]);
+        this.lastRadicado.set(res.radicado);
+        this.showSuccessModal.set(true);
         this.toast.success('Envío Exitoso', `Radicado: ${res.radicado}`);
         if (res.message?.toLowerCase().includes('advertencia')) this.toast.warning('Advertencia', res.message);
         this.limpiarFormulario();
       },
       error: (err) => {
-        this.isSending = false;
+        this.isSending.set(false);
         const msg = err.error?.message || err.error?.title || 'No se pudo procesar el envío';
         this.toast.error('Error de Envío', msg);
       }
@@ -240,12 +251,12 @@ export class GestionCorreosElectronicosComponent implements OnInit, OnDestroy {
   }
 
   limpiarFormulario(): void {
-    this.emailForm = { para: '', cc: '', asunto: '', cuerpo: '', idClasificacion: null, prioridadAlta: false, acuseRecibido: false };
-    const cuenta = this.cuentas.find(c => c.idCuenta === this.selectedCuentaId);
+    this.emailForm.reset({ para: '', cc: '', asunto: '', cuerpo: '', idClasificacion: null, prioridadAlta: false, acuseRecibido: false });
+    const cuenta = this.cuentas().find(c => c.idCuenta === this.selectedCuentaId());
     if (cuenta) this.prefillOpcionesDesdeCuenta(cuenta);
-    this.adjuntos = [];
+    this.adjuntos.set([]);
   }
 
-  closeSuccessModal(): void { this.showSuccessModal = false; this.setView('history'); }
-  verDetalle(correo: CorreoEnviado): void { this.selectedCorreo = correo; }
+  closeSuccessModal(): void { this.showSuccessModal.set(false); this.setView('history'); }
+  verDetalle(correo: CorreoEnviado): void { this.selectedCorreo.set(correo); }
 }

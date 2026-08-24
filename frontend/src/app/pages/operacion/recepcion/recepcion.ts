@@ -1,10 +1,12 @@
 import {
   Component,
+  ChangeDetectionStrategy,
   OnInit,
   OnDestroy,
   AfterViewInit,
   NgZone,
-  ChangeDetectorRef
+  inject,
+  signal
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -49,7 +51,8 @@ export interface GrupoCanal {
   standalone: true,
   imports: [CommonModule, FormsModule],
   templateUrl: './recepcion.html',
-  styleUrls: ['./recepcion.scss']
+  styleUrls: ['./recepcion.scss'],
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class RecepcionComponent implements OnInit, AfterViewInit, OnDestroy {
 
@@ -61,36 +64,36 @@ export class RecepcionComponent implements OnInit, AfterViewInit, OnDestroy {
   usuario    = '';
 
   // ── Header fields ─────────────────────────────────────────────────────────
-  txtFechaIngreso = '';
-  txtNumeLlamada  = '';
+  readonly txtFechaIngreso = signal('');
+  readonly txtNumeLlamada  = signal('');
   txtAcd          = '';
 
   // ── Fieldset Llamada ──────────────────────────────────────────────────────
-  txtAbonado        = '';
-  txtPropAbonado    = '';
-  txtDispTelefonico = '';
-  hdnCodDispTelefonico = '';
-  hdnCeldaMarcacion    = '';
-  txtNombreLlamante = '';
-  txtDireLlamante   = '';
+  readonly txtAbonado        = signal('');
+  readonly txtPropAbonado    = signal('');
+  readonly txtDispTelefonico = signal('');
+  readonly hdnCodDispTelefonico = signal('');
+  readonly hdnCeldaMarcacion    = signal('');
+  readonly txtNombreLlamante = signal('');
+  readonly txtDireLlamante   = signal('');
 
   // ── Fieldset Datos ────────────────────────────────────────────────────────
-  txtCodigCaso  = '';
-  txtDescaso    = '';
-  txtCodigCaso2 = '';
-  txtDescaso2   = '';
-  txtCiudadCaso = '';
-  txtBarrioCaso = '';
-  txtDireCaso   = '';
-  latitudCaso   = '';
-  longitudCaso  = '';
-  txtAsociarLlamada = '';
-  tipoPedido        = '';
-  caliPedido        = '';
+  readonly txtCodigCaso  = signal('');
+  readonly txtDescaso    = signal('');
+  readonly txtCodigCaso2 = signal('');
+  readonly txtDescaso2   = signal('');
+  readonly txtCiudadCaso = signal('');
+  readonly txtBarrioCaso = signal('');
+  readonly txtDireCaso   = signal('');
+  readonly latitudCaso   = signal('');
+  readonly longitudCaso  = signal('');
+  readonly txtAsociarLlamada = signal('');
+  readonly tipoPedido        = signal('');
+  readonly caliPedido        = signal('');
 
   // ── Prioridad / Importancia ───────────────────────────────────────────────
-  prioridad   = '03';
-  importancia = '01';
+  readonly prioridad   = signal('03');
+  readonly importancia = signal('01');
 
   // ── Map ───────────────────────────────────────────────────────────────────
   direccionBusqueda = '';
@@ -101,24 +104,24 @@ export class RecepcionComponent implements OnInit, AfterViewInit, OnDestroy {
   private iconoPersona:     any = null;
 
   // ── Association hidden values ─────────────────────────────────────────────
-  hdnNumeLlamadaAsociada = '';
-  hdnSitioGrabaAsociada  = '';
+  readonly hdnNumeLlamadaAsociada = signal('');
+  readonly hdnSitioGrabaAsociada  = signal('');
 
   // ── State ─────────────────────────────────────────────────────────────────
-  llamadaEncontrada = false;
-  saving            = false;
+  readonly llamadaEncontrada = signal(false);
+  readonly saving            = signal(false);
   minimized         = false;
   visible           = true;
 
   // ── Data ──────────────────────────────────────────────────────────────────
-  gruposCanales: GrupoCanal[]        = [];
-  canales: DtoCanalRecepcion[]       = [];
-  refTipoPedido: DtoReferenciaSecad[] = [];
-  refCaliPedido: DtoReferenciaSecad[] = [];
-  casosSugeridos1: DtoCasoItem[]     = [];
-  casosSugeridos2: DtoCasoItem[]     = [];
-  llamadasParaAsociar: DtoLlamadaAsociar[] = [];
-  showModalAsociar = false;
+  readonly gruposCanales = signal<GrupoCanal[]>([]);
+  readonly canales       = signal<DtoCanalRecepcion[]>([]);
+  readonly refTipoPedido = signal<DtoReferenciaSecad[]>([]);
+  readonly refCaliPedido = signal<DtoReferenciaSecad[]>([]);
+  readonly casosSugeridos1 = signal<DtoCasoItem[]>([]);
+  readonly casosSugeridos2 = signal<DtoCasoItem[]>([]);
+  readonly llamadasParaAsociar = signal<DtoLlamadaAsociar[]>([]);
+  readonly showModalAsociar = signal(false);
   /** Ventana temporal usada por F_BuscarLlamadasAsociarAsync — debe coincidir
    *  con el INTERVAL '200 minutes' hardcodeado en DbRecepcionRepository.cs. */
   readonly VENTANA_ASOCIAR_MINUTOS = 200;
@@ -129,32 +132,32 @@ export class RecepcionComponent implements OnInit, AfterViewInit, OnDestroy {
   private destroy$ = new Subject<void>();
   private pollTimer: any = null;
   /** Marca de tiempo del último poll PlantaTel exitoso — indicador de salud de la conexión. */
-  ultimoPollExitoso: Date | null = null;
+  readonly ultimoPollExitoso = signal<Date | null>(null);
   /** true tras ngOnDestroy — guarda contra fetch() nativos (sin takeUntil) que
    *  resuelven después de navegar fuera del componente. */
   private destruido = false;
 
   // ── §6.1 Agencias externas ────────────────────────────────────────────────
-  agenciasExternas:    DtoAgenciaExterna[] = [];
-  agenciasSeleccionadas = new Set<string>();
+  readonly agenciasExternas = signal<DtoAgenciaExterna[]>([]);
+  readonly agenciasSeleccionadas = signal(new Set<string>());
 
   // ── §6.8 Detección de duplicados ─────────────────────────────────────────
-  duplicados:           DtoPedidoCercano[] = [];
-  verificandoDuplicados = false;
-  showDuplicados        = false;
+  readonly duplicados           = signal<DtoPedidoCercano[]>([]);
+  readonly verificandoDuplicados = signal(false);
+  readonly showDuplicados        = signal(false);
   /** Configuración: radio en metros y ventana temporal en minutos. */
   readonly DUPL_RADIO   = 300;
   readonly DUPL_MINUTOS = 20;
   private duplicadoCheck$ = new Subject<void>();
 
   // ── §multicanal — Adjuntos (fotos) ──────────────────────────────────────────
-  adjuntos:          DtoAdjunto[]  = [];
-  adjuntosSubiendo   = false;
+  readonly adjuntos          = signal<DtoAdjunto[]>([]);
+  readonly adjuntosSubiendo   = signal(false);
   adjuntosDragOver   = false;
 
   // ── Canal de origen (§multicanal) ────────────────────────────────────────
   /** Valor UI seleccionado por el operador. Se mapea a OrigenEvento al guardar. */
-  canalOrigenUI = 'TEL_123';
+  readonly canalOrigenUI = signal('TEL_123');
 
   readonly canalesOrigen = [
     { value: 'TEL_123',     label: 'Llamada 112/123',          icon: 'fa-phone-volume'      },
@@ -167,37 +170,34 @@ export class RecepcionComponent implements OnInit, AfterViewInit, OnDestroy {
   ] as const;
 
   // ── §6.17 Asistente Inteligente ──────────────────────────────────────────────
-  asistenteAbierto          = false;
-  asistenteCategorias: AsistenteCategoria[]  = [];
-  asistenteLoadingCat       = false;
-  asistenteCategoriaSel     = '';
-  asistentePreguntas:  AsistentePregunta[]   = [];
-  asistenteLoadingPreg      = false;
+  readonly asistenteAbierto          = signal(false);
+  readonly asistenteCategorias = signal<AsistenteCategoria[]>([]);
+  readonly asistenteLoadingCat       = signal(false);
+  readonly asistenteCategoriaSel     = signal('');
+  readonly asistentePreguntas  = signal<AsistentePregunta[]>([]);
+  readonly asistenteLoadingPreg      = signal(false);
   readonly asisParseOpc     = parsearOpciones;
 
   /** true cuando el asistente se abrió automáticamente por el código de caso */
-  asistenteAutoActivado         = false;
+  readonly asistenteAutoActivado         = signal(false);
   /** Código corto de la categoría (HURTO, RINA…) — elige plantilla narrativa */
-  asistenteCategoriaCode        = '';
+  readonly asistenteCategoriaCode        = signal('');
   /** Descripción de la categoría activa (para mostrar el badge de auto-modo) */
-  asistenteCategoriaDescripcion = '';
+  readonly asistenteCategoriaDescripcion = signal('');
 
   /** Respuestas indexadas por ID de pregunta (string para uniformidad) */
-  respuestas: Record<string, string> = {};
+  readonly respuestas = signal<Record<string, string>>({});
   /** Relato construido automáticamente a partir de las respuestas */
-  relatoAutomatico  = '';
+  readonly relatoAutomatico  = signal('');
   /** Notas libres del operador que complementan el relato */
-  notasAdicionales  = '';
+  readonly notasAdicionales  = signal('');
 
-  constructor(
-    private auth:          AuthService,
-    private svc:           RecepcionService,
-    private toast:         ToastService,
-    private zone:          NgZone,
-    private cdr:           ChangeDetectorRef,
-    private asistenteSvc:  AsistenteService,
-    private agenciaSvc:    AgenciaExternaService
-  ) {}
+  private readonly auth          = inject(AuthService);
+  private readonly svc           = inject(RecepcionService);
+  private readonly toast         = inject(ToastService);
+  private readonly zone          = inject(NgZone);
+  private readonly asistenteSvc  = inject(AsistenteService);
+  private readonly agenciaSvc    = inject(AgenciaExternaService);
 
   ngOnInit(): void {
     const claims = this.auth.getJwtClaims();
@@ -215,10 +215,10 @@ export class RecepcionComponent implements OnInit, AfterViewInit, OnDestroy {
 
     // Autocomplete debounce (minLength 3)
     this.buscar1$.pipe(debounceTime(300), distinctUntilChanged(), takeUntil(this.destroy$))
-      .subscribe(q => { if (q.length >= 3) this.doSearchCasos(q, 1); else this.casosSugeridos1 = []; });
+      .subscribe(q => { if (q.length >= 3) this.doSearchCasos(q, 1); else this.casosSugeridos1.set([]); });
 
     this.buscar2$.pipe(debounceTime(300), distinctUntilChanged(), takeUntil(this.destroy$))
-      .subscribe(q => { if (q.length >= 3) this.doSearchCasos(q, 2); else this.casosSugeridos2 = []; });
+      .subscribe(q => { if (q.length >= 3) this.doSearchCasos(q, 2); else this.casosSugeridos2.set([]); });
 
     // §6.8 — Detección de duplicados con debounce de 800 ms
     this.duplicadoCheck$
@@ -230,8 +230,11 @@ export class RecepcionComponent implements OnInit, AfterViewInit, OnDestroy {
     // sí (iniciarPollLlamada) era completamente invisible para el operador —
     // no había forma de distinguir "sin llamadas ahora mismo" de "el poll se
     // rompió y no lo sabe nadie".
-    interval(5000).pipe(takeUntil(this.destroy$)).subscribe(() => this.cdr.detectChanges());
+    interval(5000).pipe(takeUntil(this.destroy$)).subscribe(() => this.tickReloj.update(t => t + 1));
   }
+
+  /** Señal muda que solo existe para forzar el refresco del badge PlantaTel cada 5s. */
+  readonly tickReloj = signal(0);
 
   ngAfterViewInit(): void {
     this.initMap();
@@ -292,11 +295,10 @@ export class RecepcionComponent implements OnInit, AfterViewInit, OnDestroy {
       const lat = e.latlng.lat;
       const lng = e.latlng.lng;
       this.zone.run(() => {
-        this.latitudCaso  = lat.toFixed(6);
-        this.longitudCaso = lng.toFixed(6);
+        this.latitudCaso.set(lat.toFixed(6));
+        this.longitudCaso.set(lng.toFixed(6));
         this.colocarMarcador(lat, lng);
         this.dispararVerificacionDuplicados();  // §6.8
-        this.cdr.detectChanges();
       });
       this.reverseGeocode(lat, lng); // ← llena txtDireCaso, txtBarrioCaso, txtCiudadCaso
     });
@@ -338,10 +340,9 @@ export class RecepcionComponent implements OnInit, AfterViewInit, OnDestroy {
           // campo distinto y editable por el operador; pisarlo aquí borraba
           // silenciosamente cualquier valor digitado manualmente cada vez que
           // el operador tocaba el mapa o buscaba una dirección.
-          this.txtDireCaso    = dir;
-          this.txtBarrioCaso  = barrio;
-          this.txtCiudadCaso  = ciudad;
-          this.cdr.detectChanges();
+          this.txtDireCaso.set(dir);
+          this.txtBarrioCaso.set(barrio);
+          this.txtCiudadCaso.set(ciudad);
         });
       })
       .catch(err => console.warn('[Mapa] Error geocodificación inversa:', err));
@@ -367,12 +368,11 @@ export class RecepcionComponent implements OnInit, AfterViewInit, OnDestroy {
         const lon = parseFloat(data[0].lon);
 
         this.zone.run(() => {
-          this.latitudCaso  = lat.toFixed(6);
-          this.longitudCaso = lon.toFixed(6);
+          this.latitudCaso.set(lat.toFixed(6));
+          this.longitudCaso.set(lon.toFixed(6));
           this.map?.setView([lat, lon], 17);
           this.colocarMarcador(lat, lon);
           this.dispararVerificacionDuplicados();  // §6.8
-          this.cdr.detectChanges();
         });
 
         // Rellena campos a partir del resultado de Nominatim
@@ -385,10 +385,9 @@ export class RecepcionComponent implements OnInit, AfterViewInit, OnDestroy {
 
         this.zone.run(() => {
           // Ver comentario en reverseGeocode(): no tocar txtDireLlamante aquí.
-          this.txtDireCaso    = dir;
-          if (barrio) this.txtBarrioCaso = barrio;
-          if (ciudad) this.txtCiudadCaso = ciudad;
-          this.cdr.detectChanges();
+          this.txtDireCaso.set(dir);
+          if (barrio) this.txtBarrioCaso.set(barrio);
+          if (ciudad) this.txtCiudadCaso.set(ciudad);
         });
       })
       .catch(() => this.toast.error('Mapa', 'Error al geocodificar'));
@@ -474,7 +473,7 @@ export class RecepcionComponent implements OnInit, AfterViewInit, OnDestroy {
   // ── Polling PlantaTel ────────────────────────────────────────────────────
 
   private iniciarPollLlamada(): void {
-    if (this.llamadaEncontrada || this.txtNumeLlamada) return;
+    if (this.llamadaEncontrada() || this.txtNumeLlamada()) return;
     // takeUntil corta la suscripción al destruirse el componente — sin esto,
     // una respuesta que llega después de navegar fuera de Recepción seguía
     // ejecutando el callback (incl. cdr.detectChanges() sobre vista destruida)
@@ -486,15 +485,15 @@ export class RecepcionComponent implements OnInit, AfterViewInit, OnDestroy {
         next: resp => {
           // Re-chequear: el operador pudo empezar a digitar manualmente
           // mientras esta petición estaba en vuelo — no pisar su trabajo.
-          if (this.llamadaEncontrada || this.txtNumeLlamada) return;
+          if (this.llamadaEncontrada() || this.txtNumeLlamada()) return;
           if (resp.success && resp.data) {
             const d = resp.data;
-            this.txtNumeLlamada       = String(d.NUME_LLAMADA);
-            this.txtAbonado           = String(d.NUME_TELEFONO);
-            this.longitudCaso         = d.CORDX;
-            this.latitudCaso          = d.CORDY;
-            this.txtFechaIngreso      = d.FECHAGMLC;
-            this.hdnCeldaMarcacion    = d.OPERADOR;
+            this.txtNumeLlamada.set(String(d.NUME_LLAMADA));
+            this.txtAbonado.set(String(d.NUME_TELEFONO));
+            this.longitudCaso.set(d.CORDX);
+            this.latitudCaso.set(d.CORDY);
+            this.txtFechaIngreso.set(d.FECHAGMLC);
+            this.hdnCeldaMarcacion.set(d.OPERADOR);
             this.detectarDispositivo(d.NUME_TELEFONO);
             if (d.CORDY && d.CORDX && d.CORDY !== '0' && d.CORDX !== '0') {
               const lat = parseFloat(d.CORDY);
@@ -505,12 +504,11 @@ export class RecepcionComponent implements OnInit, AfterViewInit, OnDestroy {
               this.reverseGeocode(lat, lng);
               this.dispararVerificacionDuplicados();  // §6.8
             }
-            this.llamadaEncontrada = true;
-            this.canalOrigenUI     = 'TEL_123'; // llamada PlantaTel → origen automático
-            this.ultimoPollExitoso = new Date();
-            this.cdr.detectChanges();
+            this.llamadaEncontrada.set(true);
+            this.canalOrigenUI.set('TEL_123'); // llamada PlantaTel → origen automático
+            this.ultimoPollExitoso.set(new Date());
           } else {
-            this.ultimoPollExitoso = new Date();
+            this.ultimoPollExitoso.set(new Date());
             // Schedule next poll only if no call yet
             this.pollTimer = setTimeout(() => this.iniciarPollLlamada(), 5000);
           }
@@ -527,7 +525,7 @@ export class RecepcionComponent implements OnInit, AfterViewInit, OnDestroy {
     // desde el último "sin llamada") disparaba su propio iniciarPollLlamada(),
     // generando dos cadenas de polling concurrentes que nunca convergían.
     if (this.pollTimer) { clearTimeout(this.pollTimer); this.pollTimer = null; }
-    this.llamadaEncontrada = false;
+    this.llamadaEncontrada.set(false);
     this.iniciarPollLlamada();
   }
 
@@ -537,8 +535,8 @@ export class RecepcionComponent implements OnInit, AfterViewInit, OnDestroy {
     this.svc.getConsecutivo().pipe(takeUntil(this.destroy$)).subscribe({
       next: resp => {
         if (resp.success) {
-          this.txtNumeLlamada  = String(resp.data);
-          this.txtFechaIngreso = this.obtenerFechaActual();
+          this.txtNumeLlamada.set(String(resp.data));
+          this.txtFechaIngreso.set(this.obtenerFechaActual());
           if (thenDo) thenDo();
         } else {
           this.toast.warning('ID Llamada', 'Error al obtener consecutivo');
@@ -549,8 +547,8 @@ export class RecepcionComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   onAbonadoEnter(): void {
-    const v = this.txtAbonado.trim();
-    if (!this.txtNumeLlamada && v.length >= 3 && v.length <= 10) {
+    const v = this.txtAbonado().trim();
+    if (!this.txtNumeLlamada() && v.length >= 3 && v.length <= 10) {
       this.consultarConsecutivo();
     } else if (v.length < 3 || v.length > 10) {
       this.toast.warning('Abonado', 'El número debe tener entre 3 y 10 dígitos');
@@ -558,20 +556,20 @@ export class RecepcionComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   onAbonadoChange(val: string | number): void {
-    this.txtAbonado = String(val ?? ''); // garantiza que siempre sea string
-    this.detectarDispositivo(Number(this.txtAbonado.replace(/\D/g, '')) || 0);
+    this.txtAbonado.set(String(val ?? '')); // garantiza que siempre sea string
+    this.detectarDispositivo(Number(this.txtAbonado().replace(/\D/g, '')) || 0);
   }
 
   private detectarDispositivo(raw: number): void {
     const n = String(raw).replace(/\D/g, '');
-    if (!n) { this.txtDispTelefonico = ''; this.hdnCodDispTelefonico = ''; return; }
-    if (n.length === 10 && n.startsWith('3'))      { this.txtDispTelefonico = 'Celular';           this.hdnCodDispTelefonico = '02'; }
-    else if (n.length === 7)                        { this.txtDispTelefonico = 'Teléfono fijo';     this.hdnCodDispTelefonico = '01'; }
-    else if (n.length === 10 && !n.startsWith('3')){ this.txtDispTelefonico = 'Teléfono fijo';     this.hdnCodDispTelefonico = '01'; }
+    if (!n) { this.txtDispTelefonico.set(''); this.hdnCodDispTelefonico.set(''); return; }
+    if (n.length === 10 && n.startsWith('3'))      { this.txtDispTelefonico.set('Celular');           this.hdnCodDispTelefonico.set('02'); }
+    else if (n.length === 7)                        { this.txtDispTelefonico.set('Teléfono fijo');     this.hdnCodDispTelefonico.set('01'); }
+    else if (n.length === 10 && !n.startsWith('3')){ this.txtDispTelefonico.set('Teléfono fijo');     this.hdnCodDispTelefonico.set('01'); }
     // '03', no '01' — antes colisionaba con "Teléfono fijo", haciendo ambos
     // tipos indistinguibles server-side pese a mostrar etiquetas distintas en la UI.
-    else if (n.length === 3 && n.startsWith('1'))  { this.txtDispTelefonico = 'Linea Emergencias'; this.hdnCodDispTelefonico = '03'; }
-    else                                            { this.txtDispTelefonico = 'Otros';             this.hdnCodDispTelefonico = '00'; }
+    else if (n.length === 3 && n.startsWith('1'))  { this.txtDispTelefonico.set('Linea Emergencias'); this.hdnCodDispTelefonico.set('03'); }
+    else                                            { this.txtDispTelefonico.set('Otros');             this.hdnCodDispTelefonico.set('00'); }
   }
 
   // ════════════════════════════════════════════════════════════════════════════
@@ -583,40 +581,40 @@ export class RecepcionComponent implements OnInit, AfterViewInit, OnDestroy {
    * Se llama desde los setters de coordenadas y desde seleccionarSugerencia().
    */
   dispararVerificacionDuplicados(): void {
-    const tieneCoords = !!this.latitudCaso && !!this.longitudCaso &&
-                        this.latitudCaso !== '0' && this.longitudCaso !== '0';
-    const tieneCodigo = !!this.txtCodigCaso.trim();
+    const tieneCoords = !!this.latitudCaso() && !!this.longitudCaso() &&
+                        this.latitudCaso() !== '0' && this.longitudCaso() !== '0';
+    const tieneCodigo = !!this.txtCodigCaso().trim();
     if (tieneCoords && tieneCodigo) {
       this.duplicadoCheck$.next();
     } else {
       // Limpiar si ya no hay datos suficientes
-      this.duplicados    = [];
-      this.showDuplicados = false;
+      this.duplicados.set([]);
+      this.showDuplicados.set(false);
     }
   }
 
   private ejecutarBusquedaDuplicados(): void {
-    const lat = parseFloat(this.latitudCaso);
-    const lng = parseFloat(this.longitudCaso);
+    const lat = parseFloat(this.latitudCaso());
+    const lng = parseFloat(this.longitudCaso());
     if (isNaN(lat) || isNaN(lng) || lat === 0 && lng === 0) return;
 
-    this.verificandoDuplicados = true;
+    this.verificandoDuplicados.set(true);
     this.svc.getPedidosCercanos(
       lat, lng,
       this.DUPL_RADIO, this.DUPL_MINUTOS,
-      this.txtCodigCaso.trim() || undefined
+      this.txtCodigCaso().trim() || undefined
     ).pipe(takeUntil(this.destroy$))
      .subscribe({
        next: (resp) => {
-         this.verificandoDuplicados = false;
-         this.duplicados            = resp.data ?? [];
-         this.showDuplicados        = this.duplicados.length > 0;
-         this.cdr.detectChanges();
+         this.verificandoDuplicados.set(false);
+         const duplicados = resp.data ?? [];
+         this.duplicados.set(duplicados);
+         this.showDuplicados.set(duplicados.length > 0);
        },
        error: () => {
-         this.verificandoDuplicados = false;
-         this.duplicados            = [];
-         this.showDuplicados        = false;
+         this.verificandoDuplicados.set(false);
+         this.duplicados.set([]);
+         this.showDuplicados.set(false);
        }
      });
   }
@@ -625,10 +623,10 @@ export class RecepcionComponent implements OnInit, AfterViewInit, OnDestroy {
   vincularConDuplicado(p: DtoPedidoCercano): void {
     // Usa el mecanismo existente de "asociar llamada" para vincular el pedido nuevo
     // al pedido preexistente. CADPEDI_SITIO_GRABA + CADPEDI_NUME_LLAMADA se envían al backend.
-    this.hdnNumeLlamadaAsociada = p.id;
-    this.hdnSitioGrabaAsociada  = String(p.sitioGraba);
-    this.txtAsociarLlamada      =
-      `Relacionado con pedido #${p.id} (${p.codiPedido ?? ''} · ${p.direCaso ?? ''})`;
+    this.hdnNumeLlamadaAsociada.set(p.id);
+    this.hdnSitioGrabaAsociada.set(String(p.sitioGraba));
+    this.txtAsociarLlamada.set(
+      `Relacionado con pedido #${p.id} (${p.codiPedido ?? ''} · ${p.direCaso ?? ''})`);
     this.cerrarAlertaDuplicados();
     this.toast.warning('Duplicado vinculado',
       `Este caso se relacionará con el pedido #${p.id}. Seleccione los canales y envíe.`);
@@ -637,7 +635,7 @@ export class RecepcionComponent implements OnInit, AfterViewInit, OnDestroy {
 
   /** El operador elige continuar con un caso nuevo, ignorando el posible duplicado. */
   cerrarAlertaDuplicados(): void {
-    this.showDuplicados = false;
+    this.showDuplicados.set(false);
   }
 
   getPrioridadLabel(p: string | null): string {
@@ -654,42 +652,41 @@ export class RecepcionComponent implements OnInit, AfterViewInit, OnDestroy {
 
   // ── Case autocomplete ────────────────────────────────────────────────────
 
-  onDescaso1Change(val: string): void { this.buscar1$.next(val); }
-  onDescaso2Change(val: string): void { this.buscar2$.next(val); }
+  onDescaso1Change(val: string): void { this.txtDescaso.set(val); this.buscar1$.next(val); }
+  onDescaso2Change(val: string): void { this.txtDescaso2.set(val); this.buscar2$.next(val); }
 
   private doSearchCasos(q: string, slot: 1 | 2): void {
     this.svc.buscarCasos(q).pipe(takeUntil(this.destroy$)).subscribe({
       next: resp => {
-        if (slot === 1) this.casosSugeridos1 = resp.data ?? [];
-        else            this.casosSugeridos2 = resp.data ?? [];
-        this.cdr.detectChanges();
+        if (slot === 1) this.casosSugeridos1.set(resp.data ?? []);
+        else            this.casosSugeridos2.set(resp.data ?? []);
       },
       error: () => {
-        if (slot === 1) this.casosSugeridos1 = [];
-        else            this.casosSugeridos2 = [];
+        if (slot === 1) this.casosSugeridos1.set([]);
+        else            this.casosSugeridos2.set([]);
       }
     });
   }
 
   seleccionarSugerencia(c: DtoCasoItem, slot: 1 | 2): void {
     if (slot === 1) {
-      this.txtCodigCaso    = c.CODIGO_CASO;
-      this.txtDescaso      = c.DESCRIPCION_CASO;
-      this.casosSugeridos1 = [];
+      this.txtCodigCaso.set(c.CODIGO_CASO);
+      this.txtDescaso.set(c.DESCRIPCION_CASO);
+      this.casosSugeridos1.set([]);
       this.onCasoSeleccionadoChange(c);
       // Disparar verificación de duplicados si ya tenemos coordenadas
       this.dispararVerificacionDuplicados();
     } else {
-      this.txtCodigCaso2   = c.CODIGO_CASO;
-      this.txtDescaso2     = c.DESCRIPCION_CASO;
-      this.casosSugeridos2 = [];
+      this.txtCodigCaso2.set(c.CODIGO_CASO);
+      this.txtDescaso2.set(c.DESCRIPCION_CASO);
+      this.casosSugeridos2.set([]);
     }
   }
 
   cerrarSugerencias(): void {
     setTimeout(() => {
-      this.casosSugeridos1 = [];
-      this.casosSugeridos2 = [];
+      this.casosSugeridos1.set([]);
+      this.casosSugeridos2.set([]);
     }, 200);
   }
 
@@ -699,10 +696,10 @@ export class RecepcionComponent implements OnInit, AfterViewInit, OnDestroy {
       next: resp => {
         if (resp.success && resp.data) {
           if (slot === 1) {
-            this.txtDescaso = resp.data.DESCRIPCION_CASO;
+            this.txtDescaso.set(resp.data.DESCRIPCION_CASO);
             this.onCasoSeleccionadoChange(resp.data);
           } else {
-            this.txtDescaso2 = resp.data.DESCRIPCION_CASO;
+            this.txtDescaso2.set(resp.data.DESCRIPCION_CASO);
           }
         } else {
           this.toast.warning('Caso', 'Código no encontrado');
@@ -717,7 +714,7 @@ export class RecepcionComponent implements OnInit, AfterViewInit, OnDestroy {
   private cargarCanales(): void {
     this.svc.getCanales(this.sitioGraba).pipe(takeUntil(this.destroy$)).subscribe({
       next: data => {
-        this.canales = (data ?? []).map(c => ({ ...c, seleccionado: false }));
+        this.canales.set((data ?? []).map(c => ({ ...c, seleccionado: false })));
         this.construirGruposCanales();
       },
       error: () => this.toast.error('Canales', 'No se pudieron cargar los canales')
@@ -730,17 +727,17 @@ export class RecepcionComponent implements OnInit, AfterViewInit, OnDestroy {
     // escenario multi-tenant/federado, fusionando visualmente sus canales y
     // etiquetando algunos como "propios" cuando son de otra agencia, o viceversa.
     const mapa: Record<number, { fuerza: string; canales: DtoCanalRecepcion[] }> = {};
-    for (const c of this.canales) {
+    for (const c of this.canales()) {
       (mapa[c.fuerzaId] ??= { fuerza: (c.fuerza || 'SIN FUERZA').trim(), canales: [] }).canales.push(c);
     }
-    this.gruposCanales = Object.keys(mapa)
+    this.gruposCanales.set(Object.keys(mapa)
       .map(Number)
       .sort((a, b) => mapa[a].fuerza.localeCompare(mapa[b].fuerza, 'es'))
       .map(fuerzaId => ({
         fuerza:   mapa[fuerzaId].fuerza,
         fuerzaId,
         canales:  mapa[fuerzaId].canales.sort((a, b) => a.descripcion.localeCompare(b.descripcion, 'es'))
-      }));
+      })));
   }
 
   toggleCanal(c: DtoCanalRecepcion): void {
@@ -748,7 +745,7 @@ export class RecepcionComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private canalesSeleccionados(): DtoCanalSeleccionado[] {
-    return this.canales
+    return this.canales()
       .filter(c => c.seleccionado)
       .map(c => ({ codigo: c.codigo, fuerzaId: c.fuerzaId }));
   }
@@ -757,51 +754,52 @@ export class RecepcionComponent implements OnInit, AfterViewInit, OnDestroy {
 
   private cargarReferencias(): void {
     this.svc.getReferencias('TIPO_PEDIDO').pipe(takeUntil(this.destroy$)).subscribe({
-      next: data => this.refTipoPedido = data ?? []
+      next: data => this.refTipoPedido.set(data ?? [])
     });
     this.svc.getReferencias('CALI_PEDIDO').pipe(takeUntil(this.destroy$)).subscribe({
-      next: data => this.refCaliPedido = data ?? []
+      next: data => this.refCaliPedido.set(data ?? [])
     });
   }
 
   // ── Validate & Send ───────────────────────────────────────────────────────
 
   validarYGuardar(): void {
-    if (!this.txtNumeLlamada) {
+    if (!this.txtNumeLlamada()) {
       this.toast.warning('Validar', 'Debe generar un ID de llamada (ingrese abonado y presione Enter)');
       return;
     }
-    if (!this.txtAbonado) {
+    if (!this.txtAbonado()) {
       this.toast.warning('Validar', 'El número de abonado es obligatorio');
       return;
     }
-    if (!this.txtNombreLlamante) {
+    if (!this.txtNombreLlamante()) {
       this.toast.warning('Validar', "El campo 'Llamante' es obligatorio");
       return;
     }
-    if (!this.txtCodigCaso) {
+    if (!this.txtCodigCaso()) {
       this.toast.warning('Validar', 'Debe seleccionar al menos un caso');
       return;
     }
-    if (!this.txtDireCaso) {
+    if (!this.txtDireCaso()) {
       this.toast.warning('Validar', 'Debe ingresar la dirección del caso');
       return;
     }
-    if (!this.latitudCaso || !this.longitudCaso) {
+    if (!this.latitudCaso() || !this.longitudCaso()) {
       // Sin coordenadas, la detección de duplicados (§6.8) y el mapa de
       // incidentes aguas abajo quedan rotos silenciosamente para este caso.
       this.toast.warning('Validar', 'Debe ubicar el caso en el mapa o buscar la dirección para georreferenciarlo');
       return;
     }
-    if (!this.relatoAutomatico.trim() && !this.notasAdicionales.trim()) {
+    if (!this.relatoAutomatico().trim() && !this.notasAdicionales().trim()) {
       this.toast.warning('Validar', 'Debe ingresar la descripción del caso o responder las preguntas orientadoras');
       return;
     }
-    if (this.asistenteAbierto) {
+    if (this.asistenteAbierto()) {
       // Las preguntas marcadas con * en el panel del asistente eran puramente
       // decorativas: nunca se verificaba que tuvieran respuesta antes de guardar.
-      const faltante = this.asistentePreguntas.find(
-        p => p.obligatoria && !(this.respuestas[p.id] ?? '').trim()
+      const respuestas = this.respuestas();
+      const faltante = this.asistentePreguntas().find(
+        p => p.obligatoria && !(respuestas[p.id] ?? '').trim()
       );
       if (faltante) {
         this.toast.warning('Validar', `Debe responder la pregunta obligatoria: "${faltante.pregunta}"`);
@@ -815,16 +813,16 @@ export class RecepcionComponent implements OnInit, AfterViewInit, OnDestroy {
     }
 
     const dto = this.buildDtoRecepcion('P', 'S', canalesSel);
-    this.saving = true;
+    this.saving.set(true);
 
     this.svc.guardar(dto).pipe(takeUntil(this.destroy$)).subscribe({
       next: resp => {
-        this.saving = false;
+        this.saving.set(false);
         if (resp.success) {
           this.toast.success('Incidente registrado', resp.message);
           // Despachar a agencias externas usando el ID real de cad_pedidos
           // (resp.pedidoId = cad_pedidos.id, que es distinto de NUME_LLAMADA)
-          if (this.agenciasSeleccionadas.size > 0 && resp.pedidoId) {
+          if (this.agenciasSeleccionadas().size > 0 && resp.pedidoId) {
             this.despacharAgenciasExternas(resp.pedidoId);
           }
           this.limpiarFormulario();
@@ -833,14 +831,14 @@ export class RecepcionComponent implements OnInit, AfterViewInit, OnDestroy {
           this.toast.warning('Recepción', resp.message);
         }
       },
-      error: () => { this.saving = false; this.toast.error('Recepción', 'Error de comunicación'); }
+      error: () => { this.saving.set(false); this.toast.error('Recepción', 'Error de comunicación'); }
     });
   }
 
   // ── Quick-close ────────────────────────────────────────────────────────────
 
   cerrarRapido(comentarioBoton: string): void {
-    const v = this.txtAbonado.trim();
+    const v = this.txtAbonado().trim();
     if (!v || v.length < 3 || v.length > 10) {
       this.toast.warning('Cerrar', 'Ingrese un número de abonado válido (3–10 dígitos)');
       return;
@@ -862,7 +860,7 @@ export class RecepcionComponent implements OnInit, AfterViewInit, OnDestroy {
       });
     };
 
-    if (!this.txtNumeLlamada) {
+    if (!this.txtNumeLlamada()) {
       this.consultarConsecutivo(doClose);
     } else {
       doClose();
@@ -872,21 +870,20 @@ export class RecepcionComponent implements OnInit, AfterViewInit, OnDestroy {
   // ── Association modal ──────────────────────────────────────────────────────
 
   abrirModalAsociar(): void {
-    if (!this.txtNumeLlamada) {
+    if (!this.txtNumeLlamada()) {
       this.toast.warning('Asociar', 'Debe haber una llamada activa');
       return;
     }
     const dto = {
       sitioGraba:  this.sitioGraba,
-      horaCaso:    this.txtFechaIngreso,
-      numeLlamada: Number(this.txtNumeLlamada)
+      horaCaso:    this.txtFechaIngreso(),
+      numeLlamada: Number(this.txtNumeLlamada())
     };
     this.svc.buscarAsociar(dto).pipe(takeUntil(this.destroy$)).subscribe({
       next: resp => {
         if (resp.success) {
-          this.llamadasParaAsociar = resp.data ?? [];
-          this.showModalAsociar    = true;
-          this.cdr.detectChanges();
+          this.llamadasParaAsociar.set(resp.data ?? []);
+          this.showModalAsociar.set(true);
         } else {
           this.toast.warning('Asociar', resp.message || 'Sin llamadas disponibles');
         }
@@ -896,17 +893,17 @@ export class RecepcionComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   cerrarModalAsociar(): void {
-    this.showModalAsociar = false;
+    this.showModalAsociar.set(false);
   }
 
   seleccionarAsociada(ll: DtoLlamadaAsociar): void {
-    this.hdnNumeLlamadaAsociada = String(ll.NUME_LLAMADA);
-    this.hdnSitioGrabaAsociada  = String(ll.SITIO_GRABA);
-    this.txtAsociarLlamada      = `${ll.NUME_LLAMADA} - ${ll.CODI_PEDIDO} - ${ll.DIRE_CASO}`;
-    this.showModalAsociar       = false;
+    this.hdnNumeLlamadaAsociada.set(String(ll.NUME_LLAMADA));
+    this.hdnSitioGrabaAsociada.set(String(ll.SITIO_GRABA));
+    this.txtAsociarLlamada.set(`${ll.NUME_LLAMADA} - ${ll.CODI_PEDIDO} - ${ll.DIRE_CASO}`);
+    this.showModalAsociar.set(false);
     // Mostrar las fotos ya adjuntas al caso preexistente que se está vinculando
     // — antes la galería quedaba vacía aunque el pedido asociado sí tuviera fotos.
-    this.cargarAdjuntos(this.hdnNumeLlamadaAsociada);
+    this.cargarAdjuntos(this.hdnNumeLlamadaAsociada());
   }
 
   // ── UI helpers ─────────────────────────────────────────────────────────────
@@ -930,16 +927,16 @@ export class RecepcionComponent implements OnInit, AfterViewInit, OnDestroy {
 
   private cargarAgenciasExternas(): void {
     this.agenciaSvc.getActivas().pipe(takeUntil(this.destroy$)).subscribe({
-      next:  data => { this.agenciasExternas = data ?? []; },
+      next:  data => { this.agenciasExternas.set(data ?? []); },
       error: ()   => { /* no crítico — si falla, simplemente no se muestran */ }
     });
   }
 
   toggleAgenciaExterna(id: string): void {
-    if (this.agenciasSeleccionadas.has(id))
-      this.agenciasSeleccionadas.delete(id);
-    else
-      this.agenciasSeleccionadas.add(id);
+    const set = new Set(this.agenciasSeleccionadas());
+    if (set.has(id)) set.delete(id);
+    else             set.add(id);
+    this.agenciasSeleccionadas.set(set);
   }
 
   getAgenciaIcon = (tipo: string) => this.agenciaSvc.getTipoIcon(tipo);
@@ -947,12 +944,14 @@ export class RecepcionComponent implements OnInit, AfterViewInit, OnDestroy {
   /** Envía el caso a las agencias externas seleccionadas después de guardar.
    *  @param pedidoId — cad_pedidos.id (Snowflake real), NO el NUME_LLAMADA. */
   private despacharAgenciasExternas(pedidoId: string): void {
-    if (this.agenciasSeleccionadas.size === 0) return;
+    const seleccionadas = this.agenciasSeleccionadas();
+    if (seleccionadas.size === 0) return;
     const sg = this.sitioGraba;
+    const agenciasExternas = this.agenciasExternas();
 
     // Buscar el nombre de cada agencia para mostrar mensajes específicos
-    this.agenciasSeleccionadas.forEach(agenciaId => {
-      const agencia = this.agenciasExternas.find(a => a.id === agenciaId);
+    seleccionadas.forEach(agenciaId => {
+      const agencia = agenciasExternas.find(a => a.id === agenciaId);
       const nombreAgencia = agencia?.nombre ?? 'agencia externa';
 
       this.agenciaSvc.despachar({ pedidoId, sitioGraba: sg, agenciaId })
@@ -988,17 +987,16 @@ export class RecepcionComponent implements OnInit, AfterViewInit, OnDestroy {
     return grupo.fuerzaId !== this.fuerzaId;
   }
   /** Devuelve los grupos de canales con los PROPIOS arriba y los EXTERNOS ("Otra agencia") abajo. */
-get gruposCanalesOrdenados() {
-  // [...] crea una copia para NO mutar el arreglo original
-  return [...this.gruposCanales].sort((a, b) => {
-    const aExt = this.esGrupoExterno(a) ? 1 : 0;
-    const bExt = this.esGrupoExterno(b) ? 1 : 0;
-    return aExt - bExt;   // 0 (propios) van antes que 1 (externos)
-  });
-}
+  get gruposCanalesOrdenados() {
+    // [...] crea una copia para NO mutar el arreglo original
+    return [...this.gruposCanales()].sort((a, b) => {
+      const aExt = this.esGrupoExterno(a) ? 1 : 0;
+      const bExt = this.esGrupoExterno(b) ? 1 : 0;
+      return aExt - bExt;   // 0 (propios) van antes que 1 (externos)
+    });
+  }
 
 
-  
   // ── Indicador de salud de conexión PlantaTel ─────────────────────────────
   // El polling corre en background cada 5s sin ninguna señal visible para el
   // operador — si el backend empieza a fallar silenciosamente, nadie lo nota
@@ -1006,18 +1004,22 @@ get gruposCanalesOrdenados() {
   // sobre un mecanismo que hasta ahora era una caja negra.
 
   get plantaTelEstado(): 'ok' | 'demorado' | 'inactivo' {
-    if (this.llamadaEncontrada) return 'ok';   // hay una llamada activa en pantalla
-    if (!this.ultimoPollExitoso) return 'inactivo';
-    const segs = (Date.now() - this.ultimoPollExitoso.getTime()) / 1000;
+    void this.tickReloj(); // dependencia reactiva — refresca cada 5s
+    if (this.llamadaEncontrada()) return 'ok';   // hay una llamada activa en pantalla
+    const ultimoPoll = this.ultimoPollExitoso();
+    if (!ultimoPoll) return 'inactivo';
+    const segs = (Date.now() - ultimoPoll.getTime()) / 1000;
     if (segs < 15) return 'ok';
     if (segs < 45) return 'demorado';
     return 'inactivo';
   }
 
   get plantaTelEstadoLabel(): string {
-    if (this.llamadaEncontrada) return 'Llamada en pantalla';
-    if (!this.ultimoPollExitoso) return 'Conectando…';
-    const segs = Math.floor((Date.now() - this.ultimoPollExitoso.getTime()) / 1000);
+    void this.tickReloj(); // dependencia reactiva — refresca cada 5s
+    if (this.llamadaEncontrada()) return 'Llamada en pantalla';
+    const ultimoPoll = this.ultimoPollExitoso();
+    if (!ultimoPoll) return 'Conectando…';
+    const segs = Math.floor((Date.now() - ultimoPoll.getTime()) / 1000);
     if (segs < 8)  return 'PlantaTel activo';
     if (segs < 60) return `Última respuesta hace ${segs}s`;
     return `Sin respuesta hace ${Math.floor(segs / 60)} min`;
@@ -1059,49 +1061,49 @@ get gruposCanalesOrdenados() {
    * Mismo criterio que detectarDispositivo() ya usa.
    */
   private normalizarTelefono(): number {
-    return Number(this.txtAbonado.replace(/\D/g, '')) || 0;
+    return Number(this.txtAbonado().replace(/\D/g, '')) || 0;
   }
 
   private buildDtoRecepcion(estado: string, enviar: string, canalesSel: DtoCanalSeleccionado[]): DtoRecepcion {
     return {
       SITIO_GRABA:           this.sitioGraba,
-      NUME_LLAMADA:          Number(this.txtNumeLlamada) || 0,
-      HORA_CASO:             this.txtFechaIngreso || this.obtenerFechaActual(),
+      NUME_LLAMADA:          Number(this.txtNumeLlamada()) || 0,
+      HORA_CASO:             this.txtFechaIngreso() || this.obtenerFechaActual(),
       NUME_TELEFONO:         this.normalizarTelefono(),
-      PROP_TELEFONO:         this.txtPropAbonado,
-      NOMB_LLAMANTE:         this.txtNombreLlamante,
-      DIRE_LLAMANTE:         this.txtDireLlamante,
-      TIPO_PEDIDO:           this.tipoPedido,
-      CALI_PEDIDO:           this.caliPedido,
-      BARRIO:                this.txtBarrioCaso,
-      CIUDAD:                this.txtCiudadCaso,
-      DIRE_CASO:             this.txtDireCaso,
-      LATITUD_CASO:          this.latitudCaso,
-      LONGITUD_CASO:         this.longitudCaso,
+      PROP_TELEFONO:         this.txtPropAbonado(),
+      NOMB_LLAMANTE:         this.txtNombreLlamante(),
+      DIRE_LLAMANTE:         this.txtDireLlamante(),
+      TIPO_PEDIDO:           this.tipoPedido(),
+      CALI_PEDIDO:           this.caliPedido(),
+      BARRIO:                this.txtBarrioCaso(),
+      CIUDAD:                this.txtCiudadCaso(),
+      DIRE_CASO:             this.txtDireCaso(),
+      LATITUD_CASO:          this.latitudCaso(),
+      LONGITUD_CASO:         this.longitudCaso(),
       COMENTARIO:            this.buildComentario(),
-      CODI_PEDIDO:           this.txtCodigCaso,
-      CODI_PEDIDO2:          this.txtCodigCaso2,
-      IMPORTANCIA:           this.importancia,
-      PRIORIDAD:             this.prioridad,
-      DISP_TELEFONICO:       this.hdnCodDispTelefonico,
-      OPERADOR:              this.hdnCeldaMarcacion,
+      CODI_PEDIDO:           this.txtCodigCaso(),
+      CODI_PEDIDO2:          this.txtCodigCaso2(),
+      IMPORTANCIA:           this.importancia(),
+      PRIORIDAD:             this.prioridad(),
+      DISP_TELEFONICO:       this.hdnCodDispTelefonico(),
+      OPERADOR:              this.hdnCeldaMarcacion(),
       ESTADO:                estado,
       ENVIAR:                enviar,
-      Origen:                this.mapCanalOrigen(this.canalOrigenUI),
+      Origen:                this.mapCanalOrigen(this.canalOrigenUI()),
       CANALES_SELECCIONADOS: canalesSel,
       CANAL_FUERZA:          this.fuerzaId || null,
-      CADPEDI_SITIO_GRABA:   this.txtAsociarLlamada ? this.hdnSitioGrabaAsociada : null,
-      CADPEDI_NUME_LLAMADA:  this.txtAsociarLlamada ? this.hdnNumeLlamadaAsociada : null
+      CADPEDI_SITIO_GRABA:   this.txtAsociarLlamada() ? this.hdnSitioGrabaAsociada() : null,
+      CADPEDI_NUME_LLAMADA:  this.txtAsociarLlamada() ? this.hdnNumeLlamadaAsociada() : null
     };
   }
 
   private buildDtoRapido(comentario: string): DtoRecepcion {
     return {
       SITIO_GRABA:           this.sitioGraba,
-      NUME_LLAMADA:          Number(this.txtNumeLlamada) || 0,
-      HORA_CASO:             this.txtFechaIngreso || this.obtenerFechaActual(),
+      NUME_LLAMADA:          Number(this.txtNumeLlamada()) || 0,
+      HORA_CASO:             this.txtFechaIngreso() || this.obtenerFechaActual(),
       NUME_TELEFONO:         this.normalizarTelefono(),
-      PROP_TELEFONO:         this.txtPropAbonado,
+      PROP_TELEFONO:         this.txtPropAbonado(),
       NOMB_LLAMANTE:         '',
       DIRE_LLAMANTE:         '',
       TIPO_PEDIDO:           '',
@@ -1120,8 +1122,8 @@ get gruposCanalesOrdenados() {
       // triviales por definición (llamada equivocada, niño jugando, etc.),
       // contaminando estadísticas con prioridades incoherentes.
       PRIORIDAD:             '03',
-      DISP_TELEFONICO:       this.hdnCodDispTelefonico,
-      OPERADOR:              this.hdnCeldaMarcacion,
+      DISP_TELEFONICO:       this.hdnCodDispTelefonico(),
+      OPERADOR:              this.hdnCeldaMarcacion(),
       ESTADO:                'C',
       ENVIAR:                'N',
       Origen:                'RECEPCION',   // cierre rápido siempre es del operador
@@ -1133,46 +1135,46 @@ get gruposCanalesOrdenados() {
   }
 
   limpiarFormulario(): void {
-    this.txtFechaIngreso   = '';
-    this.txtNumeLlamada    = '';
-    this.txtAbonado        = '';
-    this.txtPropAbonado    = '';
-    this.txtDispTelefonico = '';
-    this.hdnCodDispTelefonico = '';
-    this.hdnCeldaMarcacion    = '';
-    this.txtNombreLlamante = '';
-    this.txtDireLlamante   = '';
-    this.txtCodigCaso      = '';
-    this.txtDescaso        = '';
-    this.txtCodigCaso2     = '';
-    this.txtDescaso2       = '';
-    this.txtCiudadCaso     = '';
-    this.txtBarrioCaso     = '';
-    this.txtDireCaso       = '';
-    this.latitudCaso       = '';
-    this.longitudCaso      = '';
-    this.notasAdicionales  = '';
-    this.txtAsociarLlamada = '';
-    this.hdnNumeLlamadaAsociada = '';
-    this.hdnSitioGrabaAsociada  = '';
-    this.tipoPedido   = '';
-    this.caliPedido   = '';
-    this.prioridad      = '03';
-    this.importancia    = '01';
-    this.canalOrigenUI  = 'MANUAL';   // sin llamada activa → ingreso manual por defecto
-    this.canales.forEach(c => c.seleccionado = false);
-    this.llamadaEncontrada = false;
+    this.txtFechaIngreso.set('');
+    this.txtNumeLlamada.set('');
+    this.txtAbonado.set('');
+    this.txtPropAbonado.set('');
+    this.txtDispTelefonico.set('');
+    this.hdnCodDispTelefonico.set('');
+    this.hdnCeldaMarcacion.set('');
+    this.txtNombreLlamante.set('');
+    this.txtDireLlamante.set('');
+    this.txtCodigCaso.set('');
+    this.txtDescaso.set('');
+    this.txtCodigCaso2.set('');
+    this.txtDescaso2.set('');
+    this.txtCiudadCaso.set('');
+    this.txtBarrioCaso.set('');
+    this.txtDireCaso.set('');
+    this.latitudCaso.set('');
+    this.longitudCaso.set('');
+    this.notasAdicionales.set('');
+    this.txtAsociarLlamada.set('');
+    this.hdnNumeLlamadaAsociada.set('');
+    this.hdnSitioGrabaAsociada.set('');
+    this.tipoPedido.set('');
+    this.caliPedido.set('');
+    this.prioridad.set('03');
+    this.importancia.set('01');
+    this.canalOrigenUI.set('MANUAL');   // sin llamada activa → ingreso manual por defecto
+    this.canales().forEach(c => c.seleccionado = false);
+    this.llamadaEncontrada.set(false);
     // Solo retira el marcador de la llamada; las capas de municipio/cuadrantes se mantienen
     if (this.mapMarker && this.map) { this.map.removeLayer(this.mapMarker); this.mapMarker = null; }
     // Resetea el asistente para la próxima llamada
     this.resetAsistente();
     // Limpia estado de duplicados
-    this.duplicados    = [];
-    this.showDuplicados = false;
+    this.duplicados.set([]);
+    this.showDuplicados.set(false);
     // Limpia agencias externas seleccionadas
-    this.agenciasSeleccionadas.clear();
+    this.agenciasSeleccionadas.set(new Set());
     // Limpia adjuntos (nueva llamada, nuevas fotos)
-    this.adjuntos = [];
+    this.adjuntos.set([]);
   }
 
   // ════════════════════════════════════════════════════════════════════════════
@@ -1180,11 +1182,11 @@ get gruposCanalesOrdenados() {
   // ════════════════════════════════════════════════════════════════════════════
 
   /** Carga adjuntos existentes de un pedido ya guardado (por defecto, el actual). */
-  cargarAdjuntos(pedidoId: string = this.txtNumeLlamada): void {
+  cargarAdjuntos(pedidoId: string = this.txtNumeLlamada()): void {
     if (!pedidoId) return;
     this.svc.getAdjuntos(pedidoId)
       .pipe(takeUntil(this.destroy$))
-      .subscribe({ next: r => { if (r.success) this.adjuntos = r.data; } });
+      .subscribe({ next: r => { if (r.success) this.adjuntos.set(r.data); } });
   }
 
   onFotoSeleccionada(event: Event): void {
@@ -1211,7 +1213,7 @@ get gruposCanalesOrdenados() {
   }
 
   private subirFoto(file: File): void {
-    if (!this.txtNumeLlamada) {
+    if (!this.txtNumeLlamada()) {
       this.toast.warning('Fotos', 'Debe generar un ID de llamada antes de subir fotos');
       return;
     }
@@ -1226,24 +1228,22 @@ get gruposCanalesOrdenados() {
       return;
     }
 
-    this.adjuntosSubiendo = true;
-    this.svc.subirAdjunto(this.txtNumeLlamada, this.sitioGraba, file)
+    this.adjuntosSubiendo.set(true);
+    this.svc.subirAdjunto(this.txtNumeLlamada(), this.sitioGraba, file)
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: r => {
-          this.adjuntosSubiendo = false;
+          this.adjuntosSubiendo.set(false);
           if (r.success) {
-            this.adjuntos = [r.data, ...this.adjuntos];
+            this.adjuntos.update(list => [r.data, ...list]);
             this.toast.success('Foto subida', `"${file.name}" adjuntada al caso`);
           } else {
             this.toast.warning('Fotos', r.message);
           }
-          this.cdr.detectChanges();
         },
         error: () => {
-          this.adjuntosSubiendo = false;
+          this.adjuntosSubiendo.set(false);
           this.toast.error('Fotos', 'Error al subir la foto');
-          this.cdr.detectChanges();
         }
       });
   }
@@ -1254,12 +1254,11 @@ get gruposCanalesOrdenados() {
       .subscribe({
         next: r => {
           if (r.success) {
-            this.adjuntos = this.adjuntos.filter(a => a.id !== adjunto.id);
+            this.adjuntos.update(list => list.filter(a => a.id !== adjunto.id));
             this.toast.success('Foto eliminada', adjunto.nombreOriginal);
           } else {
             this.toast.warning('Fotos', r.message);
           }
-          this.cdr.detectChanges();
         },
         error: () => this.toast.error('Fotos', 'Error al eliminar la foto')
       });
@@ -1276,56 +1275,56 @@ get gruposCanalesOrdenados() {
   // ════════════════════════════════════════════════════════════════════════════
 
   toggleAsistente(): void {
-    this.asistenteAbierto = !this.asistenteAbierto;
-    if (this.asistenteAbierto && this.asistenteCategorias.length === 0) {
+    this.asistenteAbierto.update(v => !v);
+    if (this.asistenteAbierto() && this.asistenteCategorias().length === 0) {
       this.cargarAsistenteCategorias();
     }
   }
 
   private cargarAsistenteCategorias(): void {
-    this.asistenteLoadingCat = true;
+    this.asistenteLoadingCat.set(true);
     this.asistenteSvc.getCategorias(true).pipe(takeUntil(this.destroy$)).subscribe({
       next: (r) => {
-        this.asistenteCategorias = r.data ?? [];
-        this.asistenteLoadingCat = false;
+        this.asistenteCategorias.set(r.data ?? []);
+        this.asistenteLoadingCat.set(false);
       },
       error: () => {
-        this.asistenteLoadingCat = false;
+        this.asistenteLoadingCat.set(false);
         this.toast.error('Asistente', 'No fue posible cargar las categorías.');
       }
     });
   }
 
   onAsistenteCategoriaChange(idCategoria: string): void {
-    this.asistentePreguntas    = [];
-    this.asistenteCategoriaSel = idCategoria;
-    this.respuestas            = {};
-    this.relatoAutomatico      = '';
+    this.asistentePreguntas.set([]);
+    this.asistenteCategoriaSel.set(idCategoria);
+    this.respuestas.set({});
+    this.relatoAutomatico.set('');
     if (!idCategoria) return;
 
-    this.asistenteLoadingPreg = true;
+    this.asistenteLoadingPreg.set(true);
     this.asistenteSvc.getPreguntas(idCategoria, true).pipe(takeUntil(this.destroy$)).subscribe({
       next: (r) => {
-        this.asistentePreguntas   = r.data ?? [];
-        this.asistenteLoadingPreg = false;
+        this.asistentePreguntas.set(r.data ?? []);
+        this.asistenteLoadingPreg.set(false);
       },
       error: () => {
-        this.asistenteLoadingPreg = false;
+        this.asistenteLoadingPreg.set(false);
         this.toast.error('Asistente', 'No fue posible cargar las preguntas.');
       }
     });
   }
 
   resetAsistente(): void {
-    this.asistenteAbierto             = false;
-    this.asistenteCategoriaSel        = '';
-    this.asistentePreguntas           = [];
-    this.asistenteLoadingPreg         = false;
-    this.asistenteAutoActivado        = false;
-    this.asistenteCategoriaCode       = '';
-    this.asistenteCategoriaDescripcion = '';
-    this.respuestas                   = {};
-    this.relatoAutomatico             = '';
+    this.asistenteAbierto.set(false);
+    this.asistenteCategoriaSel.set('');
+    this.asistentePreguntas.set([]);
+    this.asistenteLoadingPreg.set(false);
+    this.asistenteAutoActivado.set(false);
+    this.asistenteCategoriaCode.set('');
+    this.asistenteCategoriaDescripcion.set('');
+    this.respuestas.set({});
+    this.relatoAutomatico.set('');
   }
 
   // ════════════════════════════════════════════════════════════════════════════
@@ -1342,35 +1341,35 @@ get gruposCanalesOrdenados() {
 
     if (!catId) {
       // Sin categoría configurada → resetear modo auto si estaba activo
-      if (this.asistenteAutoActivado) this.resetAsistente();
+      if (this.asistenteAutoActivado()) this.resetAsistente();
       return;
     }
 
     // Si ya estábamos en la misma categoría, no recargar (evita perder respuestas)
-    if (this.asistenteAutoActivado && this.asistenteCategoriaSel === catId) return;
+    if (this.asistenteAutoActivado() && this.asistenteCategoriaSel() === catId) return;
 
-    this.asistenteAutoActivado         = true;
-    this.asistenteCategoriaCode        = caso.CATEGORIA_CODIGO ?? '';
-    this.asistenteCategoriaDescripcion = caso.CATEGORIA_DESCRIPCION ?? '';
-    this.asistenteCategoriaSel         = catId;
-    this.asistenteAbierto              = true;
-    this.respuestas                    = {};
+    this.asistenteAutoActivado.set(true);
+    this.asistenteCategoriaCode.set(caso.CATEGORIA_CODIGO ?? '');
+    this.asistenteCategoriaDescripcion.set(caso.CATEGORIA_DESCRIPCION ?? '');
+    this.asistenteCategoriaSel.set(catId);
+    this.asistenteAbierto.set(true);
+    this.respuestas.set({});
 
     // Construir intro del relato inmediatamente con los datos del caso ya disponibles
     this.construirRelato();
 
-    this.asistenteLoadingPreg = true;
+    this.asistenteLoadingPreg.set(true);
     this.asistenteSvc.getPreguntas(catId, true)
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (r) => {
-          this.asistentePreguntas   = r.data ?? [];
-          this.asistenteLoadingPreg = false;
+          this.asistentePreguntas.set(r.data ?? []);
+          this.asistenteLoadingPreg.set(false);
           // Actualizar relato con la lista de preguntas cargada
           this.construirRelato();
         },
         error: () => {
-          this.asistenteLoadingPreg = false;
+          this.asistenteLoadingPreg.set(false);
           this.toast.error('Asistente', 'No fue posible cargar las preguntas.');
         }
       });
@@ -1382,7 +1381,7 @@ get gruposCanalesOrdenados() {
    * `valor` puede ser string o number (inputs numéricos emiten number).
    */
   onRespuestaChange(pregId: string, valor: string | number): void {
-    this.respuestas = { ...this.respuestas, [pregId]: String(valor ?? '') };
+    this.respuestas.update(r => ({ ...r, [pregId]: String(valor ?? '') }));
     this.construirRelato();
   }
 
@@ -1397,18 +1396,18 @@ get gruposCanalesOrdenados() {
    */
   construirRelato(): void {
     // ── Metadatos de la llamada ──────────────────────────────────────────────
-    const fechaHora  = this.txtFechaIngreso || this.obtenerFechaActual();
+    const fechaHora  = this.txtFechaIngreso() || this.obtenerFechaActual();
     const partesFH   = fechaHora.includes(' ') ? fechaHora.split(' ') : [fechaHora, ''];
     const fecha      = partesFH[0];
     const hora       = partesFH[1] ?? '';
-    const abonado    = this.txtAbonado?.trim() || null;
+    const abonado    = this.txtAbonado()?.trim() || null;
     const canalLabel = (this.canalesOrigen as readonly { value: string; label: string }[])
-                         .find(c => c.value === this.canalOrigenUI)?.label ?? this.canalOrigenUI;
-    const direccion  = this.txtDireCaso?.trim() || 'dirección no especificada';
-    const barrio     = this.txtBarrioCaso?.trim();
-    const ciudad     = this.txtCiudadCaso?.trim();
-    const codigoCaso = this.txtCodigCaso?.trim().toUpperCase();
-    const descCaso   = this.txtDescaso?.trim();
+                         .find(c => c.value === this.canalOrigenUI())?.label ?? this.canalOrigenUI();
+    const direccion  = this.txtDireCaso()?.trim() || 'dirección no especificada';
+    const barrio     = this.txtBarrioCaso()?.trim();
+    const ciudad     = this.txtCiudadCaso()?.trim();
+    const codigoCaso = this.txtCodigCaso()?.trim().toUpperCase();
+    const descCaso   = this.txtDescaso()?.trim();
 
     // Ubicación compuesta
     let ubicacion = direccion;
@@ -1428,13 +1427,14 @@ get gruposCanalesOrdenados() {
     intro += ` en ${ubicacion}.`;
 
     // Sin preguntas contestadas → solo el intro (visible desde el momento de selección)
-    const contestadas = this.asistentePreguntas.filter(p => {
-      const v = String(this.respuestas[p.id] ?? '').trim();
+    const respuestas = this.respuestas();
+    const contestadas = this.asistentePreguntas().filter(p => {
+      const v = String(respuestas[p.id] ?? '').trim();
       return v.length > 0;
     });
 
     if (contestadas.length === 0) {
-      this.relatoAutomatico = intro;
+      this.relatoAutomatico.set(intro);
       return;
     }
 
@@ -1449,7 +1449,7 @@ get gruposCanalesOrdenados() {
     const fragmentosAlerta: string[] = [];
 
     for (const p of contestadas) {
-      const resp = String(this.respuestas[p.id]).trim();
+      const resp = String(respuestas[p.id]).trim();
       const qLow = p.pregunta.toLowerCase();
       const esAlerta = p.tipoRespuesta === 'SINO' && resp === 'si' &&
                        PALABRAS_ALERTA.some(k => qLow.includes(k));
@@ -1469,7 +1469,7 @@ get gruposCanalesOrdenados() {
       partes.push('ATENCIÓN: ' + fragmentosAlerta.join('. ') + '.');
     }
 
-    this.relatoAutomatico = partes.join('\n\n');
+    this.relatoAutomatico.set(partes.join('\n\n'));
   }
 
   // ── Motor de fragmentos narrativos ─────────────────────────────────────────
@@ -1546,13 +1546,13 @@ get gruposCanalesOrdenados() {
   private buildComentario(): string {
     const partes: string[] = [];
 
-    if (this.relatoAutomatico.trim()) {
-      partes.push(this.relatoAutomatico.trim());
+    if (this.relatoAutomatico().trim()) {
+      partes.push(this.relatoAutomatico().trim());
     }
 
-    if (this.notasAdicionales.trim()) {
+    if (this.notasAdicionales().trim()) {
       const header = partes.length > 0 ? '── Observaciones adicionales ──\n' : '';
-      partes.push(header + this.notasAdicionales.trim());
+      partes.push(header + this.notasAdicionales().trim());
     }
 
 

@@ -1,5 +1,5 @@
-import { Component, EventEmitter, Input, Output } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
+
 
 /**
  * Panel colapsable reutilizable — mismo patrón visual que ev-section /
@@ -14,20 +14,21 @@ import { CommonModule } from '@angular/common';
 @Component({
   selector: 'app-panel-colapsable',
   standalone: true,
-  imports: [CommonModule],
+  imports: [],
   templateUrl: './panel-colapsable.html',
-  styleUrl: './panel-colapsable.scss'
+  styleUrl: './panel-colapsable.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class PanelColapsableComponent {
-  @Input() titulo = '';
+  readonly titulo = input('');
   /** Clase FontAwesome del ícono de la cabecera. */
-  @Input() icono = 'fa-solid fa-circle-info';
-  @Input() abierto = true;
+  readonly icono = input('fa-solid fa-circle-info');
+  readonly abierto = input(true);
   /** La cabecera queda fija (sticky) al hacer scroll dentro de la lista de secciones. */
-  @Input() sticky = false;
-  @Output() abiertoChange = new EventEmitter<boolean>();
+  readonly sticky = input(false);
+  readonly abiertoChange = output<boolean>();
 
   toggle(): void {
-    this.abiertoChange.emit(!this.abierto);
+    this.abiertoChange.emit(!this.abierto());
   }
 }

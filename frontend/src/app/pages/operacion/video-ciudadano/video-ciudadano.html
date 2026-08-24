@@ -3,12 +3,12 @@
     <img src="/escudo.png" alt="Policía Nacional" class="vc-escudo">
     <h1>Videollamada con la Policía</h1>
 
-    @switch (estado) {
+    @switch (estado()) {
       @case ('validando') {
         <p class="vc-msg">Validando enlace…</p>
       }
       @case ('invalido') {
-        <p class="vc-msg vc-msg--error">{{ mensajeError }}</p>
+        <p class="vc-msg vc-msg--error">{{ mensajeError() }}</p>
       }
       @case ('pidiendo-permiso') {
         <p class="vc-msg">Este enlace fue enviado por la Policía Nacional para atender su emergencia.</p>
@@ -29,7 +29,7 @@
         <p class="vc-msg">La videollamada finalizó. Puede cerrar esta ventana.</p>
       }
       @case ('error') {
-        <p class="vc-msg vc-msg--error">{{ mensajeError || 'Ocurrió un error de conexión.' }}</p>
+        <p class="vc-msg vc-msg--error">{{ mensajeError() || 'Ocurrió un error de conexión.' }}</p>
       }
     }
 
@@ -37,9 +37,9 @@
          referencia #videoLocal esté disponible en cuanto se conceden los permisos,
          sin depender del timing del @switch. -->
     <video #videoLocal autoplay playsinline muted class="vc-video-local"
-           [class.vc-video-local--oculto]="estado !== 'esperando' && estado !== 'conectada'"></video>
+           [class.vc-video-local--oculto]="estado() !== 'esperando' && estado() !== 'conectada'"></video>
 
-    @if (estado === 'conectada') {
+    @if (estado() === 'conectada') {
       <button type="button" class="vc-btn-colgar" (click)="colgar()">Finalizar</button>
     }
   </div>

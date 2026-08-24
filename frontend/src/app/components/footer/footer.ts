@@ -1,5 +1,5 @@
-import { Component, HostListener, OnDestroy, OnInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { Component, HostListener, OnDestroy, OnInit, ChangeDetectionStrategy, computed, inject, signal } from '@angular/core';
+
 import { FormsModule } from '@angular/forms';
 import { BrandingService } from '../../core/services/administracion/branding.service';
 import { DtoRadioEmisora, RadioService } from '../../core/services/administracion/radio.service';
@@ -15,22 +15,26 @@ interface FooterStation {
 @Component({
   selector: 'app-footer',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [FormsModule],
   templateUrl: './footer.html',
   styleUrl: './footer.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class FooterComponent implements OnInit, OnDestroy {
-  systemName = 'SECAD';
-  systemDisplayName = 'Sistema de gestion de Policia';
-  isPlaying = false;
-  errorMessage = '';
-  selectedStation = '';
+  private readonly brandingService = inject(BrandingService);
+  private readonly radioService    = inject(RadioService);
+
+  readonly systemName        = signal('SECAD');
+  readonly systemDisplayName = signal('Sistema de gestion de Policia');
+  readonly isPlaying         = signal(false);
+  readonly errorMessage      = signal('');
+  readonly selectedStation   = signal('');
   private audio: HTMLAudioElement | null = null;
 
   supportOpen = false;
   policyOpen = false;
 
-  stations: FooterStation[] = [];
+  readonly stations = signal<FooterStation[]>([]);
 
   supportForm = {
     tipo: 'Incidente (error)',
@@ -41,10 +45,7 @@ export class FooterComponent implements OnInit, OnDestroy {
     adjuntos: [] as File[]
   };
 
-  constructor(
-    private brandingService: BrandingService,
-    private radioService: RadioService
-  ) {
+  constructor() {
     this.loadBranding();
     this.initAudio();
   }
@@ -58,12 +59,12 @@ export class FooterComponent implements OnInit, OnDestroy {
       next: (cfg) => {
         const sigla = (cfg?.sistema ?? cfg?.systemName ?? '').trim();
         const nombre = (cfg?.nombreSistema ?? '').trim();
-        this.systemName = sigla || 'OFTIC';
-        this.systemDisplayName = nombre || 'Sistema de gestion de Policia';
+        this.systemName.set(sigla || 'OFTIC');
+        this.systemDisplayName.set(nombre || 'Sistema de gestion de Policia');
       },
       error: () => {
-        this.systemName = 'OFTIC';
-        this.systemDisplayName = 'Sistema de gestion de Policia';
+        this.systemName.set('OFTIC');
+        this.systemDisplayName.set('Sistema de gestion de Policia');
       }
     });
   }
@@ -75,17 +76,17 @@ export class FooterComponent implements OnInit, OnDestroy {
           .map((x, idx) => this.mapStation(x, idx))
           .filter((x) => !!x.url);
 
-        this.stations = mapped;
-        this.selectedStation = this.stations[0]?.id ?? '';
+        this.stations.set(mapped);
+        this.selectedStation.set(mapped[0]?.id ?? '');
 
-        if (this.audio && this.currentStationUrl) {
-          this.audio.src = this.currentStationUrl;
+        if (this.audio && this.currentStationUrl()) {
+          this.audio.src = this.currentStationUrl();
         }
       },
       error: () => {
-        this.stations = [];
-        this.selectedStation = '';
-        this.errorMessage = 'No fue posible cargar emisoras activas.';
+        this.stations.set([]);
+        this.selectedStation.set('');
+        this.errorMessage.set('No fue posible cargar emisoras activas.');
       }
     });
   }
@@ -130,59 +131,57 @@ export class FooterComponent implements OnInit, OnDestroy {
     };
   }
 
-  get currentStationUrl(): string {
-    const station = this.stations.find((s) => s.id === this.selectedStation);
+  readonly currentStationUrl = computed(() => {
+    const station = this.stations().find((s) => s.id === this.selectedStation());
     return station?.url ?? '';
-  }
+  });
 
-  get currentStationName(): string {
-    const station = this.stations.find((s) => s.id === this.selectedStation);
+  readonly currentStationName = computed(() => {
+    const station = this.stations().find((s) => s.id === this.selectedStation());
     return station?.name ?? 'Sin emisora';
-  }
+  });
 
-  get currentStationLogo(): string {
-    const station = this.stations.find((s) => s.id === this.selectedStation);
+  readonly currentStationLogo = computed(() => {
+    const station = this.stations().find((s) => s.id === this.selectedStation());
     return (station?.logoUrl ?? '').trim() || '/imagenes/radio-policia-bogota.svg';
-  }
+  });
 
-  get currentStationLabel(): string {
-    return `Radio Policia - ${this.currentStationName}`;
-  }
+  readonly currentStationLabel = computed(() => `Radio Policia - ${this.currentStationName()}`);
 
   private initAudio(): void {
     this.audio = new Audio();
     this.audio.volume = 0.75;
 
     this.audio.addEventListener('playing', () => {
-      this.isPlaying = true;
-      this.errorMessage = '';
+      this.isPlaying.set(true);
+      this.errorMessage.set('');
     });
 
     this.audio.addEventListener('pause', () => {
-      this.isPlaying = false;
+      this.isPlaying.set(false);
     });
 
     this.audio.addEventListener('error', () => {
-      this.isPlaying = false;
-      this.errorMessage = 'No se pudo conectar con la radio.';
+      this.isPlaying.set(false);
+      this.errorMessage.set('No se pudo conectar con la radio.');
     });
 
     this.audio.addEventListener('ended', () => {
-      this.isPlaying = false;
+      this.isPlaying.set(false);
     });
   }
 
   onStationChange(): void {
-    if (!this.audio || !this.currentStationUrl) return;
+    if (!this.audio || !this.currentStationUrl()) return;
 
-    const wasPlaying = this.isPlaying;
+    const wasPlaying = this.isPlaying();
     this.audio.pause();
-    this.audio.src = this.currentStationUrl;
-    this.isPlaying = false;
+    this.audio.src = this.currentStationUrl();
+    this.isPlaying.set(false);
 
     if (wasPlaying) {
       this.audio.play().catch(() => {
-        this.errorMessage = 'No se pudo reproducir esta emisora.';
+        this.errorMessage.set('No se pudo reproducir esta emisora.');
       });
     }
   }
@@ -190,19 +189,19 @@ export class FooterComponent implements OnInit, OnDestroy {
   togglePlay(): void {
     if (!this.audio) return;
 
-    if (!this.currentStationUrl) {
-      this.errorMessage = 'No hay emisoras activas configuradas.';
+    if (!this.currentStationUrl()) {
+      this.errorMessage.set('No hay emisoras activas configuradas.');
       return;
     }
 
-    if (this.isPlaying) {
+    if (this.isPlaying()) {
       this.audio.pause();
       return;
     }
 
-    this.errorMessage = '';
+    this.errorMessage.set('');
     this.audio.play().catch(() => {
-      this.errorMessage = 'No se pudo iniciar la radio.';
+      this.errorMessage.set('No se pudo iniciar la radio.');
     });
   }
 
@@ -262,4 +261,3 @@ export class FooterComponent implements OnInit, OnDestroy {
     };
   }
 }
-

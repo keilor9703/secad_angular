@@ -1,6 +1,6 @@
-import { Component, OnInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
+import { Component, ChangeDetectionStrategy, OnInit, computed, inject, signal } from '@angular/core';
+
+import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterModule } from '@angular/router';
 import { ToastService } from '../../../core/services/toast.service';
 import {
@@ -13,42 +13,49 @@ import {
 @Component({
   selector: 'app-entidades',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule],
+  imports: [ReactiveFormsModule, RouterModule],
   templateUrl: './entidades.html',
-  styleUrls: ['./entidades.scss']
+  styleUrls: ['./entidades.scss'],
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class EntidadesComponent implements OnInit {
+  private readonly fuerzaService = inject(FuerzaService);
+  private readonly toast         = inject(ToastService);
+  private readonly fb            = inject(FormBuilder);
 
   // ── Estado general ─────────────────────────────────────────────────────────
-  loading = false;
-  saving  = false;
+  readonly loading = signal(false);
+  readonly saving  = signal(false);
 
   // ── Lista de fuerzas ───────────────────────────────────────────────────────
-  fuerzas: DtoFuerza[] = [];
-  fuerzaSeleccionada: DtoFuerza | null = null;
+  readonly fuerzas             = signal<DtoFuerza[]>([]);
+  readonly fuerzaSeleccionada  = signal<DtoFuerza | null>(null);
 
   // ── Formulario de fuerza ───────────────────────────────────────────────────
-  modoFuerza: 'ninguno' | 'nueva' | 'editando' = 'ninguno';
-  formFuerza: DtoFuerzaRequest = { id: 0, descripcion: '', abreviatura: '', vigente: 'S' };
+  readonly modoFuerza = signal<'ninguno' | 'nueva' | 'editando'>('ninguno');
+  readonly formFuerza = this.fb.nonNullable.group({
+    id:          [0, [Validators.required, Validators.min(1)]],
+    descripcion: ['', [Validators.required]],
+    abreviatura: [''],
+    vigente:     ['S']
+  });
 
   // ── Canales ────────────────────────────────────────────────────────────────
-  canales: DtoCanalFuerza[] = [];
-  loadingCanales = false;
-  modoCanal: 'ninguno' | 'nuevo' | 'editando' = 'ninguno';
-  editingCanalCodigo: number | null = null;
-  formCanal: DtoCanalRequest = { descripcion: '', vigente: 'S' };
+  readonly canales             = signal<DtoCanalFuerza[]>([]);
+  readonly loadingCanales      = signal(false);
+  readonly modoCanal           = signal<'ninguno' | 'nuevo' | 'editando'>('ninguno');
+  readonly editingCanalCodigo  = signal<number | null>(null);
+  readonly formCanal = this.fb.nonNullable.group({
+    descripcion: ['', [Validators.required]],
+    vigente:     ['S']
+  });
 
   // ── Usuarios en fuerza ─────────────────────────────────────────────────────
-  usuariosEnFuerza: DtoUsuarioEnFuerza[] = [];
-  loadingUsuarios = false;
+  readonly usuariosEnFuerza = signal<DtoUsuarioEnFuerza[]>([]);
+  readonly loadingUsuarios  = signal(false);
 
   // ── Tab activa en el detalle ───────────────────────────────────────────────
-  tabDetalle: 'canales' | 'usuarios' = 'canales';
-
-  constructor(
-    private fuerzaService: FuerzaService,
-    private toast: ToastService
-  ) {}
+  readonly tabDetalle = signal<'canales' | 'usuarios'>('canales');
 
   ngOnInit(): void {
     this.cargarFuerzas();
@@ -57,86 +64,93 @@ export class EntidadesComponent implements OnInit {
   // ── Fuerzas ────────────────────────────────────────────────────────────────
 
   cargarFuerzas(): void {
-    this.loading = true;
+    this.loading.set(true);
     this.fuerzaService.getFuerzas().subscribe({
       next: (r) => {
-        this.fuerzas = r.data ?? [];
-        this.loading = false;
+        const lista = r.data ?? [];
+        this.fuerzas.set(lista);
+        this.loading.set(false);
         // Si había una fuerza seleccionada, refrescarla
-        if (this.fuerzaSeleccionada) {
-          const updated = this.fuerzas.find(f => f.id === this.fuerzaSeleccionada!.id);
-          if (updated) this.fuerzaSeleccionada = updated;
+        const actual = this.fuerzaSeleccionada();
+        if (actual) {
+          const updated = lista.find(f => f.id === actual.id);
+          if (updated) this.fuerzaSeleccionada.set(updated);
         }
       },
       error: () => {
-        this.loading = false;
+        this.loading.set(false);
         this.toast.error('Entidades', 'No se pudieron cargar las fuerzas.');
       }
     });
   }
 
   seleccionarFuerza(fuerza: DtoFuerza): void {
-    this.fuerzaSeleccionada = fuerza;
-    this.modoFuerza = 'ninguno';
-    this.modoCanal  = 'ninguno';
-    this.tabDetalle = 'canales';
+    this.fuerzaSeleccionada.set(fuerza);
+    this.modoFuerza.set('ninguno');
+    this.modoCanal.set('ninguno');
+    this.tabDetalle.set('canales');
     this.cargarCanales(fuerza.id);
     this.cargarUsuarios(fuerza.id);
   }
 
   nuevaFuerza(): void {
-    this.fuerzaSeleccionada = null;
-    this.modoFuerza = 'nueva';
-    this.formFuerza = { id: 0, descripcion: '', abreviatura: '', vigente: 'S' };
-    this.modoCanal  = 'ninguno';
+    this.fuerzaSeleccionada.set(null);
+    this.modoFuerza.set('nueva');
+    this.formFuerza.reset({ id: 0, descripcion: '', abreviatura: '', vigente: 'S' });
+    this.modoCanal.set('ninguno');
   }
 
   editarFuerza(fuerza: DtoFuerza, event: Event): void {
     event.stopPropagation();
-    this.fuerzaSeleccionada = fuerza;
-    this.modoFuerza = 'editando';
-    this.formFuerza = {
+    this.fuerzaSeleccionada.set(fuerza);
+    this.modoFuerza.set('editando');
+    this.formFuerza.reset({
       id: fuerza.id,          // id fijo en edición (no editable)
       descripcion: fuerza.descripcion,
       abreviatura: fuerza.abreviatura ?? '',
       vigente: fuerza.vigente
-    };
+    });
   }
 
   cancelarFuerza(): void {
-    this.modoFuerza = 'ninguno';
-    this.formFuerza = { id: 0, descripcion: '', abreviatura: '', vigente: 'S' };
+    this.modoFuerza.set('ninguno');
+    this.formFuerza.reset({ id: 0, descripcion: '', abreviatura: '', vigente: 'S' });
   }
 
   guardarFuerza(): void {
-    if (this.modoFuerza === 'nueva' && (!this.formFuerza.id || this.formFuerza.id <= 0)) {
-      this.toast.warning('Guardar', 'El código de la fuerza es requerido y debe ser mayor que 0.');
+    if (this.formFuerza.invalid) {
+      this.formFuerza.markAllAsTouched();
+      const v = this.formFuerza.getRawValue();
+      if (this.modoFuerza() === 'nueva' && (!v.id || v.id <= 0)) {
+        this.toast.warning('Guardar', 'El código de la fuerza es requerido y debe ser mayor que 0.');
+      } else if (!v.descripcion?.trim()) {
+        this.toast.warning('Guardar', 'La descripción de la fuerza es requerida.');
+      }
       return;
     }
-    if (!this.formFuerza.descripcion?.trim()) {
-      this.toast.warning('Guardar', 'La descripción de la fuerza es requerida.');
-      return;
-    }
-    this.saving = true;
-    const req = { ...this.formFuerza, descripcion: this.formFuerza.descripcion.trim() };
 
-    const op = this.modoFuerza === 'editando' && this.fuerzaSeleccionada
-      ? this.fuerzaService.updateFuerza(this.fuerzaSeleccionada.id, req)
+    this.saving.set(true);
+    const v = this.formFuerza.getRawValue();
+    const req: DtoFuerzaRequest = { ...v, descripcion: v.descripcion.trim() };
+
+    const seleccionada = this.fuerzaSeleccionada();
+    const op = this.modoFuerza() === 'editando' && seleccionada
+      ? this.fuerzaService.updateFuerza(seleccionada.id, req)
       : this.fuerzaService.createFuerza(req);
 
     op.subscribe({
       next: (r) => {
-        this.saving = false;
+        this.saving.set(false);
         if (r.success) {
           this.toast.success('Fuerza', r.message);
-          this.modoFuerza = 'ninguno';
+          this.modoFuerza.set('ninguno');
           this.cargarFuerzas();
         } else {
           this.toast.warning('Fuerza', r.message);
         }
       },
       error: () => {
-        this.saving = false;
+        this.saving.set(false);
         this.toast.error('Fuerza', 'Error al guardar la fuerza.');
       }
     });
@@ -160,48 +174,52 @@ export class EntidadesComponent implements OnInit {
   // ── Canales ────────────────────────────────────────────────────────────────
 
   cargarCanales(fuerzaId: number): void {
-    this.loadingCanales = true;
+    this.loadingCanales.set(true);
     this.fuerzaService.getCanales(fuerzaId).subscribe({
-      next: (r) => { this.canales = r.data ?? []; this.loadingCanales = false; },
-      error: () => { this.loadingCanales = false; this.toast.error('Canales', 'Error al cargar canales.'); }
+      next: (r) => { this.canales.set(r.data ?? []); this.loadingCanales.set(false); },
+      error: () => { this.loadingCanales.set(false); this.toast.error('Canales', 'Error al cargar canales.'); }
     });
   }
 
   nuevoCanal(): void {
-    this.modoCanal = 'nuevo';
-    this.editingCanalCodigo = null;
-    this.formCanal = { descripcion: '', vigente: 'S' };
+    this.modoCanal.set('nuevo');
+    this.editingCanalCodigo.set(null);
+    this.formCanal.reset({ descripcion: '', vigente: 'S' });
   }
 
   editarCanal(canal: DtoCanalFuerza): void {
-    this.modoCanal = 'editando';
-    this.editingCanalCodigo = canal.codigo;
-    this.formCanal = { descripcion: canal.descripcion, vigente: canal.vigente };
+    this.modoCanal.set('editando');
+    this.editingCanalCodigo.set(canal.codigo);
+    this.formCanal.reset({ descripcion: canal.descripcion, vigente: canal.vigente });
   }
 
   cancelarCanal(): void {
-    this.modoCanal = 'ninguno';
-    this.editingCanalCodigo = null;
-    this.formCanal = { descripcion: '', vigente: 'S' };
+    this.modoCanal.set('ninguno');
+    this.editingCanalCodigo.set(null);
+    this.formCanal.reset({ descripcion: '', vigente: 'S' });
   }
 
   guardarCanal(): void {
-    if (!this.fuerzaSeleccionada) return;
-    if (!this.formCanal.descripcion?.trim()) {
+    const fuerza = this.fuerzaSeleccionada();
+    if (!fuerza) return;
+    if (this.formCanal.invalid) {
+      this.formCanal.markAllAsTouched();
       this.toast.warning('Canal', 'La descripción del canal es requerida.');
       return;
     }
-    this.saving = true;
-    const req = { ...this.formCanal, descripcion: this.formCanal.descripcion.trim() };
-    const fuerzaId = this.fuerzaSeleccionada.id;
+    this.saving.set(true);
+    const v = this.formCanal.getRawValue();
+    const req: DtoCanalRequest = { ...v, descripcion: v.descripcion.trim() };
+    const fuerzaId = fuerza.id;
 
-    const op = this.modoCanal === 'editando' && this.editingCanalCodigo !== null
-      ? this.fuerzaService.updateCanal(fuerzaId, this.editingCanalCodigo, req)
+    const editingCodigo = this.editingCanalCodigo();
+    const op = this.modoCanal() === 'editando' && editingCodigo !== null
+      ? this.fuerzaService.updateCanal(fuerzaId, editingCodigo, req)
       : this.fuerzaService.createCanal(fuerzaId, req);
 
     op.subscribe({
       next: (r) => {
-        this.saving = false;
+        this.saving.set(false);
         if (r.success) {
           this.toast.success('Canal', r.message);
           this.cancelarCanal();
@@ -212,19 +230,20 @@ export class EntidadesComponent implements OnInit {
         }
       },
       error: () => {
-        this.saving = false;
+        this.saving.set(false);
         this.toast.error('Canal', 'Error al guardar el canal.');
       }
     });
   }
 
   toggleCanal(canal: DtoCanalFuerza): void {
-    if (!this.fuerzaSeleccionada) return;
-    this.fuerzaService.toggleCanal(this.fuerzaSeleccionada.id, canal.codigo).subscribe({
+    const fuerza = this.fuerzaSeleccionada();
+    if (!fuerza) return;
+    this.fuerzaService.toggleCanal(fuerza.id, canal.codigo).subscribe({
       next: (r) => {
         if (r.success) {
           this.toast.success('Canal', r.message);
-          this.cargarCanales(this.fuerzaSeleccionada!.id);
+          this.cargarCanales(fuerza.id);
         } else {
           this.toast.warning('Canal', r.message);
         }
@@ -236,23 +255,23 @@ export class EntidadesComponent implements OnInit {
   // ── Usuarios ───────────────────────────────────────────────────────────────
 
   cargarUsuarios(fuerzaId: number): void {
-    this.loadingUsuarios = true;
+    this.loadingUsuarios.set(true);
     this.fuerzaService.getUsuariosByFuerza(fuerzaId).subscribe({
-      next: (r) => { this.usuariosEnFuerza = r.data ?? []; this.loadingUsuarios = false; },
-      error: () => { this.loadingUsuarios = false; this.toast.error('Usuarios', 'Error al cargar usuarios.'); }
+      next: (r) => { this.usuariosEnFuerza.set(r.data ?? []); this.loadingUsuarios.set(false); },
+      error: () => { this.loadingUsuarios.set(false); this.toast.error('Usuarios', 'Error al cargar usuarios.'); }
     });
   }
 
   setTab(tab: 'canales' | 'usuarios'): void {
-    this.tabDetalle = tab;
+    this.tabDetalle.set(tab);
   }
 
   // ── Helpers ────────────────────────────────────────────────────────────────
 
   estaSeleccionada(fuerza: DtoFuerza): boolean {
-    return this.fuerzaSeleccionada?.id === fuerza.id;
+    return this.fuerzaSeleccionada()?.id === fuerza.id;
   }
 
-  get conteoVigentes(): number { return this.fuerzas.filter(f => f.vigente === 'S').length; }
-  get conteoTotal(): number    { return this.fuerzas.length; }
+  readonly conteoVigentes = computed(() => this.fuerzas().filter(f => f.vigente === 'S').length);
+  readonly conteoTotal    = computed(() => this.fuerzas().length);
 }

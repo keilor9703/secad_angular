@@ -18,211 +18,214 @@
   </div>
 
   <!-- Loading -->
-  <div class="ui-loading" *ngIf="loading">
-    <i class="fa-solid fa-spinner fa-spin"></i> Cargando agencias…
-  </div>
+  @if (loading()) {
+    <div class="ui-loading">
+      <i class="fa-solid fa-spinner fa-spin"></i> Cargando agencias…
+    </div>
+  }
 
   <!-- Tabla -->
-  <div class="ui-card" *ngIf="!loading">
-    <table class="ui-table" *ngIf="agencias.length; else emptyTpl">
-      <thead>
-        <tr>
-          <th>Agencia</th>
-          <th>Tipo</th>
-          <th>URL API</th>
-          <th>Método</th>
-          <th>Token</th>
-          <th>Estado</th>
-          <th>Acciones</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr *ngFor="let a of agencias">
-          <td>
-            <strong>{{ a.nombre }}</strong>
-            <div class="sub-text" *ngIf="a.descripcion">{{ a.descripcion }}</div>
-          </td>
-          <td>
-            <span class="ui-badge info">
-              <i class="fa-solid" [ngClass]="getTipoIcon(a.tipoAgencia)"></i>
-              {{ getTipoLabel(a.tipoAgencia) }}
-            </span>
-          </td>
-          <td>
-            <code *ngIf="a.apiUrl; else sinUrl">{{ a.apiUrl }}</code>
-            <ng-template #sinUrl><span class="sub-text">Sin configurar</span></ng-template>
-          </td>
-          <td><span class="ui-badge">{{ a.apiMetodo }}</span></td>
-          <td>
-            <span class="ui-badge" [class.success]="a.tieneToken" [class.danger]="!a.tieneToken">
-              <i class="fa-solid" [ngClass]="a.tieneToken ? 'fa-lock' : 'fa-lock-open'"></i>
-              {{ a.tieneToken ? 'Configurado' : 'Sin token' }}
-            </span>
-          </td>
-          <td>
-            <span class="ui-badge" [class.success]="a.activa" [class.danger]="!a.activa">
-              {{ a.activa ? 'Activa' : 'Inactiva' }}
-            </span>
-          </td>
-          <td class="actions-cell">
-            <button class="ui-btn secondary" type="button" (click)="openEdit(a)" title="Editar">
-              <i class="fa-solid fa-pen"></i>
-            </button>
-            <button class="ui-btn"
+  @if (!loading()) {
+    <div class="ui-card">
+      @if (agencias().length) {
+        <table class="ui-table">
+          <thead>
+            <tr>
+              <th>Agencia</th>
+              <th>Tipo</th>
+              <th>URL API</th>
+              <th>Método</th>
+              <th>Token</th>
+              <th>Estado</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (a of agencias(); track a.id) {
+              <tr>
+                <td>
+                  <strong>{{ a.nombre }}</strong>
+                  @if (a.descripcion) {
+                    <div class="sub-text">{{ a.descripcion }}</div>
+                  }
+                </td>
+                <td>
+                  <span class="ui-badge info">
+                    <i class="fa-solid" [ngClass]="getTipoIcon(a.tipoAgencia)"></i>
+                    {{ getTipoLabel(a.tipoAgencia) }}
+                  </span>
+                </td>
+                <td>
+                  @if (a.apiUrl) {
+                    <code>{{ a.apiUrl }}</code>
+                  } @else {
+                    <span class="sub-text">Sin configurar</span>
+                  }
+                </td>
+                <td><span class="ui-badge">{{ a.apiMetodo }}</span></td>
+                <td>
+                  <span class="ui-badge" [class.success]="a.tieneToken" [class.danger]="!a.tieneToken">
+                    <i class="fa-solid" [ngClass]="a.tieneToken ? 'fa-lock' : 'fa-lock-open'"></i>
+                    {{ a.tieneToken ? 'Configurado' : 'Sin token' }}
+                  </span>
+                </td>
+                <td>
+                  <span class="ui-badge" [class.success]="a.activa" [class.danger]="!a.activa">
+                    {{ a.activa ? 'Activa' : 'Inactiva' }}
+                  </span>
+                </td>
+                <td class="actions-cell">
+                  <button class="ui-btn secondary" type="button" (click)="openEdit(a)" title="Editar">
+                    <i class="fa-solid fa-pen"></i>
+                  </button>
+                  <button class="ui-btn"
                     [class.secondary]="a.activa"
                     [class.primary]="!a.activa"
                     type="button"
                     (click)="toggle(a)"
                     [title]="a.activa ? 'Desactivar' : 'Activar'">
-              <i class="fa-solid" [ngClass]="a.activa ? 'fa-ban' : 'fa-circle-check'"></i>
-            </button>
-          </td>
-        </tr>
-      </tbody>
-    </table>
-
-    <ng-template #emptyTpl>
-      <div class="ui-empty">
-        <i class="fa-solid fa-building-shield fa-2x"></i>
-        <p>No hay agencias externas configuradas. <a (click)="openCreate()">Crear la primera</a></p>
-      </div>
-    </ng-template>
-  </div>
+                    <i class="fa-solid" [ngClass]="a.activa ? 'fa-ban' : 'fa-circle-check'"></i>
+                  </button>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      } @else {
+        <div class="ui-empty">
+          <i class="fa-solid fa-building-shield fa-2x"></i>
+          <p>No hay agencias externas configuradas. <a (click)="openCreate()">Crear la primera</a></p>
+        </div>
+      }
+    </div>
+  }
 
 </div>
 
 <!-- ══════════════════════════════════════════════════════════
-     MODAL: Crear / Editar agencia
-     ══════════════════════════════════════════════════════════ -->
-<div class="ui-modal" *ngIf="showModal" (click)="closeModal()">
-  <div class="ui-modal__dialog ag-modal" (click)="$event.stopPropagation()">
-
-    <div class="ui-modal__head">
-      <div class="ui-modal__title">
-        <i class="fa-solid" [ngClass]="modalMode === 'create' ? 'fa-plus-circle' : 'fa-pen-to-square'"></i>
-        {{ modalMode === 'create' ? 'Nueva agencia externa' : 'Editar agencia' }}
+MODAL: Crear / Editar agencia
+══════════════════════════════════════════════════════════ -->
+@if (showModal()) {
+  <div class="ui-modal" (click)="closeModal()">
+    <div class="ui-modal__dialog ag-modal" (click)="$event.stopPropagation()">
+      <div class="ui-modal__head">
+        <div class="ui-modal__title">
+          <i class="fa-solid" [ngClass]="modalMode() === 'create' ? 'fa-plus-circle' : 'fa-pen-to-square'"></i>
+          {{ modalMode() === 'create' ? 'Nueva agencia externa' : 'Editar agencia' }}
+        </div>
+        <button class="ui-icon-btn" type="button" (click)="closeModal()">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
       </div>
-      <button class="ui-icon-btn" type="button" (click)="closeModal()">
-        <i class="fa-solid fa-xmark"></i>
-      </button>
-    </div>
-
-    <div class="ui-modal__body">
-      <div class="ag-form">
-
-        <!-- ── Fila 1: Nombre (ancho) + Tipo ───────────────────────────── -->
-        <div class="ag-row">
-          <div class="ag-field ag-field--grow">
-            <label class="ui-label">Nombre <span class="ag-req">*</span></label>
-            <input class="ui-control" [(ngModel)]="form.nombre"
-                   placeholder="Ej: Bomberos Bogotá" maxlength="100">
+      <div class="ui-modal__body">
+        <div [formGroup]="form" class="ag-form">
+          <!-- ── Fila 1: Nombre (ancho) + Tipo ───────────────────────────── -->
+          <div class="ag-row">
+            <div class="ag-field ag-field--grow">
+              <label class="ui-label">Nombre <span class="ag-req">*</span></label>
+              <input class="ui-control" formControlName="nombre"
+                placeholder="Ej: Bomberos Bogotá" maxlength="100">
+            </div>
+            <div class="ag-field ag-field--tipo">
+              <label class="ui-label">Tipo de agencia</label>
+              <select class="ui-control" formControlName="tipoAgencia">
+                @for (t of tiposAgencia; track t.value) {
+                  <option [value]="t.value">{{ t.label }}</option>
+                }
+              </select>
+            </div>
           </div>
-          <div class="ag-field ag-field--tipo">
-            <label class="ui-label">Tipo de agencia</label>
-            <select class="ui-control" [(ngModel)]="form.tipoAgencia">
-              <option *ngFor="let t of tiposAgencia" [value]="t.value">{{ t.label }}</option>
-            </select>
+          <!-- ── Fila 2: Descripción ──────────────────────────────────────── -->
+          <div class="ag-field">
+            <label class="ui-label">Descripción</label>
+            <input class="ui-control" formControlName="descripcion"
+              placeholder="Descripción opcional" maxlength="255">
+          </div>
+          <!-- ── Sección: Configuración de API ───────────────────────────── -->
+          <div class="tenant-section-title" style="margin-top:0.5rem">
+            <i class="fa-solid fa-plug"></i> Configuración de API
+          </div>
+          <!-- URL + Método en la misma fila -->
+          <div class="ag-row">
+            <div class="ag-field ag-field--grow">
+              <label class="ui-label">URL del endpoint</label>
+              <input class="ui-control" formControlName="apiUrl"
+                placeholder="https://api.agencia.gov.co/incidentes" maxlength="500">
+              </div>
+              <div class="ag-field ag-field--metodo">
+                <label class="ui-label">Método</label>
+                <select class="ui-control" formControlName="apiMetodo">
+                  <option value="POST">POST</option>
+                  <option value="PUT">PUT</option>
+                </select>
+              </div>
+            </div>
+            <!-- Token -->
+            <div class="ag-field">
+              <label class="ui-label">
+                Token de autenticación (Bearer)
+                @if (modalMode() === 'edit') {
+                  <span class="tenant-section-hint">
+                    · Deje vacío para mantener el existente
+                  </span>
+                }
+              </label>
+              <input class="ui-control" type="password" formControlName="apiToken"
+                autocomplete="new-password"
+                [placeholder]="modalMode() === 'edit' ? '••••••••' : 'Token de autenticación'">
+            </div>
+            <!-- ── Sección: JSON avanzado ───────────────────────────────────── -->
+            <div class="tenant-section-title" style="margin-top:0.5rem">
+              <i class="fa-solid fa-code"></i> Configuración avanzada (JSON)
+              <span class="tenant-section-hint">· Opcional</span>
+            </div>
+            <!-- Cabeceras -->
+            <div class="ag-field">
+              <label class="ui-label">
+                Cabeceras HTTP adicionales
+                <span class="tenant-section-hint">
+                  · Formato: clave / valor en JSON
+                </span>
+              </label>
+              <textarea class="ui-control ag-json-area" [ngModel]="formCabeceras()" (ngModelChange)="formCabeceras.set($event)" [ngModelOptions]="{standalone: true}" rows="2"
+                placeholder='{"X-Api-Key": "abc123", "X-Source": "SECAD"}'
+              spellcheck="false"></textarea>
+            </div>
+            <!-- Mapeo de campos -->
+            <div class="ag-field">
+              <label class="ui-label">
+                Mapeo de campos
+                <span class="tenant-section-hint">
+                  · JSON: campo SECAD → campo de la agencia destino
+                </span>
+              </label>
+              <textarea class="ui-control ag-json-area" [ngModel]="formMapeo()" (ngModelChange)="formMapeo.set($event)" [ngModelOptions]="{standalone: true}" rows="3"
+                placeholder='{"codiPedido": "tipo_incidente", "direCaso": "direccion", "latitud": "lat"}'
+              spellcheck="false"></textarea>
+              <small class="sub-text" style="display:block;margin-top:3px">
+                Campos: id · codiPedido · codiPedido2 · direCaso · ciudad · barrio ·
+                latitud · longitud · prioridad · nombLlamante · descripcion · horaCaso
+              </small>
+            </div>
+            <!-- Estado -->
+            <div class="ag-field ag-field--estado">
+              <label class="ui-label">Estado</label>
+              <select class="ui-control" formControlName="activa">
+                <option [ngValue]="true">Activa</option>
+                <option [ngValue]="false">Inactiva</option>
+              </select>
+            </div>
           </div>
         </div>
-
-        <!-- ── Fila 2: Descripción ──────────────────────────────────────── -->
-        <div class="ag-field">
-          <label class="ui-label">Descripción</label>
-          <input class="ui-control" [(ngModel)]="form.descripcion"
-                 placeholder="Descripción opcional" maxlength="255">
+        <div class="ui-modal__foot">
+          <button class="ui-btn sm ghost" type="button" (click)="closeModal()">
+            <i class="fa-solid fa-xmark"></i> Cancelar
+          </button>
+          <button class="ui-btn sm primary" type="button" (click)="save()" [disabled]="saving()">
+            <i class="fa-solid" [ngClass]="saving() ? 'fa-spinner fa-spin' : 'fa-floppy-disk'"></i>
+            {{ saving() ? 'Guardando...' : 'Guardar' }}
+          </button>
         </div>
-
-        <!-- ── Sección: Configuración de API ───────────────────────────── -->
-        <div class="tenant-section-title" style="margin-top:0.5rem">
-          <i class="fa-solid fa-plug"></i> Configuración de API
-        </div>
-
-        <!-- URL + Método en la misma fila -->
-        <div class="ag-row">
-          <div class="ag-field ag-field--grow">
-            <label class="ui-label">URL del endpoint</label>
-            <input class="ui-control" [(ngModel)]="form.apiUrl"
-                   placeholder="https://api.agencia.gov.co/incidentes" maxlength="500">
-          </div>
-          <div class="ag-field ag-field--metodo">
-            <label class="ui-label">Método</label>
-            <select class="ui-control" [(ngModel)]="form.apiMetodo">
-              <option value="POST">POST</option>
-              <option value="PUT">PUT</option>
-            </select>
-          </div>
-        </div>
-
-        <!-- Token -->
-        <div class="ag-field">
-          <label class="ui-label">
-            Token de autenticación (Bearer)
-            <span class="tenant-section-hint" *ngIf="modalMode === 'edit'">
-              · Deje vacío para mantener el existente
-            </span>
-          </label>
-          <input class="ui-control" type="password" [(ngModel)]="form.apiToken"
-                 autocomplete="new-password"
-                 [placeholder]="modalMode === 'edit' ? '••••••••' : 'Token de autenticación'">
-        </div>
-
-        <!-- ── Sección: JSON avanzado ───────────────────────────────────── -->
-        <div class="tenant-section-title" style="margin-top:0.5rem">
-          <i class="fa-solid fa-code"></i> Configuración avanzada (JSON)
-          <span class="tenant-section-hint">· Opcional</span>
-        </div>
-
-        <!-- Cabeceras -->
-        <div class="ag-field">
-          <label class="ui-label">
-            Cabeceras HTTP adicionales
-            <span class="tenant-section-hint">
-              · Formato: clave / valor en JSON
-            </span>
-          </label>
-          <textarea class="ui-control ag-json-area" [(ngModel)]="formCabeceras" rows="2"
-                    placeholder='{"X-Api-Key": "abc123", "X-Source": "SECAD"}'
-                    spellcheck="false"></textarea>
-        </div>
-
-        <!-- Mapeo de campos -->
-        <div class="ag-field">
-          <label class="ui-label">
-            Mapeo de campos
-            <span class="tenant-section-hint">
-              · JSON: campo SECAD → campo de la agencia destino
-            </span>
-          </label>
-          <textarea class="ui-control ag-json-area" [(ngModel)]="formMapeo" rows="3"
-                    placeholder='{"codiPedido": "tipo_incidente", "direCaso": "direccion", "latitud": "lat"}'
-                    spellcheck="false"></textarea>
-          <small class="sub-text" style="display:block;margin-top:3px">
-            Campos: id · codiPedido · codiPedido2 · direCaso · ciudad · barrio ·
-            latitud · longitud · prioridad · nombLlamante · descripcion · horaCaso
-          </small>
-        </div>
-
-        <!-- Estado -->
-        <div class="ag-field ag-field--estado">
-          <label class="ui-label">Estado</label>
-          <select class="ui-control" [(ngModel)]="form.activa">
-            <option [ngValue]="true">Activa</option>
-            <option [ngValue]="false">Inactiva</option>
-          </select>
-        </div>
-
       </div>
     </div>
-
-    <div class="ui-modal__foot">
-      <button class="ui-btn sm ghost" type="button" (click)="closeModal()">
-        <i class="fa-solid fa-xmark"></i> Cancelar
-      </button>
-      <button class="ui-btn sm primary" type="button" (click)="save()" [disabled]="saving">
-        <i class="fa-solid" [ngClass]="saving ? 'fa-spinner fa-spin' : 'fa-floppy-disk'"></i>
-        {{ saving ? 'Guardando...' : 'Guardar' }}
-      </button>
-    </div>
-
-  </div>
-</div>
+  }

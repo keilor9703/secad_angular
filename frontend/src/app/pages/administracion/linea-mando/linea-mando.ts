@@ -1,8 +1,8 @@
-﻿import { Component, OnInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
+import { Component, ChangeDetectionStrategy, OnInit, inject, signal } from '@angular/core';
+
+import { FormBuilder, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterModule } from '@angular/router';
-import { DomSanitizer, SafeHtml, SafeUrl } from '@angular/platform-browser';
+import { DomSanitizer } from '@angular/platform-browser';
 import { ToastService } from '../../../core/services/toast.service';
 import { LineaMandoService, DtoLineaMando, DtoLineaMandoRequest } from '../../../core/services/administracion/linea-mando.service';
 import { UsuarioAdminService } from '../../../core/services/administracion/usuario-admin.service';
@@ -15,63 +15,63 @@ interface CargoOpcion {
 @Component({
   selector: 'app-linea-mando',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule],
+  imports: [FormsModule, ReactiveFormsModule, RouterModule],
   templateUrl: './linea-mando.html',
-  styleUrls: ['./linea-mando.scss']
+  styleUrls: ['./linea-mando.scss'],
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class LineaMandoAdminComponent implements OnInit {
-  listaLineaMando: DtoLineaMando[] = [];
-  loading = false;
-  saving = false;
-  searchingFuncionario = false;
+  private readonly toast               = inject(ToastService);
+  private readonly lineaMandoService   = inject(LineaMandoService);
+  private readonly usuarioAdminService = inject(UsuarioAdminService);
+  private readonly sanitizer           = inject(DomSanitizer);
+  private readonly fb                  = inject(FormBuilder);
 
-  searchIdentificacion = '';
-  modoEdicion = false;
-  idEditando: number | null = null;
+  readonly listaLineaMando     = signal<DtoLineaMando[]>([]);
+  readonly loading             = signal(false);
+  readonly saving              = signal(false);
+  readonly searchingFuncionario = signal(false);
 
-  fotoPreview: string | null = null;
-  fotoCambiada = false;
-  hayFuncionario = false;
+  readonly searchIdentificacion = signal('');
+  readonly modoEdicion          = signal(false);
+  readonly idEditando           = signal<number | null>(null);
 
-  pesoOpciones: CargoOpcion[] = [
+  readonly fotoPreview     = signal<string | null>(null);
+  private fotoBase64: string | null = null;
+  fotoCambiada  = false;
+  readonly hayFuncionario  = signal(false);
+
+  readonly pesoOpciones: CargoOpcion[] = [
     { id: 'Director Policía', nombre: 'Director Policía' },
     { id: 'Subdirector Policía', nombre: 'Subdirector Policía' },
     { id: 'Jefe Unidad', nombre: 'Jefe Unidad' },
     { id: 'Mando Ejecutivo', nombre: 'Mando Ejecutivo' }
   ];
 
-  formData: DtoLineaMandoRequest = {
-    identificacion: '',
-    nombre: '',
-    apellidos: '',
-    grado: '',
-    cargo: '',
-    peso: '',
-    unidad: '',
-    fotoBase64: null,
-    orden: 1
-  };
-
-  constructor(
-    private toast: ToastService,
-    private lineaMandoService: LineaMandoService,
-    private usuarioAdminService: UsuarioAdminService,
-    private sanitizer: DomSanitizer
-  ) {}
+  readonly formData = this.fb.nonNullable.group({
+    identificacion: ['', [Validators.required]],
+    nombre:         ['', [Validators.required]],
+    apellidos:      [''],
+    grado:          [''],
+    cargo:          [''],
+    peso:           ['', [Validators.required]],
+    unidad:         [''],
+    orden:          [1]
+  });
 
   ngOnInit(): void {
     this.cargarLineaMando();
   }
 
   cargarLineaMando(): void {
-    this.loading = true;
+    this.loading.set(true);
     this.lineaMandoService.getAll().subscribe({
       next: (data) => {
-        this.listaLineaMando = data ?? [];
-        this.loading = false;
+        this.listaLineaMando.set(data ?? []);
+        this.loading.set(false);
       },
       error: () => {
-        this.loading = false;
+        this.loading.set(false);
         this.toast.error('Error', 'No se pudo cargar la línea de mando');
       }
     });
@@ -83,34 +83,34 @@ export class LineaMandoAdminComponent implements OnInit {
   }
 
   buscarFuncionario(): void {
-    const doc = this.searchIdentificacion.trim();
+    const doc = this.searchIdentificacion().trim();
     if (!doc) {
       this.toast.warning('Buscar', 'Ingrese un número de identificación');
       return;
     }
 
-    this.searchingFuncionario = true;
-    this.hayFuncionario = false;
+    this.searchingFuncionario.set(true);
+    this.hayFuncionario.set(false);
 
     this.usuarioAdminService.consultarUsuarioPorIdentificacion(doc).subscribe({
       next: (resp) => {
         const func = resp.funcionario;
-        
+
         if (!func || !func.nombres) {
-          this.searchingFuncionario = false;
+          this.searchingFuncionario.set(false);
           this.toast.warning('Buscar', 'No se encontró funcionario con esa identificación');
           return;
         }
 
         const activo = func.activo !== false;
-        
+
         if (!activo) {
-          this.searchingFuncionario = false;
+          this.searchingFuncionario.set(false);
           this.toast.warning('Buscar', 'El usuario está inactivo en el sistema');
           return;
         }
 
-        this.formData = {
+        this.formData.reset({
           identificacion: doc,
           nombre: func.nombres ?? '',
           apellidos: func.apellidos ?? '',
@@ -118,33 +118,34 @@ export class LineaMandoAdminComponent implements OnInit {
           cargo: func.cargo ?? '',
           peso: '',
           unidad: func.dependencia ?? '',
-          fotoBase64: resp.fotoBase64 ?? null,
-          orden: this.listaLineaMando.length + 1
-        };
-        
-        this.fotoPreview = this.getFotoUrlFromBase64(resp.fotoBase64);
+          orden: this.listaLineaMando().length + 1
+        });
+        this.fotoBase64 = resp.fotoBase64 ?? null;
+
+        this.fotoPreview.set(this.getFotoUrlFromBase64(resp.fotoBase64 ?? null));
         this.fotoCambiada = false;
-        this.hayFuncionario = true;
-        this.searchingFuncionario = false;
+        this.hayFuncionario.set(true);
+        this.searchingFuncionario.set(false);
         this.toast.success('Encontrado', 'Datos del funcionario cargados');
       },
       error: () => {
-        this.searchingFuncionario = false;
+        this.searchingFuncionario.set(false);
         this.toast.error('Buscar', 'Error al consultar funcionario');
       }
     });
   }
 
   validarPesoUnico(): boolean {
-    if (!this.formData.peso) {
+    const pesoActual = this.formData.getRawValue().peso;
+    if (!pesoActual) {
       return true;
     }
 
-    const pesoActual = this.formData.peso;
-    const existentes = this.listaLineaMando.filter(item => 
-      item.peso === pesoActual && 
-      item.vigente === 1 && 
-      item.idLineaMando !== (this.idEditando ?? 0)
+    const editando = this.idEditando() ?? 0;
+    const existentes = this.listaLineaMando().filter(item =>
+      item.peso === pesoActual &&
+      item.vigente === 1 &&
+      item.idLineaMando !== editando
     );
 
     if (existentes.length > 0) {
@@ -159,7 +160,7 @@ export class LineaMandoAdminComponent implements OnInit {
     const input = event.target as HTMLInputElement;
     if (input.files && input.files[0]) {
       const file = input.files[0];
-      
+
       if (file.size > 2 * 1024 * 1024) {
         this.toast.warning('Foto', 'El archivo no puede superar 2MB');
         return;
@@ -167,7 +168,7 @@ export class LineaMandoAdminComponent implements OnInit {
 
       const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
       const isValidType = validTypes.includes(file.type);
-      
+
       if (!isValidType) {
         this.toast.warning('Foto', 'Solo se permiten archivos de imagen (JPG, PNG, GIF, WEBP)');
         return;
@@ -180,8 +181,8 @@ export class LineaMandoAdminComponent implements OnInit {
           this.toast.warning('Foto', 'El archivo seleccionado no es una imagen válida');
           return;
         }
-        this.fotoPreview = result;
-        this.formData.fotoBase64 = result;
+        this.fotoPreview.set(result);
+        this.fotoBase64 = result;
         this.fotoCambiada = true;
       };
       reader.readAsDataURL(file);
@@ -189,47 +190,36 @@ export class LineaMandoAdminComponent implements OnInit {
   }
 
   limpiarForm(): void {
-    this.formData = {
-      identificacion: '',
-      nombre: '',
-      apellidos: '',
-      grado: '',
-      cargo: '',
-      peso: '',
-      unidad: '',
-      fotoBase64: null,
-      orden: 1
-    };
-    this.fotoPreview = null;
+    this.formData.reset({
+      identificacion: '', nombre: '', apellidos: '', grado: '',
+      cargo: '', peso: '', unidad: '', orden: 1
+    });
+    this.fotoBase64 = null;
+    this.fotoPreview.set(null);
     this.fotoCambiada = false;
-    this.modoEdicion = false;
-    this.idEditando = null;
-    this.searchIdentificacion = '';
-    this.hayFuncionario = false;
+    this.modoEdicion.set(false);
+    this.idEditando.set(null);
+    this.searchIdentificacion.set('');
+    this.hayFuncionario.set(false);
   }
 
   limpiarDatosFuncionario(): void {
-    this.formData = {
-      identificacion: '',
-      nombre: '',
-      apellidos: '',
-      grado: '',
-      cargo: '',
-      peso: '',
-      unidad: '',
-      fotoBase64: null,
-      orden: this.formData.orden
-    };
-    this.fotoPreview = null;
+    const ordenActual = this.formData.getRawValue().orden;
+    this.formData.reset({
+      identificacion: '', nombre: '', apellidos: '', grado: '',
+      cargo: '', peso: '', unidad: '', orden: ordenActual
+    });
+    this.fotoBase64 = null;
+    this.fotoPreview.set(null);
     this.fotoCambiada = false;
-    this.hayFuncionario = false;
+    this.hayFuncionario.set(false);
   }
 
   editar(item: DtoLineaMando): void {
-    this.modoEdicion = true;
-    this.idEditando = item.idLineaMando;
-    this.searchIdentificacion = item.identificacion;
-    this.formData = {
+    this.modoEdicion.set(true);
+    this.idEditando.set(item.idLineaMando);
+    this.searchIdentificacion.set(item.identificacion);
+    this.formData.reset({
       identificacion: item.identificacion,
       nombre: item.nombre,
       apellidos: item.apellidos,
@@ -237,47 +227,47 @@ export class LineaMandoAdminComponent implements OnInit {
       cargo: item.cargo,
       peso: item.peso,
       unidad: item.unidad,
-      fotoBase64: item.fotoBase64,
       orden: item.orden
-    };
-    this.fotoPreview = this.getFotoUrlFromBase64(item.fotoBase64);
+    });
+    this.fotoBase64 = item.fotoBase64;
+    this.fotoPreview.set(this.getFotoUrlFromBase64(item.fotoBase64));
     this.fotoCambiada = false;
-    this.hayFuncionario = true;
+    this.hayFuncionario.set(true);
   }
 
   guardar(): void {
-    if (!this.formData.identificacion) {
-      this.toast.warning('Guardar', 'La identificación es requerida');
+    if (this.formData.invalid) {
+      this.formData.markAllAsTouched();
+      const v = this.formData.getRawValue();
+      if (!v.identificacion) {
+        this.toast.warning('Guardar', 'La identificación es requerida');
+      } else if (!v.nombre) {
+        this.toast.warning('Guardar', 'El nombre es requerido');
+      } else if (!v.peso) {
+        this.toast.warning('Guardar', 'Debe seleccionar un peso');
+      }
       return;
     }
 
-    if (!this.formData.nombre) {
-      this.toast.warning('Guardar', 'El nombre es requerido');
-      return;
-    }
-
-    if (!this.formData.peso) {
-      this.toast.warning('Guardar', 'Debe seleccionar un peso');
-      return;
-    }
-
-    const existenteMismoPeso = this.listaLineaMando.find(item => 
-      item.peso === this.formData.peso && 
-      item.vigente === 1 && 
-      item.idLineaMando !== (this.idEditando ?? 0)
+    const v = this.formData.getRawValue();
+    const editando = this.idEditando() ?? 0;
+    const existenteMismoPeso = this.listaLineaMando().find(item =>
+      item.peso === v.peso &&
+      item.vigente === 1 &&
+      item.idLineaMando !== editando
     );
 
-    if (existenteMismoPeso && !this.modoEdicion) {
+    if (existenteMismoPeso && !this.modoEdicion()) {
       const confirmado = confirm(
-        `Ya existe un registro activo con el cargo "${this.formData.peso}" (${existenteMismoPeso.grado} ${existenteMismoPeso.nombre}).\n\n` +
+        `Ya existe un registro activo con el cargo "${v.peso}" (${existenteMismoPeso.grado} ${existenteMismoPeso.nombre}).\n\n` +
         `¿Está seguro que desea reemplazarlo?\n\n` +
         `El registro anterior pasará a estado Inactivo.`
       );
-      
+
       if (!confirmado) {
         return;
       }
-      
+
       this.sustituirRegistro(existenteMismoPeso.idLineaMando);
       return;
     }
@@ -290,60 +280,48 @@ export class LineaMandoAdminComponent implements OnInit {
   }
 
   ejecutarGuardado(): void {
-    this.saving = true;
+    this.saving.set(true);
 
-    let fotoBase64: string | null = this.formData.fotoBase64;
+    const modoEdicion = this.modoEdicion();
+    let fotoBase64: string | null = this.fotoBase64;
     if (!this.fotoCambiada) {
-      fotoBase64 = this.modoEdicion ? this.formData.fotoBase64 : null;
+      fotoBase64 = modoEdicion ? this.fotoBase64 : null;
     }
 
+    const v = this.formData.getRawValue();
     const request: DtoLineaMandoRequest = {
-      identificacion: this.formData.identificacion || '',
-      nombre: this.formData.nombre || '',
-      apellidos: this.formData.apellidos || '',
-      grado: this.formData.grado || '',
-      cargo: this.formData.cargo || '',
-      peso: this.formData.peso || '',
-      unidad: this.formData.unidad || '',
+      identificacion: v.identificacion || '',
+      nombre: v.nombre || '',
+      apellidos: v.apellidos || '',
+      grado: v.grado || '',
+      cargo: v.cargo || '',
+      peso: v.peso || '',
+      unidad: v.unidad || '',
       fotoBase64: fotoBase64,
-      orden: Number(this.formData.orden) || 1
+      orden: Number(v.orden) || 1
     };
 
-    if (this.modoEdicion && this.idEditando) {
-      this.lineaMandoService.update(this.idEditando, request).subscribe({
-        next: (resp) => {
-          this.saving = false;
-          if (resp.success) {
-            this.toast.success('Guardar', resp.message);
-            this.limpiarForm();
-            this.cargarLineaMando();
-          } else {
-            this.toast.warning('Guardar', resp.message);
-          }
-        },
-        error: () => {
-          this.saving = false;
-          this.toast.error('Guardar', 'Error al actualizar');
+    const idEditando = this.idEditando();
+    const request$ = modoEdicion && idEditando
+      ? this.lineaMandoService.update(idEditando, request)
+      : this.lineaMandoService.create(request);
+
+    request$.subscribe({
+      next: (resp) => {
+        this.saving.set(false);
+        if (resp.success) {
+          this.toast.success('Guardar', resp.message);
+          this.limpiarForm();
+          this.cargarLineaMando();
+        } else {
+          this.toast.warning('Guardar', resp.message);
         }
-      });
-    } else {
-      this.lineaMandoService.create(request).subscribe({
-        next: (resp) => {
-          this.saving = false;
-          if (resp.success) {
-            this.toast.success('Guardar', resp.message);
-            this.limpiarForm();
-            this.cargarLineaMando();
-          } else {
-            this.toast.warning('Guardar', resp.message);
-          }
-        },
-        error: () => {
-          this.saving = false;
-          this.toast.error('Guardar', 'Error al crear');
-        }
-      });
-    }
+      },
+      error: () => {
+        this.saving.set(false);
+        this.toast.error('Guardar', `Error al ${modoEdicion ? 'actualizar' : 'crear'}`);
+      }
+    });
   }
 
   eliminar(item: DtoLineaMando): void {
@@ -367,26 +345,27 @@ export class LineaMandoAdminComponent implements OnInit {
   }
 
   sustituirRegistro(idAnterior: number): void {
-    this.saving = true;
+    this.saving.set(true);
 
     this.lineaMandoService.setVigente(idAnterior, 0).subscribe({
       next: (resp) => {
         if (resp.success) {
           this.ejecutarGuardado();
         } else {
-          this.saving = false;
+          this.saving.set(false);
           this.toast.error('Sustituir', 'Error al inactivar registro anterior');
         }
       },
       error: () => {
-        this.saving = false;
+        this.saving.set(false);
         this.toast.error('Sustituir', 'Error al inactivar registro anterior');
       }
     });
   }
 
   getNombreCompleto(): string {
-    return `${this.formData.nombre} ${this.formData.apellidos}`.trim();
+    const v = this.formData.getRawValue();
+    return `${v.nombre} ${v.apellidos}`.trim();
   }
 
   getNombreCompletoItem(item: DtoLineaMando): string {
@@ -430,5 +409,3 @@ export class LineaMandoAdminComponent implements OnInit {
     return this.getFotoUrlFromBase64(item.fotoBase64);
   }
 }
-
-

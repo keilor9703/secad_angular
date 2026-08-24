@@ -1,6 +1,6 @@
-﻿import { Component, OnInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
+import { Component, ChangeDetectionStrategy, OnInit, computed, inject, signal } from '@angular/core';
+
+import { FormBuilder, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import {
   DbMenuItem,
   MenuRolCatalogItem,
@@ -13,83 +13,100 @@ import { ToastService } from '../../../core/services/toast.service';
 @Component({
   selector: 'app-menu-admin',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [FormsModule, ReactiveFormsModule],
   templateUrl: './menu-admin.html',
-  styleUrls: ['./menu-admin.scss']
+  styleUrls: ['./menu-admin.scss'],
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class MenuAdminComponent implements OnInit {
-  minimized = false;
-  visible = true;
-  loading = false;
-  saving = false;
+  private readonly menuService = inject(MenuService);
+  private readonly toast       = inject(ToastService);
+  private readonly fb          = inject(FormBuilder);
 
-  menuItems: DbMenuItem[] = [];
-  parentOptions: DbMenuItem[] = [];
+  readonly minimized = signal(false);
+  readonly visible   = signal(true);
+  readonly loading   = signal(false);
+  readonly saving    = signal(false);
+
+  readonly menuItems             = signal<DbMenuItem[]>([]);
+  readonly parentOptions         = signal<DbMenuItem[]>([]);
+  /** Solo se muta desde clicks de plantilla (toggleChildren) — no necesita ser signal. */
   expandedParents = new Set<number>();
-  selectedMenuForRoles: DbMenuItem | null = null;
-  rolesCatalog: MenuRolCatalogItem[] = [];
-  rolesAsignados: MenuRolItem[] = [];
-  selectedRolId: number | null = null;
-  loadingRoles = false;
-  savingRole = false;
-  editingId: number | null = null;
+  readonly selectedMenuForRoles  = signal<DbMenuItem | null>(null);
+  readonly rolesCatalog          = signal<MenuRolCatalogItem[]>([]);
+  readonly rolesAsignados        = signal<MenuRolItem[]>([]);
+  readonly selectedRolId         = signal<number | null>(null);
+  readonly loadingRoles          = signal(false);
+  readonly savingRole            = signal(false);
+  readonly editingId             = signal<number | null>(null);
 
-  form: MenuSaveRequest = this.getDefaultForm();
-
-  constructor(
-    private menuService: MenuService,
-    private toast: ToastService
-  ) {}
+  readonly form = this.fb.nonNullable.group({
+    descripcion: ['', [Validators.required]],
+    idPadre:     [0],
+    posicion:    [0, [Validators.min(0)]],
+    tipo:        ['S', [Validators.required]],
+    icono:       [''],
+    vigente:     [1],
+    detalle:     ['']
+  });
 
   ngOnInit(): void {
     this.loadMenu();
   }
 
   toggleMinimize(): void {
-    this.minimized = !this.minimized;
+    this.minimized.update(v => !v);
   }
 
   closePanel(): void {
-    this.visible = false;
+    this.visible.set(false);
   }
 
   loadMenu(): void {
-    this.loading = true;
+    this.loading.set(true);
     this.menuService.getAdminMenu().subscribe({
       next: (items) => {
         // Normalizar: el backend devuelve PascalCase (IdMenu, IdPadre…); aquí se
         // mapea de forma defensiva aceptando también camelCase para robustez futura.
-        this.menuItems = (items ?? [])
+        const mapped = (items ?? [])
           .map((i) => this.normalizeItem(i))
           .sort((a, b) => a.idPadre - b.idPadre || a.posicion - b.posicion);
+        this.menuItems.set(mapped);
 
-        this.parentOptions = this.menuItems
-          .filter((item) => !this.isRaiz(item))
-          .slice()
-          .sort((a, b) => a.descripcion.localeCompare(b.descripcion));
+        this.parentOptions.set(
+          mapped.filter((item) => !this.isRaiz(item)).slice().sort((a, b) => a.descripcion.localeCompare(b.descripcion))
+        );
 
         this.expandedParents.clear();
-        this.selectedMenuForRoles = null;
-        this.rolesAsignados = [];
-        this.selectedRolId = null;
-        this.loading = false;
+        this.selectedMenuForRoles.set(null);
+        this.rolesAsignados.set([]);
+        this.selectedRolId.set(null);
+        this.loading.set(false);
       },
       error: (err) => {
-        this.loading = false;
+        this.loading.set(false);
         this.toast.error('Menú', err?.error?.message ?? 'No fue posible cargar el menú.');
       }
     });
   }
 
   nuevo(): void {
-    this.editingId = null;
-    this.form = this.getDefaultForm();
+    this.editingId.set(null);
+    const d = this.getDefaultForm();
+    this.form.reset({
+      descripcion: d.descripcion,
+      idPadre: d.idPadre,
+      posicion: d.posicion,
+      tipo: d.tipo,
+      icono: d.icono ?? '',
+      vigente: d.vigente,
+      detalle: d.detalle ?? ''
+    });
   }
 
   editar(item: DbMenuItem): void {
-    this.editingId = item.idMenu;
-    this.form = {
-      idMenu: item.idMenu,
+    this.editingId.set(item.idMenu);
+    this.form.reset({
       descripcion: item.descripcion ?? '',
       idPadre: item.idPadre ?? 0,
       posicion: item.posicion ?? 0,
@@ -97,29 +114,28 @@ export class MenuAdminComponent implements OnInit {
       icono: item.icono ?? '',
       vigente: item.vigente ?? 1,
       detalle: item.detalle ?? ''
-    };
+    });
   }
 
   guardar(): void {
-    if (!this.form.descripcion.trim()) {
-      this.toast.warning('Menú', 'La descripción es obligatoria.');
+    if (this.form.invalid) {
+      this.form.markAllAsTouched();
+      const v = this.form.getRawValue();
+      if (!v.descripcion.trim()) {
+        this.toast.warning('Menú', 'La descripción es obligatoria.');
+      } else if (!v.tipo.trim()) {
+        this.toast.warning('Menú', 'El tipo es obligatorio.');
+      } else if (v.posicion < 0) {
+        this.toast.warning('Menú', 'La posición no puede ser negativa.');
+      }
       return;
     }
 
-    if (!this.form.tipo.trim()) {
-      this.toast.warning('Menú', 'El tipo es obligatorio.');
-      return;
-    }
-
-    if (this.form.posicion < 0) {
-      this.toast.warning('Menú', 'La posición no puede ser negativa.');
-      return;
-    }
-
-    this.saving = true;
-    this.menuService.saveAdminMenu(this.form).subscribe({
+    this.saving.set(true);
+    const request: MenuSaveRequest = { idMenu: this.editingId(), ...this.form.getRawValue() };
+    this.menuService.saveAdminMenu(request).subscribe({
       next: (resp) => {
-        this.saving = false;
+        this.saving.set(false);
         if (!resp?.success) {
           this.toast.warning('Menú', resp?.message || 'No fue posible guardar.');
           return;
@@ -129,7 +145,7 @@ export class MenuAdminComponent implements OnInit {
         this.loadMenu();
       },
       error: (err) => {
-        this.saving = false;
+        this.saving.set(false);
         this.toast.error('Menú', err?.error?.detail ?? err?.error?.message ?? 'Error guardando menú.');
       }
     });
@@ -153,97 +169,100 @@ export class MenuAdminComponent implements OnInit {
   }
 
   gestionarRoles(item: DbMenuItem): void {
-    this.selectedMenuForRoles = item;
-    this.selectedRolId = null;
+    this.selectedMenuForRoles.set(item);
+    this.selectedRolId.set(null);
     this.loadRolesPanel(item.idMenu);
   }
 
   cargarCatalogoRoles(): void {
     this.menuService.getRolesCatalog().subscribe({
       next: (roles) => {
-        this.rolesCatalog = (roles ?? [])
+        this.rolesCatalog.set((roles ?? [])
           .map((r: any) => ({
             idRol:       Number(r?.idRol       ?? r?.IdRol       ?? 0),
             descripcion: String(r?.descripcion ?? r?.Descripcion ?? ''),
           }))
-          .sort((a, b) => a.descripcion.localeCompare(b.descripcion));
+          .sort((a, b) => a.descripcion.localeCompare(b.descripcion)));
       },
       error: (err) => {
-        this.rolesCatalog = [];
+        this.rolesCatalog.set([]);
         this.toast.error('Roles menú', err?.error?.message ?? 'No fue posible cargar el catálogo de roles.');
       }
     });
   }
 
   loadRolesPanel(idMenu: number): void {
-    this.loadingRoles = true;
+    this.loadingRoles.set(true);
 
-    if (this.rolesCatalog.length === 0) {
+    if (this.rolesCatalog().length === 0) {
       this.cargarCatalogoRoles();
     }
 
     this.menuService.getRolesByMenu(idMenu).subscribe({
       next: (data) => {
-        this.rolesAsignados = (data ?? [])
+        this.rolesAsignados.set((data ?? [])
           .map((r: any) => ({
             idMenuRol:      Number(r?.idMenuRol      ?? r?.IdMenuRol      ?? 0),
             idRol:          Number(r?.idRol          ?? r?.IdRol          ?? 0),
             descripcionRol: String(r?.descripcionRol ?? r?.DescripcionRol ?? ''),
           }))
-          .sort((a, b) => a.descripcionRol.localeCompare(b.descripcionRol));
-        this.loadingRoles = false;
+          .sort((a, b) => a.descripcionRol.localeCompare(b.descripcionRol)));
+        this.loadingRoles.set(false);
       },
       error: (err) => {
-        this.rolesAsignados = [];
-        this.loadingRoles = false;
+        this.rolesAsignados.set([]);
+        this.loadingRoles.set(false);
         this.toast.error('Roles menú', err?.error?.message ?? 'No fue posible consultar roles del menú.');
       }
     });
   }
 
   asignarRolMenu(): void {
-    if (!this.selectedMenuForRoles) {
+    const menu = this.selectedMenuForRoles();
+    if (!menu) {
       this.toast.warning('Roles menú', 'Selecciona un menú para gestionar roles.');
       return;
     }
 
-    if (!this.selectedRolId || this.selectedRolId <= 0) {
+    const rolId = this.selectedRolId();
+    if (!rolId || rolId <= 0) {
       this.toast.warning('Roles menú', 'Selecciona un rol.');
       return;
     }
 
-    this.savingRole = true;
-    this.menuService.assignRolToMenu(this.selectedMenuForRoles.idMenu, { idRol: this.selectedRolId }).subscribe({
+    this.savingRole.set(true);
+    this.menuService.assignRolToMenu(menu.idMenu, { idRol: rolId }).subscribe({
       next: (resp) => {
-        this.savingRole = false;
+        this.savingRole.set(false);
         if (!resp?.success) {
           this.toast.warning('Roles menú', resp?.message || 'No fue posible asignar el rol.');
           return;
         }
         this.toast.success('Roles menú', resp.message || 'Rol asignado correctamente.');
-        this.selectedRolId = null;
-        this.loadRolesPanel(this.selectedMenuForRoles!.idMenu);
+        this.selectedRolId.set(null);
+        this.loadRolesPanel(menu.idMenu);
       },
       error: (err) => {
-        this.savingRole = false;
+        this.savingRole.set(false);
         this.toast.error('Roles menú', err?.error?.detail ?? err?.error?.message ?? 'Error asignando rol.');
       }
     });
   }
 
   quitarRolMenu(item: MenuRolItem): void {
-    if (!this.selectedMenuForRoles) {
+    const menu = this.selectedMenuForRoles();
+    if (!menu) {
       return;
     }
 
-    this.menuService.removeRolFromMenu(this.selectedMenuForRoles.idMenu, item.idRol).subscribe({
+    this.menuService.removeRolFromMenu(menu.idMenu, item.idRol).subscribe({
       next: (resp) => {
         if (!resp?.success) {
           this.toast.warning('Roles menú', resp?.message || 'No fue posible quitar el rol.');
           return;
         }
         this.toast.success('Roles menú', resp.message || 'Rol retirado del menú.');
-        this.loadRolesPanel(this.selectedMenuForRoles!.idMenu);
+        this.loadRolesPanel(menu.idMenu);
       },
       error: (err) => {
         this.toast.error('Roles menú', err?.error?.detail ?? err?.error?.message ?? 'Error retirando rol.');
@@ -256,29 +275,30 @@ export class MenuAdminComponent implements OnInit {
    * Si no existe auto-referencia se busca el primer ítem con descripción "RAIZ"
    * o, como último recurso, el de id = 1.
    */
-  get raizId(): number {
-    const selfRef = this.menuItems.find(i => i.idMenu !== 0 && i.idMenu === i.idPadre);
+  readonly raizId = computed(() => {
+    const items = this.menuItems();
+    const selfRef = items.find(i => i.idMenu !== 0 && i.idMenu === i.idPadre);
     if (selfRef) return selfRef.idMenu;
-    const byName = this.menuItems.find(i => (i.descripcion ?? '').trim().toUpperCase() === 'RAIZ');
+    const byName = items.find(i => (i.descripcion ?? '').trim().toUpperCase() === 'RAIZ');
     if (byName) return byName.idMenu;
     return 1;
-  }
+  });
 
-  get parentMenuItems(): DbMenuItem[] {
-    const root = this.raizId;
-    return this.menuItems
+  readonly parentMenuItems = computed(() => {
+    const root = this.raizId();
+    return this.menuItems()
       .filter((item) => item.idPadre === root && !this.isRaiz(item))
       .sort((a, b) => a.posicion - b.posicion || a.idMenu - b.idMenu);
-  }
+  });
 
   getChildrenOf(parentId: number): DbMenuItem[] {
-    return this.menuItems
+    return this.menuItems()
       .filter((item) => item.idPadre === parentId)
       .sort((a, b) => a.posicion - b.posicion || a.idMenu - b.idMenu);
   }
 
   hasChildren(parentId: number): boolean {
-    return this.menuItems.some((item) => item.idPadre === parentId);
+    return this.menuItems().some((item) => item.idPadre === parentId);
   }
 
   isExpanded(parentId: number): boolean {
@@ -333,5 +353,3 @@ export class MenuAdminComponent implements OnInit {
     };
   }
 }
-
-

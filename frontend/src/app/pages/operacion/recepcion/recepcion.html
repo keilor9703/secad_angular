@@ -88,7 +88,7 @@
            ══════════════════════════════════════════════════════════════════════ -->
 
       <!-- Spinner de verificación -->
-      @if (verificandoDuplicados) {
+      @if (verificandoDuplicados()) {
         <div class="rec-dupl-checking">
           <i class="fa-solid fa-spinner fa-spin"></i>
           Verificando duplicados cercanos…
@@ -96,13 +96,13 @@
       }
 
       <!-- Panel de alerta (solo si hay candidatos y no fue descartado) -->
-      @if (showDuplicados && duplicados.length > 0) {
+      @if (showDuplicados() && duplicados().length > 0) {
         <div class="rec-dupl-alert">
 
           <div class="rec-dupl-alert__head">
             <i class="fa-solid fa-triangle-exclamation"></i>
             <strong>⚠ Posible duplicado</strong>
-            &nbsp;—&nbsp;Se encontraron {{ duplicados.length }} evento(s) activo(s)
+            &nbsp;—&nbsp;Se encontraron {{ duplicados().length }} evento(s) activo(s)
             en un radio de {{ DUPL_RADIO }} m en los últimos {{ DUPL_MINUTOS }} min.
             Verifique si es el mismo hecho antes de crear un nuevo caso.
             <button class="rec-dupl-alert__dismiss" type="button"
@@ -113,7 +113,7 @@
           </div>
 
           <div class="rec-dupl-list">
-            @for (p of duplicados; track p.id) {
+            @for (p of duplicados(); track p.id) {
               <div class="rec-dupl-item">
 
                 <!-- Distancia + badge estado -->
@@ -200,13 +200,13 @@
               <div class="ui-field ui-col-3">
                 <label class="ui-label">Fecha de ingreso</label>
                 <input class="ui-control" type="text"
-                       [(ngModel)]="txtFechaIngreso" readonly
+                       [ngModel]="txtFechaIngreso()" readonly
                        placeholder="Automático al recibir llamada">
               </div>
               <div class="ui-field ui-col-6">
                 <label class="ui-label">ID Llamada</label>
                 <input class="ui-control rec-id-field" type="text"
-                       [(ngModel)]="txtNumeLlamada" readonly
+                       [ngModel]="txtNumeLlamada()" readonly
                        placeholder="—">
               </div>
               <div class="ui-field ui-col-3">
@@ -237,10 +237,10 @@
               <div class="ui-field ui-col-4">
                 <label class="ui-label">Abonado <span class="rec-required">*</span></label>
                 <input class="ui-control"
-                       [class.rec-invalid]="!txtAbonado.trim()"
-                       [class.rec-valid]="txtAbonado.trim()"
+                       [class.rec-invalid]="!txtAbonado().trim()"
+                       [class.rec-valid]="txtAbonado().trim()"
                        type="text" inputmode="tel" id="txtAbonado"
-                       [ngModel]="txtAbonado"
+                       [ngModel]="txtAbonado()"
                        (ngModelChange)="onAbonadoChange($event)"
                        (keydown.enter)="onAbonadoEnter()"
                        placeholder="Ej: 3001234567">
@@ -248,28 +248,28 @@
               <div class="ui-field ui-col-8">
                 <label class="ui-label">Propietario de la línea</label>
                 <input class="ui-control" type="text"
-                       [(ngModel)]="txtPropAbonado"
+                       [ngModel]="txtPropAbonado()" (ngModelChange)="txtPropAbonado.set($event)"
                        placeholder="No hay consulta automática de titularidad — digite si el llamante lo indica">
               </div>
               <div class="ui-field ui-col-12">
                 <label class="ui-label">Medio de comunicación</label>
                 <input class="ui-control rec-device-badge" type="text"
-                       [(ngModel)]="txtDispTelefonico" readonly
+                       [ngModel]="txtDispTelefonico()" readonly
                        placeholder="Se detecta al ingresar el abonado">
               </div>
               <div class="ui-field ui-col-6">
                 <label class="ui-label">Llamante <span class="rec-required">*</span></label>
                 <input class="ui-control"
-                       [class.rec-invalid]="!txtNombreLlamante.trim()"
-                       [class.rec-valid]="txtNombreLlamante.trim()"
+                       [class.rec-invalid]="!txtNombreLlamante().trim()"
+                       [class.rec-valid]="txtNombreLlamante().trim()"
                        type="text"
-                       [(ngModel)]="txtNombreLlamante"
+                       [ngModel]="txtNombreLlamante()" (ngModelChange)="txtNombreLlamante.set($event)"
                        placeholder="Nombre de quien llama">
               </div>
               <div class="ui-field ui-col-6">
                 <label class="ui-label">Dirección de quien llama</label>
                 <input class="ui-control" type="text"
-                       [(ngModel)]="txtDireLlamante"
+                       [ngModel]="txtDireLlamante()" (ngModelChange)="txtDireLlamante.set($event)"
                        placeholder="Dirección del llamante">
               </div>
             </div>
@@ -281,16 +281,16 @@
                Bloque unificado: código de caso → preguntas → relato automático
                ══════════════════════════════════════════════════════════════════ -->
           <div class="rec-section rec-section--tipificacion"
-               [class.rec-section--asistente-auto]="asistenteAutoActivado">
+               [class.rec-section--asistente-auto]="asistenteAutoActivado()">
 
             <!-- Cabecera de sección -->
             <div class="rec-section__head">
               <i class="fa-solid fa-file-shield"></i>
               Tipificación del incidente
-              @if (asistenteAutoActivado) {
+              @if (asistenteAutoActivado()) {
                 <span class="rec-asistente__auto-badge" style="margin-left:auto;">
                   <i class="fa-solid fa-robot"></i>
-                  Asistente activo · {{ asistenteCategoriaDescripcion }}
+                  Asistente activo · {{ asistenteCategoriaDescripcion() }}
                 </span>
               }
             </div>
@@ -301,24 +301,24 @@
               <div class="ui-field ui-col-3">
                 <label class="ui-label">Código caso <span class="rec-required">*</span></label>
                 <input class="ui-control"
-                       [class.rec-invalid]="!txtCodigCaso.trim()"
-                       [class.rec-valid]="txtCodigCaso.trim()"
+                       [class.rec-invalid]="!txtCodigCaso().trim()"
+                       [class.rec-valid]="txtCodigCaso().trim()"
                        type="text"
-                       [(ngModel)]="txtCodigCaso"
-                       (keydown.enter)="buscarCasoPorCodigo(txtCodigCaso, 1)"
+                       [ngModel]="txtCodigCaso()" (ngModelChange)="txtCodigCaso.set($event)"
+                       (keydown.enter)="buscarCasoPorCodigo(txtCodigCaso(), 1)"
                        placeholder="Ej: 120">
               </div>
               <div class="ui-field ui-col-9">
                 <label class="ui-label">Descripción del caso</label>
                 <div class="rec-autocomplete">
                   <input class="ui-control" type="text"
-                         [(ngModel)]="txtDescaso"
+                         [ngModel]="txtDescaso()"
                          (ngModelChange)="onDescaso1Change($event)"
                          (blur)="cerrarSugerencias()"
                          placeholder="Escriba para buscar (mín. 3 chars)…">
-                  @if (casosSugeridos1.length > 0) {
+                  @if (casosSugeridos1().length > 0) {
                     <div class="rec-suggest-list">
-                      @for (c of casosSugeridos1; track c.CODIGO_CASO) {
+                      @for (c of casosSugeridos1(); track c.CODIGO_CASO) {
                         <div class="rec-suggest-item"
                              (mousedown)="seleccionarSugerencia(c, 1)">
                           <span class="rec-suggest-code">{{ c.CODIGO_CASO }}</span>
@@ -340,21 +340,21 @@
               <div class="ui-field ui-col-3">
                 <label class="ui-label">Código caso 2</label>
                 <input class="ui-control" type="text"
-                       [(ngModel)]="txtCodigCaso2"
-                       (keydown.enter)="buscarCasoPorCodigo(txtCodigCaso2, 2)"
+                       [ngModel]="txtCodigCaso2()" (ngModelChange)="txtCodigCaso2.set($event)"
+                       (keydown.enter)="buscarCasoPorCodigo(txtCodigCaso2(), 2)"
                        placeholder="Opcional">
               </div>
               <div class="ui-field ui-col-9">
                 <label class="ui-label">Descripción caso 2</label>
                 <div class="rec-autocomplete">
                   <input class="ui-control" type="text"
-                         [(ngModel)]="txtDescaso2"
+                         [ngModel]="txtDescaso2()"
                          (ngModelChange)="onDescaso2Change($event)"
                          (blur)="cerrarSugerencias()"
                          placeholder="Escriba para buscar…">
-                  @if (casosSugeridos2.length > 0) {
+                  @if (casosSugeridos2().length > 0) {
                     <div class="rec-suggest-list">
-                      @for (c of casosSugeridos2; track c.CODIGO_CASO) {
+                      @for (c of casosSugeridos2(); track c.CODIGO_CASO) {
                         <div class="rec-suggest-item"
                              (mousedown)="seleccionarSugerencia(c, 2)">
                           <span class="rec-suggest-code">{{ c.CODIGO_CASO }}</span>
@@ -372,12 +372,12 @@
                  Se muestran SIEMPRE que hay un asistente activo.
                  El operador puede colapsar las preguntas sin perder el relato.
                  ─────────────────────────────────────────────────────────────── -->
-            @if (asistenteAutoActivado || asistenteAbierto) {
+            @if (asistenteAutoActivado() || asistenteAbierto()) {
               <div class="rec-asistente__body">
 
                 <!-- Cabecera de preguntas con toggle -->
                 <div class="rec-asistente__preg-head">
-                  @if (asistenteAutoActivado) {
+                  @if (asistenteAutoActivado()) {
                     <span class="rec-asistente__preg-title">
                       <i class="fa-solid fa-circle-question"></i>
                       Preguntas orientadoras
@@ -390,30 +390,30 @@
                     </span>
                   }
                   <button class="rec-asistente__collapse-btn" type="button"
-                          [title]="asistenteAbierto ? 'Contraer preguntas' : 'Expandir preguntas'"
+                          [title]="asistenteAbierto() ? 'Contraer preguntas' : 'Expandir preguntas'"
                           (click)="toggleAsistente()">
                     <i class="fa-solid"
-                       [class.fa-chevron-up]="asistenteAbierto"
-                       [class.fa-chevron-down]="!asistenteAbierto"></i>
+                       [class.fa-chevron-up]="asistenteAbierto()"
+                       [class.fa-chevron-down]="!asistenteAbierto()"></i>
                   </button>
                 </div>
 
-                @if (asistenteAbierto) {
+                @if (asistenteAbierto()) {
 
                   <!-- Selector categoría manual -->
-                  @if (!asistenteAutoActivado) {
+                  @if (!asistenteAutoActivado()) {
                     <div class="ui-field" style="padding:0 14px 8px;">
                       <label class="ui-label">Tipo de incidente</label>
-                      @if (asistenteLoadingCat) {
+                      @if (asistenteLoadingCat()) {
                         <span class="rec-asistente__spin">
                           <i class="fa-solid fa-spinner fa-spin"></i> Cargando categorías…
                         </span>
                       } @else {
                         <select class="ui-control"
-                                [(ngModel)]="asistenteCategoriaSel"
-                                (change)="onAsistenteCategoriaChange(asistenteCategoriaSel)">
+                                [ngModel]="asistenteCategoriaSel()"
+                                (ngModelChange)="onAsistenteCategoriaChange($event)">
                           <option value="">— Seleccione el tipo de incidente —</option>
-                          @for (cat of asistenteCategorias; track cat.id) {
+                          @for (cat of asistenteCategorias(); track cat.id) {
                             <option [value]="cat.id">
                               {{ cat.descripcion }}
                               @if (cat.totalPreguntas) { ({{ cat.totalPreguntas }}) }
@@ -425,14 +425,14 @@
                   }
 
                   <!-- Spinner -->
-                  @if (asistenteLoadingPreg) {
+                  @if (asistenteLoadingPreg()) {
                     <div class="rec-asistente__spin">
                       <i class="fa-solid fa-spinner fa-spin"></i> Cargando preguntas…
                     </div>
                   }
 
                   <!-- Sin preguntas -->
-                  @if (!asistenteLoadingPreg && asistenteCategoriaSel && asistentePreguntas.length === 0) {
+                  @if (!asistenteLoadingPreg() && asistenteCategoriaSel() && asistentePreguntas().length === 0) {
                     <p class="rec-asistente__empty">
                       <i class="fa-solid fa-circle-info"></i>
                       Sin preguntas configuradas para esta categoría.
@@ -440,11 +440,11 @@
                   }
 
                   <!-- Lista de preguntas -->
-                  @if (asistentePreguntas.length > 0) {
+                  @if (asistentePreguntas().length > 0) {
                     <ol class="rec-asistente__list">
-                      @for (preg of asistentePreguntas; track preg.id) {
+                      @for (preg of asistentePreguntas(); track preg.id) {
                         <li class="rec-asistente__item"
-                            [class.rec-asistente__item--respondida]="respuestas[preg.id]">
+                            [class.rec-asistente__item--respondida]="respuestas()[preg.id]">
 
                           <span class="rec-asistente__q">
                             {{ preg.pregunta }}
@@ -462,20 +462,20 @@
                           @if (preg.tipoRespuesta === 'SINO') {
                             <div class="rec-asistente__resp">
                               <label class="rec-asistente__resp-opt"
-                                     [class.rec-asistente__resp-opt--sel]="respuestas[preg.id] === 'si'">
+                                     [class.rec-asistente__resp-opt--sel]="respuestas()[preg.id] === 'si'">
                                 <input type="radio"
                                        [name]="'rec_asr_' + preg.id"
                                        value="si"
-                                       [(ngModel)]="respuestas[preg.id]"
+                                       [ngModel]="respuestas()[preg.id]"
                                        (ngModelChange)="onRespuestaChange(preg.id, $event)">
                                 Sí
                               </label>
                               <label class="rec-asistente__resp-opt"
-                                     [class.rec-asistente__resp-opt--sel]="respuestas[preg.id] === 'no'">
+                                     [class.rec-asistente__resp-opt--sel]="respuestas()[preg.id] === 'no'">
                                 <input type="radio"
                                        [name]="'rec_asr_' + preg.id"
                                        value="no"
-                                       [(ngModel)]="respuestas[preg.id]"
+                                       [ngModel]="respuestas()[preg.id]"
                                        (ngModelChange)="onRespuestaChange(preg.id, $event)">
                                 No
                               </label>
@@ -486,7 +486,7 @@
                             <input type="number"
                                    class="ui-control rec-asistente__input-sm"
                                    placeholder="0" min="0"
-                                   [(ngModel)]="respuestas[preg.id]"
+                                   [ngModel]="respuestas()[preg.id]"
                                    (ngModelChange)="onRespuestaChange(preg.id, $event)">
                           }
 
@@ -494,13 +494,13 @@
                             <input type="text"
                                    class="ui-control rec-asistente__input-sm"
                                    placeholder="Respuesta…"
-                                   [(ngModel)]="respuestas[preg.id]"
+                                   [ngModel]="respuestas()[preg.id]"
                                    (ngModelChange)="onRespuestaChange(preg.id, $event)">
                           }
 
                           @if (preg.tipoRespuesta === 'SELECCION' && preg.opciones) {
                             <select class="ui-control rec-asistente__input-sm"
-                                    [(ngModel)]="respuestas[preg.id]"
+                                    [ngModel]="respuestas()[preg.id]"
                                     (ngModelChange)="onRespuestaChange(preg.id, $event)">
                               <option value="">Seleccione…</option>
                               @for (op of asisParseOpc(preg.opciones); track op) {
@@ -523,7 +523,7 @@
                  FUERA del panel colapsable para que siempre sea visible.
                  Se muestra desde el momento en que se selecciona el código.
                  ─────────────────────────────────────────────────────────────── -->
-            @if (relatoAutomatico) {
+            @if (relatoAutomatico()) {
               <div class="rec-relato-preview">
                 <div class="rec-relato-preview__head">
                   <i class="fa-solid fa-file-lines"></i>
@@ -535,7 +535,7 @@
                     Actualizar relato
                   </button>
                 </div>
-                <pre class="rec-relato-preview__body">{{ relatoAutomatico }}</pre>
+                <pre class="rec-relato-preview__body">{{ relatoAutomatico() }}</pre>
               </div>
             }
 
@@ -559,9 +559,9 @@
                 <div class="rec-canal-origen-grid">
                   @for (co of canalesOrigen; track co.value) {
                     <label class="rec-origen-pill"
-                           [class.rec-origen-pill--sel]="canalOrigenUI === co.value">
+                           [class.rec-origen-pill--sel]="canalOrigenUI() === co.value">
                       <input type="radio" name="canalOrigen"
-                             [value]="co.value" [(ngModel)]="canalOrigenUI">
+                             [value]="co.value" [ngModel]="canalOrigenUI()" (ngModelChange)="canalOrigenUI.set($event)">
                       <i [class]="'fa-solid ' + co.icon"></i>
                       <span>{{ co.label }}</span>
                     </label>
@@ -573,22 +573,22 @@
               <div class="ui-field ui-col-6">
                 <label class="ui-label">Ciudad / Municipio caso</label>
                 <input class="ui-control" type="text"
-                       [(ngModel)]="txtCiudadCaso"
+                       [ngModel]="txtCiudadCaso()" (ngModelChange)="txtCiudadCaso.set($event)"
                        placeholder="Ciudad del caso">
               </div>
               <div class="ui-field ui-col-6">
                 <label class="ui-label">Barrio</label>
                 <input class="ui-control" type="text"
-                       [(ngModel)]="txtBarrioCaso"
+                       [ngModel]="txtBarrioCaso()" (ngModelChange)="txtBarrioCaso.set($event)"
                        placeholder="Barrio del caso">
               </div>
               <div class="ui-field ui-col-12">
                 <label class="ui-label">Dirección del caso <span class="rec-required">*</span></label>
                 <input class="ui-control"
-                       [class.rec-invalid]="!txtDireCaso.trim()"
-                       [class.rec-valid]="txtDireCaso.trim()"
+                       [class.rec-invalid]="!txtDireCaso().trim()"
+                       [class.rec-valid]="txtDireCaso().trim()"
                        type="text"
-                       [(ngModel)]="txtDireCaso"
+                       [ngModel]="txtDireCaso()" (ngModelChange)="txtDireCaso.set($event)"
                        placeholder="Dirección exacta del incidente">
               </div>
 
@@ -597,7 +597,7 @@
                 <label class="ui-label">Asociar a llamada existente</label>
                 <div class="ui-input-group">
                   <input class="ui-control" type="text"
-                         [(ngModel)]="txtAsociarLlamada"
+                         [ngModel]="txtAsociarLlamada()"
                          readonly
                          placeholder="Doble-clic para buscar llamada a asociar…"
                          (dblclick)="abrirModalAsociar()"
@@ -613,18 +613,18 @@
               <!-- Tipo / Calidad -->
               <div class="ui-field ui-col-6">
                 <label class="ui-label">Tipo de llamada</label>
-                <select class="ui-control" [(ngModel)]="tipoPedido">
+                <select class="ui-control" [ngModel]="tipoPedido()" (ngModelChange)="tipoPedido.set($event)">
                   <option value="">— Seleccione —</option>
-                  @for (r of refTipoPedido; track r.Codigo) {
+                  @for (r of refTipoPedido(); track r.Codigo) {
                     <option [value]="r.Codigo">{{ r.Descripcion }}</option>
                   }
                 </select>
               </div>
               <div class="ui-field ui-col-6">
                 <label class="ui-label">Calidad de llamada</label>
-                <select class="ui-control" [(ngModel)]="caliPedido">
+                <select class="ui-control" [ngModel]="caliPedido()" (ngModelChange)="caliPedido.set($event)">
                   <option value="">— Seleccione —</option>
-                  @for (r of refCaliPedido; track r.Codigo) {
+                  @for (r of refCaliPedido(); track r.Codigo) {
                     <option [value]="r.Codigo">{{ r.Descripcion }}</option>
                   }
                 </select>
@@ -633,21 +633,21 @@
               <!-- Descripción de hechos / Observaciones adicionales -->
               <div class="ui-field ui-col-12">
                 <label class="ui-label">
-                  @if (asistenteAutoActivado && asistentePreguntas.length > 0) {
+                  @if (asistenteAutoActivado() && asistentePreguntas().length > 0) {
                     Observaciones adicionales del operador
                   } @else {
                     Descripción de hechos <span class="rec-required">*</span>
                   }
                 </label>
                 <textarea class="ui-control rec-textarea"
-                          [class.rec-invalid]="!notasAdicionales.trim() && !relatoAutomatico.trim()"
-                          [class.rec-valid]="notasAdicionales.trim() || relatoAutomatico.trim()"
-                          [(ngModel)]="notasAdicionales"
-                          [placeholder]="(asistenteAutoActivado && asistentePreguntas.length > 0)
+                          [class.rec-invalid]="!notasAdicionales().trim() && !relatoAutomatico().trim()"
+                          [class.rec-valid]="notasAdicionales().trim() || relatoAutomatico().trim()"
+                          [ngModel]="notasAdicionales()" (ngModelChange)="notasAdicionales.set($event)"
+                          [placeholder]="(asistenteAutoActivado() && asistentePreguntas().length > 0)
                             ? 'Agregue información adicional que las preguntas no cubran…'
                             : 'Describa detalladamente el incidente reportado…'">
                 </textarea>
-                @if (asistenteAutoActivado && asistentePreguntas.length > 0 && !notasAdicionales.trim()) {
+                @if (asistenteAutoActivado() && asistentePreguntas().length > 0 && !notasAdicionales().trim()) {
                   <span class="rec-asistente__hint" style="margin-top:4px;display:block;">
                     <i class="fa-solid fa-circle-info"></i>
                     El relato principal se genera desde las preguntas orientadoras. Este campo es opcional.
@@ -697,12 +697,12 @@
                 <div class="ui-field ui-col-6">
                   <label class="ui-label">Latitud</label>
                   <input class="ui-control" type="text"
-                         [(ngModel)]="latitudCaso" readonly placeholder="—">
+                         [ngModel]="latitudCaso()" readonly placeholder="—">
                 </div>
                 <div class="ui-field ui-col-6">
                   <label class="ui-label">Longitud</label>
                   <input class="ui-control" type="text"
-                         [(ngModel)]="longitudCaso" readonly placeholder="—">
+                         [ngModel]="longitudCaso()" readonly placeholder="—">
                 </div>
               </div>
             </div>
@@ -785,7 +785,7 @@
           }
 
           <!-- ── Agencias externas (no usan SECAD — despacho por API) ──────── -->
-          @if (agenciasExternas.length > 0) {
+          @if (agenciasExternas().length > 0) {
             <div class="rec-section">
               <div class="rec-section__head">
                 <i class="fa-solid fa-building-shield"></i>
@@ -797,10 +797,10 @@
               <div class="rec-canales-wrap">
                 <div class="rec-canal-grupo rec-canal-grupo--externo">
                   <div class="rec-canal-grid">
-                    @for (ag of agenciasExternas; track ag.id) {
+                    @for (ag of agenciasExternas(); track ag.id) {
                       <button type="button"
                               class="rec-canal-card rec-canal-card--externo"
-                              [class.rec-canal-card--sel]="agenciasSeleccionadas.has(ag.id)"
+                              [class.rec-canal-card--sel]="agenciasSeleccionadas().has(ag.id)"
                               (click)="toggleAgenciaExterna(ag.id)">
                         <i class="fa-solid" [ngClass]="getAgenciaIcon(ag.tipoAgencia)"></i>
                         {{ ag.nombre }}
@@ -809,10 +809,10 @@
                   </div>
                 </div>
               </div>
-              @if (agenciasSeleccionadas.size > 0) {
+              @if (agenciasSeleccionadas().size > 0) {
                 <div class="rec-agencias-nota">
                   <i class="fa-solid fa-circle-info"></i>
-                  {{ agenciasSeleccionadas.size }} agencia(s) seleccionada(s) recibirán
+                  {{ agenciasSeleccionadas().size }} agencia(s) seleccionada(s) recibirán
                   los datos del caso vía API al guardar.
                 </div>
               }
@@ -831,18 +831,18 @@
                 <span class="rec-prio-label">Prioridad</span>
                 <div class="rec-prio-opts">
                   <label class="rec-radio-pill rec-radio-pill--rutina"
-                         [class.active]="prioridad === '03'">
-                    <input type="radio" name="prioridad" value="03" [(ngModel)]="prioridad">
+                         [class.active]="prioridad() === '03'">
+                    <input type="radio" name="prioridad" value="03" [ngModel]="prioridad()" (ngModelChange)="prioridad.set($event)">
                     Rutina
                   </label>
                   <label class="rec-radio-pill rec-radio-pill--inmd"
-                         [class.active]="prioridad === '02'">
-                    <input type="radio" name="prioridad" value="02" [(ngModel)]="prioridad">
+                         [class.active]="prioridad() === '02'">
+                    <input type="radio" name="prioridad" value="02" [ngModel]="prioridad()" (ngModelChange)="prioridad.set($event)">
                     Inmd.
                   </label>
                   <label class="rec-radio-pill rec-radio-pill--flash"
-                         [class.active]="prioridad === '01'">
-                    <input type="radio" name="prioridad" value="01" [(ngModel)]="prioridad">
+                         [class.active]="prioridad() === '01'">
+                    <input type="radio" name="prioridad" value="01" [ngModel]="prioridad()" (ngModelChange)="prioridad.set($event)">
                     Flash
                   </label>
                 </div>
@@ -852,18 +852,18 @@
                 <span class="rec-prio-label">Importancia</span>
                 <div class="rec-prio-opts">
                   <label class="rec-radio-pill rec-radio-pill--imp"
-                         [class.active]="importancia === '01'">
-                    <input type="radio" name="importancia" value="01" [(ngModel)]="importancia">
+                         [class.active]="importancia() === '01'">
+                    <input type="radio" name="importancia" value="01" [ngModel]="importancia()" (ngModelChange)="importancia.set($event)">
                     1
                   </label>
                   <label class="rec-radio-pill rec-radio-pill--imp"
-                         [class.active]="importancia === '02'">
-                    <input type="radio" name="importancia" value="02" [(ngModel)]="importancia">
+                         [class.active]="importancia() === '02'">
+                    <input type="radio" name="importancia" value="02" [ngModel]="importancia()" (ngModelChange)="importancia.set($event)">
                     2
                   </label>
                   <label class="rec-radio-pill rec-radio-pill--imp"
-                         [class.active]="importancia === '03'">
-                    <input type="radio" name="importancia" value="03" [(ngModel)]="importancia">
+                         [class.active]="importancia() === '03'">
+                    <input type="radio" name="importancia" value="03" [ngModel]="importancia()" (ngModelChange)="importancia.set($event)">
                     3
                   </label>
                 </div>
@@ -879,9 +879,9 @@
               <i class="fa-solid fa-camera"></i>
               Fotos adjuntas
               <span class="rec-section__hint">· JPG, PNG o WEBP — máx. 8 MB por foto</span>
-              @if (adjuntos.length > 0) {
+              @if (adjuntos().length > 0) {
                 <span class="rec-canal-grupo__badge" style="margin-left:auto;">
-                  {{ adjuntos.length }}
+                  {{ adjuntos().length }}
                 </span>
               }
             </div>
@@ -889,12 +889,12 @@
             <!-- Zona de drop / selector de archivo -->
             <div class="rec-adjuntos-drop"
                  [class.rec-adjuntos-drop--over]="adjuntosDragOver"
-                 [class.rec-adjuntos-drop--loading]="adjuntosSubiendo"
+                 [class.rec-adjuntos-drop--loading]="adjuntosSubiendo()"
                  (dragover)="onFotoDragOver($event)"
                  (dragleave)="onFotoDragLeave()"
                  (drop)="onFotoDrop($event)">
 
-              @if (adjuntosSubiendo) {
+              @if (adjuntosSubiendo()) {
                 <span class="rec-adjuntos-drop__text">
                   <i class="fa-solid fa-spinner fa-spin"></i>
                   Subiendo foto…
@@ -905,15 +905,15 @@
                   Arrastra fotos aquí o
                 </span>
                 <label class="ui-btn sm secondary rec-adjuntos-btn"
-                       [class.disabled]="!txtNumeLlamada">
+                       [class.disabled]="!txtNumeLlamada()">
                   <i class="fa-solid fa-folder-open"></i>
                   Seleccionar foto
                   <input type="file" accept=".jpg,.jpeg,.png,.webp"
                          multiple hidden
-                         [disabled]="!txtNumeLlamada"
+                         [disabled]="!txtNumeLlamada()"
                          (change)="onFotoSeleccionada($event)">
                 </label>
-                @if (!txtNumeLlamada) {
+                @if (!txtNumeLlamada()) {
                   <span class="rec-adjuntos-drop__hint">
                     <i class="fa-solid fa-circle-info"></i>
                     Genere primero un ID de llamada
@@ -923,9 +923,9 @@
             </div>
 
             <!-- Galería de fotos subidas -->
-            @if (adjuntos.length > 0) {
+            @if (adjuntos().length > 0) {
               <div class="rec-adjuntos-galeria">
-                @for (adj of adjuntos; track adj.id) {
+                @for (adj of adjuntos(); track adj.id) {
                   <div class="rec-adjunto-card">
 
                     <!-- Miniatura o icono -->
@@ -980,8 +980,8 @@
             <button type="button"
                     class="ui-btn primary lg rec-send-btn"
                     (click)="validarYGuardar()"
-                    [disabled]="saving">
-              @if (!saving) {
+                    [disabled]="saving()">
+              @if (!saving()) {
                 <i class="fa-solid fa-paper-plane"></i>
                 Validar y Enviar
               } @else {
@@ -992,7 +992,7 @@
             <button type="button"
                     class="ui-btn ghost sm"
                     (click)="limpiarFormulario()"
-                    [disabled]="saving"
+                    [disabled]="saving()"
                     title="Limpiar formulario">
               <i class="fa-solid fa-eraser"></i>
               Limpiar
@@ -1014,7 +1014,7 @@
 <!-- ══════════════════════════════════════════════════════════════════
      MODAL: Asociar Llamada
      ══════════════════════════════════════════════════════════════════ -->
-@if (showModalAsociar) {
+@if (showModalAsociar()) {
   <div class="ui-modal" (click)="cerrarModalAsociar()">
     <div class="ui-modal__dialog rec-modal-xl" (click)="$event.stopPropagation()">
 
@@ -1030,7 +1030,7 @@
       </div>
 
       <div class="ui-modal__body">
-        @if (llamadasParaAsociar.length === 0) {
+        @if (llamadasParaAsociar().length === 0) {
           <div class="rec-empty-state">
             <i class="fa-solid fa-inbox"></i>
             <p>No hay llamadas disponibles para asociar en la ventana de {{ VENTANA_ASOCIAR_MINUTOS }} minutos.</p>
@@ -1054,7 +1054,7 @@
                 </tr>
               </thead>
               <tbody>
-                @for (ll of llamadasParaAsociar; track ll.NUME_LLAMADA) {
+                @for (ll of llamadasParaAsociar(); track ll.NUME_LLAMADA) {
                   <tr>
                     <td>
                       <button class="ui-btn sm secondary"

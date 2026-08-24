@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, ChangeDetectionStrategy, OnInit, OnDestroy, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
@@ -105,18 +105,19 @@ interface OperadorStat {
   standalone:  true,
   imports:     [CommonModule, FormsModule],
   templateUrl: './pedido.html',
-  styleUrls:   ['./pedido.scss']
+  styleUrls:   ['./pedido.scss'],
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class PedidoComponent implements OnInit, OnDestroy {
 
   // ── Vista ─────────────────────────────────────────────────────────────────
-  vista: VistaCad = 'dashboard';
+  readonly vista = signal<VistaCad>('dashboard');
 
   // ── UI ────────────────────────────────────────────────────────────────────
   visible    = true;
   minimized  = false;
-  loading    = false;
-  tick       = 0;
+  readonly loading = signal(false);
+  readonly tick    = signal(0);
 
   // ── Filtros ──────────────────────────────────────────────────────────────
   filtroEstado    = '';
@@ -132,9 +133,9 @@ export class PedidoComponent implements OnInit, OnDestroy {
   // trae una página a la vez. Sin filtro de fecha, siempre es la más reciente.
   paginaActual  = 1;
   readonly pageSize = 150;
-  totalPedidos  = 0;
+  readonly totalPedidos = signal(0);
   get totalPaginas(): number {
-    return Math.max(1, Math.ceil(this.totalPedidos / this.pageSize));
+    return Math.max(1, Math.ceil(this.totalPedidos() / this.pageSize));
   }
 
   readonly turnosVigilancia = [
@@ -145,50 +146,48 @@ export class PedidoComponent implements OnInit, OnDestroy {
   ];
 
   // ── Datos ─────────────────────────────────────────────────────────────────
-  listaPedidos:   DtoPedidoListItem[]               = [];
+  readonly listaPedidos = signal<DtoPedidoListItem[]>([]);
   /** Mapa de enriquecimiento: cad_pedidos.id → DtoEventoListItem.
    *  Provee prioridad, descPedido, numeEvento y usernameCreacion
    *  que el endpoint /Pedido no incluye en su listado. */
   eventoMap:      Record<string, DtoEventoListItem> = {};
-  selectedId:     string | null                     = null;
-  detalle:        DtoPedidoDetalle | null            = null;
-  actuaciones:    DtoActuacionListItem[]             = [];
-  adjuntos:       DtoAdjunto[]                      = [];
-  loadingDetalle  = false;
-  timeline:       TimelineItem[]                    = [];
-  lastRefresh:    Date                              = new Date();
+  readonly selectedId    = signal<string | null>(null);
+  readonly detalle       = signal<DtoPedidoDetalle | null>(null);
+  readonly actuaciones   = signal<DtoActuacionListItem[]>([]);
+  readonly adjuntos      = signal<DtoAdjunto[]>([]);
+  readonly loadingDetalle = signal(false);
+  readonly timeline      = signal<TimelineItem[]>([]);
+  readonly lastRefresh   = signal<Date>(new Date());
 
   // ── Dashboard ────────────────────────────────────────────────────────────
-  stats:   DashStat             = this.emptyStats();
-  conteos: DtoEventoConteos | null = null;
+  readonly stats   = signal<DashStat>(this.emptyStats());
+  readonly conteos = signal<DtoEventoConteos | null>(null);
 
   // ── KPIs ─────────────────────────────────────────────────────────────────
-  kpis:       KpiItem[]      = [];
-  operadores: OperadorStat[] = [];
+  readonly kpis       = signal<KpiItem[]>([]);
+  readonly operadores = signal<OperadorStat[]>([]);
 
   // ── Anotación supervisora ────────────────────────────────────────────────
   anotacionForm:  DtoAnotacionRequest = this.emptyAnotacion();
-  savingAnotacion = false;
-  showAnotForm    = false;
+  readonly savingAnotacion = signal(false);
+  readonly showAnotForm    = signal(false);
 
   // ── Equipo de actuaciones (lazy load por demanda del Jefe de Turno) ──────
-  equipoExpandido: Record<string, boolean>             = {};
-  equipoDetalle:   Record<string, DtoActuacionUnidad[]> = {};
-  equipoCargando:  Record<string, boolean>             = {};
+  readonly equipoExpandido = signal<Record<string, boolean>>({});
+  readonly equipoDetalle   = signal<Record<string, DtoActuacionUnidad[]>>({});
+  readonly equipoCargando  = signal<Record<string, boolean>>({});
 
   /** ID de incidente pendiente por abrir vía deep link (?id=...), a la espera de que cargue la lista. */
   private deepLinkPendienteId: string | null = null;
 
   private destroy$ = new Subject<void>();
 
-  constructor(
-    private readonly pedidoService:      PedidoService,
-    private readonly eventoService:      EventoService,
-    private readonly actuacionesService: ActuacionesService,
-    private readonly recepcionSvc:       RecepcionService,
-    private readonly toast:              ToastService,
-    private readonly route:              ActivatedRoute
-  ) {}
+  private readonly pedidoService      = inject(PedidoService);
+  private readonly eventoService      = inject(EventoService);
+  private readonly actuacionesService = inject(ActuacionesService);
+  private readonly recepcionSvc       = inject(RecepcionService);
+  private readonly toast              = inject(ToastService);
+  private readonly route              = inject(ActivatedRoute);
 
   // ──────────────────────────────────────────────────────────────────────────
   //  Lifecycle
@@ -215,7 +214,7 @@ export class PedidoComponent implements OnInit, OnDestroy {
     // Tick semáforo cada 60 s → recalcula stats y KPIs
     interval(60_000)
       .pipe(takeUntil(this.destroy$))
-      .subscribe(() => { this.tick++; this.computarStats(); this.computarKpis(); });
+      .subscribe(() => { this.tick.update(t => t + 1); this.computarStats(); this.computarKpis(); });
   }
 
   ngOnDestroy(): void {
@@ -237,7 +236,7 @@ export class PedidoComponent implements OnInit, OnDestroy {
    * página, reflejan ese subconjunto, no el histórico completo del sistema.
    */
   cargarLista(silencioso = false): void {
-    if (!silencioso) this.loading = true;
+    if (!silencioso) this.loading.set(true);
 
     forkJoin({
       pedidos: this.pedidoService.getList(
@@ -254,7 +253,7 @@ export class PedidoComponent implements OnInit, OnDestroy {
     .subscribe({
       next: ({ pedidos, eventos, conteos }) => {
         // Turno vigente para el encabezado del dashboard
-        this.conteos = conteos;
+        this.conteos.set(conteos);
 
         // Construir mapa de enriquecimiento: pedido.id → eventoListItem
         this.eventoMap = {};
@@ -262,16 +261,17 @@ export class PedidoComponent implements OnInit, OnDestroy {
           this.eventoMap[String(ev.id)] = ev;
         }
 
-        this.listaPedidos = (pedidos?.items ?? []).map(p => this.normalizarListItem(p as any));
-        this.totalPedidos = pedidos?.total ?? this.listaPedidos.length;
-        this.loading      = false;
-        this.lastRefresh  = new Date();
+        const listaPedidos = (pedidos?.items ?? []).map(p => this.normalizarListItem(p as any));
+        this.listaPedidos.set(listaPedidos);
+        this.totalPedidos.set(pedidos?.total ?? listaPedidos.length);
+        this.loading.set(false);
+        this.lastRefresh.set(new Date());
         this.computarStats();
         this.computarKpis();
 
         // Deep link pendiente (?id=...): abrir el incidente indicado apenas esté en la lista.
         if (this.deepLinkPendienteId) {
-          const item = this.listaPedidos.find(p => p.id === this.deepLinkPendienteId);
+          const item = listaPedidos.find(p => p.id === this.deepLinkPendienteId);
           if (item) {
             this.deepLinkPendienteId = null;
             this.seleccionarIncidente(item);
@@ -279,7 +279,7 @@ export class PedidoComponent implements OnInit, OnDestroy {
         }
       },
       error: () => {
-        this.loading = false;
+        this.loading.set(false);
         if (!silencioso) {
           this.toast.error('Seguimiento CAD', 'No se pudo cargar la lista de incidentes.');
         }
@@ -310,17 +310,17 @@ export class PedidoComponent implements OnInit, OnDestroy {
    * (despacho de recursos) en paralelo para construir el timeline completo.
    */
   seleccionarIncidente(item: DtoPedidoListItem): void {
-    if (this.selectedId === item.id && this.detalle) return;
-    this.selectedId     = item.id;
-    this.loadingDetalle = true;
-    this.detalle        = null;
-    this.timeline       = [];
-    this.actuaciones    = [];
-    this.adjuntos       = [];
-    this.showAnotForm   = false;
-    this.equipoExpandido = {};
-    this.equipoDetalle   = {};
-    this.equipoCargando  = {};
+    if (this.selectedId() === item.id && this.detalle()) return;
+    this.selectedId.set(item.id);
+    this.loadingDetalle.set(true);
+    this.detalle.set(null);
+    this.timeline.set([]);
+    this.actuaciones.set([]);
+    this.adjuntos.set([]);
+    this.showAnotForm.set(false);
+    this.equipoExpandido.set({});
+    this.equipoDetalle.set({});
+    this.equipoCargando.set({});
 
     // El backend filtra cad_actuaciones por pedido_id (= cad_pedidos.id),
     // NO por evento_id (cad_eventos.id). Por eso se pasa item.id, no numeEvento.
@@ -332,32 +332,34 @@ export class PedidoComponent implements OnInit, OnDestroy {
           .pipe(catchError(() => of({ success: true, data: [] as DtoActuacionListItem[] })))
     }).subscribe({
       next: ({ detalle, actsResp }) => {
-        this.detalle        = this.normalizarDetalle(detalle as any, item);
-        this.actuaciones    = actsResp.data ?? [];
-        this.loadingDetalle = false;
-        this.buildTimeline(this.detalle, this.actuaciones);
-        if (this.vista === 'dashboard') this.vista = 'incidentes';
+        const detalleNormalizado = this.normalizarDetalle(detalle as any, item);
+        const actuaciones        = actsResp.data ?? [];
+        this.detalle.set(detalleNormalizado);
+        this.actuaciones.set(actuaciones);
+        this.loadingDetalle.set(false);
+        this.buildTimeline(detalleNormalizado, actuaciones);
+        if (this.vista() === 'dashboard') this.vista.set('incidentes');
         // Cargar fotos adjuntas del incidente
         this.recepcionSvc.getAdjuntos(item.id)
           .pipe(takeUntil(this.destroy$))
-          .subscribe({ next: r => { if (r.success) this.adjuntos = r.data; } });
+          .subscribe({ next: r => { if (r.success) this.adjuntos.set(r.data); } });
       },
       error: () => {
-        this.loadingDetalle = false;
+        this.loadingDetalle.set(false);
         this.toast.error('Seguimiento CAD', 'No se pudo cargar el detalle del incidente.');
       }
     });
   }
 
   volverALista(): void {
-    this.selectedId      = null;
-    this.detalle         = null;
-    this.timeline        = [];
-    this.actuaciones     = [];
-    this.showAnotForm    = false;
-    this.equipoExpandido = {};
-    this.equipoDetalle   = {};
-    this.equipoCargando  = {};
+    this.selectedId.set(null);
+    this.detalle.set(null);
+    this.timeline.set([]);
+    this.actuaciones.set([]);
+    this.showAnotForm.set(false);
+    this.equipoExpandido.set({});
+    this.equipoDetalle.set({});
+    this.equipoCargando.set({});
   }
 
   // ──────────────────────────────────────────────────────────────────────────
@@ -522,7 +524,7 @@ export class PedidoComponent implements OnInit, OnDestroy {
       return new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime();
     });
 
-    this.timeline = items;
+    this.timeline.set(items);
   }
 
   // ──────────────────────────────────────────────────────────────────────────
@@ -530,34 +532,35 @@ export class PedidoComponent implements OnInit, OnDestroy {
   // ──────────────────────────────────────────────────────────────────────────
 
   guardarAnotacion(): void {
-    if (!this.detalle || !this.anotacionForm.anotacion?.trim()) {
+    const detalle = this.detalle();
+    if (!detalle || !this.anotacionForm.anotacion?.trim()) {
       this.toast.warning('Anotación', 'El texto de la observación es requerido.');
       return;
     }
-    this.savingAnotacion             = true;
+    this.savingAnotacion.set(true);
     this.anotacionForm.tipoAnotacion = 'SUPERVISION';
 
-    this.pedidoService.createAnotacion(this.detalle.id, this.anotacionForm).subscribe({
+    this.pedidoService.createAnotacion(detalle.id, this.anotacionForm).subscribe({
       next: (resp) => {
-        this.savingAnotacion = false;
+        this.savingAnotacion.set(false);
         if (resp.success) {
           this.toast.success('Supervisión', resp.message || 'Observación registrada en la trazabilidad.');
           this.anotacionForm = this.emptyAnotacion();
-          this.showAnotForm  = false;
-          this.refreshDetalle(this.detalle!.id, this.detalle!.numeEvento ?? null);
+          this.showAnotForm.set(false);
+          this.refreshDetalle(detalle.id, detalle.numeEvento ?? null);
         } else {
           this.toast.warning('Anotación', resp.message);
         }
       },
       error: (err) => {
-        this.savingAnotacion = false;
+        this.savingAnotacion.set(false);
         this.toast.error('Anotación', err?.error?.detail ?? 'Error al registrar la observación.');
       }
     });
   }
 
   private refreshDetalle(pedidoId: string, numeEvento: string | null | undefined): void {
-    const listItem = this.listaPedidos.find(p => p.id === pedidoId) ?? null;
+    const listItem = this.listaPedidos().find(p => p.id === pedidoId) ?? null;
     forkJoin({
       detalle: this.pedidoService.getById(pedidoId),
       // Siempre usar pedidoId: el backend filtra por cad_actuaciones.pedido_id
@@ -565,9 +568,11 @@ export class PedidoComponent implements OnInit, OnDestroy {
           .pipe(catchError(() => of({ success: true, data: [] as DtoActuacionListItem[] })))
     }).subscribe({
       next: ({ detalle, actsResp }) => {
-        this.detalle     = this.normalizarDetalle(detalle as any, listItem);
-        this.actuaciones = actsResp.data ?? [];
-        this.buildTimeline(this.detalle, this.actuaciones);
+        const detalleNormalizado = this.normalizarDetalle(detalle as any, listItem);
+        const actuaciones        = actsResp.data ?? [];
+        this.detalle.set(detalleNormalizado);
+        this.actuaciones.set(actuaciones);
+        this.buildTimeline(detalleNormalizado, actuaciones);
       }
     });
   }
@@ -578,9 +583,10 @@ export class PedidoComponent implements OnInit, OnDestroy {
 
   computarStats(): void {
     const s = this.emptyStats();
-    s.total = this.listaPedidos.length;
+    const listaPedidos = this.listaPedidos();
+    s.total = listaPedidos.length;
 
-    for (const p of this.listaPedidos) {
+    for (const p of listaPedidos) {
       if      (p.estado === 'A') s.activos++;
       else if (p.estado === 'P') s.pendientes++;
       else if (p.estado === 'C') s.cerrados++;
@@ -596,7 +602,7 @@ export class PedidoComponent implements OnInit, OnDestroy {
       if (p.estado !== 'C' && this.getSemaforoClass(p) === 'semaforo-rojo') s.criticos++;
     }
 
-    this.stats = s;
+    this.stats.set(s);
   }
 
   // ──────────────────────────────────────────────────────────────────────────
@@ -604,7 +610,7 @@ export class PedidoComponent implements OnInit, OnDestroy {
   // ──────────────────────────────────────────────────────────────────────────
 
   computarKpis(): void {
-    const activos = this.listaPedidos.filter(p => p.estado !== 'C');
+    const activos = this.listaPedidos().filter(p => p.estado !== 'C');
 
     const tiemposFlash  = activos.filter(p => this.normPrio(p) === 'FLASH')    .map(p => this.getMinutos(p));
     const tiemposInmd   = activos.filter(p => this.normPrio(p) === 'INMEDIATA').map(p => this.getMinutos(p));
@@ -616,10 +622,11 @@ export class PedidoComponent implements OnInit, OnDestroy {
     const avgFlash  = avg(tiemposFlash);
     const avgInmd   = avg(tiemposInmd);
     const avgRutina = avg(tiemposRutina);
-    const tasaRes   = this.stats.total > 0
-      ? Math.round((this.stats.cerrados / this.stats.total) * 100) : 0;
+    const stats     = this.stats();
+    const tasaRes   = stats.total > 0
+      ? Math.round((stats.cerrados / stats.total) * 100) : 0;
 
-    this.kpis = [
+    this.kpis.set([
       {
         label:     'T. promedio FLASH activos',
         valor:     avgFlash,
@@ -649,15 +656,15 @@ export class PedidoComponent implements OnInit, OnDestroy {
       },
       {
         label:  'Incidentes críticos (tiempo excedido)',
-        valor:  this.stats.criticos,
+        valor:  stats.criticos,
         unidad: '',
         meta:   0,
-        cumple: this.stats.criticos === 0,
+        cumple: stats.criticos === 0,
         icon:   'fa-triangle-exclamation',
       },
       {
         label:  'Incidentes activos / pendientes',
-        valor:  this.stats.activos + this.stats.pendientes,
+        valor:  stats.activos + stats.pendientes,
         unidad: '',
         meta:   9999,
         cumple: true,
@@ -668,10 +675,10 @@ export class PedidoComponent implements OnInit, OnDestroy {
         valor:  tasaRes,
         unidad: '%',
         meta:   80,
-        cumple: tasaRes >= 80 || this.stats.total === 0,
+        cumple: tasaRes >= 80 || stats.total === 0,
         icon:   'fa-check-double',
       },
-    ];
+    ]);
 
     this.computarOperadores();
   }
@@ -679,7 +686,7 @@ export class PedidoComponent implements OnInit, OnDestroy {
   computarOperadores(): void {
     const mapa: Record<string, OperadorStat> = {};
 
-    for (const p of this.listaPedidos) {
+    for (const p of this.listaPedidos()) {
       const usr = p.usernameCreacion?.trim() || '(sin usuario)';
       if (!mapa[usr]) {
         mapa[usr] = { username: usr, total: 0, activos: 0, cerrados: 0, tiempoPromedio: 0, criticos: 0 };
@@ -697,7 +704,7 @@ export class PedidoComponent implements OnInit, OnDestroy {
       }
     }
 
-    this.operadores = Object.values(mapa).sort((a, b) => b.total - a.total);
+    this.operadores.set(Object.values(mapa).sort((a, b) => b.total - a.total));
   }
 
   // ──────────────────────────────────────────────────────────────────────────
@@ -705,7 +712,7 @@ export class PedidoComponent implements OnInit, OnDestroy {
   // ──────────────────────────────────────────────────────────────────────────
 
   get listadoFiltrado(): DtoPedidoListItem[] {
-    let list = this.listaPedidos;
+    let list = this.listaPedidos();
 
     if (this.filtroEstado) {
       list = list.filter(p => p.estado === this.filtroEstado);
@@ -771,7 +778,7 @@ export class PedidoComponent implements OnInit, OnDestroy {
   }
 
   get incidentesCriticos(): DtoPedidoListItem[] {
-    return this.listaPedidos.filter(
+    return this.listaPedidos().filter(
       p => p.estado !== 'C' && this.getSemaforoClass(p) === 'semaforo-rojo'
     ).slice(0, 10);
   }
@@ -781,7 +788,7 @@ export class PedidoComponent implements OnInit, OnDestroy {
   // ──────────────────────────────────────────────────────────────────────────
 
   getSemaforoClass(item: DtoPedidoListItem): SemaforoColor {
-    void this.tick; // dependencia reactiva
+    void this.tick(); // dependencia reactiva
     if (item.estado === 'C') return 'semaforo-verde';
     const prio = this.normPrio(item);
     const min  = this.getMinutos(item);
@@ -864,23 +871,24 @@ export class PedidoComponent implements OnInit, OnDestroy {
   }
 
   getOrigenKeys(): string[] {
-    return Object.keys(this.stats.porOrigen);
+    return Object.keys(this.stats().porOrigen);
   }
 
   /** Etiqueta legible del turno de vigilancia ("1er turno · desde 06:00"). */
   getTurnoLabel(): string {
-    if (!this.conteos) return '';
-    const desde = this.conteos.turnoDesde
-      ? new Date(this.conteos.turnoDesde).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })
+    const conteos = this.conteos();
+    if (!conteos) return '';
+    const desde = conteos.turnoDesde
+      ? new Date(conteos.turnoDesde).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })
       : '';
-    return `${this.conteos.turnoActual} turno${desde ? ' · desde ' + desde : ''}`;
+    return `${conteos.turnoActual} turno${desde ? ' · desde ' + desde : ''}`;
   }
 
   // ──────────────────────────────────────────────────────────────────────────
   //  UI
   // ──────────────────────────────────────────────────────────────────────────
 
-  setVista(v: VistaCad): void  { this.vista = v; }
+  setVista(v: VistaCad): void  { this.vista.set(v); }
   toggleMinimize():    void    { this.minimized = !this.minimized; }
   closePanel():        void    { this.visible   = false; }
 
@@ -934,27 +942,27 @@ export class PedidoComponent implements OnInit, OnDestroy {
    * Primera vez: carga las unidades vía API. Siguientes: colapsa/expande sin nueva llamada.
    */
   toggleEquipo(actId: string): void {
-    if (this.equipoExpandido[actId]) {
-      this.equipoExpandido[actId] = false;
+    if (this.equipoExpandido()[actId]) {
+      this.equipoExpandido.update(m => ({ ...m, [actId]: false }));
       return;
     }
     // Ya cargado en cache → solo expande
-    if (this.equipoDetalle[actId]) {
-      this.equipoExpandido[actId] = true;
+    if (this.equipoDetalle()[actId]) {
+      this.equipoExpandido.update(m => ({ ...m, [actId]: true }));
       return;
     }
     // Carga desde backend
-    this.equipoCargando[actId] = true;
+    this.equipoCargando.update(m => ({ ...m, [actId]: true }));
     this.actuacionesService.getActuacion(actId)
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (resp) => {
-          this.equipoCargando[actId]  = false;
-          this.equipoDetalle[actId]   = resp.data?.unidades ?? [];
-          this.equipoExpandido[actId] = true;
+          this.equipoCargando.update(m => ({ ...m, [actId]: false }));
+          this.equipoDetalle.update(m => ({ ...m, [actId]: resp.data?.unidades ?? [] }));
+          this.equipoExpandido.update(m => ({ ...m, [actId]: true }));
         },
         error: () => {
-          this.equipoCargando[actId] = false;
+          this.equipoCargando.update(m => ({ ...m, [actId]: false }));
           this.toast.error('Equipo', 'No se pudo cargar el equipo de la actuación.');
         }
       });

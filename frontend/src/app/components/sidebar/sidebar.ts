@@ -1,4 +1,4 @@
-import { Component, HostBinding, HostListener, OnInit } from '@angular/core';
+import { Component, HostBinding, HostListener, OnInit, ChangeDetectionStrategy, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { SidebarService } from '../../services/sidebar';
@@ -28,23 +28,21 @@ interface MenuItem {
   imports: [CommonModule, RouterModule],
   templateUrl: './sidebar.html',
   styleUrls: ['./sidebar.scss'],
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class SidebarComponent implements OnInit {
-  expandedKey: string | null = null;
+  readonly sidebarService = inject(SidebarService);
+  private readonly menuService     = inject(MenuService);
+  private readonly authService     = inject(AuthService);
+  private readonly brandingService = inject(BrandingService);
 
+  expandedKey: string | null = null;
 
   submenuPos: { top: number; left: number } | null = null;
 
   private flyoutWidth = 240;
   private flyoutGap = 12;
   private flyoutMinViewportPadding = 10;
-
-  constructor(
-    public sidebarService: SidebarService,
-    private menuService: MenuService,
-    private authService: AuthService,
-    private brandingService: BrandingService
-  ) {}
 
   ngOnInit(): void {
     this.loadBranding();
@@ -155,20 +153,20 @@ onItemTap(item: MenuItem, ev: MouseEvent) {
     if (this.sidebarService.isOpen()) this.sidebarService.closeSidebar();
   }
 
-  menuItems: MenuItem[] = [];
-  systemName = 'OFTIC';
-  logoUrl = '/imagenes/oftic-logo-app.png';
+  readonly menuItems  = signal<MenuItem[]>([]);
+  readonly systemName = signal('OFTIC');
+  readonly logoUrl    = signal('/imagenes/oftic-logo-app.png');
 
   private loadBranding(): void {
     this.brandingService.getPublicConfig().subscribe({
       next: (cfg) => {
         const name = (cfg?.systemName ?? '').trim();
-        this.systemName = name || 'OFTIC';
-        this.logoUrl = (cfg?.logoUrl ?? '').trim() || '/imagenes/oftic-logo-app.png';
+        this.systemName.set(name || 'OFTIC');
+        this.logoUrl.set((cfg?.logoUrl ?? '').trim() || '/imagenes/oftic-logo-app.png');
       },
       error: () => {
-        this.systemName = 'OFTIC';
-        this.logoUrl = '/imagenes/oftic-logo-app.png';
+        this.systemName.set('OFTIC');
+        this.logoUrl.set('/imagenes/oftic-logo-app.png');
       }
     });
   }
@@ -181,11 +179,11 @@ onItemTap(item: MenuItem, ev: MouseEvent) {
           return;
         }
         const mapped = this.mapDbMenu(items);
-        this.menuItems = this.ensureInicioItem(
+        this.menuItems.set(this.ensureInicioItem(
           this.groupAdministrationItems(
             this.groupOperacionItems(mapped)
           )
-        );
+        ));
       },
       error: () => {
         this.loadMenuByUserFallback();
@@ -196,24 +194,24 @@ onItemTap(item: MenuItem, ev: MouseEvent) {
   private loadMenuByUserFallback(): void {
     const userId = this.authService.getUserId();
     if (!userId) {
-      this.menuItems = this.ensureInicioItem([]);
+      this.menuItems.set(this.ensureInicioItem([]));
       return;
     }
 
     this.menuService.getByUser(userId).subscribe({
       next: (items) => {
         const mapped = this.mapDbMenu(items);
-        this.menuItems = this.ensureInicioItem(
+        this.menuItems.set(this.ensureInicioItem(
           this.groupAdministrationItems(
             this.groupOperacionItems(mapped)
           )
-        );
+        ));
       },
       error: () => {
         // Si ambas llamadas fallan completamente, solo mostrar el botón Inicio.
         // NO agregar módulos hardcodeados — el usuario debe ver solo lo que
         // sus roles le permiten, no un fallback sin control de permisos.
-        this.menuItems = this.ensureInicioItem([]);
+        this.menuItems.set(this.ensureInicioItem([]));
       }
     });
   }

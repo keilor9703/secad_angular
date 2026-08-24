@@ -1,5 +1,5 @@
-import { Component, ElementRef, OnDestroy, OnInit, ViewChild } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { Component, ChangeDetectionStrategy, ElementRef, OnDestroy, OnInit, inject, signal, viewChild } from '@angular/core';
+
 import { HttpClient } from '@angular/common/http';
 import { ActivatedRoute } from '@angular/router';
 import * as signalR from '@microsoft/signalr';
@@ -26,16 +26,19 @@ type EstadoPagina =
 @Component({
   selector:    'app-video-ciudadano',
   standalone:  true,
-  imports:     [CommonModule],
+  imports: [],
   templateUrl: './video-ciudadano.html',
-  styleUrls:   ['./video-ciudadano.scss']
+  styleUrls:   ['./video-ciudadano.scss'],
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class VideoCiudadanoComponent implements OnInit, OnDestroy {
+  private readonly route = inject(ActivatedRoute);
+  private readonly http = inject(HttpClient);
 
-  @ViewChild('videoLocal') videoLocalRef?: ElementRef<HTMLVideoElement>;
+  readonly videoLocalRef = viewChild<ElementRef<HTMLVideoElement>>('videoLocal');
 
-  estado: EstadoPagina = 'validando';
-  mensajeError = '';
+  readonly estado = signal<EstadoPagina>('validando');
+  readonly mensajeError = signal('');
 
   private readonly token: string;
   private sesionId = '';
@@ -47,27 +50,27 @@ export class VideoCiudadanoComponent implements OnInit, OnDestroy {
     { urls: 'stun:stun.l.google.com:19302' }
   ];
 
-  constructor(private route: ActivatedRoute, private http: HttpClient) {
+  constructor() {
     this.token = this.route.snapshot.paramMap.get('token') ?? '';
   }
 
   ngOnInit(): void {
-    if (!this.token) { this.estado = 'invalido'; return; }
+    if (!this.token) { this.estado.set('invalido'); return; }
 
     this.http.get<DtoVideoSesionPublica>(`${environment.apiBaseUrl}/VideoLlamada/publico/${this.token}`)
       .subscribe({
         next: (r) => {
           if (!r.valido) {
-            this.estado = 'invalido';
-            this.mensajeError = r.mensaje || 'Este enlace ya no es válido.';
+            this.estado.set('invalido');
+            this.mensajeError.set(r.mensaje || 'Este enlace ya no es válido.');
             return;
           }
           this.sesionId = r.sesionId;
           this.pedirPermisos();
         },
         error: () => {
-          this.estado = 'invalido';
-          this.mensajeError = 'No fue posible validar el enlace.';
+          this.estado.set('invalido');
+          this.mensajeError.set('No fue posible validar el enlace.');
         }
       });
   }
@@ -77,21 +80,22 @@ export class VideoCiudadanoComponent implements OnInit, OnDestroy {
   }
 
   private async pedirPermisos(): Promise<void> {
-    this.estado = 'pidiendo-permiso';
+    this.estado.set('pidiendo-permiso');
     try {
       this.localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
     } catch {
-      this.estado = 'permiso-denegado';
+      this.estado.set('permiso-denegado');
       return;
     }
 
-    if (this.videoLocalRef) this.videoLocalRef.nativeElement.srcObject = this.localStream;
+    const videoLocalRef = this.videoLocalRef();
+    if (videoLocalRef) videoLocalRef.nativeElement.srcObject = this.localStream;
 
     await this.conectar();
   }
 
   private async conectar(): Promise<void> {
-    this.estado = 'esperando';
+    this.estado.set('esperando');
 
     this.hub = new signalR.HubConnectionBuilder()
       .withUrl(`${environment.apiBaseUrl}/hubs/video`)
@@ -99,8 +103,8 @@ export class VideoCiudadanoComponent implements OnInit, OnDestroy {
       .build();
 
     this.hub.on('error', (msg: string) => {
-      this.mensajeError = msg;
-      this.estado = 'error';
+      this.mensajeError.set(msg);
+      this.estado.set('error');
     });
 
     this.hub.on('offer', async (sdp: string) => {
@@ -122,8 +126,8 @@ export class VideoCiudadanoComponent implements OnInit, OnDestroy {
       await this.hub.start();
       await this.hub.invoke('JoinAsCiudadano', this.token);
     } catch {
-      this.estado = 'error';
-      this.mensajeError = 'No fue posible conectar con el despachador.';
+      this.estado.set('error');
+      this.mensajeError.set('No fue posible conectar con el despachador.');
     }
   }
 
@@ -139,7 +143,7 @@ export class VideoCiudadanoComponent implements OnInit, OnDestroy {
     };
 
     this.pc.onconnectionstatechange = () => {
-      if (this.pc?.connectionState === 'connected') this.estado = 'conectada';
+      if (this.pc?.connectionState === 'connected') this.estado.set('conectada');
     };
   }
 
@@ -157,6 +161,6 @@ export class VideoCiudadanoComponent implements OnInit, OnDestroy {
     this.hub = null;
     this.localStream?.getTracks().forEach(t => t.stop());
     this.localStream = null;
-    if (this.estado !== 'invalido' && this.estado !== 'permiso-denegado') this.estado = 'finalizada';
+    if (this.estado() !== 'invalido' && this.estado() !== 'permiso-denegado') this.estado.set('finalizada');
   }
 }

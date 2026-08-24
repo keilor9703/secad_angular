@@ -1,6 +1,6 @@
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, ChangeDetectionStrategy, OnInit, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
+import { FormBuilder, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { AuthService } from '../../../core/auth/auth.service';
 import { ToastService } from '../../../core/services/toast.service';
 import {
@@ -13,20 +13,22 @@ import {
 @Component({
   selector: 'app-anotaciones-turno',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, ReactiveFormsModule],
   templateUrl: './anotaciones-turno.html',
-  styleUrls: ['./anotaciones-turno.scss']
+  styleUrls: ['./anotaciones-turno.scss'],
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class AnotacionesTurnoComponent implements OnInit {
 
   private svc   = inject(AnotacionTurnoService);
   private auth  = inject(AuthService);
   private toast = inject(ToastService);
+  private fb    = inject(FormBuilder);
 
   // ─── Estado de la lista ──────────────────────────────────────────────────
-  anotaciones:     AnotacionTurno[] = [];
-  cargando         = false;
-  errorCarga       = '';
+  readonly anotaciones = signal<AnotacionTurno[]>([]);
+  readonly cargando    = signal(false);
+  readonly errorCarga  = signal('');
 
   // ─── Filtros ─────────────────────────────────────────────────────────────
   filtroTipo   = '';
@@ -34,11 +36,15 @@ export class AnotacionesTurnoComponent implements OnInit {
   filtroHasta  = this.hoyISO();
 
   // ─── Formulario ──────────────────────────────────────────────────────────
-  modoEdicion         = false;
-  editandoId: string | null = null;
-  guardando           = false;
+  readonly modoEdicion = signal(false);
+  readonly editandoId  = signal<string | null>(null);
+  readonly guardando   = signal(false);
 
-  form: AnotacionTurnoRequest = this.formVacio();
+  readonly form = this.fb.nonNullable.group({
+    tipo:        ['GENERAL', [Validators.required]],
+    titulo:      [''],
+    descripcion: ['', [Validators.required]]
+  });
 
   // ─── JWT claims ──────────────────────────────────────────────────────────
   canalCodigo = 0;
@@ -49,29 +55,35 @@ export class AnotacionesTurnoComponent implements OnInit {
   readonly tipos = TIPOS_ANOTACION;
 
   // ─── Modal de confirmación de borrado ────────────────────────────────────
-  itemAEliminar: AnotacionTurno | null = null;
-  eliminando = false;
+  readonly itemAEliminar = signal<AnotacionTurno | null>(null);
+  readonly eliminando    = signal(false);
 
   // ─── Paginación ──────────────────────────────────────────────────────────
-  p        = 1;
-  pageSize = 15;
+  readonly p        = signal(1);
+  readonly pageSize = 15;
 
-  get anotacionesFiltradas(): AnotacionTurno[] {
-    if (!this.filtroTipo) return this.anotaciones;
-    return this.anotaciones.filter(a => a.tipo === this.filtroTipo);
+  readonly anotacionesFiltradas = computed(() => {
+    const tipo = this.filtroTipo;
+    const items = this.anotaciones();
+    return tipo ? items.filter(a => a.tipo === tipo) : items;
+  });
+
+  readonly totalPages = computed(() =>
+    Math.max(1, Math.ceil(this.anotacionesFiltradas().length / this.pageSize))
+  );
+
+  readonly paginadas = computed(() => {
+    const start = (this.p() - 1) * this.pageSize;
+    return this.anotacionesFiltradas().slice(start, start + this.pageSize);
+  });
+
+  nextPage() { if (this.p() < this.totalPages()) this.p.update(v => v + 1); }
+  prevPage() { if (this.p() > 1) this.p.update(v => v - 1); }
+
+  irFiltro(tipo: string): void {
+    this.filtroTipo = tipo;
+    this.p.set(1);
   }
-
-  get paginadas(): AnotacionTurno[] {
-    const start = (this.p - 1) * this.pageSize;
-    return this.anotacionesFiltradas.slice(start, start + this.pageSize);
-  }
-
-  get totalPages(): number {
-    return Math.max(1, Math.ceil(this.anotacionesFiltradas.length / this.pageSize));
-  }
-
-  nextPage() { if (this.p < this.totalPages) this.p++; }
-  prevPage() { if (this.p > 1) this.p--; }
 
   // ────────────────────────────────────────────────────────────────────────
   //  INIT
@@ -94,9 +106,9 @@ export class AnotacionesTurnoComponent implements OnInit {
    *   eliminar, para no sacar al operador de donde estaba trabajando).
    */
   cargar(resetPage = true): void {
-    this.cargando  = true;
-    this.errorCarga = '';
-    if (resetPage) this.p = 1;
+    this.cargando.set(true);
+    this.errorCarga.set('');
+    if (resetPage) this.p.set(1);
 
     this.svc.getList({
       canal:  this.canalCodigo || undefined,
@@ -106,52 +118,58 @@ export class AnotacionesTurnoComponent implements OnInit {
       fuerza: this.fuerzaId    || undefined,
     }).subscribe({
       next: (r) => {
-        this.anotaciones = r.data ?? [];
-        this.cargando    = false;
+        this.anotaciones.set(r.data ?? []);
+        this.cargando.set(false);
         // La página pudo quedar fuera de rango (p. ej. se eliminó el único
         // registro de la última página) — recortar en vez de dejarla vacía.
-        if (this.p > this.totalPages) this.p = this.totalPages;
+        if (this.p() > this.totalPages()) this.p.set(this.totalPages());
       },
       error: () => {
-        this.cargando  = false;
-        this.errorCarga = 'No se pudo cargar la bitácora.';
+        this.cargando.set(false);
+        this.errorCarga.set('No se pudo cargar la bitácora.');
       }
     });
   }
 
   /** true si la lista pudo haber sido truncada por el límite del backend (500 registros). */
-  get posibleTruncamiento(): boolean {
-    return this.anotaciones.length >= 500;
-  }
+  readonly posibleTruncamiento = computed(() => this.anotaciones().length >= 500);
 
   // ────────────────────────────────────────────────────────────────────────
   //  GUARDAR (crear / actualizar)
   // ────────────────────────────────────────────────────────────────────────
 
+  setTipoForm(tipo: string): void {
+    this.form.controls.tipo.setValue(tipo);
+  }
+
   guardar(): void {
-    if (!this.form.descripcion?.trim()) {
+    if (this.form.invalid) {
+      this.form.markAllAsTouched();
       this.toast.warning('Campo requerido', 'Ingresa la descripción de la anotación.');
       return;
     }
-    this.guardando = true;
+    this.guardando.set(true);
 
+    const v = this.form.getRawValue();
     const req: AnotacionTurnoRequest = {
-      ...this.form,
+      ...v,
       canalCodigo: this.canalCodigo || undefined,
       fuerzaId:    this.fuerzaId    || undefined,
       sitioGraba:  this.sitioGraba  || undefined,
     };
 
-    const op$ = this.modoEdicion && this.editandoId
-      ? this.svc.update(this.editandoId, req)
+    const modoEdicion = this.modoEdicion();
+    const editandoId  = this.editandoId();
+    const op$ = modoEdicion && editandoId
+      ? this.svc.update(editandoId, req)
       : this.svc.create(req);
 
     op$.subscribe({
       next: (r) => {
-        this.guardando = false;
+        this.guardando.set(false);
         if (r.success) {
           this.toast.success(
-            this.modoEdicion ? 'Actualizada' : 'Registrada',
+            modoEdicion ? 'Actualizada' : 'Registrada',
             r.message ?? 'Anotación guardada.'
           );
           this.cancelar();
@@ -161,7 +179,7 @@ export class AnotacionesTurnoComponent implements OnInit {
         }
       },
       error: (e) => {
-        this.guardando = false;
+        this.guardando.set(false);
         this.toast.error('Error', e.error?.message ?? 'No se pudo guardar la anotación.');
       }
     });
@@ -172,13 +190,13 @@ export class AnotacionesTurnoComponent implements OnInit {
   // ────────────────────────────────────────────────────────────────────────
 
   editar(item: AnotacionTurno): void {
-    this.modoEdicion = true;
-    this.editandoId  = item.id;
-    this.form = {
+    this.modoEdicion.set(true);
+    this.editandoId.set(item.id);
+    this.form.reset({
       tipo:        item.tipo,
       titulo:      item.titulo ?? '',
       descripcion: item.descripcion,
-    };
+    });
     // Scroll al formulario
     setTimeout(() => {
       document.getElementById('formAnotacion')?.scrollIntoView({ behavior: 'smooth' });
@@ -186,9 +204,9 @@ export class AnotacionesTurnoComponent implements OnInit {
   }
 
   cancelar(): void {
-    this.modoEdicion = false;
-    this.editandoId  = null;
-    this.form        = this.formVacio();
+    this.modoEdicion.set(false);
+    this.editandoId.set(null);
+    this.form.reset(this.formVacio());
   }
 
   // ────────────────────────────────────────────────────────────────────────
@@ -196,21 +214,22 @@ export class AnotacionesTurnoComponent implements OnInit {
   // ────────────────────────────────────────────────────────────────────────
 
   solicitarEliminar(item: AnotacionTurno): void {
-    this.itemAEliminar = item;
+    this.itemAEliminar.set(item);
   }
 
   cancelarEliminar(): void {
-    this.itemAEliminar = null;
+    this.itemAEliminar.set(null);
   }
 
   confirmarEliminar(): void {
-    if (!this.itemAEliminar || this.eliminando) return;
-    this.eliminando = true;
+    const item = this.itemAEliminar();
+    if (!item || this.eliminando()) return;
+    this.eliminando.set(true);
 
-    this.svc.delete(this.itemAEliminar.id).subscribe({
+    this.svc.delete(item.id).subscribe({
       next: (r) => {
-        this.eliminando    = false;
-        this.itemAEliminar = null;
+        this.eliminando.set(false);
+        this.itemAEliminar.set(null);
         if (r.success) {
           this.toast.success('Eliminada', 'La anotación fue eliminada.');
           this.cargar(false);
@@ -219,7 +238,7 @@ export class AnotacionesTurnoComponent implements OnInit {
         }
       },
       error: () => {
-        this.eliminando = false;
+        this.eliminando.set(false);
         this.toast.error('Error', 'No se pudo eliminar la anotación.');
       }
     });
@@ -241,6 +260,6 @@ export class AnotacionesTurnoComponent implements OnInit {
   }
 
   contarPorTipo(tipo: string): number {
-    return this.anotaciones.filter(a => a.tipo === tipo).length;
+    return this.anotaciones().filter(a => a.tipo === tipo).length;
   }
 }

@@ -1,279 +1,309 @@
 <!-- @policia/mfa — modales del flujo de doble autenticación (enroll/verify/reset/blocked/svcdown).
-     Extraído verbatim del login de SECAD para reutilizarlo en todos los sistemas. -->
-<div *ngIf="mfaModal" class="mfa-overlay" role="dialog" aria-modal="true">
-
-  <!-- ── MODAL: ENROLAMIENTO (primera vez o re-enrolamiento) ─────────────── -->
-  <div *ngIf="mfaModal === 'enroll'" class="mfa-card mfa-card--lg">
-    <div class="mfa-card__head">
-      <span class="mfa-icon">🔐</span>
-      <div>
-        <div class="mfa-card__title">Activar doble autenticación (TOTP)</div>
-        <div class="mfa-card__sub">Recomendado: Google Authenticator, Microsoft Authenticator, Authy</div>
-      </div>
-      <button class="mfa-close-btn" type="button"
-              (click)="cancelMfa()"
-              [disabled]="mfaLoading"
-              title="Cerrar y volver al inicio de sesión"
-              aria-label="Cerrar">
-        <i class="fa-solid fa-xmark"></i>
-      </button>
-    </div>
-
-    <div class="mfa-card__body mfa-enroll-grid">
-
-      <!-- Columna izquierda: QR + clave manual -->
-      <div class="mfa-enroll-col">
-        <p class="mfa-step-label">1) Escanee el código QR</p>
-        <p class="mfa-help">Abra su app de autenticación y agregue una cuenta con el código QR.</p>
-        <div class="mfa-qr-wrap">
-          <img *ngIf="mfaQrBase64" [src]="'data:image/png;base64,' + mfaQrBase64"
-               class="mfa-qr" alt="Código QR TOTP">
-          <p *ngIf="!mfaQrBase64" class="mfa-error-inline">No se pudo generar el QR. Reintente desde el inicio.</p>
-        </div>
-        <div class="mfa-manual-wrap" *ngIf="mfaManualKey">
-          <p class="mfa-step-label mfa-step-label--sm">Clave manual (no la comparta)</p>
-          <code class="mfa-manual-key">{{ mfaManualKey }}</code>
-        </div>
-
-        <!-- Un toque para agregar la cuenta cuando SECAD se abre en el mismo
-             celular que tiene la app de autenticación (no se puede escanear la
-             propia pantalla). -->
-        <a *ngIf="mfaOtpauthUri" class="mfa-otpauth-btn" [href]="mfaOtpauthUri">
-          <i class="fa-solid fa-mobile-screen-button"></i>
-          ¿En un celular? Toque para agregarla a su app
-        </a>
-      </div>
-
-      <!-- Columna derecha: OTP -->
-      <div class="mfa-enroll-col">
-        <p class="mfa-step-label">2) Ingrese el código de 6 dígitos</p>
-        <p class="mfa-help">Genere el código en su app y confírmelo aquí. Si falla, revise que el celular tenga hora automática.</p>
-
-        <div class="mfa-otp-wrap">
-          <input *ngFor="let d of otpDigits; let i = index; trackBy: trackByIdx"
-                 class="mfa-otp-box" type="text" inputmode="numeric"
-                 maxlength="1" [value]="d"
-                 [attr.autocomplete]="i === 0 ? 'one-time-code' : 'off'"
-                 (input)="onOtpInput(i, $event)"
-                 (keydown)="onOtpKeydown(i, $event)"
-                 (paste)="onOtpPaste($event)"
-                 [disabled]="mfaLoading">
-        </div>
-
-        <p *ngIf="mfaError" class="mfa-error-inline">{{ mfaError }}</p>
-        <p *ngIf="mfaInfo"  class="mfa-info-inline">{{ mfaInfo }}</p>
-
-        <div class="mfa-actions">
-          <button class="mfa-btn mfa-btn--primary" (click)="submitEnroll()" [disabled]="mfaLoading || otpCode.length < 6">
-            <span *ngIf="!mfaLoading">Confirmar y activar</span>
-            <span *ngIf="mfaLoading"><i class="fa fa-spinner fa-spin"></i> Procesando...</span>
-          </button>
-          <button class="mfa-btn mfa-btn--ghost" (click)="cancelMfa()" [disabled]="mfaLoading">
-            Cancelar
+Extraído verbatim del login de SECAD para reutilizarlo en todos los sistemas. -->
+@if (mfaModal) {
+  <div class="mfa-overlay" role="dialog" aria-modal="true">
+    <!-- ── MODAL: ENROLAMIENTO (primera vez o re-enrolamiento) ─────────────── -->
+    @if (mfaModal === 'enroll') {
+      <div class="mfa-card mfa-card--lg">
+        <div class="mfa-card__head">
+          <span class="mfa-icon">🔐</span>
+          <div>
+            <div class="mfa-card__title">Activar doble autenticación (TOTP)</div>
+            <div class="mfa-card__sub">Recomendado: Google Authenticator, Microsoft Authenticator, Authy</div>
+          </div>
+          <button class="mfa-close-btn" type="button"
+            (click)="cancelMfa()"
+            [disabled]="mfaLoading"
+            title="Cerrar y volver al inicio de sesión"
+            aria-label="Cerrar">
+            <i class="fa-solid fa-xmark"></i>
           </button>
         </div>
-
-        <div class="mfa-note">
-          <i class="fa-solid fa-triangle-exclamation"></i>
-          Si cambia de celular, deberá re-enrolar el autenticador.
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- ── MODAL: VERIFICACIÓN (usuario ya enrolado) ─────────────────────── -->
-  <div *ngIf="mfaModal === 'verify'" class="mfa-card">
-    <div class="mfa-card__head">
-      <span class="mfa-icon">🛡️</span>
-      <div>
-        <div class="mfa-card__title">Verificación de seguridad</div>
-        <div class="mfa-card__sub">Use el código de su app de autenticación</div>
-      </div>
-      <button class="mfa-close-btn" type="button"
-              (click)="cancelMfa()"
-              [disabled]="mfaLoading"
-              title="Cerrar y volver al inicio de sesión"
-              aria-label="Cerrar">
-        <i class="fa-solid fa-xmark"></i>
-      </button>
-    </div>
-
-    <div class="mfa-card__body">
-      <p class="mfa-help">Ingrese el código de <strong>6 dígitos</strong> generado por su app.</p>
-
-      <div class="mfa-otp-wrap">
-        <input *ngFor="let d of otpDigits; let i = index; trackBy: trackByIdx"
-               class="mfa-otp-box" type="text" inputmode="numeric"
-               maxlength="1" [value]="d"
-               [attr.autocomplete]="i === 0 ? 'one-time-code' : 'off'"
-               (input)="onOtpInput(i, $event)"
-               (keydown)="onOtpKeydown(i, $event)"
-               (paste)="onOtpPaste($event)"
-               [disabled]="mfaLoading">
-      </div>
-
-      <p *ngIf="mfaError" class="mfa-error-inline">{{ mfaError }}</p>
-
-      <!-- Recordar dispositivo -->
-      <label class="mfa-remember-label">
-        <input type="checkbox" [(ngModel)]="mfaRememberDevice">
-        <span>Recordar este equipo por 30 días</span>
-      </label>
-
-      <div class="mfa-actions">
-        <button class="mfa-btn mfa-btn--primary" (click)="submitVerify()" [disabled]="mfaLoading || otpCode.length < 6">
-          <span *ngIf="!mfaLoading"><i class="fa fa-shield-halved"></i> Verificar</span>
-          <span *ngIf="mfaLoading"><i class="fa fa-spinner fa-spin"></i> Verificando...</span>
-        </button>
-      </div>
-
-      <div class="mfa-divider"></div>
-
-      <div class="mfa-lost-link">
-        <button type="button" (click)="openResetModal()">
-          <i class="fa-solid fa-rotate-left"></i> ¿Perdió su autenticador? Restablézcalo
-        </button>
-      </div>
-    </div>
-  </div>
-
-  <!-- ── MODAL: RESET (recuperación por correo) ────────────────────────── -->
-  <div *ngIf="mfaModal === 'reset'" class="mfa-card">
-    <div class="mfa-card__head">
-      <span class="mfa-icon">📧</span>
-      <div>
-        <div class="mfa-card__title">Restablecer autenticador por correo</div>
-        <div class="mfa-card__sub">Enviaremos un código a su correo institucional</div>
-      </div>
-      <button class="mfa-close-btn" type="button"
-              (click)="openModal('verify')"
-              [disabled]="mfaLoading"
-              title="Volver a la verificación"
-              aria-label="Cerrar">
-        <i class="fa-solid fa-xmark"></i>
-      </button>
-    </div>
-
-    <div class="mfa-card__body">
-
-      <!-- Paso 1: solicitar el código -->
-      <div *ngIf="resetStep === 1">
-        <p class="mfa-help">
-          El código dura <strong>5 minutos</strong>. Por seguridad, luego de validarlo habrá
-          una espera breve antes de poder enrolar nuevamente.
-        </p>
-        <p *ngIf="mfaError" class="mfa-error-inline">{{ mfaError }}</p>
-        <div class="mfa-actions">
-          <button class="mfa-btn mfa-btn--primary" (click)="submitResetRequest()" [disabled]="mfaLoading">
-            <span *ngIf="!mfaLoading"><i class="fa fa-envelope"></i> Enviar código al correo</span>
-            <span *ngIf="mfaLoading"><i class="fa fa-spinner fa-spin"></i> Enviando...</span>
-          </button>
-        </div>
-      </div>
-
-      <!-- Paso 2: ingresar el código recibido -->
-      <div *ngIf="resetStep === 2">
-        <p class="mfa-help">Ingrese el código de <strong>6 dígitos</strong> que llegó a su correo.</p>
-        <p *ngIf="resetInfo" class="mfa-info-inline">{{ resetInfo }}</p>
-
-        <div class="mfa-otp-wrap">
-          <input *ngFor="let d of otpDigits; let i = index; trackBy: trackByIdx"
-                 class="mfa-otp-box" type="text" inputmode="numeric"
-                 maxlength="1" [value]="d"
-                 [attr.autocomplete]="i === 0 ? 'one-time-code' : 'off'"
-                 (input)="onOtpInput(i, $event)"
-                 (keydown)="onOtpKeydown(i, $event)"
-                 (paste)="onOtpPaste($event)"
-                 [disabled]="mfaLoading">
-        </div>
-
-        <p *ngIf="mfaError" class="mfa-error-inline">{{ mfaError }}</p>
-
-        <div class="mfa-actions">
-          <button class="mfa-btn mfa-btn--primary" (click)="submitResetConfirm()"
-                  [disabled]="mfaLoading || otpCode.length < 6">
-            <span *ngIf="!mfaLoading">Confirmar código</span>
-            <span *ngIf="mfaLoading"><i class="fa fa-spinner fa-spin"></i> Verificando...</span>
-          </button>
-          <button class="mfa-btn mfa-btn--ghost" (click)="resetStep = 1; clearOtp(); mfaError = ''"
+        <div class="mfa-card__body mfa-enroll-grid">
+          <!-- Columna izquierda: QR + clave manual -->
+          <div class="mfa-enroll-col">
+            <p class="mfa-step-label">1) Escanee el código QR</p>
+            <p class="mfa-help">Abra su app de autenticación y agregue una cuenta con el código QR.</p>
+            <div class="mfa-qr-wrap">
+              @if (mfaQrBase64) {
+                <img [src]="'data:image/png;base64,' + mfaQrBase64"
+                  class="mfa-qr" alt="Código QR TOTP">
+              }
+              @if (!mfaQrBase64) {
+                <p class="mfa-error-inline">No se pudo generar el QR. Reintente desde el inicio.</p>
+              }
+            </div>
+            @if (mfaManualKey) {
+              <div class="mfa-manual-wrap">
+                <p class="mfa-step-label mfa-step-label--sm">Clave manual (no la comparta)</p>
+                <code class="mfa-manual-key">{{ mfaManualKey }}</code>
+              </div>
+            }
+            <!-- Un toque para agregar la cuenta cuando SECAD se abre en el mismo
+            celular que tiene la app de autenticación (no se puede escanear la
+            propia pantalla). -->
+            @if (mfaOtpauthUri) {
+              <a class="mfa-otpauth-btn" [href]="mfaOtpauthUri">
+                <i class="fa-solid fa-mobile-screen-button"></i>
+                ¿En un celular? Toque para agregarla a su app
+              </a>
+            }
+          </div>
+          <!-- Columna derecha: OTP -->
+          <div class="mfa-enroll-col">
+            <p class="mfa-step-label">2) Ingrese el código de 6 dígitos</p>
+            <p class="mfa-help">Genere el código en su app y confírmelo aquí. Si falla, revise que el celular tenga hora automática.</p>
+            <div class="mfa-otp-wrap">
+              @for (d of otpDigits; track trackByIdx(i, d); let i = $index) {
+                <input
+                  class="mfa-otp-box" type="text" inputmode="numeric"
+                  maxlength="1" [value]="d"
+                  [attr.autocomplete]="i === 0 ? 'one-time-code' : 'off'"
+                  (input)="onOtpInput(i, $event)"
+                  (keydown)="onOtpKeydown(i, $event)"
+                  (paste)="onOtpPaste($event)"
                   [disabled]="mfaLoading">
-            ← Volver
-          </button>
+              }
+            </div>
+            @if (mfaError) {
+              <p class="mfa-error-inline">{{ mfaError }}</p>
+            }
+            @if (mfaInfo) {
+              <p  class="mfa-info-inline">{{ mfaInfo }}</p>
+            }
+            <div class="mfa-actions">
+              <button class="mfa-btn mfa-btn--primary" (click)="submitEnroll()" [disabled]="mfaLoading || otpCode.length < 6">
+                @if (!mfaLoading) {
+                  <span>Confirmar y activar</span>
+                }
+                @if (mfaLoading) {
+                  <span><i class="fa fa-spinner fa-spin"></i> Procesando...</span>
+                }
+              </button>
+              <button class="mfa-btn mfa-btn--ghost" (click)="cancelMfa()" [disabled]="mfaLoading">
+                Cancelar
+              </button>
+            </div>
+            <div class="mfa-note">
+              <i class="fa-solid fa-triangle-exclamation"></i>
+              Si cambia de celular, deberá re-enrolar el autenticador.
+            </div>
+          </div>
         </div>
       </div>
-
-      <div class="mfa-divider"></div>
-      <div class="mfa-lost-link">
-        <button type="button" (click)="openModal('verify')">← Volver a la verificación</button>
+    }
+    <!-- ── MODAL: VERIFICACIÓN (usuario ya enrolado) ─────────────────────── -->
+    @if (mfaModal === 'verify') {
+      <div class="mfa-card">
+        <div class="mfa-card__head">
+          <span class="mfa-icon">🛡️</span>
+          <div>
+            <div class="mfa-card__title">Verificación de seguridad</div>
+            <div class="mfa-card__sub">Use el código de su app de autenticación</div>
+          </div>
+          <button class="mfa-close-btn" type="button"
+            (click)="cancelMfa()"
+            [disabled]="mfaLoading"
+            title="Cerrar y volver al inicio de sesión"
+            aria-label="Cerrar">
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        </div>
+        <div class="mfa-card__body">
+          <p class="mfa-help">Ingrese el código de <strong>6 dígitos</strong> generado por su app.</p>
+          <div class="mfa-otp-wrap">
+            @for (d of otpDigits; track trackByIdx(i, d); let i = $index) {
+              <input
+                class="mfa-otp-box" type="text" inputmode="numeric"
+                maxlength="1" [value]="d"
+                [attr.autocomplete]="i === 0 ? 'one-time-code' : 'off'"
+                (input)="onOtpInput(i, $event)"
+                (keydown)="onOtpKeydown(i, $event)"
+                (paste)="onOtpPaste($event)"
+                [disabled]="mfaLoading">
+            }
+          </div>
+          @if (mfaError) {
+            <p class="mfa-error-inline">{{ mfaError }}</p>
+          }
+          <!-- Recordar dispositivo -->
+          <label class="mfa-remember-label">
+            <input type="checkbox" [(ngModel)]="mfaRememberDevice">
+            <span>Recordar este equipo por 30 días</span>
+          </label>
+          <div class="mfa-actions">
+            <button class="mfa-btn mfa-btn--primary" (click)="submitVerify()" [disabled]="mfaLoading || otpCode.length < 6">
+              @if (!mfaLoading) {
+                <span><i class="fa fa-shield-halved"></i> Verificar</span>
+              }
+              @if (mfaLoading) {
+                <span><i class="fa fa-spinner fa-spin"></i> Verificando...</span>
+              }
+            </button>
+          </div>
+          <div class="mfa-divider"></div>
+          <div class="mfa-lost-link">
+            <button type="button" (click)="openResetModal()">
+              <i class="fa-solid fa-rotate-left"></i> ¿Perdió su autenticador? Restablézcalo
+            </button>
+          </div>
+        </div>
       </div>
-    </div>
+    }
+    <!-- ── MODAL: RESET (recuperación por correo) ────────────────────────── -->
+    @if (mfaModal === 'reset') {
+      <div class="mfa-card">
+        <div class="mfa-card__head">
+          <span class="mfa-icon">📧</span>
+          <div>
+            <div class="mfa-card__title">Restablecer autenticador por correo</div>
+            <div class="mfa-card__sub">Enviaremos un código a su correo institucional</div>
+          </div>
+          <button class="mfa-close-btn" type="button"
+            (click)="openModal('verify')"
+            [disabled]="mfaLoading"
+            title="Volver a la verificación"
+            aria-label="Cerrar">
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        </div>
+        <div class="mfa-card__body">
+          <!-- Paso 1: solicitar el código -->
+          @if (resetStep === 1) {
+            <div>
+              <p class="mfa-help">
+                El código dura <strong>5 minutos</strong>. Por seguridad, luego de validarlo habrá
+                una espera breve antes de poder enrolar nuevamente.
+              </p>
+              @if (mfaError) {
+                <p class="mfa-error-inline">{{ mfaError }}</p>
+              }
+              <div class="mfa-actions">
+                <button class="mfa-btn mfa-btn--primary" (click)="submitResetRequest()" [disabled]="mfaLoading">
+                  @if (!mfaLoading) {
+                    <span><i class="fa fa-envelope"></i> Enviar código al correo</span>
+                  }
+                  @if (mfaLoading) {
+                    <span><i class="fa fa-spinner fa-spin"></i> Enviando...</span>
+                  }
+                </button>
+              </div>
+            </div>
+          }
+          <!-- Paso 2: ingresar el código recibido -->
+          @if (resetStep === 2) {
+            <div>
+              <p class="mfa-help">Ingrese el código de <strong>6 dígitos</strong> que llegó a su correo.</p>
+              @if (resetInfo) {
+                <p class="mfa-info-inline">{{ resetInfo }}</p>
+              }
+              <div class="mfa-otp-wrap">
+                @for (d of otpDigits; track trackByIdx(i, d); let i = $index) {
+                  <input
+                    class="mfa-otp-box" type="text" inputmode="numeric"
+                    maxlength="1" [value]="d"
+                    [attr.autocomplete]="i === 0 ? 'one-time-code' : 'off'"
+                    (input)="onOtpInput(i, $event)"
+                    (keydown)="onOtpKeydown(i, $event)"
+                    (paste)="onOtpPaste($event)"
+                    [disabled]="mfaLoading">
+                }
+              </div>
+              @if (mfaError) {
+                <p class="mfa-error-inline">{{ mfaError }}</p>
+              }
+              <div class="mfa-actions">
+                <button class="mfa-btn mfa-btn--primary" (click)="submitResetConfirm()"
+                  [disabled]="mfaLoading || otpCode.length < 6">
+                  @if (!mfaLoading) {
+                    <span>Confirmar código</span>
+                  }
+                  @if (mfaLoading) {
+                    <span><i class="fa fa-spinner fa-spin"></i> Verificando...</span>
+                  }
+                </button>
+                <button class="mfa-btn mfa-btn--ghost" (click)="resetStep = 1; clearOtp(); mfaError = ''"
+                  [disabled]="mfaLoading">
+                  ← Volver
+                </button>
+              </div>
+            </div>
+          }
+          <div class="mfa-divider"></div>
+          <div class="mfa-lost-link">
+            <button type="button" (click)="openModal('verify')">← Volver a la verificación</button>
+          </div>
+        </div>
+      </div>
+    }
+    <!-- ── MODAL: BLOQUEADO ─────────────────────────────────────────────── -->
+    @if (mfaModal === 'blocked') {
+      <div class="mfa-card mfa-card--danger">
+        <div class="mfa-card__head">
+          <span class="mfa-icon">⛔</span>
+          <div>
+            <div class="mfa-card__title">Acceso temporalmente bloqueado</div>
+            <div class="mfa-card__sub">Se detectaron intentos fallidos</div>
+          </div>
+          <button class="mfa-close-btn" type="button"
+            (click)="cancelMfa()"
+            title="Volver al inicio de sesión"
+            aria-label="Cerrar">
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        </div>
+        <div class="mfa-card__body">
+          <p class="mfa-help">
+            Su cuenta tiene un bloqueo de seguridad activo por múltiples intentos fallidos.
+            Espere a que expire el tiempo de bloqueo e intente nuevamente.
+          </p>
+          <div class="mfa-blocked-until">
+            <i class="fa-solid fa-clock"></i>
+            Bloqueado hasta: <strong>{{ mfaBloqueoHasta || 'No disponible' }}</strong>
+          </div>
+          <div class="mfa-actions mfa-actions--center">
+            <button class="mfa-btn mfa-btn--ghost" (click)="cancelMfa()">
+              Volver al inicio de sesión
+            </button>
+          </div>
+        </div>
+      </div>
+    }
+    <!-- ── MODAL: SERVICIO CAÍDO ─────────────────────────────────────────── -->
+    @if (mfaModal === 'svcdown') {
+      <div class="mfa-card mfa-card--warning">
+        <div class="mfa-card__head">
+          <span class="mfa-icon">⚠️</span>
+          <div>
+            <div class="mfa-card__title">Servicio de doble autenticación no disponible</div>
+            <div class="mfa-card__sub">No es posible iniciar sesión en este momento</div>
+          </div>
+          <button class="mfa-close-btn" type="button"
+            (click)="cancelMfa()"
+            title="Volver al inicio de sesión"
+            aria-label="Cerrar">
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        </div>
+        <div class="mfa-card__body">
+          <p class="mfa-help">
+            El servicio de <strong>Doble Autenticación (2FA/MFA)</strong> está presentando
+            fallas o no se pudo establecer conexión. Por política de seguridad, el acceso
+            queda temporalmente restringido hasta que el servicio se restablezca.
+          </p>
+          @if (mfaSvcMsg) {
+            <p class="mfa-error-inline">{{ mfaSvcMsg }}</p>
+          }
+          <div class="mfa-note mfa-note--warning">
+            <strong>Acción requerida:</strong> Contacte al Administrador del sistema o al técnico GUTIC de su unidad.
+          </div>
+          <div class="mfa-actions mfa-actions--center">
+            <button class="mfa-btn mfa-btn--ghost" (click)="cancelMfa()">
+              Volver al inicio de sesión
+            </button>
+          </div>
+        </div>
+      </div>
+    }
   </div>
-
-  <!-- ── MODAL: BLOQUEADO ─────────────────────────────────────────────── -->
-  <div *ngIf="mfaModal === 'blocked'" class="mfa-card mfa-card--danger">
-    <div class="mfa-card__head">
-      <span class="mfa-icon">⛔</span>
-      <div>
-        <div class="mfa-card__title">Acceso temporalmente bloqueado</div>
-        <div class="mfa-card__sub">Se detectaron intentos fallidos</div>
-      </div>
-      <button class="mfa-close-btn" type="button"
-              (click)="cancelMfa()"
-              title="Volver al inicio de sesión"
-              aria-label="Cerrar">
-        <i class="fa-solid fa-xmark"></i>
-      </button>
-    </div>
-
-    <div class="mfa-card__body">
-      <p class="mfa-help">
-        Su cuenta tiene un bloqueo de seguridad activo por múltiples intentos fallidos.
-        Espere a que expire el tiempo de bloqueo e intente nuevamente.
-      </p>
-      <div class="mfa-blocked-until">
-        <i class="fa-solid fa-clock"></i>
-        Bloqueado hasta: <strong>{{ mfaBloqueoHasta || 'No disponible' }}</strong>
-      </div>
-      <div class="mfa-actions mfa-actions--center">
-        <button class="mfa-btn mfa-btn--ghost" (click)="cancelMfa()">
-          Volver al inicio de sesión
-        </button>
-      </div>
-    </div>
-  </div>
-
-  <!-- ── MODAL: SERVICIO CAÍDO ─────────────────────────────────────────── -->
-  <div *ngIf="mfaModal === 'svcdown'" class="mfa-card mfa-card--warning">
-    <div class="mfa-card__head">
-      <span class="mfa-icon">⚠️</span>
-      <div>
-        <div class="mfa-card__title">Servicio de doble autenticación no disponible</div>
-        <div class="mfa-card__sub">No es posible iniciar sesión en este momento</div>
-      </div>
-      <button class="mfa-close-btn" type="button"
-              (click)="cancelMfa()"
-              title="Volver al inicio de sesión"
-              aria-label="Cerrar">
-        <i class="fa-solid fa-xmark"></i>
-      </button>
-    </div>
-
-    <div class="mfa-card__body">
-      <p class="mfa-help">
-        El servicio de <strong>Doble Autenticación (2FA/MFA)</strong> está presentando
-        fallas o no se pudo establecer conexión. Por política de seguridad, el acceso
-        queda temporalmente restringido hasta que el servicio se restablezca.
-      </p>
-      <p *ngIf="mfaSvcMsg" class="mfa-error-inline">{{ mfaSvcMsg }}</p>
-      <div class="mfa-note mfa-note--warning">
-        <strong>Acción requerida:</strong> Contacte al Administrador del sistema o al técnico GUTIC de su unidad.
-      </div>
-      <div class="mfa-actions mfa-actions--center">
-        <button class="mfa-btn mfa-btn--ghost" (click)="cancelMfa()">
-          Volver al inicio de sesión
-        </button>
-      </div>
-    </div>
-  </div>
-
-</div><!-- /mfa-overlay -->
+  }<!-- /mfa-overlay -->

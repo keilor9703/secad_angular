@@ -1,5 +1,6 @@
-import { Component, HostListener, OnInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { Component, HostListener, OnInit, ChangeDetectionStrategy, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+
 import { Router } from '@angular/router';
 import { AuthService } from '../../core/auth/auth.service';
 import { SuperAdminService, TenantPublico } from '../../core/services/super-admin.service';
@@ -10,38 +11,41 @@ import { ToastService } from '../../core/services/toast.service';
   templateUrl: './context-banner.html',
   styleUrls: ['./context-banner.scss'],
   standalone: true,
-  imports: [CommonModule]
+  imports: [],
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class ContextBannerComponent implements OnInit {
-  isSuperAdmin  = false;
-  isCtxSwitched = false;
-  nombreCad     = '';
-  homeCodDane   = '';
-  activeCodDane = '';
-  tenants: TenantPublico[] = [];
-  showDropdown  = false;
-  switching     = false;
+  private readonly auth         = inject(AuthService);
+  private readonly superService = inject(SuperAdminService);
+  private readonly toast        = inject(ToastService);
+  private readonly router       = inject(Router);
 
-  constructor(
-    private auth:         AuthService,
-    private superService: SuperAdminService,
-    private toast:        ToastService,
-    private router:       Router
-  ) {}
+  readonly isSuperAdmin  = signal(false);
+  readonly isCtxSwitched = signal(false);
+  readonly nombreCad     = signal('');
+  readonly activeCodDane = signal('');
+  readonly tenants       = signal<TenantPublico[]>([]);
+  readonly showDropdown  = signal(false);
+  readonly switching     = signal(false);
+
+  /** Solo se usa internamente (returnToHome) — nunca se lee en el template. */
+  private homeCodDane = '';
 
   ngOnInit(): void {
-    const claims      = this.auth.getJwtClaims();
-    this.isSuperAdmin  = claims.esSuperAdmin;
-    this.isCtxSwitched = this.auth.isContextSwitched();
-    this.nombreCad     = claims.nombreCad;
-    this.homeCodDane   = claims.homeCodDane;
-    this.activeCodDane = claims.codDane;
+    const claims = this.auth.getJwtClaims();
+    this.isSuperAdmin.set(claims.esSuperAdmin);
+    this.isCtxSwitched.set(this.auth.isContextSwitched());
+    this.nombreCad.set(claims.nombreCad);
+    this.homeCodDane = claims.homeCodDane;
+    this.activeCodDane.set(claims.codDane);
 
-    if (this.isSuperAdmin) {
-      this.superService.getTenants().subscribe({
-        next: t => this.tenants = t.filter(x => x.activo),
-        error: () => { /* silently ignore — show banner anyway */ }
-      });
+    if (this.isSuperAdmin()) {
+      this.superService.getTenants()
+        .pipe(takeUntilDestroyed())
+        .subscribe({
+          next: t => this.tenants.set(t.filter(x => x.activo)),
+          error: () => { /* silently ignore — show banner anyway */ }
+        });
     }
   }
 
@@ -49,41 +53,43 @@ export class ContextBannerComponent implements OnInit {
   onDocumentClick(event: MouseEvent): void {
     const target = event.target as HTMLElement;
     if (!target.closest('.ctx-selector')) {
-      this.showDropdown = false;
+      this.showDropdown.set(false);
     }
   }
 
   toggleDropdown(): void {
-    this.showDropdown = !this.showDropdown;
+    this.showDropdown.update(v => !v);
   }
 
   closeDropdown(): void {
-    this.showDropdown = false;
+    this.showDropdown.set(false);
   }
 
   switchTo(codDane: string): void {
-    if (codDane === this.activeCodDane || this.switching) return;
-    this.switching = true;
-    this.showDropdown = false;
+    if (codDane === this.activeCodDane() || this.switching()) return;
+    this.switching.set(true);
+    this.showDropdown.set(false);
 
-    this.superService.switchContext(codDane).subscribe({
-      next: result => {
-        this.auth.setToken(result.token);
-        this.nombreCad     = result.nombreCad;
-        this.activeCodDane = result.codDane;
-        this.isCtxSwitched = this.auth.isContextSwitched();
-        this.switching     = false;
-        this.toast.info('Contexto cambiado', `Administrando: ${result.nombreCad}`);
-        // Reload to apply the new tenant context
-        this.router.navigateByUrl('/administracion/inicio').then(() =>
-          window.location.reload()
-        );
-      },
-      error: () => {
-        this.switching = false;
-        this.toast.error('Error', 'No se pudo cambiar el contexto.');
-      }
-    });
+    this.superService.switchContext(codDane)
+      .pipe(takeUntilDestroyed())
+      .subscribe({
+        next: result => {
+          this.auth.setToken(result.token);
+          this.nombreCad.set(result.nombreCad);
+          this.activeCodDane.set(result.codDane);
+          this.isCtxSwitched.set(this.auth.isContextSwitched());
+          this.switching.set(false);
+          this.toast.info('Contexto cambiado', `Administrando: ${result.nombreCad}`);
+          // Reload to apply the new tenant context
+          this.router.navigateByUrl('/administracion/inicio').then(() =>
+            window.location.reload()
+          );
+        },
+        error: () => {
+          this.switching.set(false);
+          this.toast.error('Error', 'No se pudo cambiar el contexto.');
+        }
+      });
   }
 
   returnToHome(): void {

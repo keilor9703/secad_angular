@@ -31,7 +31,7 @@
       <div class="tr-filter-group">
         <label class="tr-filter-label">Fuerza</label>
         <select class="ui-control tr-filter-input" [(ngModel)]="fuerzaFiltro">
-          @for (f of fuerzas; track f.id) {
+          @for (f of fuerzas(); track f.id) {
             <option [ngValue]="f.id">{{ f.descripcion }}</option>
           }
         </select>
@@ -42,16 +42,16 @@
                [(ngModel)]="fechaBusqueda">
       </div>
       <button class="ui-btn sm ghost" type="button"
-              [disabled]="cargando"
+              [disabled]="cargando()"
               (click)="cargarTurnos()">
-        <i class="fa-solid fa-rotate" [class.fa-spin]="cargando"></i>
-        {{ cargando ? 'Buscando…' : 'Buscar' }}
+        <i class="fa-solid fa-rotate" [class.fa-spin]="cargando()"></i>
+        {{ cargando() ? 'Buscando…' : 'Buscar' }}
       </button>
     </div>
 
-    @if (error) {
+    @if (error()) {
       <div class="tr-error-banner">
-        <i class="fa-solid fa-triangle-exclamation"></i> {{ error }}
+        <i class="fa-solid fa-triangle-exclamation"></i> {{ error() }}
       </div>
     }
 
@@ -64,23 +64,23 @@
       <aside class="tr-col-turnos">
         <div class="tr-col-head">
           <span><i class="fa-solid fa-clock-rotate-left"></i> Turnos del día</span>
-          <span class="tr-count">{{ turnos.length }}</span>
+          <span class="tr-count">{{ turnos().length }}</span>
         </div>
 
         <div class="tr-list">
 
-          @if (cargando && turnos.length === 0) {
+          @if (cargando() && turnos().length === 0) {
             <div class="tr-empty">
               <i class="fa-solid fa-hourglass-half fa-spin"></i>
               <p>Cargando…</p>
             </div>
-          } @else if (turnos.length === 0) {
+          } @else if (turnos().length === 0) {
             <div class="tr-empty">
               <i class="fa-solid fa-calendar-xmark"></i>
               <p>No hay turnos para esta fecha.</p>
             </div>
           } @else {
-            @for (t of turnos; track trackByTurno($index, t)) {
+            @for (t of turnos(); track trackByTurno($index, t)) {
               <div class="tr-turno-item"
                    [class.tr-turno-item--sel]="turnoSeleccionado?.id === t.id"
                    (click)="seleccionarTurno(t)">
@@ -147,7 +147,7 @@
           </div>
 
           <!-- Info del turno seleccionado -->
-          @if (turnoDetalle) {
+          @if (turnoDetalle(); as turnoDetalle) {
             <div class="tr-turno-info">
               <span class="tr-clase-badge" [ngClass]="claseTurnoCss(turnoDetalle.claseTurno)">
                 {{ claseTurnoCorto(turnoDetalle.claseTurno) }}
@@ -177,18 +177,18 @@
 
           <!-- Lista de unidades -->
           <div class="tr-list tr-list--units">
-            @if (cargandoUnidades) {
+            @if (cargandoUnidades()) {
               <div class="tr-empty">
                 <i class="fa-solid fa-hourglass-half fa-spin"></i>
                 <p>Cargando unidades…</p>
               </div>
-            } @else if (unidades.length === 0) {
+            } @else if (unidades().length === 0) {
               <div class="tr-empty">
                 <i class="fa-solid fa-building-shield"></i>
                 <p>Sin unidades. Agregue manualmente o importe de SIVICC.</p>
               </div>
             } @else {
-              @for (u of unidades; track trackByUnidad($index, u)) {
+              @for (u of unidades(); track trackByUnidad($index, u)) {
                 <div class="tr-unidad-item"
                      [class.tr-unidad-item--sel]="unidadActiva?.id === u.id"
                      (click)="seleccionarUnidad(u)">
@@ -247,7 +247,7 @@
           </div>
 
           <!-- Resumen de disponibilidad en vivo -->
-          @if (medios.length > 0) {
+          @if (medios().length > 0) {
             <div class="tr-readiness" [ngClass]="'tr-readiness--' + readinessColor">
               <span class="tr-readiness-dot"></span>
               <span class="tr-readiness-item">
@@ -261,18 +261,18 @@
 
           <!-- Lista de medios -->
           <div class="tr-list tr-list--medios">
-            @if (cargandoMedios) {
+            @if (cargandoMedios()) {
               <div class="tr-empty">
                 <i class="fa-solid fa-hourglass-half fa-spin"></i>
                 <p>Cargando medios…</p>
               </div>
-            } @else if (medios.length === 0) {
+            } @else if (medios().length === 0) {
               <div class="tr-empty">
                 <i class="fa-solid fa-car-side"></i>
                 <p>Sin medios. Agréguelos manualmente.</p>
               </div>
             } @else {
-              @for (m of medios; track trackByMedio($index, m)) {
+              @for (m of medios(); track trackByMedio($index, m)) {
                 <div class="tr-medio-item">
 
                   <!-- Icono tipo -->
@@ -331,7 +331,7 @@
 <!-- ══════════════════════════════════════════════════════════════
      MODAL: Crear turno
      ══════════════════════════════════════════════════════════════ -->
-@if (modalCrear) {
+@if (modalCrear()) {
   <div class="ui-modal" (click)="cerrarModalCrear()">
     <div class="ui-modal__dialog tr-modal" (click)="$event.stopPropagation()">
 
@@ -362,7 +362,7 @@
           <div class="ui-field ui-col-6">
             <label class="ui-label">Fuerza</label>
             <select class="ui-control" [(ngModel)]="formCrear.fuerzaId">
-              @for (f of fuerzas; track f.id) {
+              @for (f of fuerzas(); track f.id) {
                 <option [ngValue]="f.id">{{ f.descripcion }}</option>
               }
             </select>
@@ -389,9 +389,9 @@
 
         </div>
 
-        @if (errorCrear) {
+        @if (errorCrear()) {
           <div class="tr-modal-error">
-            <i class="fa-solid fa-triangle-exclamation"></i> {{ errorCrear }}
+            <i class="fa-solid fa-triangle-exclamation"></i> {{ errorCrear() }}
           </div>
         }
       </div>
@@ -401,10 +401,10 @@
           <i class="fa-solid fa-xmark"></i> Cancelar
         </button>
         <button class="ui-btn sm primary" type="button"
-                [disabled]="guardandoCrear"
+                [disabled]="guardandoCrear()"
                 (click)="guardarCrear()">
           <i class="fa-solid fa-floppy-disk"></i>
-          {{ guardandoCrear ? 'Guardando…' : 'Crear turno' }}
+          {{ guardandoCrear() ? 'Guardando…' : 'Crear turno' }}
         </button>
       </div>
 
@@ -415,7 +415,7 @@
 <!-- ══════════════════════════════════════════════════════════════
      MODAL: Copiar turno
      ══════════════════════════════════════════════════════════════ -->
-@if (modalCopiar) {
+@if (modalCopiar()) {
   <div class="ui-modal" (click)="cerrarModalCopiar()">
     <div class="ui-modal__dialog tr-modal" (click)="$event.stopPropagation()">
 
@@ -460,9 +460,9 @@
 
         </div>
 
-        @if (errorCopiar) {
+        @if (errorCopiar()) {
           <div class="tr-modal-error">
-            <i class="fa-solid fa-triangle-exclamation"></i> {{ errorCopiar }}
+            <i class="fa-solid fa-triangle-exclamation"></i> {{ errorCopiar() }}
           </div>
         }
       </div>
@@ -472,10 +472,10 @@
           <i class="fa-solid fa-xmark"></i> Cancelar
         </button>
         <button class="ui-btn sm primary" type="button"
-                [disabled]="guardandoCopiar"
+                [disabled]="guardandoCopiar()"
                 (click)="guardarCopiar()">
           <i class="fa-solid fa-copy"></i>
-          {{ guardandoCopiar ? 'Copiando…' : 'Copiar turno' }}
+          {{ guardandoCopiar() ? 'Copiando…' : 'Copiar turno' }}
         </button>
       </div>
 
@@ -486,7 +486,7 @@
 <!-- ══════════════════════════════════════════════════════════════
      MODAL: Agregar unidad
      ══════════════════════════════════════════════════════════════ -->
-@if (modalUnidad) {
+@if (modalUnidad()) {
   <div class="ui-modal" (click)="cerrarModalUnidad()">
     <div class="ui-modal__dialog tr-modal tr-modal--sm" (click)="$event.stopPropagation()">
 
@@ -523,9 +523,9 @@
                       maxlength="2000"></textarea>
           </div>
         </div>
-        @if (errorUnidad) {
+        @if (errorUnidad()) {
           <div class="tr-modal-error">
-            <i class="fa-solid fa-triangle-exclamation"></i> {{ errorUnidad }}
+            <i class="fa-solid fa-triangle-exclamation"></i> {{ errorUnidad() }}
           </div>
         }
       </div>
@@ -535,10 +535,10 @@
           <i class="fa-solid fa-xmark"></i> Cancelar
         </button>
         <button class="ui-btn sm primary" type="button"
-                [disabled]="guardandoUnidad"
+                [disabled]="guardandoUnidad()"
                 (click)="guardarUnidad()">
           <i class="fa-solid fa-floppy-disk"></i>
-          {{ guardandoUnidad ? 'Guardando…' : 'Agregar unidad' }}
+          {{ guardandoUnidad() ? 'Guardando…' : 'Agregar unidad' }}
         </button>
       </div>
 
@@ -549,7 +549,7 @@
 <!-- ══════════════════════════════════════════════════════════════
      MODAL: Agregar medio
      ══════════════════════════════════════════════════════════════ -->
-@if (modalMedio) {
+@if (modalMedio()) {
   <div class="ui-modal" (click)="cerrarModalMedio()">
     <div class="ui-modal__dialog tr-modal" (click)="$event.stopPropagation()">
 
@@ -590,10 +590,10 @@
                     [ngModel]="canalKey(formMedio.canalCodigo, formMedio.canalFuerzaId)"
                     (ngModelChange)="onCanalChange($event)">
               <option [ngValue]="undefined">— Sin canal —</option>
-              @if (cargandoCanales) {
+              @if (cargandoCanales()) {
                 <option disabled>Cargando canales…</option>
               }
-              @for (c of canales; track c.codigo + '::' + c.fuerzaId) {
+              @for (c of canales(); track c.codigo + '::' + c.fuerzaId) {
                 <option [ngValue]="c.codigo + '::' + c.fuerzaId">{{ c.descripcion }}</option>
               }
             </select>
@@ -642,9 +642,9 @@
 
         </div>
 
-        @if (errorMedio) {
+        @if (errorMedio()) {
           <div class="tr-modal-error">
-            <i class="fa-solid fa-triangle-exclamation"></i> {{ errorMedio }}
+            <i class="fa-solid fa-triangle-exclamation"></i> {{ errorMedio() }}
           </div>
         }
       </div>
@@ -654,10 +654,10 @@
           <i class="fa-solid fa-xmark"></i> Cancelar
         </button>
         <button class="ui-btn sm primary" type="button"
-                [disabled]="guardandoMedio"
+                [disabled]="guardandoMedio()"
                 (click)="guardarMedio()">
           <i class="fa-solid fa-floppy-disk"></i>
-          {{ guardandoMedio ? 'Guardando…' : 'Agregar medio' }}
+          {{ guardandoMedio() ? 'Guardando…' : 'Agregar medio' }}
         </button>
       </div>
 
@@ -668,14 +668,14 @@
 <!-- ══════════════════════════════════════════════════════════════
      MODAL: Editar medio
      ══════════════════════════════════════════════════════════════ -->
-@if (modalEditarMedio) {
+@if (modalEditarMedio()) {
   <div class="ui-modal" (click)="cerrarModalEditarMedio()">
     <div class="ui-modal__dialog tr-modal" (click)="$event.stopPropagation()">
 
       <div class="ui-modal__head">
         <div class="ui-modal__title">
           <i class="fa-solid fa-pencil"></i>
-          Editar medio — {{ medioEditando?.patrullaCodigo }}
+          Editar medio — {{ medioEditando()?.patrullaCodigo }}
         </div>
         <button class="ui-icon-btn" type="button" (click)="cerrarModalEditarMedio()" aria-label="Cerrar">
           <i class="fa-solid fa-xmark"></i>
@@ -706,10 +706,10 @@
                     [ngModel]="canalKey(formEditarMedio.canalCodigo, formEditarMedio.canalFuerzaId)"
                     (ngModelChange)="onCanalChangeEditar($event)">
               <option [ngValue]="undefined">— Sin canal —</option>
-              @if (cargandoCanales) {
+              @if (cargandoCanales()) {
                 <option disabled>Cargando canales…</option>
               }
-              @for (c of canales; track c.codigo + '::' + c.fuerzaId) {
+              @for (c of canales(); track c.codigo + '::' + c.fuerzaId) {
                 <option [ngValue]="c.codigo + '::' + c.fuerzaId">{{ c.descripcion }}</option>
               }
             </select>
@@ -758,9 +758,9 @@
 
         </div>
 
-        @if (errorEditarMedio) {
+        @if (errorEditarMedio()) {
           <div class="tr-modal-error">
-            <i class="fa-solid fa-triangle-exclamation"></i> {{ errorEditarMedio }}
+            <i class="fa-solid fa-triangle-exclamation"></i> {{ errorEditarMedio() }}
           </div>
         }
       </div>
@@ -770,10 +770,10 @@
           <i class="fa-solid fa-xmark"></i> Cancelar
         </button>
         <button class="ui-btn sm primary" type="button"
-                [disabled]="guardandoEditarMedio"
+                [disabled]="guardandoEditarMedio()"
                 (click)="guardarEditarMedio()">
           <i class="fa-solid fa-floppy-disk"></i>
-          {{ guardandoEditarMedio ? 'Guardando…' : 'Guardar cambios' }}
+          {{ guardandoEditarMedio() ? 'Guardando…' : 'Guardar cambios' }}
         </button>
       </div>
 
@@ -784,7 +784,7 @@
 <!-- ══════════════════════════════════════════════════════════════
      MODAL: Importar desde GESPO
      ══════════════════════════════════════════════════════════════ -->
-@if (modalSivicc) {
+@if (modalSivicc()) {
   <div class="ui-modal" (click)="cerrarModalSivicc()">
     <div class="ui-modal__dialog tr-modal tr-modal--md" (click)="$event.stopPropagation()">
 
@@ -801,7 +801,7 @@
       <div class="ui-modal__body">
 
         <!-- ── Paso 1: Consultando unidades en GESPO ── -->
-        @if (cargandoUnidadesSivicc) {
+        @if (cargandoUnidadesSivicc()) {
           <div class="tr-sivicc-loading">
             <span class="tr-spinner"></span>
             <span>Consultando unidades en GESPO</span>
@@ -809,17 +809,17 @@
         }
 
         <!-- ── Error al consultar ── -->
-        @if (!cargandoUnidadesSivicc && errorSivicc) {
+        @if (!cargandoUnidadesSivicc() && errorSivicc()) {
           <div class="tr-modal-error">
-            <i class="fa-solid fa-triangle-exclamation"></i> {{ errorSivicc }}
+            <i class="fa-solid fa-triangle-exclamation"></i> {{ errorSivicc() }}
           </div>
         }
 
         <!-- ── Paso 2: Lista de unidades disponibles ── -->
-        @if (!cargandoUnidadesSivicc && !errorSivicc && unidadesSivicc.length > 0) {
+        @if (!cargandoUnidadesSivicc() && !errorSivicc() && unidadesSivicc().length > 0) {
 
           <p class="tr-modal-hint">
-            Se encontraron <strong>{{ unidadesSivicc.length }}</strong> unidad(es) en la minuta GESPO
+            Se encontraron <strong>{{ unidadesSivicc().length }}</strong> unidad(es) en la minuta GESPO
             para este turno. Selecciona las que deseas importar.
           </p>
 
@@ -848,7 +848,7 @@
                     (ngModelChange)="onCanalChangeSivicc($event)"
                     style="max-width:280px">
               <option [ngValue]="undefined">— Sin canal —</option>
-              @for (c of canales; track c.codigo + '::' + c.fuerzaId) {
+              @for (c of canales(); track c.codigo + '::' + c.fuerzaId) {
                 <option [ngValue]="c.codigo + '::' + c.fuerzaId">{{ c.descripcion }}</option>
               }
             </select>
@@ -856,7 +856,7 @@
 
           <!-- Lista de unidades — cada una con su propio canal de radio -->
           <div class="tr-sivicc-list">
-            @for (u of unidadesSivicc; track u.consecutivo) {
+            @for (u of unidadesSivicc(); track u.consecutivo) {
               <div class="tr-sivicc-item" [class.tr-sivicc-item--exists]="u.existeEnCadMedios"
                    (click)="u.seleccionada = !u.seleccionada">
                 <input type="checkbox" [(ngModel)]="u.seleccionada"
@@ -872,7 +872,7 @@
                         (ngModelChange)="onCanalChangeSiviccUnidad(u, $event)"
                         (click)="$event.stopPropagation()">
                   <option [ngValue]="undefined">— Canal por defecto —</option>
-                  @for (c of canales; track c.codigo + '::' + c.fuerzaId) {
+                  @for (c of canales(); track c.codigo + '::' + c.fuerzaId) {
                     <option [ngValue]="c.codigo + '::' + c.fuerzaId">{{ c.descripcion }}</option>
                   }
                 </select>
@@ -891,7 +891,7 @@
         }
 
         <!-- ── Sin resultados ── -->
-        @if (!cargandoUnidadesSivicc && !errorSivicc && unidadesSivicc.length === 0) {
+        @if (!cargandoUnidadesSivicc() && !errorSivicc() && unidadesSivicc().length === 0) {
           <div class="tr-empty-state">
             <i class="fa-solid fa-circle-info"></i>
             <span>
@@ -908,10 +908,10 @@
           <i class="fa-solid fa-xmark"></i> Cancelar
         </button>
         <button class="ui-btn sm primary" type="button"
-                [disabled]="guardandoSivicc || cargandoUnidadesSivicc || !algunaSiviccSeleccionada"
+                [disabled]="guardandoSivicc() || cargandoUnidadesSivicc() || !algunaSiviccSeleccionada"
                 (click)="guardarSivicc()">
           <i class="fa-solid fa-file-import"></i>
-          {{ guardandoSivicc ? 'Importando…' : 'Importar seleccionadas' }}
+          {{ guardandoSivicc() ? 'Importando…' : 'Importar seleccionadas' }}
         </button>
       </div>
 

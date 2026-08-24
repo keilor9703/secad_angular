@@ -1,4 +1,4 @@
-import { Component, HostListener, OnDestroy, OnInit } from '@angular/core';
+import { Component, ChangeDetectionStrategy, HostListener, OnDestroy, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { DtoSliders, SliderService } from '../../core/services/administracion/slider.service';
@@ -18,8 +18,8 @@ interface NewsItem {
   date: string;
   tag: NewsTag;
   title: string;
-  lead: string;     
-  content: string;  
+  lead: string;
+  content: string;
   image: string;
   megusta: number;
 }
@@ -37,37 +37,36 @@ interface SocialLink {
   imports: [CommonModule, SafeUrlPipe, RouterLink],
   templateUrl: './home.html',
   styleUrls: ['./home.scss'],
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class HomeComponent implements OnInit, OnDestroy {
-  banners: DtoSliders[] = [];
-  stats: HomeStats = {
+  private readonly sliderService = inject(SliderService);
+  private readonly homeService = inject(HomeService);
+  private readonly videoUnidadService = inject(VideoUnidadService);
+  private readonly videoInstitucionalService = inject(VideoInstitucionalService);
+  private readonly lineaMandoService = inject(LineaMandoService);
+  private readonly noticiaService = inject(NoticiaService);
+
+  readonly banners = signal<DtoSliders[]>([]);
+  readonly stats = signal<HomeStats>({
     usuariosActivos: 0,
     reportesGenerados: 0,
     alertasSistema: 0
-  };
-  currentBannerIndex = 0;
+  });
+  readonly currentBannerIndex = signal(0);
   private bannerTimer: ReturnType<typeof setInterval> | null = null;
-  videoUnidadUrl = '';
-  videoInstitucionalUrl = '';
-  lineaMando: DtoLineaMando[] = [];
+  readonly videoUnidadUrl = signal('');
+  readonly videoInstitucionalUrl = signal('');
+  readonly lineaMando = signal<DtoLineaMando[]>([]);
   lineaMandoLightboxOpen = false;
   lineaMandoLightboxItem: DtoLineaMando | null = null;
 
-  socialLinks: SocialLink[] = [
+  readonly socialLinks: SocialLink[] = [
     { name: 'Facebook', icon: 'fa-facebook-f', url: 'https://www.facebook.com/PoliciaColombia', color: '#1877F2' },
     { name: 'X', icon: 'fa-x-twitter', url: 'https://twitter.com/PoliciaColombia', color: '#000000' },
     { name: 'Instagram', icon: 'fa-instagram', url: 'https://www.instagram.com/policiacolombia', color: '#E4405F' },
     { name: 'YouTube', icon: 'fa-youtube', url: 'https://www.youtube.com/@PoliciaNacionalCol', color: '#FF0000' }
   ];
-
-  constructor(
-    private sliderService: SliderService,
-    private homeService: HomeService,
-    private videoUnidadService: VideoUnidadService,
-    private videoInstitucionalService: VideoInstitucionalService,
-    private lineaMandoService: LineaMandoService,
-    private noticiaService: NoticiaService
-  ) {}
 
   ngOnInit(): void {
     this.loadBanners();
@@ -82,11 +81,11 @@ export class HomeComponent implements OnInit, OnDestroy {
     this.noticiaService.getActivas().subscribe({
       next: (noticias) => {
         // Ordenar por fecha descendente y limitar a 5 noticias más recientes
-        const sorted = noticias.sort((a, b) => 
+        const sorted = noticias.sort((a, b) =>
           new Date(b.fechaCreacion).getTime() - new Date(a.fechaCreacion).getTime()
         ).slice(0, 5);
-        
-        this.news = sorted.map(n => ({
+
+        this.news.set(sorted.map(n => ({
           id: n.idNoticia,
           date: new Date(n.fechaCreacion).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' }),
           tag: this.mapSeccionToTag(n.seccion),
@@ -95,11 +94,11 @@ export class HomeComponent implements OnInit, OnDestroy {
           content: n.contenido || '',
           image: this.getNoticiaImageUrl(n.imagenNoticia),
           megusta: n.megusta || 0
-        }));
+        })));
       },
       error: (err) => {
         console.error('Error cargando noticias:', err);
-        this.news = [];
+        this.news.set([]);
       }
     });
   }
@@ -108,14 +107,14 @@ export class HomeComponent implements OnInit, OnDestroy {
     const raw = (imagenNoticia ?? '').trim();
     if (!raw) return '';
     if (raw.startsWith('http://') || raw.startsWith('https://') || raw.startsWith('data:')) return raw;
-    
+
     // Si la imagen viene como /api/... o simplemente el nombre, apuntamos al servidor externo
     if (raw.startsWith('/api/')) {
       return `${this.sliderService.imageBaseUrl}${raw}`;
     }
 
     const fileName = raw.split('/').filter(Boolean).pop() ?? '';
-    // Como no sabemos la ruta exacta de las imágenes en el nuevo API, 
+    // Como no sabemos la ruta exacta de las imágenes en el nuevo API,
     // asumimos que el API de Slider/Image o similar podría servirlas o que vienen con ruta completa.
     // Si viene solo el nombre, intentamos el endpoint que parece ser el estándar en este server.
     return fileName ? `${this.sliderService.imageBaseUrl}/api/NoticiaUpload/Imagen/${encodeURIComponent(fileName)}` : '';
@@ -143,13 +142,13 @@ export class HomeComponent implements OnInit, OnDestroy {
           .filter((x) => this.isBannerVigenteNow(x, now))
           .slice()
           .sort((a, b) => a.orden - b.orden);
-        this.banners = ordered;
-        this.currentBannerIndex = 0;
+        this.banners.set(ordered);
+        this.currentBannerIndex.set(0);
         this.startBannerRotation();
       },
       error: () => {
-        this.banners = this.getFallbackBanners();
-        this.currentBannerIndex = 0;
+        this.banners.set(this.getFallbackBanners());
+        this.currentBannerIndex.set(0);
         this.startBannerRotation();
       }
     });
@@ -191,18 +190,18 @@ export class HomeComponent implements OnInit, OnDestroy {
   private loadStats(): void {
     this.homeService.getStats().subscribe({
       next: (data) => {
-        this.stats = {
+        this.stats.set({
           usuariosActivos: Number(data?.usuariosActivos ?? 0),
           reportesGenerados: Number(data?.reportesGenerados ?? 0),
           alertasSistema: Number(data?.alertasSistema ?? 0)
-        };
+        });
       },
       error: () => {
-        this.stats = {
+        this.stats.set({
           usuariosActivos: 0,
           reportesGenerados: 0,
           alertasSistema: 0
-        };
+        });
       }
     });
   }
@@ -210,10 +209,10 @@ export class HomeComponent implements OnInit, OnDestroy {
   private loadVideoUnidad(): void {
     this.videoUnidadService.getCurrent().subscribe({
       next: (data) => {
-        this.videoUnidadUrl = data?.hasVideo ? data.url : '';
+        this.videoUnidadUrl.set(data?.hasVideo ? data.url : '');
       },
       error: () => {
-        this.videoUnidadUrl = '';
+        this.videoUnidadUrl.set('');
       }
     });
   }
@@ -221,10 +220,10 @@ export class HomeComponent implements OnInit, OnDestroy {
   private loadVideoInstitucional(): void {
     this.videoInstitucionalService.getCurrent().subscribe({
       next: (data) => {
-        this.videoInstitucionalUrl = data?.hasVideo && data.data?.embedUrl ? data.data.embedUrl : '';
+        this.videoInstitucionalUrl.set(data?.hasVideo && data.data?.embedUrl ? data.data.embedUrl : '');
       },
       error: () => {
-        this.videoInstitucionalUrl = '';
+        this.videoInstitucionalUrl.set('');
       }
     });
   }
@@ -232,12 +231,12 @@ export class HomeComponent implements OnInit, OnDestroy {
   private loadLineaMando(): void {
     this.lineaMandoService.getAll().subscribe({
       next: (items) => {
-        this.lineaMando = (items ?? [])
+        this.lineaMando.set((items ?? [])
           .filter((x) => Number(x?.vigente ?? 1) === 1)
-          .sort((a, b) => Number(a?.orden ?? 0) - Number(b?.orden ?? 0));
+          .sort((a, b) => Number(a?.orden ?? 0) - Number(b?.orden ?? 0)));
       },
       error: () => {
-        this.lineaMando = [];
+        this.lineaMando.set([]);
       }
     });
   }
@@ -295,10 +294,10 @@ export class HomeComponent implements OnInit, OnDestroy {
   }
 
   goToBanner(index: number): void {
-    if (index < 0 || index >= this.banners.length) {
+    if (index < 0 || index >= this.banners().length) {
       return;
     }
-    this.currentBannerIndex = index;
+    this.currentBannerIndex.set(index);
   }
 
   openBannerLink(item: DtoSliders): void {
@@ -413,12 +412,12 @@ export class HomeComponent implements OnInit, OnDestroy {
 
   private startBannerRotation(): void {
     this.stopBannerRotation();
-    if (this.banners.length <= 1) {
+    if (this.banners().length <= 1) {
       return;
     }
 
     this.bannerTimer = setInterval(() => {
-      this.currentBannerIndex = (this.currentBannerIndex + 1) % this.banners.length;
+      this.currentBannerIndex.set((this.currentBannerIndex() + 1) % this.banners().length);
     }, 7000);
   }
 
@@ -437,7 +436,7 @@ export class HomeComponent implements OnInit, OnDestroy {
     ];
   }
 
-  news: NewsItem[] = [];
+  readonly news = signal<NewsItem[]>([]);
 
   newsModalOpen = false;
   selectedNews: NewsItem | null = null;
@@ -456,15 +455,15 @@ export class HomeComponent implements OnInit, OnDestroy {
 
   likeNoticia(item: NewsItem, event: Event): void {
     event.stopPropagation();
-    
+
     const likedNews = this.getLikedNews();
     if (likedNews.includes(item.id)) {
       return;
     }
-    
+
     this.noticiaService.darLike(item.id).subscribe({
       next: () => {
-        item.megusta = (item.megusta || 0) + 1;
+        this.news.update(list => list.map(n => n.id === item.id ? { ...n, megusta: (n.megusta || 0) + 1 } : n));
         this.saveLikedNews(item.id);
       },
       error: (err) => {

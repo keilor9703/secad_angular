@@ -1,6 +1,6 @@
-﻿import { Component, OnInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
+import { Component, ChangeDetectionStrategy, OnInit, computed, inject, signal } from '@angular/core';
+
+import { FormBuilder, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import {
   RolAdminItem,
   RolesAdminService,
@@ -12,33 +12,36 @@ import { ToastService } from '../../../core/services/toast.service';
 @Component({
   selector: 'app-roles-admin',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [FormsModule, ReactiveFormsModule],
   templateUrl: './roles-admin.html',
-  styleUrls: ['./roles-admin.scss']
+  styleUrls: ['./roles-admin.scss'],
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class RolesAdminComponent implements OnInit {
-  minimized = false;
-  visible = true;
-  loading = false;
-  saving = false;
-  loadingRoleMenus = false;
-  savingRoleMenu = false;
+  private readonly rolesService = inject(RolesAdminService);
+  private readonly menuService  = inject(MenuService);
+  private readonly toast        = inject(ToastService);
+  private readonly fb           = inject(FormBuilder);
 
-  roles: RolAdminItem[] = [];
-  allMenus: DbMenuItem[] = [];
-  roleMenus: RoleMenuItem[] = [];
+  readonly minimized         = signal(false);
+  readonly visible           = signal(true);
+  readonly loading           = signal(false);
+  readonly saving            = signal(false);
+  readonly loadingRoleMenus  = signal(false);
+  readonly savingRoleMenu    = signal(false);
 
-  editingId: number | null = null;
-  selectedRoleId: number | null = null;
-  selectedMenuId: number | null = null;
+  readonly roles     = signal<RolAdminItem[]>([]);
+  readonly allMenus  = signal<DbMenuItem[]>([]);
+  readonly roleMenus = signal<RoleMenuItem[]>([]);
 
-  form: SaveRolAdminRequest = this.getDefaultForm();
+  readonly editingId      = signal<number | null>(null);
+  readonly selectedRoleId = signal<number | null>(null);
+  readonly selectedMenuId = signal<number | null>(null);
 
-  constructor(
-    private readonly rolesService: RolesAdminService,
-    private readonly menuService: MenuService,
-    private readonly toast: ToastService
-  ) {}
+  readonly form = this.fb.nonNullable.group({
+    nombre:  ['', [Validators.required]],
+    vigente: [1]
+  });
 
   ngOnInit(): void {
     this.loadMenus();
@@ -46,33 +49,35 @@ export class RolesAdminComponent implements OnInit {
   }
 
   toggleMinimize(): void {
-    this.minimized = !this.minimized;
+    this.minimized.update(v => !v);
   }
 
   loadRoles(): void {
-    this.loading = true;
+    this.loading.set(true);
     this.rolesService.getAll().subscribe({
       next: (data) => {
-        this.roles = (data ?? []).slice().sort((a, b) => {
+        const sorted = (data ?? []).slice().sort((a, b) => {
           const aa = (a.nombre ?? '').toString();
           const bb = (b.nombre ?? '').toString();
           return aa.localeCompare(bb);
         });
+        this.roles.set(sorted);
 
-        if (this.selectedRoleId && !this.roles.some((r) => r.id === this.selectedRoleId)) {
-          this.selectedRoleId = null;
-          this.roleMenus = [];
+        const selected = this.selectedRoleId();
+        if (selected && !sorted.some((r) => r.id === selected)) {
+          this.selectedRoleId.set(null);
+          this.roleMenus.set([]);
         }
 
-        if (!this.selectedRoleId && this.roles.length > 0) {
-          this.seleccionarRolPermisos(this.roles[0]);
+        if (!this.selectedRoleId() && sorted.length > 0) {
+          this.seleccionarRolPermisos(sorted[0]);
         }
 
-        this.loading = false;
+        this.loading.set(false);
       },
       error: (err) => {
-        this.loading = false;
-        this.roles = [];
+        this.loading.set(false);
+        this.roles.set([]);
         this.toast.error('Roles', err?.error?.message ?? 'No fue posible consultar los roles.');
       }
     });
@@ -81,48 +86,48 @@ export class RolesAdminComponent implements OnInit {
   loadMenus(): void {
     this.menuService.getAdminMenu().subscribe({
       next: (items) => {
-        this.allMenus = (items ?? [])
+        this.allMenus.set((items ?? [])
           .filter((x) => !this.isRaiz(x))
           .slice()
-          .sort((a, b) => a.idPadre - b.idPadre || a.posicion - b.posicion || a.descripcion.localeCompare(b.descripcion));
+          .sort((a, b) => a.idPadre - b.idPadre || a.posicion - b.posicion || a.descripcion.localeCompare(b.descripcion)));
       },
       error: () => {
-        this.allMenus = [];
+        this.allMenus.set([]);
       }
     });
   }
 
   nuevo(): void {
-    this.editingId = null;
-    this.form = this.getDefaultForm();
+    this.editingId.set(null);
+    this.form.reset(this.getDefaultForm());
   }
 
   editar(item: RolAdminItem): void {
-    this.editingId = item.id;
-    this.form = {
-      id: item.id,
+    this.editingId.set(item.id);
+    this.form.reset({
       nombre: (item.nombre ?? '').trim(),
       vigente: item.vigente === 0 ? 0 : 1
-    };
+    });
   }
 
   guardar(): void {
-    const nombre = (this.form.nombre ?? '').trim();
-    if (!nombre) {
+    if (this.form.invalid) {
+      this.form.markAllAsTouched();
       this.toast.warning('Roles', 'La descripción del rol es obligatoria.');
       return;
     }
 
-    this.saving = true;
+    const v = this.form.getRawValue();
+    this.saving.set(true);
     this.rolesService
       .save({
-        id: this.form.id ?? null,
-        nombre,
-        vigente: this.form.vigente === 0 ? 0 : 1
+        id: this.editingId(),
+        nombre: v.nombre.trim(),
+        vigente: v.vigente === 0 ? 0 : 1
       })
       .subscribe({
         next: (resp) => {
-          this.saving = false;
+          this.saving.set(false);
           if (!resp?.success) {
             this.toast.warning('Roles', resp?.message || 'No fue posible guardar el rol.');
             return;
@@ -133,7 +138,7 @@ export class RolesAdminComponent implements OnInit {
           this.loadRoles();
         },
         error: (err) => {
-          this.saving = false;
+          this.saving.set(false);
           this.toast.error('Roles', err?.error?.detail ?? err?.error?.message ?? 'Error guardando rol.');
         }
       });
@@ -158,21 +163,21 @@ export class RolesAdminComponent implements OnInit {
   }
 
   seleccionarRolPermisos(item: RolAdminItem): void {
-    this.selectedRoleId = item.id;
-    this.selectedMenuId = null;
+    this.selectedRoleId.set(item.id);
+    this.selectedMenuId.set(null);
     this.cargarMenusPorRol(item.id);
   }
 
   cargarMenusPorRol(idRol: number): void {
-    this.loadingRoleMenus = true;
+    this.loadingRoleMenus.set(true);
     this.menuService.getMenusByRol(idRol).subscribe({
       next: (data) => {
-        this.roleMenus = (data ?? []).slice().sort((a, b) => a.idPadre - b.idPadre || a.posicion - b.posicion || a.descripcionMenu.localeCompare(b.descripcionMenu));
-        this.loadingRoleMenus = false;
+        this.roleMenus.set((data ?? []).slice().sort((a, b) => a.idPadre - b.idPadre || a.posicion - b.posicion || a.descripcionMenu.localeCompare(b.descripcionMenu)));
+        this.loadingRoleMenus.set(false);
       },
       error: (err) => {
-        this.roleMenus = [];
-        this.loadingRoleMenus = false;
+        this.roleMenus.set([]);
+        this.loadingRoleMenus.set(false);
         this.toast.error('Permisos de menú', err?.error?.message ?? 'No fue posible consultar menús del rol.');
       }
     });
@@ -184,57 +189,60 @@ export class RolesAdminComponent implements OnInit {
    * nunca los grupos padre. Esto evita que el admin asigne accidentalmente
    * un grupo entero en vez de un módulo específico.
    */
-  get availableMenus(): DbMenuItem[] {
-    const assigned = new Set(this.roleMenus.map((x) => x.idMenu));
-    return this.allMenus.filter((m) =>
+  readonly availableMenus = computed(() => {
+    const assigned = new Set(this.roleMenus().map((x) => x.idMenu));
+    return this.allMenus().filter((m) =>
       !assigned.has(m.idMenu) &&
       !!m.detalle?.trim()      // solo ítems con ruta (ítems hoja)
     );
-  }
+  });
 
   asignarMenu(): void {
-    if (!this.selectedRoleId || this.selectedRoleId <= 0) {
+    const roleId = this.selectedRoleId();
+    if (!roleId || roleId <= 0) {
       this.toast.warning('Permisos de menú', 'Selecciona un rol.');
       return;
     }
 
-    if (!this.selectedMenuId || this.selectedMenuId <= 0) {
+    const menuId = this.selectedMenuId();
+    if (!menuId || menuId <= 0) {
       this.toast.warning('Permisos de menú', 'Selecciona un menú.');
       return;
     }
 
-    this.savingRoleMenu = true;
-    this.menuService.assignMenuToRol(this.selectedRoleId, { idMenu: this.selectedMenuId }).subscribe({
+    this.savingRoleMenu.set(true);
+    this.menuService.assignMenuToRol(roleId, { idMenu: menuId }).subscribe({
       next: (resp) => {
-        this.savingRoleMenu = false;
+        this.savingRoleMenu.set(false);
         if (!resp?.success) {
           this.toast.warning('Permisos de menú', resp?.message || 'No fue posible asignar menú.');
           return;
         }
         this.toast.success('Permisos de menú', resp.message || 'Menú asignado.');
-        this.selectedMenuId = null;
-        this.cargarMenusPorRol(this.selectedRoleId!);
+        this.selectedMenuId.set(null);
+        this.cargarMenusPorRol(roleId);
       },
       error: (err) => {
-        this.savingRoleMenu = false;
+        this.savingRoleMenu.set(false);
         this.toast.error('Permisos de menú', err?.error?.detail ?? err?.error?.message ?? 'Error asignando menú.');
       }
     });
   }
 
   quitarMenu(item: RoleMenuItem): void {
-    if (!this.selectedRoleId || this.selectedRoleId <= 0) {
+    const roleId = this.selectedRoleId();
+    if (!roleId || roleId <= 0) {
       return;
     }
 
-    this.menuService.removeMenuFromRol(this.selectedRoleId, item.idMenu).subscribe({
+    this.menuService.removeMenuFromRol(roleId, item.idMenu).subscribe({
       next: (resp) => {
         if (!resp?.success) {
           this.toast.warning('Permisos de menú', resp?.message || 'No fue posible quitar menú.');
           return;
         }
         this.toast.success('Permisos de menú', resp.message || 'Menú retirado del rol.');
-        this.cargarMenusPorRol(this.selectedRoleId!);
+        this.cargarMenusPorRol(roleId);
       },
       error: (err) => {
         this.toast.error('Permisos de menú', err?.error?.detail ?? err?.error?.message ?? 'Error retirando menú.');
@@ -242,16 +250,17 @@ export class RolesAdminComponent implements OnInit {
     });
   }
 
-  get selectedRoleName(): string {
-    if (!this.selectedRoleId) {
+  readonly selectedRoleName = computed(() => {
+    const roleId = this.selectedRoleId();
+    if (!roleId) {
       return 'Sin rol seleccionado';
     }
-    const role = this.roles.find((r) => r.id === this.selectedRoleId);
-    return role?.nombre?.trim() || `Rol ${this.selectedRoleId}`;
-  }
+    const role = this.roles().find((r) => r.id === roleId);
+    return role?.nombre?.trim() || `Rol ${roleId}`;
+  });
 
   formatMenuLabel(menu: DbMenuItem): string {
-    const prefix = menu.idPadre === 1 ? '' : '\u21B3 ';
+    const prefix = menu.idPadre === 1 ? '' : '↳ ';
     return `${prefix}${menu.descripcion} (ID ${menu.idMenu})`;
   }
 
@@ -267,5 +276,3 @@ export class RolesAdminComponent implements OnInit {
     };
   }
 }
-
-
