@@ -1,4 +1,4 @@
-@if (visible) {
+@if (visible()) {
   <section class="roles-admin-page">
     <div class="ui-panel">
       <div class="ui-panel__head">
@@ -12,40 +12,40 @@
           </button>
         </div>
       </div>
-      @if (!minimized) {
+      @if (!minimized()) {
         <div class="ui-panel__body">
           <div class="roles-grid">
             <article class="tab-card form-card">
-              <h3>{{ editingId ? 'Editar rol' : 'Nuevo rol' }}</h3>
-              <div class="ui-grid">
+              <h3>{{ editingId() ? 'Editar rol' : 'Nuevo rol' }}</h3>
+              <form [formGroup]="form" class="ui-grid">
                 <div class="ui-field ui-col-12">
                   <label class="ui-label">Descripción del rol</label>
-                  <input class="ui-control" type="text" [(ngModel)]="form.nombre" maxlength="255">
+                  <input class="ui-control" type="text" formControlName="nombre" maxlength="255">
                 </div>
                 <div class="ui-field ui-col-12">
                   <label class="ui-label">Vigente</label>
-                  <select class="ui-control" [(ngModel)]="form.vigente">
+                  <select class="ui-control" formControlName="vigente">
                     <option [ngValue]="1">Sí</option>
                     <option [ngValue]="0">No</option>
                   </select>
                 </div>
-              </div>
+              </form>
               <div class="tab-actions">
                 <button class="ui-btn secondary" type="button" (click)="nuevo()">Limpiar</button>
-                <button class="ui-btn primary" type="button" (click)="guardar()" [disabled]="saving">
+                <button class="ui-btn primary" type="button" (click)="guardar()" [disabled]="saving()">
                   <i class="fa-solid fa-floppy-disk"></i>
-                  {{ saving ? 'Guardando...' : 'Guardar' }}
+                  {{ saving() ? 'Guardando...' : 'Guardar' }}
                 </button>
               </div>
             </article>
             <article class="tab-card list-card">
               <h3>Roles registrados</h3>
-              @if (loading) {
+              @if (loading()) {
                 <div class="list-loading">Cargando roles...</div>
               }
-              @if (!loading && roles.length > 0) {
+              @if (!loading() && roles().length > 0) {
                 <div class="role-list">
-                  @for (item of roles; track item) {
+                  @for (item of roles(); track item.id) {
                     <div class="role-item">
                       <div class="role-item__content">
                         <strong>{{ item.nombre || ('Rol ' + item.id) }}</strong>
@@ -69,7 +69,7 @@
                   }
                 </div>
               }
-              @if (!loading && roles.length === 0) {
+              @if (!loading() && roles().length === 0) {
                 <div class="news-state">
                   No hay roles registrados.
                 </div>
@@ -77,13 +77,13 @@
             </article>
             <article class="tab-card permissions-card">
               <h3>Permisos de menú por rol</h3>
-              <p class="meta">Rol seleccionado: <strong>{{ selectedRoleName }}</strong></p>
+              <p class="meta">Rol seleccionado: <strong>{{ selectedRoleName() }}</strong></p>
               <div class="ui-grid">
                 <div class="ui-field ui-col-8">
                   <label class="ui-label">Menú disponible</label>
-                  <select class="ui-control" [(ngModel)]="selectedMenuId" [disabled]="!selectedRoleId || availableMenus.length === 0">
+                  <select class="ui-control" [ngModel]="selectedMenuId()" (ngModelChange)="selectedMenuId.set($event)" [disabled]="!selectedRoleId() || availableMenus().length === 0">
                     <option [ngValue]="null">Selecciona un menú...</option>
-                    @for (menu of availableMenus; track menu) {
+                    @for (menu of availableMenus(); track menu.idMenu) {
                       <option [ngValue]="menu.idMenu">
                         {{ formatMenuLabel(menu) }}
                       </option>
@@ -91,18 +91,18 @@
                   </select>
                 </div>
                 <div class="ui-field ui-col-4 role-menu-action">
-                  <button class="ui-btn primary" type="button" (click)="asignarMenu()" [disabled]="savingRoleMenu || !selectedRoleId">
+                  <button class="ui-btn primary" type="button" (click)="asignarMenu()" [disabled]="savingRoleMenu() || !selectedRoleId()">
                     <i class="fa-solid fa-plus"></i>
-                    {{ savingRoleMenu ? 'Asignando...' : 'Asignar menú' }}
+                    {{ savingRoleMenu() ? 'Asignando...' : 'Asignar menú' }}
                   </button>
                 </div>
               </div>
-              @if (loadingRoleMenus) {
+              @if (loadingRoleMenus()) {
                 <div class="list-loading">Consultando menús del rol...</div>
               }
-              @if (!loadingRoleMenus && roleMenus.length > 0) {
+              @if (!loadingRoleMenus() && roleMenus().length > 0) {
                 <div class="role-menu-list">
-                  @for (item of roleMenus; track item) {
+                  @for (item of roleMenus(); track item.idMenu) {
                     <div class="role-menu-item">
                       <div class="role-menu-item__content">
                         <strong>{{ item.descripcionMenu }}</strong>
@@ -115,7 +115,7 @@
                   }
                 </div>
               }
-              @if (!loadingRoleMenus && selectedRoleId && roleMenus.length === 0) {
+              @if (!loadingRoleMenus() && selectedRoleId() && roleMenus().length === 0) {
                 <div class="news-state">
                   El rol no tiene menús asignados.
                 </div>
