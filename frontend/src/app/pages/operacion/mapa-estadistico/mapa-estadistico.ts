@@ -1,6 +1,7 @@
 import {
-  Component, OnInit, OnDestroy, AfterViewInit,
-  NgZone, ChangeDetectorRef, ElementRef,
+  Component, ChangeDetectionStrategy, OnInit, OnDestroy, AfterViewInit,
+  NgZone, ElementRef,
+  inject, signal,
   viewChild
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
@@ -27,7 +28,8 @@ type CapaMapa = 'puntos' | 'calor' | 'clusters';
   standalone: true,
   imports: [CommonModule, FormsModule],
   templateUrl: './mapa-estadistico.html',
-  styleUrls: ['./mapa-estadistico.scss']
+  styleUrls: ['./mapa-estadistico.scss'],
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class MapaEstadisticoComponent implements OnInit, AfterViewInit, OnDestroy {
 
@@ -53,14 +55,14 @@ export class MapaEstadisticoComponent implements OnInit, AfterViewInit, OnDestro
   ];
 
   // ── Estado ────────────────────────────────────────────────────────────────
-  cargando       = false;
-  errorCarga     = false;
-  consultado     = false;
-  cargandoListas = false;
+  readonly cargando       = signal(false);
+  readonly errorCarga     = signal(false);
+  readonly consultado     = signal(false);
+  readonly cargandoListas = signal(false);
 
   // ── Listas desplegables ───────────────────────────────────────────────────
-  ciudades: string[] = [];
-  barrios:  string[] = [];
+  readonly ciudades = signal<string[]>([]);
+  readonly barrios  = signal<string[]>([]);
 
   // ── Claims del usuario ────────────────────────────────────────────────────
   esSuperAdmin   = false;
@@ -68,8 +70,8 @@ export class MapaEstadisticoComponent implements OnInit, AfterViewInit, OnDestro
   private sitioGraba = 0;
 
   // ── Datos ─────────────────────────────────────────────────────────────────
-  puntos:   DtoPuntoEstadistico[]    = [];
-  metricas: DtoMetricasEstadisticas  = this.metricasVacias();
+  readonly puntos   = signal<DtoPuntoEstadistico[]>([]);
+  readonly metricas = signal<DtoMetricasEstadisticas>(this.metricasVacias());
 
   // ── Mapa ──────────────────────────────────────────────────────────────────
   capaActiva: CapaMapa = 'calor';
@@ -95,13 +97,10 @@ export class MapaEstadisticoComponent implements OnInit, AfterViewInit, OnDestro
   private codDane  = '';
   private destroy$ = new Subject<void>();
 
-  constructor(
-    private auth:  AuthService,
-    private svc:   MapaEstadisticoService,
-    private toast: ToastService,
-    private zone:  NgZone,
-    private cdr:   ChangeDetectorRef
-  ) {}
+  private readonly auth  = inject(AuthService);
+  private readonly svc   = inject(MapaEstadisticoService);
+  private readonly toast = inject(ToastService);
+  private readonly zone  = inject(NgZone);
 
   // ══════════════════════════════════════════════════════════════════════════
   //  Lifecycle
@@ -137,24 +136,23 @@ export class MapaEstadisticoComponent implements OnInit, AfterViewInit, OnDestro
   // ══════════════════════════════════════════════════════════════════════════
 
   private cargarListas(): void {
-    this.cargandoListas = true;
+    this.cargandoListas.set(true);
 
     if (this.esSuperAdmin) {
       this.svc.getCiudades()
         .pipe(takeUntil(this.destroy$))
         .subscribe({
           next: list => {
-            this.ciudades = list;
+            this.ciudades.set(list);
             // Si solo hay una ciudad la preseleccionamos y cargamos sus barrios
             if (list.length === 1) {
               this.filtro.ciudad = list[0];
               this.cargarBarrios(list[0]);
             } else {
-              this.cargandoListas = false;
+              this.cargandoListas.set(false);
             }
-            this.cdr.detectChanges();
           },
-          error: () => { this.cargandoListas = false; }
+          error: () => { this.cargandoListas.set(false); }
         });
     } else {
       // Operador: solo carga barrios, acotados a su propio sitio (sitioGraba).
@@ -165,22 +163,21 @@ export class MapaEstadisticoComponent implements OnInit, AfterViewInit, OnDestro
   }
 
   private cargarBarrios(ciudad: string): void {
-    this.cargandoListas = true;
+    this.cargandoListas.set(true);
     this.svc.getBarrios(ciudad || undefined, this.esSuperAdmin ? undefined : this.sitioGraba)
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: list => {
-          this.barrios        = list;
-          this.cargandoListas = false;
-          this.cdr.detectChanges();
+          this.barrios.set(list);
+          this.cargandoListas.set(false);
         },
-        error: () => { this.cargandoListas = false; }
+        error: () => { this.cargandoListas.set(false); }
       });
   }
 
   onCiudadChange(): void {
     this.filtro.barrio = '';
-    this.barrios       = [];
+    this.barrios.set([]);
     if (this.filtro.ciudad) {
       this.cargarBarrios(this.filtro.ciudad);
     }
@@ -199,40 +196,40 @@ export class MapaEstadisticoComponent implements OnInit, AfterViewInit, OnDestro
       this.toast.warning('Filtros', 'La fecha "Desde" no puede ser posterior a "Hasta".');
       return;
     }
-    this.cargando   = true;
-    this.errorCarga = false;
+    this.cargando.set(true);
+    this.errorCarga.set(false);
 
     this.svc.getAnalisis(this.filtro)
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (data) => {
           this.zone.run(() => {
-            this.cargando   = false;
-            this.consultado = true;
+            this.cargando.set(false);
+            this.consultado.set(true);
             // Un solo punto con coordenadas no numéricas rompía L.circleMarker/
             // L.heatLayer a mitad del bucle de render, dejando el mapa Y las
             // gráficas sin dibujar para toda la consulta (el error interrumpía
             // actualizarMapa() antes de llegar al setTimeout de renderCharts()).
-            this.puntos = (data.puntos ?? []).filter(p =>
+            const puntos = (data.puntos ?? []).filter(p =>
               Number.isFinite(p.lat) && Number.isFinite(p.lng) &&
               Math.abs(p.lat) <= 90 && Math.abs(p.lng) <= 180
             );
-            this.metricas   = data.metricas ?? this.metricasVacias();
+            this.puntos.set(puntos);
+            let metricas = data.metricas ?? this.metricasVacias();
             // Fallback: si el backend no devolvió métricas pero hay puntos,
             // las calculamos en el cliente para garantizar que los gráficos funcionen.
-            if (this.metricas.total === 0 && this.puntos.length > 0) {
-              this.metricas = this.computeMetricasFromPuntos();
+            if (metricas.total === 0 && puntos.length > 0) {
+              metricas = this.computeMetricasFromPuntos();
             }
+            this.metricas.set(metricas);
             this.actualizarMapa();
             setTimeout(() => this.renderCharts(), 100);
-            this.cdr.detectChanges();
           });
         },
         error: () => {
           this.zone.run(() => {
-            this.cargando   = false;
-            this.errorCarga = true;
-            this.cdr.detectChanges();
+            this.cargando.set(false);
+            this.errorCarga.set(true);
           });
           this.toast.error('GIS Estadístico', 'Error al consultar los datos.');
         }
@@ -245,14 +242,14 @@ export class MapaEstadisticoComponent implements OnInit, AfterViewInit, OnDestro
       codiPedido: '', prioridad: '', ciudad: '', barrio: '',
       canalCodigo: 0, soloCerrados: true, turnoVigilancia: 0
     };
-    if (this.esSuperAdmin) this.barrios = [];
+    if (this.esSuperAdmin) this.barrios.set([]);
 
     // Antes "Limpiar" solo reseteaba el formulario: el mapa, el panel de
     // resumen y las gráficas seguían mostrando la consulta anterior, dando
     // la falsa impresión de que correspondían a "todos los incidentes".
-    this.consultado = false;
-    this.puntos      = [];
-    this.metricas    = this.metricasVacias();
+    this.consultado.set(false);
+    this.puntos.set([]);
+    this.metricas.set(this.metricasVacias());
     this.limpiarCapasIncidentes();
     this.destroyCharts();
   }
@@ -270,6 +267,8 @@ export class MapaEstadisticoComponent implements OnInit, AfterViewInit, OnDestro
   // ══════════════════════════════════════════════════════════════════════════
 
   generarInforme(): void {
+    const metricas = this.metricas();
+    const puntos   = this.puntos();
     // Capturar cada gráfica como imagen PNG desde su <canvas>
     const imgTipo  = this.chartTipoRef()?.nativeElement?.toDataURL('image/png') ?? '';
     const imgHora  = this.chartHoraRef()?.nativeElement?.toDataURL('image/png') ?? '';
@@ -288,7 +287,7 @@ export class MapaEstadisticoComponent implements OnInit, AfterViewInit, OnDestro
       this.filtro.soloCerrados ? 'Solo incidentes cerrados' : 'Todos los incidentes',
     ].filter(Boolean).join(' &nbsp;|&nbsp; ');
 
-    const topCasos = this.metricas.porTipoCaso.slice(0, 10)
+    const topCasos = metricas.porTipoCaso.slice(0, 10)
       .map((c, i) => `<tr>
         <td>${i + 1}</td>
         <td>${this.escapeHtml(c.clave)}</td>
@@ -296,13 +295,13 @@ export class MapaEstadisticoComponent implements OnInit, AfterViewInit, OnDestro
         <td style="text-align:right;font-weight:700">${c.total.toLocaleString('es-CO')}</td>
       </tr>`).join('');
 
-    const topCiudades = this.metricas.porCiudad.length ? `
+    const topCiudades = metricas.porCiudad.length ? `
       <div class="seccion">
         <h2>Distribución por ciudad / municipio</h2>
         <table>
           <thead><tr><th>#</th><th>Ciudad</th><th style="text-align:right">Incidentes</th></tr></thead>
           <tbody>
-            ${this.metricas.porCiudad.slice(0, 8).map((c, i) => `
+            ${metricas.porCiudad.slice(0, 8).map((c, i) => `
               <tr>
                 <td>${i + 1}</td>
                 <td>${this.escapeHtml(c.descripcion)}</td>
@@ -423,23 +422,23 @@ export class MapaEstadisticoComponent implements OnInit, AfterViewInit, OnDestro
   <!-- KPIs principales -->
   <div class="kpis">
     <div class="kpi kpi-total">
-      <div class="kpi-valor">${this.metricas.total.toLocaleString('es-CO')}</div>
+      <div class="kpi-valor">${metricas.total.toLocaleString('es-CO')}</div>
       <div class="kpi-label">Total incidentes</div>
     </div>
     <div class="kpi kpi-flash">
-      <div class="kpi-valor">${this.metricas.totalFlash.toLocaleString('es-CO')}</div>
+      <div class="kpi-valor">${metricas.totalFlash.toLocaleString('es-CO')}</div>
       <div class="kpi-label">Flash</div>
     </div>
     <div class="kpi kpi-inmd">
-      <div class="kpi-valor">${this.metricas.totalInmd.toLocaleString('es-CO')}</div>
+      <div class="kpi-valor">${metricas.totalInmd.toLocaleString('es-CO')}</div>
       <div class="kpi-label">Inmediata</div>
     </div>
     <div class="kpi kpi-rut">
-      <div class="kpi-valor">${this.metricas.totalRutina.toLocaleString('es-CO')}</div>
+      <div class="kpi-valor">${metricas.totalRutina.toLocaleString('es-CO')}</div>
       <div class="kpi-label">Rutina</div>
     </div>
     <div class="kpi kpi-coord">
-      <div class="kpi-valor">${this.puntos.length.toLocaleString('es-CO')}</div>
+      <div class="kpi-valor">${puntos.length.toLocaleString('es-CO')}</div>
       <div class="kpi-label">Con coordenadas</div>
     </div>
   </div>
@@ -531,7 +530,7 @@ export class MapaEstadisticoComponent implements OnInit, AfterViewInit, OnDestro
   private actualizarMapa(): void {
     if (!this.map) return;
     this.limpiarCapasIncidentes();
-    if (this.puntos.length === 0) return;
+    if (this.puntos().length === 0) return;
 
     switch (this.capaActiva) {
       case 'calor':    this.renderHeatmap();  break;
@@ -553,7 +552,7 @@ export class MapaEstadisticoComponent implements OnInit, AfterViewInit, OnDestro
       this.toast.warning('Mapa', 'Plugin leaflet.heat no disponible. Verifique index.html.');
       return;
     }
-    const heatData = this.puntos.map(p => [p.lat, p.lng, p.intensidad]);
+    const heatData = this.puntos().map(p => [p.lat, p.lng, p.intensidad]);
     this.heatLayer = (L as any).heatLayer(heatData, {
       radius:     45,
       blur:       35,
@@ -609,7 +608,7 @@ export class MapaEstadisticoComponent implements OnInit, AfterViewInit, OnDestro
       }
     });
 
-    for (const p of this.puntos) {
+    for (const p of this.puntos()) {
       const color  = this.colorPrioridad(p.prioridad);
       const marker = L.circleMarker([p.lat, p.lng], {
         radius:      10,
@@ -628,7 +627,7 @@ export class MapaEstadisticoComponent implements OnInit, AfterViewInit, OnDestro
 
   private renderPuntos(): void {
     this.puntosGroup = L.layerGroup();
-    for (const p of this.puntos) {
+    for (const p of this.puntos()) {
       const color = this.colorPrioridad(p.prioridad);
       // Halo exterior (ring blanco semitransparente)
       L.circleMarker([p.lat, p.lng], {
@@ -765,7 +764,7 @@ export class MapaEstadisticoComponent implements OnInit, AfterViewInit, OnDestro
   private renderChartTipo(): void {
     const ref = this.chartTipoRef()?.nativeElement;
     if (!ref) return;
-    const top = this.metricas.porTipoCaso.slice(0, 12);
+    const top = this.metricas().porTipoCaso.slice(0, 12);
     const text = this.chartTextColor();
     this.charts.set('tipo', new Chart(ref, {
       type: 'bar',
@@ -789,7 +788,7 @@ export class MapaEstadisticoComponent implements OnInit, AfterViewInit, OnDestro
     const ref = this.chartHoraRef()?.nativeElement;
     if (!ref) return;
     const horas = Array.from({ length: 24 }, (_, i) => {
-      const found = this.metricas.porHora.find(h => h.clave === String(i));
+      const found = this.metricas().porHora.find(h => h.clave === String(i));
       return found?.total ?? 0;
     });
     const text = this.chartTextColor();
@@ -818,7 +817,7 @@ export class MapaEstadisticoComponent implements OnInit, AfterViewInit, OnDestro
     if (!ref) return;
     const dias  = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
     const vals  = Array.from({ length: 7 }, (_, i) => {
-      return this.metricas.porDiaSemana.find(d => d.clave === String(i))?.total ?? 0;
+      return this.metricas().porDiaSemana.find(d => d.clave === String(i))?.total ?? 0;
     });
     const text = this.chartTextColor();
     const grid = this.chartGridColor();
@@ -843,7 +842,7 @@ export class MapaEstadisticoComponent implements OnInit, AfterViewInit, OnDestro
   private renderChartMes(): void {
     const ref = this.chartMesRef()?.nativeElement;
     if (!ref) return;
-    const meses = this.metricas.porMes;
+    const meses = this.metricas().porMes;
     const text = this.chartTextColor();
     const grid = this.chartGridColor();
     this.charts.set('mes', new Chart(ref, {
@@ -868,7 +867,7 @@ export class MapaEstadisticoComponent implements OnInit, AfterViewInit, OnDestro
   private renderChartPrioridad(): void {
     const ref = this.chartPrioRef()?.nativeElement;
     if (!ref) return;
-    const items = this.metricas.porPrioridad.filter(x => x.total > 0);
+    const items = this.metricas().porPrioridad.filter(x => x.total > 0);
     this.charts.set('prio', new Chart(ref, {
       type: 'doughnut',
       data: {
@@ -910,18 +909,18 @@ export class MapaEstadisticoComponent implements OnInit, AfterViewInit, OnDestro
   }
 
   get topCaso(): DtoAgrupacion | null {
-    return this.metricas.porTipoCaso[0] ?? null;
+    return this.metricas().porTipoCaso[0] ?? null;
   }
 
   get horaPico(): string {
-    if (!this.metricas.porHora.length) return '—';
-    const max = this.metricas.porHora.reduce((a, b) => b.total > a.total ? b : a);
+    if (!this.metricas().porHora.length) return '—';
+    const max = this.metricas().porHora.reduce((a, b) => b.total > a.total ? b : a);
     return `${max.clave}:00 h`;
   }
 
   get diaPico(): string {
-    if (!this.metricas.porDiaSemana.length) return '—';
-    const max = this.metricas.porDiaSemana.reduce((a, b) => b.total > a.total ? b : a);
+    if (!this.metricas().porDiaSemana.length) return '—';
+    const max = this.metricas().porDiaSemana.reduce((a, b) => b.total > a.total ? b : a);
     return max.descripcion;
   }
 
@@ -968,11 +967,11 @@ export class MapaEstadisticoComponent implements OnInit, AfterViewInit, OnDestro
   // Se activa cuando el backend devuelve métricas vacías (total=0) pero sí hay puntos.
   private computeMetricasFromPuntos(): DtoMetricasEstadisticas {
     const m = this.metricasVacias();
-    m.total          = this.puntos.length;
-    m.conCoordenadas = this.puntos.length;
+    m.total          = this.puntos().length;
+    m.conCoordenadas = this.puntos().length;
 
     // Conteos por prioridad
-    for (const p of this.puntos) {
+    for (const p of this.puntos()) {
       const u = (p.prioridad || '').toUpperCase();
       if      (u === 'FLASH'     || u === '01') m.totalFlash++;
       else if (u === 'INMEDIATA' || u === '02') m.totalInmd++;
@@ -991,7 +990,7 @@ export class MapaEstadisticoComponent implements OnInit, AfterViewInit, OnDestro
 
     // Por tipo de caso
     const tipoMap = new Map<string, DtoAgrupacion>();
-    for (const p of this.puntos) {
+    for (const p of this.puntos()) {
       const clave = p.codiPedido || 'SIN CÓDIGO';
       const desc  = p.descPedido || clave;
       const entry = tipoMap.get(clave);
@@ -1003,7 +1002,7 @@ export class MapaEstadisticoComponent implements OnInit, AfterViewInit, OnDestro
 
     // Por hora del día — horaCaso = 'DD/MM/YYYY HH:MM'
     const horaMap = new Map<number, number>();
-    for (const p of this.puntos) {
+    for (const p of this.puntos()) {
       const timePart = (p.horaCaso || '').split(' ')[1];
       if (timePart) {
         const h = parseInt(timePart.split(':')[0], 10);
@@ -1017,7 +1016,7 @@ export class MapaEstadisticoComponent implements OnInit, AfterViewInit, OnDestro
     // Por día de la semana — extraemos desde la fecha de horaCaso
     const diasNombre = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
     const dowMap = new Map<number, number>();
-    for (const p of this.puntos) {
+    for (const p of this.puntos()) {
       const datePart = (p.horaCaso || '').split(' ')[0]; // 'DD/MM/YYYY'
       if (datePart) {
         const parts = datePart.split('/');
@@ -1040,7 +1039,7 @@ export class MapaEstadisticoComponent implements OnInit, AfterViewInit, OnDestro
 
     // Tendencia mensual — 'DD/MM/YYYY' → 'YYYY-MM'
     const mesMap = new Map<string, number>();
-    for (const p of this.puntos) {
+    for (const p of this.puntos()) {
       const datePart = (p.horaCaso || '').split(' ')[0];
       if (datePart) {
         const parts = datePart.split('/');
@@ -1056,7 +1055,7 @@ export class MapaEstadisticoComponent implements OnInit, AfterViewInit, OnDestro
 
     // Top ciudades
     const ciudadMap = new Map<string, number>();
-    for (const p of this.puntos) {
+    for (const p of this.puntos()) {
       if (p.ciudad) ciudadMap.set(p.ciudad, (ciudadMap.get(p.ciudad) ?? 0) + 1);
     }
     m.porCiudad = Array.from(ciudadMap.entries())
