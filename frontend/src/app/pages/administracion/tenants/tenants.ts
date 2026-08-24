@@ -1,6 +1,6 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, ChangeDetectionStrategy, DestroyRef, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
+import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { SuperAdminService, TenantPublico, TenantRequest } from '../../../core/services/super-admin.service';
 import { ToastService } from '../../../core/services/toast.service';
 
@@ -11,53 +11,67 @@ type ModalMode = 'create' | 'edit';
   templateUrl: './tenants.html',
   styleUrls: ['./tenants.scss'],
   standalone: true,
-  imports: [CommonModule, FormsModule]
+  imports: [CommonModule, ReactiveFormsModule],
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class TenantsComponent implements OnInit, OnDestroy {
-  tenants: TenantPublico[] = [];
-  loading   = false;
-  saving    = false;
+export class TenantsComponent implements OnInit {
+  private readonly service = inject(SuperAdminService);
+  private readonly toast   = inject(ToastService);
+  private readonly fb      = inject(FormBuilder);
 
-  showModal  = false;
-  modalMode: ModalMode = 'create';
-  editId     = 0;
+  readonly tenants = signal<TenantPublico[]>([]);
+  readonly loading = signal(false);
+  readonly saving  = signal(false);
 
-  form: TenantRequest = this.emptyForm();
+  readonly showModal = signal(false);
+  readonly modalMode = signal<ModalMode>('create');
+  readonly editId    = signal(0);
 
-  constructor(
-    private service: SuperAdminService,
-    private toast:   ToastService
-  ) {}
+  readonly form = this.fb.nonNullable.group({
+    codDane:      ['', [Validators.required]],
+    codUnidad:    [''],
+    nombre:       ['', [Validators.required]],
+    departamento: [''],
+    municipio:    [''],
+    categoria:    ['A'],
+    sitioGraba:   this.fb.control<number | null>(null),
+    dbHost:       [''],
+    dbPort:       [5432],
+    dbName:       [''],
+    dbUsername:   [''],
+    dbPassword:   [''],
+    activo:       [true]
+  });
+
+  constructor() {
+    // Asegurar que el body quede limpio si el componente se destruye con modal abierta
+    inject(DestroyRef).onDestroy(() => document.body.classList.remove('ui-modal-open'));
+  }
 
   ngOnInit(): void {
     this.load();
   }
 
-  ngOnDestroy(): void {
-    // Asegurar que el body quede limpio si el componente se destruye con modal abierta
-    document.body.classList.remove('ui-modal-open');
-  }
-
   load(): void {
-    this.loading = true;
+    this.loading.set(true);
     this.service.getTenants().subscribe({
-      next: data => { this.tenants = data; this.loading = false; },
-      error: ()   => { this.loading = false; this.toast.error('Error', 'Error al cargar tenants.'); }
+      next: data => { this.tenants.set(data); this.loading.set(false); },
+      error: ()   => { this.loading.set(false); this.toast.error('Error', 'Error al cargar tenants.'); }
     });
   }
 
   openCreate(): void {
-    this.form      = this.emptyForm();
-    this.modalMode = 'create';
-    this.editId    = 0;
-    this.showModal = true;
+    this.form.reset(this.emptyForm());
+    this.modalMode.set('create');
+    this.editId.set(0);
+    this.showModal.set(true);
     document.body.classList.add('ui-modal-open');
   }
 
   openEdit(t: TenantPublico): void {
-    this.editId    = t.id;
-    this.modalMode = 'edit';
-    this.form = {
+    this.editId.set(t.id);
+    this.modalMode.set('edit');
+    this.form.reset({
       codDane:      t.codDane,
       codUnidad:    t.codUnidad,
       nombre:       t.nombre,
@@ -71,40 +85,43 @@ export class TenantsComponent implements OnInit, OnDestroy {
       dbUsername:   '',
       dbPassword:   '',
       activo:       t.activo
-    };
-    this.showModal = true;
+    });
+    this.showModal.set(true);
     document.body.classList.add('ui-modal-open');
   }
 
   closeModal(): void {
-    this.showModal = false;
+    this.showModal.set(false);
     document.body.classList.remove('ui-modal-open');
   }
 
   save(): void {
-    if (!this.form.codDane || !this.form.nombre) {
+    const v = this.form.getRawValue();
+    if (!v.codDane || !v.nombre) {
       this.toast.warning('Campos requeridos', 'Código DANE y Nombre son obligatorios.');
       return;
     }
-    if (this.modalMode === 'create') {
-      if (!this.form.dbHost || !this.form.dbName || !this.form.dbUsername) {
+    const mode = this.modalMode();
+    if (mode === 'create') {
+      if (!v.dbHost || !v.dbName || !v.dbUsername) {
         this.toast.warning('Campos requeridos', 'Complete los datos de conexión a BD (Host, Nombre, Usuario).');
         return;
       }
-      if (!this.form.dbPassword) {
+      if (!v.dbPassword) {
         this.toast.warning('Contraseña requerida', 'La contraseña de BD es obligatoria al crear un tenant.');
         return;
       }
     }
 
-    this.saving = true;
-    const obs = this.modalMode === 'create'
-      ? this.service.createTenant(this.form)
-      : this.service.updateTenant(this.editId, this.form);
+    this.saving.set(true);
+    const request: TenantRequest = v;
+    const obs = mode === 'create'
+      ? this.service.createTenant(request)
+      : this.service.updateTenant(this.editId(), request);
 
     obs.subscribe({
       next: result => {
-        this.saving = false;
+        this.saving.set(false);
         if (result.success) {
           this.toast.success('Guardado', result.message);
           this.closeModal();
@@ -114,7 +131,7 @@ export class TenantsComponent implements OnInit, OnDestroy {
         }
       },
       error: () => {
-        this.saving = false;
+        this.saving.set(false);
         this.toast.error('Error', 'Error al guardar tenant.');
       }
     });

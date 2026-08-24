@@ -15,16 +15,16 @@
   </div>
 
   <!-- Loading -->
-  @if (loading) {
+  @if (loading()) {
     <div class="ui-loading">
       <i class="fa-solid fa-spinner fa-spin"></i> Cargando tenants...
     </div>
   }
 
   <!-- Tabla -->
-  @if (!loading) {
+  @if (!loading()) {
     <div class="ui-card">
-      @if (tenants.length) {
+      @if (tenants().length) {
         <table class="ui-table">
           <thead>
             <tr>
@@ -39,7 +39,7 @@
             </tr>
           </thead>
           <tbody>
-            @for (t of tenants; track t) {
+            @for (t of tenants(); track t.id) {
               <tr>
                 <td>
                   <strong>{{ t.nombre }}</strong>
@@ -113,51 +113,51 @@
 <!-- ══════════════════════════════════════════════════════════════
 MODAL: Registrar / Editar tenant
 ══════════════════════════════════════════════════════════════ -->
-@if (showModal) {
+@if (showModal()) {
   <div class="ui-modal" (click)="closeModal()">
     <div class="ui-modal__dialog tenant-modal" (click)="$event.stopPropagation()">
       <div class="ui-modal__head">
         <div class="ui-modal__title">
-          <i class="fa-solid" [ngClass]="modalMode === 'create' ? 'fa-plus-circle' : 'fa-pen-to-square'"></i>
-          {{ modalMode === 'create' ? 'Registrar nuevo CAD' : 'Editar CAD' }}
+          <i class="fa-solid" [ngClass]="modalMode() === 'create' ? 'fa-plus-circle' : 'fa-pen-to-square'"></i>
+          {{ modalMode() === 'create' ? 'Registrar nuevo CAD' : 'Editar CAD' }}
         </div>
         <button class="ui-icon-btn" type="button" (click)="closeModal()">
           <i class="fa-solid fa-xmark"></i>
         </button>
       </div>
       <div class="ui-modal__body">
-        <div class="ui-grid" style="gap: 12px">
+        <div [formGroup]="form" class="ui-grid" style="gap: 12px">
           <!-- Identificación -->
           <div class="ui-field ui-col-6">
             <label class="ui-label">Código DANE <span class="tr-req">*</span></label>
-            <input class="ui-control" [(ngModel)]="form.codDane"
-              [attr.readonly]="modalMode === 'edit' ? '' : null"
+            <input class="ui-control" formControlName="codDane"
+              [attr.readonly]="modalMode() === 'edit' ? '' : null"
               placeholder="Ej: 11001" maxlength="10">
           </div>
           <div class="ui-field ui-col-6">
             <label class="ui-label">Código Unidad (SILOG)</label>
-            <input class="ui-control" [(ngModel)]="form.codUnidad"
+            <input class="ui-control" formControlName="codUnidad"
               placeholder="Ej: MEBOG" maxlength="30">
           </div>
           <!-- Nombre -->
           <div class="ui-field ui-col-12">
             <label class="ui-label">Nombre del CAD <span class="tr-req">*</span></label>
-            <input class="ui-control" [(ngModel)]="form.nombre"
+            <input class="ui-control" formControlName="nombre"
               placeholder="Ej: CAD Bogotá D.C." maxlength="100">
           </div>
           <!-- Ubicación -->
           <div class="ui-field ui-col-6">
             <label class="ui-label">Departamento</label>
-            <input class="ui-control" [(ngModel)]="form.departamento" maxlength="50">
+            <input class="ui-control" formControlName="departamento" maxlength="50">
           </div>
           <div class="ui-field ui-col-6">
             <label class="ui-label">Municipio</label>
-            <input class="ui-control" [(ngModel)]="form.municipio" maxlength="100">
+            <input class="ui-control" formControlName="municipio" maxlength="100">
           </div>
           <!-- Categoría / Estado -->
           <div class="ui-field ui-col-6">
             <label class="ui-label">Categoría</label>
-            <select class="ui-control" [(ngModel)]="form.categoria">
+            <select class="ui-control" formControlName="categoria">
               <option value="A">A — Alta disponibilidad</option>
               <option value="B">B — Media disponibilidad</option>
               <option value="C">C — Básica</option>
@@ -165,7 +165,7 @@ MODAL: Registrar / Editar tenant
           </div>
           <div class="ui-field ui-col-6">
             <label class="ui-label">Estado</label>
-            <select class="ui-control" [(ngModel)]="form.activo">
+            <select class="ui-control" formControlName="activo">
               <option [ngValue]="true">Activo</option>
               <option [ngValue]="false">Inactivo</option>
             </select>
@@ -183,7 +183,7 @@ MODAL: Registrar / Editar tenant
               </span>
             </label>
             <input class="ui-control" type="number" min="0"
-              [(ngModel)]="form.sitioGraba"
+              formControlName="sitioGraba"
               placeholder="Ej: 1">
           </div>
           <div class="ui-field ui-col-6" style="display:flex;align-items:flex-end;padding-bottom:4px">
@@ -197,7 +197,7 @@ MODAL: Registrar / Editar tenant
           <div class="ui-col-12 tenant-section-title">
             <i class="fa-solid fa-database"></i>
             Conexión a base de datos
-            @if (modalMode === 'edit') {
+            @if (modalMode() === 'edit') {
               <span class="tenant-section-hint">
                 · Deje vacío para mantener el valor actual
               </span>
@@ -205,51 +205,51 @@ MODAL: Registrar / Editar tenant
           </div>
           <div class="ui-field ui-col-6">
             <label class="ui-label">
-              Host BD @if (modalMode === 'create') {
+              Host BD @if (modalMode() === 'create') {
               <span class="tr-req">*</span>
             }
           </label>
-          <input class="ui-control" [(ngModel)]="form.dbHost"
-            [placeholder]="modalMode === 'edit' ? '(mantener existente)' : 'Ej: 192.168.1.10'"
+          <input class="ui-control" formControlName="dbHost"
+            [placeholder]="modalMode() === 'edit' ? '(mantener existente)' : 'Ej: 192.168.1.10'"
             maxlength="100">
         </div>
         <div class="ui-field ui-col-6">
           <label class="ui-label">Puerto BD</label>
-          <input class="ui-control" type="number" [(ngModel)]="form.dbPort" min="1" max="65535">
+          <input class="ui-control" type="number" formControlName="dbPort" min="1" max="65535">
         </div>
         <div class="ui-field ui-col-6">
           <label class="ui-label">
-            Nombre BD @if (modalMode === 'create') {
+            Nombre BD @if (modalMode() === 'create') {
             <span class="tr-req">*</span>
           }
         </label>
-        <input class="ui-control" [(ngModel)]="form.dbName"
-          [placeholder]="modalMode === 'edit' ? '(mantener existente)' : 'secad_bogota'"
+        <input class="ui-control" formControlName="dbName"
+          [placeholder]="modalMode() === 'edit' ? '(mantener existente)' : 'secad_bogota'"
           maxlength="100">
       </div>
       <div class="ui-field ui-col-6">
         <label class="ui-label">
-          Usuario BD @if (modalMode === 'create') {
+          Usuario BD @if (modalMode() === 'create') {
           <span class="tr-req">*</span>
         }
       </label>
-      <input class="ui-control" [(ngModel)]="form.dbUsername"
-        [placeholder]="modalMode === 'edit' ? '(mantener existente)' : 'postgres'"
+      <input class="ui-control" formControlName="dbUsername"
+        [placeholder]="modalMode() === 'edit' ? '(mantener existente)' : 'postgres'"
         maxlength="50">
     </div>
     <div class="ui-field ui-col-12">
       <label class="ui-label">
         Contraseña BD
-        @if (modalMode === 'create') {
+        @if (modalMode() === 'create') {
           <span class="tr-req">*</span>
         }
-        @if (modalMode === 'edit') {
+        @if (modalMode() === 'edit') {
           <span class="tenant-section-hint">(vacío = mantener existente)</span>
         }
       </label>
-      <input class="ui-control" type="password" [(ngModel)]="form.dbPassword"
+      <input class="ui-control" type="password" formControlName="dbPassword"
         autocomplete="new-password"
-        [placeholder]="modalMode === 'edit' ? '••••••••' : 'Contraseña segura'">
+        [placeholder]="modalMode() === 'edit' ? '••••••••' : 'Contraseña segura'">
     </div>
   </div><!-- /ui-grid -->
 </div><!-- /ui-modal__body -->
@@ -257,9 +257,9 @@ MODAL: Registrar / Editar tenant
   <button class="ui-btn sm ghost" type="button" (click)="closeModal()">
     <i class="fa-solid fa-xmark"></i> Cancelar
   </button>
-  <button class="ui-btn sm primary" type="button" (click)="save()" [disabled]="saving">
-    <i class="fa-solid" [ngClass]="saving ? 'fa-spinner fa-spin' : 'fa-floppy-disk'"></i>
-    {{ saving ? 'Guardando...' : 'Guardar' }}
+  <button class="ui-btn sm primary" type="button" (click)="save()" [disabled]="saving()">
+    <i class="fa-solid" [ngClass]="saving() ? 'fa-spinner fa-spin' : 'fa-floppy-disk'"></i>
+    {{ saving() ? 'Guardando...' : 'Guardar' }}
   </button>
 </div>
 </div>
