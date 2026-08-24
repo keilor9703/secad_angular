@@ -1,6 +1,6 @@
-import { Component, OnDestroy, OnInit } from '@angular/core';
+import { Component, ChangeDetectionStrategy, DestroyRef, OnInit, computed, inject, signal } from '@angular/core';
 
-import { FormsModule } from '@angular/forms';
+import { FormBuilder, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterModule } from '@angular/router';
 import { ToastService } from '../../../core/services/toast.service';
 import { DtoCivilUsuarioRequest, DtoRolCatalogo, UsuarioAdminService, UsuarioListadoItem, UsuarioLocalResult } from '../../../core/services/administracion/usuario-admin.service';
@@ -16,12 +16,6 @@ interface UserRole {
   fechaExpiracion: string;
   estado: RolEstado;
   justificacion: string;
-}
-
-interface NewRoleForm {
-  rolId: number | null;
-  justificacion: string;
-  fechaFin: string;
 }
 
 interface UserProfile {
@@ -52,123 +46,128 @@ interface UserProfile {
 @Component({
   selector: 'app-usuarios',
   standalone: true,
-  imports: [FormsModule, RouterModule],
+  imports: [FormsModule, ReactiveFormsModule, RouterModule],
   templateUrl: './usuarios.html',
-  styleUrls: ['./usuarios.scss']
+  styleUrls: ['./usuarios.scss'],
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class UsuariosComponent implements OnInit, OnDestroy {
-  constructor(
-    private toast: ToastService,
-    private usuarioAdminService: UsuarioAdminService,
-    private fuerzaService: FuerzaService
-  ) {}
+export class UsuariosComponent implements OnInit {
+  private readonly toast               = inject(ToastService);
+  private readonly usuarioAdminService = inject(UsuarioAdminService);
+  private readonly fuerzaService       = inject(FuerzaService);
+  private readonly fb                  = inject(FormBuilder);
 
-  minimized = false;
-  visible = true;
-  loading = false;
-  savingRole = false;
+  readonly minimized   = signal(false);
+  readonly visible     = signal(true);
+  readonly loading     = signal(false);
+  readonly savingRole  = signal(false);
 
   // ── Modo de creación ────────────────────────────────────────────
   /** Controla si se crea un funcionario Policía (vía PIP) o Civil / Otra entidad */
-  tipoCreacion: TipoCreacion = 'policia';
-  modoCreacionActivo = false;
+  readonly tipoCreacion       = signal<TipoCreacion>('policia');
+  readonly modoCreacionActivo = signal(false);
 
   /** Formulario para usuario civil / otra entidad */
-  civilForm: DtoCivilUsuarioRequest = {
-    username: '',
-    password: '',
-    identificacion: '',
-    nombres: '',
-    apellidos: '',
-    email: '',
-    entidad: '',
-    cargo: '',
-    activo: true
-  };
-  showPassword = false;
+  readonly civilForm = this.fb.nonNullable.group({
+    username:       ['', [Validators.required]],
+    password:       [''],
+    identificacion: [''],
+    nombres:        ['', [Validators.required]],
+    apellidos:      ['', [Validators.required]],
+    email:          [''],
+    entidad:        [''],
+    cargo:          [''],
+    activo:         [true]
+  });
+  readonly showPassword = signal(false);
 
   // ── Datos operacionales (tab Operación) ────────────────────────────
-  fuerzasDisponibles: DtoFuerza[] = [];
-  canalesDisponibles: DtoCanalFuerza[] = [];
-  loadingOperacion = false;
-  savingOperacion  = false;
-  operacionForm: DtoUsuarioOperacionRequest = { cadcanaFuerzaId: 0, cadcanaCodigo: 0, acd: 0 };
-  operacionActual: { fuerzaDescripcion?: string; canalDescripcion?: string } = {};
+  readonly fuerzasDisponibles  = signal<DtoFuerza[]>([]);
+  readonly canalesDisponibles  = signal<DtoCanalFuerza[]>([]);
+  readonly loadingOperacion    = signal(false);
+  readonly savingOperacion     = signal(false);
+  readonly operacionForm = this.fb.nonNullable.group({
+    cadcanaFuerzaId: [0],
+    cadcanaCodigo:   [0],
+    acd:             [0]
+  });
+  readonly operacionActual = signal<{ fuerzaDescripcion?: string; canalDescripcion?: string }>({});
 
-  deletingRoleId: number | null = null;
-  deletingUser = false;
-  loadingListado = false;
-  showDeleteUserModal = false;
-  deleteConfirmText = '';
-  deletingTarget: UsuarioListadoItem | null = null;
+  readonly deletingRoleId       = signal<number | null>(null);
+  readonly deletingUser         = signal(false);
+  readonly loadingListado       = signal(false);
+  readonly showDeleteUserModal  = signal(false);
+  readonly deleteConfirmText    = signal('');
+  readonly deletingTarget       = signal<UsuarioListadoItem | null>(null);
   searchNombreListado = '';
   private searchNombreTimeout: ReturnType<typeof setTimeout> | null = null;
   readonly minSearchChars = 6;
   readonly pageSize = 10;
-  currentPage = 1;
-  isSearchMode = false;
-  activeTab: TabKey = 'datos';
+  readonly currentPage       = signal(1);
+  readonly isSearchMode      = signal(false);
+  readonly activeTab         = signal<TabKey>('datos');
   searchIdentification = '';
-  user: UserProfile | null = null;
-  usuariosListado: UsuarioListadoItem[] = [];
-  rolesCatalogo: DtoRolCatalogo[] = [];
-  showAddRoleForm = false;
-  newRole: NewRoleForm = {
-    rolId: null,
-    justificacion: '',
-    fechaFin: ''
-  };
+  readonly user               = signal<UserProfile | null>(null);
+  readonly usuariosListado     = signal<UsuarioListadoItem[]>([]);
+  readonly rolesCatalogo       = signal<DtoRolCatalogo[]>([]);
+  readonly showAddRoleForm     = signal(false);
+
+  readonly newRole = this.fb.nonNullable.group({
+    rolId:         this.fb.control<number | null>(null),
+    justificacion: [''],
+    fechaFin:      ['']
+  });
+
+  constructor() {
+    inject(DestroyRef).onDestroy(() => {
+      if (this.searchNombreTimeout) clearTimeout(this.searchNombreTimeout);
+    });
+  }
 
   ngOnInit(): void {
     this.cargarListadoUsuarios();
     this.cargarFuerzas();
   }
 
-  ngOnDestroy(): void {
-    if (this.searchNombreTimeout) {
-      clearTimeout(this.searchNombreTimeout);
-    }
-  }
-
   toggleMinimize(): void {
-    this.minimized = !this.minimized;
+    this.minimized.update(v => !v);
   }
 
   closePanel(): void {
-    this.visible = false;
+    this.visible.set(false);
   }
 
   prepararNuevoUsuario(): void {
-    this.user = null;
-    this.activeTab = 'datos';
+    this.user.set(null);
+    this.activeTab.set('datos');
     this.searchIdentification = '';
-    this.showAddRoleForm = false;
-    this.newRole = { rolId: null, justificacion: '', fechaFin: '' };
-    this.rolesCatalogo = [];
-    this.modoCreacionActivo = true;
-    this.tipoCreacion = 'policia';
+    this.showAddRoleForm.set(false);
+    this.newRole.reset({ rolId: null, justificacion: '', fechaFin: '' });
+    this.rolesCatalogo.set([]);
+    this.modoCreacionActivo.set(true);
+    this.tipoCreacion.set('policia');
     this.resetCivilForm();
   }
 
   cancelarNuevoUsuario(): void {
-    this.modoCreacionActivo = false;
-    this.user = null;
+    this.modoCreacionActivo.set(false);
+    this.user.set(null);
     this.resetCivilForm();
   }
 
   setTipoCreacion(tipo: TipoCreacion): void {
-    this.tipoCreacion = tipo;
-    this.user = null;
+    this.tipoCreacion.set(tipo);
+    this.user.set(null);
     this.searchIdentification = '';
     this.resetCivilForm();
   }
 
   toggleShowPassword(): void {
-    this.showPassword = !this.showPassword;
+    this.showPassword.update(v => !v);
   }
 
   private resetCivilForm(): void {
-    this.civilForm = {
+    this.civilForm.reset({
       username: '',
       password: '',
       identificacion: '',
@@ -178,13 +177,13 @@ export class UsuariosComponent implements OnInit, OnDestroy {
       entidad: '',
       cargo: '',
       activo: true
-    };
-    this.showPassword = false;
+    });
+    this.showPassword.set(false);
   }
 
   guardarCivilUsuario(): void {
-    const form = this.civilForm;
-    const esEdicion = !!this.user;   // true cuando se editó desde el listado
+    const form = this.civilForm.getRawValue();
+    const esEdicion = !!this.user();   // true cuando se editó desde el listado
     const titulo = esEdicion ? 'Editar usuario civil' : 'Crear usuario civil';
 
     if (!form.username?.trim()) {
@@ -206,7 +205,7 @@ export class UsuariosComponent implements OnInit, OnDestroy {
       return;
     }
 
-    this.loading = true;
+    this.loading.set(true);
     this.usuarioAdminService.createCivilUsuario({
       username: form.username.trim(),
       password: password,           // backend ignora hash si viene vacío (ON CONFLICT no cambia hash)
@@ -219,19 +218,19 @@ export class UsuariosComponent implements OnInit, OnDestroy {
       activo: form.activo
     }).subscribe({
       next: (resp) => {
-        this.loading = false;
+        this.loading.set(false);
         if (!resp?.success) {
           this.toast.warning(titulo, resp?.message || 'No fue posible guardar.');
           return;
         }
         this.toast.success(titulo, resp.message || 'Usuario civil guardado correctamente.');
         this.resetCivilForm();
-        this.modoCreacionActivo = false;
-        this.user = null;
+        this.modoCreacionActivo.set(false);
+        this.user.set(null);
         this.cargarListadoUsuarios();
       },
       error: (err) => {
-        this.loading = false;
+        this.loading.set(false);
         this.toast.error(titulo,
           err?.error?.message ?? err?.error?.detail ?? 'Se presentó un error guardando el usuario civil.'
         );
@@ -246,7 +245,7 @@ export class UsuariosComponent implements OnInit, OnDestroy {
       return;
     }
 
-    this.loading = true;
+    this.loading.set(true);
     this.toast.info('Consulta', 'Buscando información empresarial...');
 
     this.usuarioAdminService.consultarUsuarioPorIdentificacion(documento).subscribe({
@@ -256,7 +255,7 @@ export class UsuariosComponent implements OnInit, OnDestroy {
         const apellidos = (funcionario.apellidos ?? '').trim();
         const nombreCompleto = `${nombres} ${apellidos}`.trim() || 'SIN NOMBRE';
 
-        this.user = {
+        this.user.set({
           idUsuario: String(funcionario.idUsuario ?? '0'),
           identificacion: (funcionario.identificacion ?? documento).trim(),
           nombres,
@@ -278,17 +277,17 @@ export class UsuariosComponent implements OnInit, OnDestroy {
           ultimoIngreso: 'Sin dato',
           fotoUrl: resp.fotoBase64 ?? undefined,
           roles: (resp.rolesAsignados ?? []).map((rol) => this.mapAssignedRole(rol))
-        };
-        this.rolesCatalogo = (resp.rolesCatalogo ?? []).filter((r) => Number(r.id) > 0);
-        this.showAddRoleForm = false;
-        this.newRole = { rolId: null, justificacion: '', fechaFin: '' };
+        });
+        this.rolesCatalogo.set((resp.rolesCatalogo ?? []).filter((r) => Number(r.id) > 0));
+        this.showAddRoleForm.set(false);
+        this.newRole.reset({ rolId: null, justificacion: '', fechaFin: '' });
 
-        this.loading = false;
+        this.loading.set(false);
         this.toast.success('Consulta exitosa', 'Se cargó la información del usuario.');
       },
       error: (err) => {
-        this.loading = false;
-        this.user = null;
+        this.loading.set(false);
+        this.user.set(null);
         const errorResponse = err?.error;
         const errorMsg =
           errorResponse?.message ??
@@ -300,76 +299,78 @@ export class UsuariosComponent implements OnInit, OnDestroy {
   }
 
   setTab(tab: TabKey): void {
-    this.activeTab = tab;
-    if (tab === 'operacion' && this.user?.idUsuario) {
+    this.activeTab.set(tab);
+    if (tab === 'operacion' && this.user()?.idUsuario) {
       this.cargarOperacion();
     }
   }
 
   toggleEstadoUsuario(): void {
-    if (!this.user) {
+    const u = this.user();
+    if (!u) {
       return;
     }
-    this.user.activo = !this.user.activo;
+    this.user.set({ ...u, activo: !u.activo });
   }
 
-  get activeRolesCount(): number {
-    return this.user?.roles.filter((r) => r.estado === 'Vigente').length ?? 0;
-  }
+  readonly activeRolesCount = computed(() =>
+    this.user()?.roles.filter((r) => r.estado === 'Vigente').length ?? 0
+  );
 
   agregarRol(): void {
-    if (!this.user) {
+    if (!this.user()) {
       this.toast.warning('Roles', 'Consulta un usuario antes de asignar roles.');
       return;
     }
 
-    if (this.rolesCatalogo.length === 0) {
+    if (this.rolesCatalogo().length === 0) {
       this.toast.warning('Roles', 'No hay catálogo de roles disponible.');
       return;
     }
 
-    this.showAddRoleForm = true;
+    this.showAddRoleForm.set(true);
   }
 
   cancelarNuevoRol(): void {
-    this.showAddRoleForm = false;
-    this.newRole = { rolId: null, justificacion: '', fechaFin: '' };
+    this.showAddRoleForm.set(false);
+    this.newRole.reset({ rolId: null, justificacion: '', fechaFin: '' });
   }
 
   guardarDatosUsuario(): void {
-    if (!this.user) {
+    const u = this.user();
+    if (!u) {
       this.toast.warning('Guardar datos', 'Primero consulta un usuario.');
       return;
     }
 
     // Si estamos en modo civil (editando desde el panel civil), delegar a guardarCivilUsuario()
-    if (this.tipoCreacion === 'civil' && this.modoCreacionActivo) {
+    if (this.tipoCreacion() === 'civil' && this.modoCreacionActivo()) {
       this.guardarCivilUsuario();
       return;
     }
 
-    if (!this.user.identificacion?.trim()) {
+    if (!u.identificacion?.trim()) {
       this.toast.warning('Guardar datos', 'La identificación está vacía; vuelve a consultar el usuario.');
       return;
     }
 
     const payload = {
-      username: this.user.usuarioEmpresarial || this.user.identificacion,
-      identificacion: this.user.identificacion,
-      nombres: this.user.nombres,
-      apellidos: this.user.apellidos,
-      email: this.user.email,
-      gradAlfabetico: this.user.gradAlfabetico || this.user.grado,
-      funcionario: this.user.funcionarioCodigo,
-      undeLaborando: this.user.undeLaborandoCodigo,
-      codigoCargo: this.user.codigoCargo,
-      activo: this.user.activo
+      username: u.usuarioEmpresarial || u.identificacion,
+      identificacion: u.identificacion,
+      nombres: u.nombres,
+      apellidos: u.apellidos,
+      email: u.email,
+      gradAlfabetico: u.gradAlfabetico || u.grado,
+      funcionario: u.funcionarioCodigo,
+      undeLaborando: u.undeLaborandoCodigo,
+      codigoCargo: u.codigoCargo,
+      activo: u.activo
     };
 
-    this.loading = true;
+    this.loading.set(true);
     this.usuarioAdminService.guardarUsuario(payload).subscribe({
       next: (resp) => {
-        this.loading = false;
+        this.loading.set(false);
         if (!resp?.success) {
           this.toast.warning('Guardar datos', resp?.message || 'No fue posible guardar.');
           return;
@@ -378,7 +379,7 @@ export class UsuariosComponent implements OnInit, OnDestroy {
         this.cargarListadoUsuarios();
       },
       error: (err) => {
-        this.loading = false;
+        this.loading.set(false);
         this.toast.error(
           'Guardar datos',
           err?.error?.detail ?? err?.error?.message ?? 'Se presentó un error guardando el usuario.'
@@ -388,43 +389,45 @@ export class UsuariosComponent implements OnInit, OnDestroy {
   }
 
   guardarRoles(): void {
-    if (!this.user) {
+    const u = this.user();
+    if (!u) {
       this.toast.warning('Roles', 'Consulta un usuario primero.');
       return;
     }
 
-    if (!this.showAddRoleForm) {
+    if (!this.showAddRoleForm()) {
       this.toast.info('Roles', 'No hay cambios pendientes en roles.');
       return;
     }
 
-    if (!this.newRole.rolId || this.newRole.rolId <= 0) {
+    const v = this.newRole.getRawValue();
+    if (!v.rolId || v.rolId <= 0) {
       this.toast.warning('Roles', 'Selecciona un rol.');
       return;
     }
 
-    if (!this.newRole.justificacion.trim()) {
+    if (!v.justificacion.trim()) {
       this.toast.warning('Roles', 'La justificación es obligatoria.');
       return;
     }
 
-    if (!this.newRole.fechaFin) {
+    if (!v.fechaFin) {
       this.toast.warning('Roles', 'La fecha fin es obligatoria.');
       return;
     }
 
-    this.savingRole = true;
+    this.savingRole.set(true);
     this.usuarioAdminService.asignarRol({
       usuarioId: 0,
-      usuario: this.user.usuarioEmpresarial,
-      identificacion: this.user.identificacion,
-      rolId: this.newRole.rolId,
-      justificacion: this.newRole.justificacion.trim(),
-      fechaFin: this.newRole.fechaFin,
+      usuario: u.usuarioEmpresarial,
+      identificacion: u.identificacion,
+      rolId: v.rolId,
+      justificacion: v.justificacion.trim(),
+      fechaFin: v.fechaFin,
       vigente: 1
     }).subscribe({
       next: (resp) => {
-        this.savingRole = false;
+        this.savingRole.set(false);
         if (!resp?.success) {
           this.toast.warning('Roles', resp?.message || 'No fue posible asignar el rol.');
           return;
@@ -436,14 +439,15 @@ export class UsuariosComponent implements OnInit, OnDestroy {
         this.cargarListadoUsuarios();
       },
       error: (err) => {
-        this.savingRole = false;
+        this.savingRole.set(false);
         this.toast.error('Roles', err?.error?.detail ?? err?.error?.message ?? 'Error asignando rol.');
       }
     });
   }
 
   eliminarRol(rol: UserRole): void {
-    if (!this.user) {
+    const u = this.user();
+    if (!u) {
       this.toast.warning('Roles', 'Consulta un usuario primero.');
       return;
     }
@@ -453,10 +457,10 @@ export class UsuariosComponent implements OnInit, OnDestroy {
       return;
     }
 
-    this.deletingRoleId = rol.id;
-    this.usuarioAdminService.eliminarRol(rol.id, this.user.usuarioEmpresarial, this.user.identificacion).subscribe({
+    this.deletingRoleId.set(rol.id);
+    this.usuarioAdminService.eliminarRol(rol.id, u.usuarioEmpresarial, u.identificacion).subscribe({
       next: (resp) => {
-        this.deletingRoleId = null;
+        this.deletingRoleId.set(null);
         if (!resp?.success) {
           // El backend devuelve 200 con success:false cuando el rol ya no estaba vigente
           this.toast.warning('Roles', resp?.message || 'No hay roles vigentes para retirar.');
@@ -467,7 +471,7 @@ export class UsuariosComponent implements OnInit, OnDestroy {
         this.cargarListadoUsuarios();
       },
       error: (err) => {
-        this.deletingRoleId = null;
+        this.deletingRoleId.set(null);
         this.toast.error('Roles', err?.error?.detail ?? err?.error?.message ?? 'Error retirando rol.');
       }
     });
@@ -480,17 +484,18 @@ export class UsuariosComponent implements OnInit, OnDestroy {
    * (usuarios cargados desde el listado o civiles).
    */
   private recargarUsuarioActual(): void {
-    if (!this.user) return;
+    const u = this.user();
+    if (!u) return;
 
-    if (this.tipoCreacion === 'civil') {
+    if (this.tipoCreacion() === 'civil') {
       // Usuario civil / otra entidad: recargar desde BD local
-      const username = this.user.usuarioEmpresarial;
+      const username = u.usuarioEmpresarial;
       if (!username) return;
       this.cargarUsuarioCivil({
-        idUsuario:      Number(this.user.idUsuario) || 0,
-        identificacion: this.user.identificacion,
+        idUsuario:      Number(u.idUsuario) || 0,
+        identificacion: u.identificacion,
         username,
-        nombreCompleto: this.user.nombreCompleto,
+        nombreCompleto: u.nombreCompleto,
         rol:            '',
         tipoUsuario:    'CIVIL'
       });
@@ -503,34 +508,34 @@ export class UsuariosComponent implements OnInit, OnDestroy {
   }
 
   cargarListadoUsuarios(): void {
-    this.loadingListado = true;
+    this.loadingListado.set(true);
     const term = (this.searchNombreListado ?? '').trim();
     const hasSearchTerm = term.length > 0;
 
     if (hasSearchTerm && term.length < this.minSearchChars) {
-      this.isSearchMode = true;
-      this.usuariosListado = [];
-      this.currentPage = 1;
-      this.loadingListado = false;
+      this.isSearchMode.set(true);
+      this.usuariosListado.set([]);
+      this.currentPage.set(1);
+      this.loadingListado.set(false);
       return;
     }
 
-    this.isSearchMode = hasSearchTerm;
-    const query = this.isSearchMode ? term : '';
+    this.isSearchMode.set(hasSearchTerm);
+    const query = this.isSearchMode() ? term : '';
 
     this.usuarioAdminService.getListadoUsuarios(query).subscribe({
       next: (items) => {
-        this.usuariosListado = (items ?? []).map((x) => ({
+        this.usuariosListado.set((items ?? []).map((x) => ({
           ...x,
           fechaFinRol: this.normalizeDateString(x?.fechaFinRol ?? '')
-        }));
-        this.currentPage = 1;
-        this.loadingListado = false;
+        })));
+        this.currentPage.set(1);
+        this.loadingListado.set(false);
       },
       error: () => {
-        this.usuariosListado = [];
-        this.currentPage = 1;
-        this.loadingListado = false;
+        this.usuariosListado.set([]);
+        this.currentPage.set(1);
+        this.loadingListado.set(false);
       }
     });
   }
@@ -545,39 +550,37 @@ export class UsuariosComponent implements OnInit, OnDestroy {
     }, 350);
   }
 
-  get totalUsuariosListado(): number {
-    return this.usuariosListado.length;
-  }
+  readonly totalUsuariosListado = computed(() => this.usuariosListado().length);
 
-  get totalPaginasListado(): number {
-    return Math.max(1, Math.ceil(this.totalUsuariosListado / this.pageSize));
-  }
+  readonly totalPaginasListado = computed(() =>
+    Math.max(1, Math.ceil(this.totalUsuariosListado() / this.pageSize))
+  );
 
-  get usuariosListadoPaginado(): UsuarioListadoItem[] {
-    const start = (this.currentPage - 1) * this.pageSize;
-    return this.usuariosListado.slice(start, start + this.pageSize);
-  }
+  readonly usuariosListadoPaginado = computed(() => {
+    const start = (this.currentPage() - 1) * this.pageSize;
+    return this.usuariosListado().slice(start, start + this.pageSize);
+  });
 
   canGoPrevListado(): boolean {
-    return this.currentPage > 1;
+    return this.currentPage() > 1;
   }
 
   canGoNextListado(): boolean {
-    return this.currentPage < this.totalPaginasListado;
+    return this.currentPage() < this.totalPaginasListado();
   }
 
   prevPaginaListado(): void {
     if (!this.canGoPrevListado()) {
       return;
     }
-    this.currentPage -= 1;
+    this.currentPage.update(v => v - 1);
   }
 
   nextPaginaListado(): void {
     if (!this.canGoNextListado()) {
       return;
     }
-    this.currentPage += 1;
+    this.currentPage.update(v => v + 1);
   }
 
   editarDesdeListado(item: UsuarioListadoItem): void {
@@ -593,10 +596,10 @@ export class UsuariosComponent implements OnInit, OnDestroy {
         this.toast.warning('Usuarios', 'El registro no tiene identificación para cargar edición.');
         return;
       }
-      this.modoCreacionActivo = false;
-      this.user = null;
+      this.modoCreacionActivo.set(false);
+      this.user.set(null);
       this.searchIdentification = identificacion;
-      this.activeTab = 'datos';
+      this.activeTab.set('datos');
       this.consultarUsuario();
     }
   }
@@ -608,16 +611,16 @@ export class UsuariosComponent implements OnInit, OnDestroy {
       return;
     }
 
-    this.loading = true;
-    this.modoCreacionActivo = true;
-    this.tipoCreacion = 'civil';
-    this.user = null;
-    this.activeTab = 'datos';
+    this.loading.set(true);
+    this.modoCreacionActivo.set(true);
+    this.tipoCreacion.set('civil');
+    this.user.set(null);
+    this.activeTab.set('datos');
 
     this.usuarioAdminService.getLocalUsuario(username).subscribe({
       next: (resp: UsuarioLocalResult) => {
         const u = resp.usuario;
-        this.civilForm = {
+        this.civilForm.reset({
           username: u.username ?? '',
           password: '',               // no se pre-carga la contraseña por seguridad
           identificacion: u.identificacion ?? '',
@@ -627,10 +630,10 @@ export class UsuariosComponent implements OnInit, OnDestroy {
           entidad: u.entidad ?? '',
           cargo: u.cargo ?? '',
           activo: u.activo
-        };
+        });
         // Cargar roles para mostrárselos (usando el panel de roles existente)
         // Reutilizamos el user profile como contenedor mínimo para los roles
-        this.user = {
+        this.user.set({
           idUsuario: String(u.idUsuario ?? '0'),
           identificacion: u.identificacion ?? u.username,
           nombres: u.nombres ?? '',
@@ -651,57 +654,58 @@ export class UsuariosComponent implements OnInit, OnDestroy {
           activo: u.activo,
           ultimoIngreso: 'Sin dato',
           roles: (resp.rolesAsignados ?? []).map((rol) => this.mapAssignedRole(rol))
-        };
+        });
         // Pre-cargar datos operacionales del civil si están disponibles en el DTO
-        this.operacionForm = {
+        this.operacionForm.reset({
           cadcanaFuerzaId: u.cadcanaFuerzaId ?? 0,
           cadcanaCodigo:   u.cadcanaCodigo ?? 0,
           acd:             u.acd ?? 0
-        };
+        });
         if ((u.cadcanaFuerzaId ?? 0) > 0) {
           this.onFuerzaOperacionChange(u.cadcanaFuerzaId!);
         }
-        this.rolesCatalogo = (resp.rolesCatalogo ?? []).filter((r) => Number(r.id) > 0);
-        this.loading = false;
+        this.rolesCatalogo.set((resp.rolesCatalogo ?? []).filter((r) => Number(r.id) > 0));
+        this.loading.set(false);
         this.toast.success('Usuario civil', 'Datos cargados. Edite y guarde los cambios.');
       },
       error: (err) => {
-        this.loading = false;
-        this.modoCreacionActivo = false;
+        this.loading.set(false);
+        this.modoCreacionActivo.set(false);
         this.toast.error('Usuarios', err?.error?.message ?? 'No fue posible cargar el usuario civil.');
       }
     });
   }
 
   abrirModalEliminarUsuario(item: UsuarioListadoItem): void {
-    this.deletingTarget = item;
-    this.deleteConfirmText = '';
-    this.showDeleteUserModal = true;
+    this.deletingTarget.set(item);
+    this.deleteConfirmText.set('');
+    this.showDeleteUserModal.set(true);
   }
 
   cerrarModalEliminarUsuario(): void {
-    if (this.deletingUser) {
+    if (this.deletingUser()) {
       return;
     }
-    this.showDeleteUserModal = false;
-    this.deleteConfirmText = '';
-    this.deletingTarget = null;
+    this.showDeleteUserModal.set(false);
+    this.deleteConfirmText.set('');
+    this.deletingTarget.set(null);
   }
 
   confirmarEliminarUsuario(): void {
-    if (!this.deletingTarget) {
+    const target = this.deletingTarget();
+    if (!target) {
       return;
     }
 
-    if (this.deleteConfirmText.trim().toUpperCase() !== 'ELIMINAR') {
+    if (this.deleteConfirmText().trim().toUpperCase() !== 'ELIMINAR') {
       this.toast.warning('Usuarios', 'Debes escribir ELIMINAR para confirmar.');
       return;
     }
 
-    this.deletingUser = true;
-    this.usuarioAdminService.eliminarUsuario(this.deletingTarget.idUsuario).subscribe({
+    this.deletingUser.set(true);
+    this.usuarioAdminService.eliminarUsuario(target.idUsuario).subscribe({
       next: (resp) => {
-        this.deletingUser = false;
+        this.deletingUser.set(false);
         if (!resp?.success) {
           this.toast.warning('Usuarios', resp?.message || 'No fue posible eliminar el usuario.');
           return;
@@ -710,13 +714,13 @@ export class UsuariosComponent implements OnInit, OnDestroy {
         this.cerrarModalEliminarUsuario();
         this.cargarListadoUsuarios();
 
-        if (this.user?.identificacion?.trim() === String(this.deletingTarget?.identificacion ?? '').trim()) {
-          this.user = null;
-          this.activeTab = 'datos';
+        if (this.user()?.identificacion?.trim() === String(target.identificacion ?? '').trim()) {
+          this.user.set(null);
+          this.activeTab.set('datos');
         }
       },
       error: (err) => {
-        this.deletingUser = false;
+        this.deletingUser.set(false);
         this.toast.error('Usuarios', err?.error?.detail ?? err?.error?.message ?? 'Error eliminando usuario.');
       }
     });
@@ -726,69 +730,68 @@ export class UsuariosComponent implements OnInit, OnDestroy {
 
   cargarFuerzas(): void {
     this.fuerzaService.getFuerzas().subscribe({
-      next: (r) => { this.fuerzasDisponibles = (r.data ?? []).filter(f => f.vigente === 'S'); },
+      next: (r) => { this.fuerzasDisponibles.set((r.data ?? []).filter(f => f.vigente === 'S')); },
       error: () => { /* silencioso; las fuerzas son secundarias */ }
     });
   }
 
   onFuerzaOperacionChange(fuerzaId?: number): void {
-    const id = fuerzaId ?? this.operacionForm.cadcanaFuerzaId;
-    this.canalesDisponibles = [];
-    this.operacionForm.cadcanaCodigo = 0;
+    const id = fuerzaId ?? this.operacionForm.controls.cadcanaFuerzaId.value;
+    this.canalesDisponibles.set([]);
+    this.operacionForm.controls.cadcanaCodigo.setValue(0);
     if (!id || id === 0) return;
 
     this.fuerzaService.getCanales(id).subscribe({
       next: (r) => {
-        this.canalesDisponibles = (r.data ?? []).filter(c => c.vigente === 'S');
-        // Si ya viene un canal preseleccionado, asegurarse de que esté en la lista
-        if (fuerzaId !== undefined && this.operacionForm.cadcanaCodigo === 0) {
-          // no restablecer, el form ya tiene el valor correcto
-        }
+        this.canalesDisponibles.set((r.data ?? []).filter(c => c.vigente === 'S'));
       },
-      error: () => { this.canalesDisponibles = []; }
+      error: () => { this.canalesDisponibles.set([]); }
     });
   }
 
   cargarOperacion(): void {
-    if (!this.user?.idUsuario || this.user.idUsuario === '0') return;
-    this.loadingOperacion = true;
-    this.fuerzaService.getUsuarioOperacion(this.user.idUsuario).subscribe({
+    const u = this.user();
+    if (!u?.idUsuario || u.idUsuario === '0') return;
+    this.loadingOperacion.set(true);
+    this.fuerzaService.getUsuarioOperacion(u.idUsuario).subscribe({
       next: (r) => {
         const op = r.data;
-        this.operacionForm = {
+        this.operacionForm.reset({
           cadcanaFuerzaId: op.cadcanaFuerzaId ?? 0,
           cadcanaCodigo:   op.cadcanaCodigo ?? 0,
           acd:             op.acd ?? 0
-        };
-        this.operacionActual = {
+        });
+        this.operacionActual.set({
           fuerzaDescripcion: op.fuerzaDescripcion,
           canalDescripcion:  op.canalDescripcion
-        };
+        });
         // Cargar canales de la fuerza asignada
         if ((op.cadcanaFuerzaId ?? 0) > 0) {
           this.fuerzaService.getCanales(op.cadcanaFuerzaId).subscribe({
-            next: (cr) => { this.canalesDisponibles = (cr.data ?? []).filter(c => c.vigente === 'S'); },
+            next: (cr) => { this.canalesDisponibles.set((cr.data ?? []).filter(c => c.vigente === 'S')); },
             error: () => {}
           });
         }
-        this.loadingOperacion = false;
+        this.loadingOperacion.set(false);
       },
       error: () => {
-        this.loadingOperacion = false;
+        this.loadingOperacion.set(false);
         this.toast.error('Operación', 'No se pudieron cargar los datos operacionales.');
       }
     });
   }
 
   guardarOperacion(): void {
-    if (!this.user?.idUsuario || this.user.idUsuario === '0') {
+    const u = this.user();
+    if (!u?.idUsuario || u.idUsuario === '0') {
       this.toast.warning('Operación', 'No hay usuario cargado para guardar datos operacionales.');
       return;
     }
-    this.savingOperacion = true;
-    this.fuerzaService.saveUsuarioOperacion(this.user.idUsuario, this.operacionForm).subscribe({
+    this.savingOperacion.set(true);
+    const request: DtoUsuarioOperacionRequest = this.operacionForm.getRawValue();
+    this.fuerzaService.saveUsuarioOperacion(u.idUsuario, request).subscribe({
       next: (r) => {
-        this.savingOperacion = false;
+        this.savingOperacion.set(false);
         if (r.success) {
           this.toast.success('Operación', r.message || 'Datos operacionales guardados.');
           this.cargarOperacion();
@@ -797,7 +800,7 @@ export class UsuariosComponent implements OnInit, OnDestroy {
         }
       },
       error: (err) => {
-        this.savingOperacion = false;
+        this.savingOperacion.set(false);
         this.toast.error('Operación', err?.error?.message ?? 'Error guardando datos operacionales.');
       }
     });

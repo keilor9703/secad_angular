@@ -1,4 +1,4 @@
-@if (visible) {
+@if (visible()) {
   <section class="user-admin-page">
     <div class="ui-panel">
       <div class="ui-panel__head">
@@ -15,9 +15,9 @@
           </button>
         </div>
       </div>
-      @if (!minimized) {
+      @if (!minimized()) {
         <div class="ui-panel__body">
-          @if (user) {
+          @if (user(); as user) {
             <div class="admin-grid">
               <aside class="left-column">
                 <article class="profile-card">
@@ -25,7 +25,7 @@
                   <div class="profile-card__body">
                     <img
                       class="profile-avatar"
-                [src]="(tipoCreacion !== 'civil' && user.fotoUrl)
+                [src]="(tipoCreacion() !== 'civil' && user.fotoUrl)
                          ? user.fotoUrl
                          : 'https://ui-avatars.com/api/?name=' + user.nombreCompleto + '&background=002a66&color=fff&size=160'"
                       alt="Foto de usuario"
@@ -49,7 +49,7 @@
                   <h4><i class="fa-solid fa-circle-info"></i> Resumen de acceso</h4>
                   <div class="summary-row">
                     <span>Roles activos</span>
-                    <strong>{{ activeRolesCount }}</strong>
+                    <strong>{{ activeRolesCount() }}</strong>
                   </div>
                   <div class="summary-row">
                     <span>Último ingreso</span>
@@ -62,7 +62,7 @@
                   <button
                     type="button"
                     class="tab-btn"
-                    [class.active]="activeTab === 'datos'"
+                    [class.active]="activeTab() === 'datos'"
                     (click)="setTab('datos')"
                     >
                     <i class="fa-solid fa-user"></i>
@@ -71,7 +71,7 @@
                   <button
                     type="button"
                     class="tab-btn"
-                    [class.active]="activeTab === 'roles'"
+                    [class.active]="activeTab() === 'roles'"
                     (click)="setTab('roles')"
                     >
                     <i class="fa-solid fa-shield-halved"></i>
@@ -80,7 +80,7 @@
                   <button
                     type="button"
                     class="tab-btn"
-                    [class.active]="activeTab === 'operacion'"
+                    [class.active]="activeTab() === 'operacion'"
                     (click)="setTab('operacion')"
                     >
                     <i class="fa-solid fa-radio"></i>
@@ -88,60 +88,60 @@
                   </button>
                 </div>
                 <!-- ── Pestaña datos: Funcionario Policía ─────────────────────── -->
-                @if (activeTab === 'datos' && tipoCreacion !== 'civil') {
+                @if (activeTab() === 'datos' && tipoCreacion() !== 'civil') {
                   <article class="tab-card">
                     <div class="ui-grid">
                       <div class="ui-field ui-col-6">
                         <label class="ui-label">Identificación</label>
                         <div class="ui-input-group">
                           <input class="ui-control" type="text" [(ngModel)]="searchIdentification" placeholder="Ej: 10203040" (keyup.enter)="consultarUsuario()">
-                          <button class="ui-addon-btn search-btn" type="button" (click)="consultarUsuario()" [disabled]="loading">
+                          <button class="ui-addon-btn search-btn" type="button" (click)="consultarUsuario()" [disabled]="loading()">
                             <i class="fa-solid fa-magnifying-glass"></i>
                           </button>
                         </div>
                       </div>
                       <div class="ui-field ui-col-6">
                         <label class="ui-label">Usuario empresarial</label>
-                        <input class="ui-control" type="text" [(ngModel)]="user.usuarioEmpresarial" readonly>
+                        <input class="ui-control" type="text" [ngModel]="user.usuarioEmpresarial" [ngModelOptions]="{standalone: true}" readonly>
                       </div>
                       <div class="ui-field ui-col-6">
                         <label class="ui-label">Grado</label>
-                        <input class="ui-control" type="text" [(ngModel)]="user.grado" readonly>
+                        <input class="ui-control" type="text" [ngModel]="user.grado" [ngModelOptions]="{standalone: true}" readonly>
                       </div>
                       <div class="ui-field ui-col-6">
                         <label class="ui-label">Nombre completo</label>
-                        <input class="ui-control" type="text" [(ngModel)]="user.nombreCompleto" readonly>
+                        <input class="ui-control" type="text" [ngModel]="user.nombreCompleto" [ngModelOptions]="{standalone: true}" readonly>
                       </div>
                       <div class="ui-field ui-col-6">
                         <label class="ui-label">Correo institucional</label>
-                        <input class="ui-control" type="email" [(ngModel)]="user.email" readonly>
+                        <input class="ui-control" type="email" [ngModel]="user.email" [ngModelOptions]="{standalone: true}" readonly>
                       </div>
                       <div class="ui-field ui-col-6">
                         <label class="ui-label">Teléfono</label>
-                        <input class="ui-control" type="text" [(ngModel)]="user.telefono" readonly>
+                        <input class="ui-control" type="text" [ngModel]="user.telefono" [ngModelOptions]="{standalone: true}" readonly>
                       </div>
                       <div class="ui-field ui-col-6">
                         <label class="ui-label">Situación laboral</label>
-                        <input class="ui-control" type="text" [(ngModel)]="user.situacionLaboral" readonly>
+                        <input class="ui-control" type="text" [ngModel]="user.situacionLaboral" [ngModelOptions]="{standalone: true}" readonly>
                       </div>
                       <div class="ui-field ui-col-6">
                         <label class="ui-label">Unidad</label>
-                        <input class="ui-control" type="text" [(ngModel)]="user.unidadFisica" readonly>
+                        <input class="ui-control" type="text" [ngModel]="user.unidadFisica" [ngModelOptions]="{standalone: true}" readonly>
                       </div>
                       <div class="ui-field ui-col-6">
                         <label class="ui-label">Grupo donde labora</label>
-                        <input class="ui-control" type="text" [(ngModel)]="user.unidad" readonly>
+                        <input class="ui-control" type="text" [ngModel]="user.unidad" [ngModelOptions]="{standalone: true}" readonly>
                       </div>
                       <div class="ui-field ui-col-6">
                         <label class="ui-label">Cargo</label>
-                        <input class="ui-control" type="text" [(ngModel)]="user.cargo" readonly>
+                        <input class="ui-control" type="text" [ngModel]="user.cargo" [ngModelOptions]="{standalone: true}" readonly>
                       </div>
                     </div>
                   </article>
                 }
                 <!-- ── Pestaña datos: Usuario civil / otra entidad ────────────── -->
-                @if (activeTab === 'datos' && tipoCreacion === 'civil') {
-                  <article class="tab-card">
+                @if (activeTab() === 'datos' && tipoCreacion() === 'civil') {
+                  <article class="tab-card" [formGroup]="civilForm">
                     <p class="helper-text">
                       <i class="fa-solid fa-id-card"></i>
                       Usuario civil / otra entidad. Deja la contraseña en blanco para no modificarla.
@@ -149,54 +149,54 @@
                     <div class="ui-grid">
                       <div class="ui-field ui-col-6">
                         <label class="ui-label">Usuario (login)</label>
-                        <input class="ui-control" type="text" [(ngModel)]="civilForm.username" placeholder="username">
+                        <input class="ui-control" type="text" formControlName="username" placeholder="username">
                       </div>
                       <div class="ui-field ui-col-6">
                         <label class="ui-label">Nueva contraseña <small>(vacío = sin cambio)</small></label>
                         <div class="ui-input-group">
-                          <input class="ui-control" [type]="showPassword ? 'text' : 'password'"
-                            [(ngModel)]="civilForm.password" placeholder="Mínimo 8 caracteres">
+                          <input class="ui-control" [type]="showPassword() ? 'text' : 'password'"
+                            formControlName="password" placeholder="Mínimo 8 caracteres">
                           <button class="ui-addon-btn" type="button" (click)="toggleShowPassword()" title="Mostrar/ocultar">
-                            <i class="fa-solid" [class.fa-eye]="!showPassword" [class.fa-eye-slash]="showPassword"></i>
+                            <i class="fa-solid" [class.fa-eye]="!showPassword()" [class.fa-eye-slash]="showPassword()"></i>
                           </button>
                         </div>
                       </div>
                       <div class="ui-field ui-col-6">
                         <label class="ui-label">Nombres</label>
-                        <input class="ui-control" type="text" [(ngModel)]="civilForm.nombres">
+                        <input class="ui-control" type="text" formControlName="nombres">
                       </div>
                       <div class="ui-field ui-col-6">
                         <label class="ui-label">Apellidos</label>
-                        <input class="ui-control" type="text" [(ngModel)]="civilForm.apellidos">
+                        <input class="ui-control" type="text" formControlName="apellidos">
                       </div>
                       <div class="ui-field ui-col-6">
                         <label class="ui-label">Identificación</label>
-                        <input class="ui-control" type="text" [(ngModel)]="civilForm.identificacion">
+                        <input class="ui-control" type="text" formControlName="identificacion">
                       </div>
                       <div class="ui-field ui-col-6">
                         <label class="ui-label">Correo electrónico</label>
-                        <input class="ui-control" type="email" [(ngModel)]="civilForm.email">
+                        <input class="ui-control" type="email" formControlName="email">
                       </div>
                       <div class="ui-field ui-col-6">
                         <label class="ui-label">Entidad / Institución</label>
-                        <input class="ui-control" type="text" [(ngModel)]="civilForm.entidad">
+                        <input class="ui-control" type="text" formControlName="entidad">
                       </div>
                       <div class="ui-field ui-col-6">
                         <label class="ui-label">Cargo</label>
-                        <input class="ui-control" type="text" [(ngModel)]="civilForm.cargo">
+                        <input class="ui-control" type="text" formControlName="cargo">
                       </div>
                     </div>
                   </article>
                 }
-                @if (activeTab === 'datos') {
+                @if (activeTab() === 'datos') {
                   <div class="tab-actions">
-                    <button class="ui-btn primary" type="button" (click)="guardarDatosUsuario()" [disabled]="loading">
+                    <button class="ui-btn primary" type="button" (click)="guardarDatosUsuario()" [disabled]="loading()">
                       <i class="fa-solid fa-floppy-disk"></i>
-                      {{ loading ? 'Guardando...' : 'Guardar' }}
+                      {{ loading() ? 'Guardando...' : 'Guardar' }}
                     </button>
                   </div>
                 }
-                @if (activeTab === 'roles') {
+                @if (activeTab() === 'roles') {
                   <article class="tab-card">
                     <div class="roles-head">
                       <h3>Control de acceso</h3>
@@ -205,14 +205,14 @@
                         Agregar rol
                       </button>
                     </div>
-                    @if (showAddRoleForm) {
-                      <div class="role-add-form">
+                    @if (showAddRoleForm()) {
+                      <div class="role-add-form" [formGroup]="newRole">
                         <div class="ui-grid">
                           <div class="ui-field ui-col-6">
                             <label class="ui-label">Rol</label>
-                            <select class="ui-control" [(ngModel)]="newRole.rolId">
+                            <select class="ui-control" formControlName="rolId">
                               <option [ngValue]="null">Seleccione un rol</option>
-                              @for (role of rolesCatalogo; track role) {
+                              @for (role of rolesCatalogo(); track role.id) {
                                 <option [ngValue]="role.id">
                                   {{ role.nombre || ('Rol ' + role.id) }}
                                 </option>
@@ -221,11 +221,11 @@
                           </div>
                           <div class="ui-field ui-col-6">
                             <label class="ui-label">Fecha fin</label>
-                            <input class="ui-control" type="date" [(ngModel)]="newRole.fechaFin">
+                            <input class="ui-control" type="date" formControlName="fechaFin">
                           </div>
                           <div class="ui-field ui-col-12">
                             <label class="ui-label">Justificación</label>
-                            <textarea class="ui-control" rows="3" [(ngModel)]="newRole.justificacion" placeholder="Motivo de la asignación"></textarea>
+                            <textarea class="ui-control" rows="3" formControlName="justificacion" placeholder="Motivo de la asignación"></textarea>
                           </div>
                         </div>
                         <div class="tab-actions">
@@ -233,16 +233,16 @@
                             <i class="fa-solid fa-ban"></i>
                             Cancelar
                           </button>
-                          <button class="ui-btn primary" type="button" (click)="guardarRoles()" [disabled]="savingRole">
+                          <button class="ui-btn primary" type="button" (click)="guardarRoles()" [disabled]="savingRole()">
                             <i class="fa-solid fa-floppy-disk"></i>
-                            {{ savingRole ? 'Guardando...' : 'Guardar rol' }}
+                            {{ savingRole() ? 'Guardando...' : 'Guardar rol' }}
                           </button>
                         </div>
                       </div>
                     }
                     @if (user.roles.length > 0) {
                       <div class="roles-list">
-                        @for (rol of user.roles; track rol) {
+                        @for (rol of user.roles; track rol.id) {
                           <div class="role-item">
                             <div class="role-grid role-grid--labels">
                               <div class="role-label">
@@ -285,13 +285,13 @@
                                 class="ui-btn secondary"
                                 type="button"
                                 (click)="eliminarRol(rol)"
-                                [disabled]="deletingRoleId === rol.id || rol.estado !== 'Vigente'"
+                                [disabled]="deletingRoleId() === rol.id || rol.estado !== 'Vigente'"
                     [title]="rol.estado === 'Retirado' ? 'Este rol ya fue retirado por un administrador'
                            : rol.estado === 'Vencido'  ? 'Este rol ya venció por expiración de fecha'
                            : 'Retirar este rol al usuario'"
                                 >
                                 <i class="fa-solid fa-trash"></i>
-                                {{ deletingRoleId === rol.id ? 'Retirando...' : 'Retirar rol' }}
+                                {{ deletingRoleId() === rol.id ? 'Retirando...' : 'Retirar rol' }}
                               </button>
                             </div>
                           </div>
@@ -305,8 +305,8 @@
                   </article>
                 }
                 <!-- ── Tab: Datos Operacionales ────────────────────────────────── -->
-                @if (activeTab === 'operacion') {
-                  <article class="tab-card">
+                @if (activeTab() === 'operacion') {
+                  <article class="tab-card" [formGroup]="operacionForm">
                     <div class="roles-head">
                       <h3><i class="fa-solid fa-radio"></i> Asignación de Fuerza, Canal y ACD</h3>
                     </div>
@@ -318,28 +318,28 @@
                       <a routerLink="/administracion/entidades">Entidades / Fuerzas</a>.
                     </p>
                     <!-- Spinner carga operacional -->
-                    @if (loadingOperacion) {
+                    @if (loadingOperacion()) {
                       <div class="list-loading">
                         <i class="fa-solid fa-spinner fa-spin"></i> Cargando datos operacionales...
                       </div>
                     }
-                    @if (!loadingOperacion) {
+                    @if (!loadingOperacion()) {
                       <!-- Asignación actual (solo lectura, badge informativo) -->
-                      @if (operacionActual.fuerzaDescripcion || operacionActual.canalDescripcion) {
+                      @if (operacionActual().fuerzaDescripcion || operacionActual().canalDescripcion) {
                         <div class="operacion-actual">
                           <span class="op-badge">
                             <i class="fa-solid fa-building"></i>
-                            {{ operacionActual.fuerzaDescripcion ?? 'Sin fuerza' }}
+                            {{ operacionActual().fuerzaDescripcion ?? 'Sin fuerza' }}
                           </span>
                           <span class="op-sep"><i class="fa-solid fa-chevron-right"></i></span>
                           <span class="op-badge">
                             <i class="fa-solid fa-radio"></i>
-                            {{ operacionActual.canalDescripcion ?? 'Sin canal' }}
+                            {{ operacionActual().canalDescripcion ?? 'Sin canal' }}
                           </span>
                           <span class="op-sep"><i class="fa-solid fa-chevron-right"></i></span>
                           <span class="op-badge">
                             <i class="fa-solid fa-headset"></i>
-                            ACD {{ operacionForm.acd || '—' }}
+                            ACD {{ operacionForm.controls.acd.value || '—' }}
                           </span>
                         </div>
                       }
@@ -348,16 +348,16 @@
                         <div class="ui-field ui-col-6">
                           <label class="ui-label">Fuerza / Entidad</label>
                           <select class="ui-control"
-                            [(ngModel)]="operacionForm.cadcanaFuerzaId"
-                            (ngModelChange)="onFuerzaOperacionChange()">
+                            formControlName="cadcanaFuerzaId"
+                            (change)="onFuerzaOperacionChange()">
                             <option [ngValue]="0">— Sin asignación —</option>
-                            @for (f of fuerzasDisponibles; track f) {
+                            @for (f of fuerzasDisponibles(); track f.id) {
                               <option [ngValue]="f.id">
                                 {{ f.abreviatura ? '[' + f.abreviatura + '] ' : '' }}{{ f.descripcion }}
                               </option>
                             }
                           </select>
-                          @if (fuerzasDisponibles.length === 0) {
+                          @if (fuerzasDisponibles().length === 0) {
                             <small class="search-hint">
                               No hay fuerzas activas. Créalas en
                               <a routerLink="/administracion/entidades">Entidades / Fuerzas</a>.
@@ -368,16 +368,16 @@
                         <div class="ui-field ui-col-6">
                           <label class="ui-label">Canal de Despacho</label>
                           <select class="ui-control"
-                            [(ngModel)]="operacionForm.cadcanaCodigo"
-                            [disabled]="!operacionForm.cadcanaFuerzaId || operacionForm.cadcanaFuerzaId === 0">
+                            formControlName="cadcanaCodigo"
+                            [disabled]="!operacionForm.controls.cadcanaFuerzaId.value || operacionForm.controls.cadcanaFuerzaId.value === 0">
                             <option [ngValue]="0">— Sin canal —</option>
-                            @for (c of canalesDisponibles; track c) {
+                            @for (c of canalesDisponibles(); track c.codigo) {
                               <option [ngValue]="c.codigo">
                                 #{{ c.codigo }} — {{ c.descripcion }}
                               </option>
                             }
                           </select>
-                          @if (operacionForm.cadcanaFuerzaId > 0 && canalesDisponibles.length === 0) {
+                          @if (operacionForm.controls.cadcanaFuerzaId.value > 0 && canalesDisponibles().length === 0) {
                             <small class="search-hint"
                               >
                               Esta fuerza no tiene canales activos todavía.
@@ -388,19 +388,19 @@
                         <div class="ui-field ui-col-4">
                           <label class="ui-label">ACD (cola telefónica)</label>
                           <input class="ui-control" type="number" min="0" max="9999"
-                            [(ngModel)]="operacionForm.acd"
+                            formControlName="acd"
                             placeholder="0">
                           <small class="search-hint">Número de ACD asignado por la central telefónica.</small>
                         </div>
                       </div>
                       <div class="tab-actions">
                         <button class="ui-btn primary" type="button"
-                          (click)="guardarOperacion()" [disabled]="savingOperacion">
+                          (click)="guardarOperacion()" [disabled]="savingOperacion()">
                           <i class="fa-solid fa-floppy-disk"></i>
-                          {{ savingOperacion ? 'Guardando...' : 'Guardar datos operacionales' }}
+                          {{ savingOperacion() ? 'Guardando...' : 'Guardar datos operacionales' }}
                         </button>
                         <button class="ui-btn secondary" type="button"
-                          (click)="cargarOperacion()" [disabled]="loadingOperacion">
+                          (click)="cargarOperacion()" [disabled]="loadingOperacion()">
                           <i class="fa-solid fa-rotate"></i> Recargar
                         </button>
                       </div>
@@ -411,7 +411,7 @@
             </div>
           } @else {
             <!-- Panel de creación de nuevo usuario (modo activo) -->
-            @if (modoCreacionActivo) {
+            @if (modoCreacionActivo()) {
               <div class="creation-panel">
                 <div class="creation-header">
                   <h3><i class="fa-solid fa-user-plus"></i> Nuevo usuario</h3>
@@ -424,7 +424,7 @@
                   <button
                     class="tipo-btn"
                     type="button"
-                    [class.active]="tipoCreacion === 'policia'"
+                    [class.active]="tipoCreacion() === 'policia'"
                     (click)="setTipoCreacion('policia')"
                     >
                     <i class="fa-solid fa-shield-halved"></i>
@@ -433,7 +433,7 @@
                   <button
                     class="tipo-btn"
                     type="button"
-                    [class.active]="tipoCreacion === 'civil'"
+                    [class.active]="tipoCreacion() === 'civil'"
                     (click)="setTipoCreacion('civil')"
                     >
                     <i class="fa-solid fa-id-card"></i>
@@ -441,7 +441,7 @@
                   </button>
                 </div>
                 <!-- Formulario policial (búsqueda PIP) -->
-                @if (tipoCreacion === 'policia') {
+                @if (tipoCreacion() === 'policia') {
                   <div class="tab-card">
                     <p class="helper-text">
                       <i class="fa-solid fa-circle-info"></i>
@@ -450,16 +450,16 @@
                     <div class="empty-search">
                       <input class="ui-control" type="text" [(ngModel)]="searchIdentification"
                         placeholder="Cédula del funcionario" (keyup.enter)="consultarUsuario()">
-                      <button class="ui-btn secondary" type="button" (click)="consultarUsuario()" [disabled]="loading">
+                      <button class="ui-btn secondary" type="button" (click)="consultarUsuario()" [disabled]="loading()">
                         <i class="fa-solid fa-magnifying-glass"></i>
-                        {{ loading ? 'Consultando...' : 'Consultar OUD Ponal' }}
+                        {{ loading() ? 'Consultando...' : 'Consultar OUD Ponal' }}
                       </button>
                     </div>
                   </div>
                 }
                 <!-- Formulario civil (creación directa) -->
-                @if (tipoCreacion === 'civil') {
-                  <div class="tab-card">
+                @if (tipoCreacion() === 'civil') {
+                  <div class="tab-card" [formGroup]="civilForm">
                     <p class="helper-text">
                       <i class="fa-solid fa-circle-info"></i>
                       Los usuarios civiles acceden con usuario y contraseña asignados aquí. Su tenant
@@ -468,64 +468,64 @@
                     <div class="ui-grid">
                       <div class="ui-field ui-col-6">
                         <label class="ui-label">Usuario (login) <span class="required">*</span></label>
-                        <input class="ui-control" type="text" [(ngModel)]="civilForm.username"
+                        <input class="ui-control" type="text" formControlName="username"
                           placeholder="Ej: jperez.minjusticia">
                       </div>
                       <div class="ui-field ui-col-6">
                         <label class="ui-label">Contraseña <span class="required">*</span></label>
                         <div class="ui-input-group">
-                          <input class="ui-control" [type]="showPassword ? 'text' : 'password'"
-                            [(ngModel)]="civilForm.password" placeholder="Mínimo 8 caracteres">
+                          <input class="ui-control" [type]="showPassword() ? 'text' : 'password'"
+                            formControlName="password" placeholder="Mínimo 8 caracteres">
                           <button class="ui-addon-btn" type="button" (click)="toggleShowPassword()" title="Mostrar/ocultar">
-                            <i class="fa-solid" [class.fa-eye]="!showPassword" [class.fa-eye-slash]="showPassword"></i>
+                            <i class="fa-solid" [class.fa-eye]="!showPassword()" [class.fa-eye-slash]="showPassword()"></i>
                           </button>
                         </div>
                       </div>
                       <div class="ui-field ui-col-6">
                         <label class="ui-label">Nombres <span class="required">*</span></label>
-                        <input class="ui-control" type="text" [(ngModel)]="civilForm.nombres" placeholder="Ej: Juan">
+                        <input class="ui-control" type="text" formControlName="nombres" placeholder="Ej: Juan">
                       </div>
                       <div class="ui-field ui-col-6">
                         <label class="ui-label">Apellidos <span class="required">*</span></label>
-                        <input class="ui-control" type="text" [(ngModel)]="civilForm.apellidos" placeholder="Ej: Pérez Gómez">
+                        <input class="ui-control" type="text" formControlName="apellidos" placeholder="Ej: Pérez Gómez">
                       </div>
                       <div class="ui-field ui-col-6">
                         <label class="ui-label">Identificación</label>
-                        <input class="ui-control" type="text" [(ngModel)]="civilForm.identificacion"
+                        <input class="ui-control" type="text" formControlName="identificacion"
                           placeholder="Cédula o NIT">
                       </div>
                       <div class="ui-field ui-col-6">
                         <label class="ui-label">Correo electrónico</label>
-                        <input class="ui-control" type="email" [(ngModel)]="civilForm.email"
+                        <input class="ui-control" type="email" formControlName="email"
                           placeholder="correo@entidad.gov.co">
                       </div>
                       <div class="ui-field ui-col-6">
                         <label class="ui-label">Entidad / Institución</label>
-                        <input class="ui-control" type="text" [(ngModel)]="civilForm.entidad"
+                        <input class="ui-control" type="text" formControlName="entidad"
                           placeholder="Ej: Ministerio de Justicia">
                       </div>
                       <div class="ui-field ui-col-6">
                         <label class="ui-label">Cargo</label>
-                        <input class="ui-control" type="text" [(ngModel)]="civilForm.cargo"
+                        <input class="ui-control" type="text" formControlName="cargo"
                           placeholder="Ej: Analista de seguridad">
                       </div>
                       <div class="ui-field ui-col-12">
                         <label class="ui-label">Estado</label>
                         <div class="state-box">
-                          <span class="state-box__value" [class.inactive]="!civilForm.activo">
-                            {{ civilForm.activo ? 'ACTIVO' : 'INACTIVO' }}
+                          <span class="state-box__value" [class.inactive]="!civilForm.controls.activo.value">
+                            {{ civilForm.controls.activo.value ? 'ACTIVO' : 'INACTIVO' }}
                           </span>
-                          <button class="switch" type="button" [class.active]="civilForm.activo"
-                            (click)="civilForm.activo = !civilForm.activo">
+                          <button class="switch" type="button" [class.active]="civilForm.controls.activo.value"
+                            (click)="civilForm.controls.activo.setValue(!civilForm.controls.activo.value)">
                             <span></span>
                           </button>
                         </div>
                       </div>
                     </div>
                     <div class="tab-actions">
-                      <button class="ui-btn primary" type="button" (click)="guardarCivilUsuario()" [disabled]="loading">
+                      <button class="ui-btn primary" type="button" (click)="guardarCivilUsuario()" [disabled]="loading()">
                         <i class="fa-solid fa-floppy-disk"></i>
-                        {{ loading ? 'Guardando...' : 'Crear usuario civil' }}
+                        {{ loading() ? 'Guardando...' : 'Crear usuario civil' }}
                       </button>
                     </div>
                   </div>
@@ -533,7 +533,7 @@
               </div>
             }
             <!-- Estado vacío (no hay modo creación activo) -->
-            @if (!modoCreacionActivo) {
+            @if (!modoCreacionActivo()) {
               <div class="empty-state">
                 <i class="fa-solid fa-user-plus"></i>
                 <h3>Consulta un usuario para iniciar</h3>
@@ -542,9 +542,9 @@
                   <div class="empty-search">
                     <input class="ui-control" type="text" [(ngModel)]="searchIdentification"
                       placeholder="Identificación del funcionario" (keyup.enter)="consultarUsuario()">
-                    <button class="ui-btn secondary" type="button" (click)="consultarUsuario()" [disabled]="loading">
+                    <button class="ui-btn secondary" type="button" (click)="consultarUsuario()" [disabled]="loading()">
                       <i class="fa-solid fa-magnifying-glass"></i>
-                      {{ loading ? 'Consultando...' : 'Consultar' }}
+                      {{ loading() ? 'Consultando...' : 'Consultar' }}
                     </button>
                   </div>
                 </div>
@@ -554,15 +554,15 @@
               <div class="roles-head">
                 <h3>Usuarios existentes</h3>
                 <div class="table-head-actions">
-                  @if (!modoCreacionActivo) {
+                  @if (!modoCreacionActivo()) {
                     <button class="ui-btn primary" type="button" (click)="prepararNuevoUsuario()">
                       <i class="fa-solid fa-user-plus"></i>
                       Nuevo usuario
                     </button>
                   }
-                  <button class="ui-btn secondary" type="button" (click)="cargarListadoUsuarios()" [disabled]="loadingListado">
+                  <button class="ui-btn secondary" type="button" (click)="cargarListadoUsuarios()" [disabled]="loadingListado()">
                     <i class="fa-solid fa-rotate"></i>
-                    {{ loadingListado ? 'Cargando...' : 'Actualizar' }}
+                    {{ loadingListado() ? 'Cargando...' : 'Actualizar' }}
                   </button>
                 </div>
               </div>
@@ -579,10 +579,10 @@
                   <small class="search-hint">Al buscar, la tabla mostrará solo coincidencias desde el carácter {{ minSearchChars }}.</small>
                 </div>
               </div>
-              @if (loadingListado) {
+              @if (loadingListado()) {
                 <div class="list-loading">Consultando usuarios...</div>
               }
-              @if (!loadingListado && usuariosListado.length > 0) {
+              @if (!loadingListado() && usuariosListado().length > 0) {
                 <div class="table-wrap">
                   <table class="users-table">
                     <thead>
@@ -595,7 +595,7 @@
                       </tr>
                     </thead>
                     <tbody>
-                      @for (item of usuariosListadoPaginado; track item) {
+                      @for (item of usuariosListadoPaginado(); track item.idUsuario) {
                         <tr>
                           <td>{{ item.username || 'N/A' }}</td>
                           <td>{{ item.nombreCompleto || 'N/A' }}</td>
@@ -615,10 +615,10 @@
                       }
                     </tbody>
                   </table>
-                  @if (totalUsuariosListado > 0) {
+                  @if (totalUsuariosListado() > 0) {
                     <div class="table-pagination">
                       <span class="pagination-summary">
-                        Página {{ currentPage }} de {{ totalPaginasListado }} | Registros: {{ totalUsuariosListado }}
+                        Página {{ currentPage() }} de {{ totalPaginasListado() }} | Registros: {{ totalUsuariosListado() }}
                       </span>
                       <div class="pagination-actions">
                         <button class="ui-btn secondary" type="button" (click)="prevPaginaListado()" [disabled]="!canGoPrevListado()">
@@ -636,7 +636,7 @@
               } @else {
                 <div class="news-state">
                   {{
-                  isSearchMode
+                  isSearchMode()
                   ? ((searchNombreListado || '').trim().length < minSearchChars
                   ? ('Escribe mínimo ' + minSearchChars + ' caracteres para activar la búsqueda.')
                   : 'No hay resultados para la búsqueda.')
@@ -648,26 +648,28 @@
           </div>
         }
       </div>
-      @if (showDeleteUserModal) {
+      @if (showDeleteUserModal()) {
         <div class="modal-backdrop">
           <div class="modal-card">
             <h3>Confirmar eliminación de usuario</h3>
             <p>
-              Para eliminar el usuario <strong>{{ deletingTarget?.username }}</strong>, escribe
+              Para eliminar el usuario <strong>{{ deletingTarget()?.username }}</strong>, escribe
               <strong>ELIMINAR</strong>.
             </p>
             <input
               class="ui-control"
               type="text"
-              [(ngModel)]="deleteConfirmText"
+              [ngModel]="deleteConfirmText()"
+              (ngModelChange)="deleteConfirmText.set($event)"
+              [ngModelOptions]="{standalone: true}"
               placeholder="Escribe ELIMINAR"
               >
             <div class="tab-actions">
-              <button class="ui-btn secondary" type="button" (click)="cerrarModalEliminarUsuario()" [disabled]="deletingUser">
+              <button class="ui-btn secondary" type="button" (click)="cerrarModalEliminarUsuario()" [disabled]="deletingUser()">
                 Cancelar
               </button>
-              <button class="ui-btn primary" type="button" (click)="confirmarEliminarUsuario()" [disabled]="deletingUser">
-                {{ deletingUser ? 'Eliminando...' : 'Confirmar eliminación' }}
+              <button class="ui-btn primary" type="button" (click)="confirmarEliminarUsuario()" [disabled]="deletingUser()">
+                {{ deletingUser() ? 'Eliminando...' : 'Confirmar eliminación' }}
               </button>
             </div>
           </div>
