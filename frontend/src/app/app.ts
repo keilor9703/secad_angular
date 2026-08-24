@@ -1,5 +1,5 @@
-﻿import { CommonModule } from '@angular/common';
-import { Component, HostListener, OnDestroy } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { ChangeDetectionStrategy, Component, HostListener, OnDestroy, inject, signal } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 import { Subscription } from 'rxjs';
 
@@ -8,49 +8,65 @@ import { AlertService, AlertType } from './core/services/alert.service';
 import { BrandingService } from './core/services/administracion/branding.service';
 import { ModalVisorComponent } from './components/modal-visor/modal-visor';
 
+interface ToastState {
+  open: boolean;
+  type: ToastType;
+  title: string;
+  message: string;
+}
+
+interface AlertState {
+  open: boolean;
+  type: AlertType;
+  title: string;
+  message: string;
+  okText: string;
+}
+
 @Component({
   selector: 'app-root',
   templateUrl: './app.html',
   standalone: true,
-  imports: [RouterOutlet, CommonModule, ModalVisorComponent]
+  imports: [RouterOutlet, CommonModule, ModalVisorComponent],
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class AppComponent implements OnDestroy {
 
+  private toastService = inject(ToastService);
+  private alertService = inject(AlertService);
+  private brandingService = inject(BrandingService);
+
   // ===== TOAST =====
-  toast = {
+  readonly toast = signal<ToastState>({
     open: false,
-    type: 'success' as ToastType,
+    type: 'success',
     title: '',
     message: ''
-  };
+  });
 
   private toastTimer?: ReturnType<typeof setTimeout>;
   private toastSub: Subscription;
 
   // ===== ALERT MODAL =====
-  alert = {
+  readonly alert = signal<AlertState>({
     open: false,
-    type: 'info' as AlertType,
+    type: 'info',
     title: '',
     message: '',
     okText: 'OK'
-  };
+  });
 
   private alertSub: Subscription;
 
-  constructor(
-    private toastService: ToastService,
-    private alertService: AlertService,
-    private brandingService: BrandingService
-  ) {
+  constructor() {
     // Escucha TOAST global
     this.toastSub = this.toastService.toast$.subscribe(t => {
-      this.toast = {
+      this.toast.set({
         open: true,
         type: t.type,
         title: t.title,
         message: t.message
-      };
+      });
 
       clearTimeout(this.toastTimer);
       this.toastTimer = setTimeout(() => this.hideToast(), t.duration ?? 3500);
@@ -58,13 +74,13 @@ export class AppComponent implements OnDestroy {
 
     // Escucha ALERT MODAL global
     this.alertSub = this.alertService.alert$.subscribe(a => {
-      this.alert = {
+      this.alert.set({
         open: true,
         type: a.type,
         title: a.title,
         message: a.message,
         okText: a.okText ?? 'OK'
-      };
+      });
 
       // Bloquear scroll del fondo mientras esté la alerta
       document.body.classList.add('ui-modal-open');
@@ -100,19 +116,19 @@ export class AppComponent implements OnDestroy {
 
   // ===== TOAST API =====
   hideToast(): void {
-    this.toast.open = false;
+    this.toast.update(t => ({ ...t, open: false }));
   }
 
   // ===== ALERT API =====
   closeAlert(): void {
-    this.alert.open = false;
+    this.alert.update(a => ({ ...a, open: false }));
     document.body.classList.remove('ui-modal-open');
   }
 
   // Cerrar con ESC (prioridad: alerta)
   @HostListener('document:keydown.escape')
   onEsc(): void {
-    if (this.alert.open) this.closeAlert();
+    if (this.alert().open) this.closeAlert();
   }
 
   ngOnDestroy(): void {
@@ -123,4 +139,3 @@ export class AppComponent implements OnDestroy {
     document.body.classList.remove('ui-modal-open');
   }
 }
-

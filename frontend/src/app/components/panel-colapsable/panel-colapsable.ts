@@ -1,4 +1,4 @@
-import { Component, input, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
 
 
 /**
@@ -16,7 +16,8 @@ import { Component, input, output } from '@angular/core';
   standalone: true,
   imports: [],
   templateUrl: './panel-colapsable.html',
-  styleUrl: './panel-colapsable.scss'
+  styleUrl: './panel-colapsable.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class PanelColapsableComponent {
   readonly titulo = input('');
