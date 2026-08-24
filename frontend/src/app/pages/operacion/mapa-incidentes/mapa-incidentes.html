@@ -9,10 +9,10 @@
     <div class="topbar-titulo">
       <i class="fa-solid fa-map-location-dot"></i>
       <span>Mapa de Incidentes</span>
-      @if (cargando) {
+      @if (cargando()) {
         <span class="spinner-border spinner-border-sm text-light ms-2" role="status"></span>
       }
-      @if (errorCarga) {
+      @if (errorCarga()) {
         <span class="badge bg-danger ms-2">
           <i class="fa-solid fa-triangle-exclamation"></i> Error de conexión
         </span>
@@ -34,7 +34,7 @@
         <i class="fa-solid fa-spinner"></i> {{ totalEnProceso }} En proceso
       </div>
       <div class="stat-chip total">
-        <i class="fa-solid fa-list"></i> {{ incidentes.length }} Total
+        <i class="fa-solid fa-list"></i> {{ incidentes().length }} Total
       </div>
     </div>
 
@@ -56,11 +56,11 @@
 
       <!-- Filtro por canal — clave compuesta código::fuerza (el código solo no es
       único entre fuerzas); re-consulta el backend -->
-      @if (canalesDisponibles.length > 0) {
+      @if (canalesDisponibles().length > 0) {
         <select [ngModel]="canalKey(filtroCanal, filtroCanalFuerzaId)" (ngModelChange)="onCanalKeyChange($event)"
           class="filtro-select">
           <option [ngValue]="canalKey(0, 0)">Todos los canales</option>
-          @for (c of canalesDisponibles; track c) {
+          @for (c of canalesDisponibles(); track c) {
             <option [ngValue]="canalKey(c.codigo, c.fuerzaId)">
               {{ c.descripcion }} ({{ c.fuerzaDesc }})
             </option>
@@ -111,11 +111,11 @@
   <div class="mapa-contenido">
 
     <!-- MAPA -->
-    <div class="mapa-container" [class.panel-abierto]="panelAbierto">
+    <div class="mapa-container" [class.panel-abierto]="panelAbierto()">
       <div id="mapaIncidentesDiv" class="mapa-leaflet" role="application"
       aria-label="Mapa de incidentes activos"></div>
 
-      @if (mapaNoDisponible) {
+      @if (mapaNoDisponible()) {
         <div class="mapa-no-disponible" role="alert">
           <i class="fa-solid fa-triangle-exclamation"></i>
           No se pudo cargar el mapa. Recargue la página o contacte a soporte.
@@ -148,7 +148,7 @@
     <!-- /mapa-container -->
 
     <!-- PANEL LATERAL — Detalle del incidente seleccionado -->
-    <div class="panel-detalle" [class.visible]="panelAbierto">
+    <div class="panel-detalle" [class.visible]="panelAbierto()">
 
       <div class="panel-header">
         <div class="panel-header-titulo">
@@ -161,7 +161,7 @@
         </button>
       </div>
 
-      @if (incidenteSeleccionado; as inc) {
+      @if (incidenteSeleccionado(); as inc) {
         <div class="panel-body">
           <!-- Badge de prioridad y estado -->
           <div class="detalle-badges">
@@ -274,13 +274,13 @@
   <div class="mapa-lista">
     <div class="lista-header">
       <span>Incidentes en mapa</span>
-      <span class="lista-conteo">{{ incidentesFiltrados.length }} de {{ incidentes.length }}</span>
+      <span class="lista-conteo">{{ incidentesFiltrados().length }} de {{ incidentes().length }}</span>
     </div>
 
     <div class="lista-scroll">
 
       <!-- Estado vacío -->
-      @if (incidentesFiltrados.length === 0 && !cargando) {
+      @if (incidentesFiltrados().length === 0 && !cargando()) {
         <div class="lista-vacia">
           <i class="fa-solid fa-map-location-dot fa-2x" style="color:#ccc"></i>
           <div>No hay incidentes activos con coordenadas que coincidan con los filtros.</div>
@@ -288,10 +288,10 @@
       }
 
       <!-- Tarjetas de incidentes -->
-      @for (inc of incidentesFiltrados; track inc) {
+      @for (inc of incidentesFiltrados(); track inc) {
         <div
           class="lista-card"
-          [class.seleccionado]="incidenteSeleccionado?.id === inc.id"
+          [class.seleccionado]="incidenteSeleccionado()?.id === inc.id"
           (click)="seleccionarIncidente(inc)"
           >
           <!-- Barra lateral de color según prioridad -->

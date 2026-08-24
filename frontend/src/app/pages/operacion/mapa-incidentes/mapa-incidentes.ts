@@ -1,10 +1,12 @@
 import {
   Component,
+  ChangeDetectionStrategy,
   OnInit,
   OnDestroy,
   AfterViewInit,
   NgZone,
-  ChangeDetectorRef
+  inject,
+  signal
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -27,7 +29,8 @@ type PrioridadColor = '#cc0000' | '#e67300' | '#0066cc' | '#555555';
   standalone: true,
   imports: [CommonModule, FormsModule],
   templateUrl: './mapa-incidentes.html',
-  styleUrls: ['./mapa-incidentes.scss']
+  styleUrls: ['./mapa-incidentes.scss'],
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class MapaIncidentesComponent implements OnInit, AfterViewInit, OnDestroy {
 
@@ -36,12 +39,12 @@ export class MapaIncidentesComponent implements OnInit, AfterViewInit, OnDestroy
   codDane    = '';
 
   // ── Estado de la UI ───────────────────────────────────────────────────────
-  cargando      = false;
-  errorCarga    = false;
-  panelAbierto  = false;
+  readonly cargando      = signal(false);
+  readonly errorCarga    = signal(false);
+  readonly panelAbierto  = signal(false);
   /** true si la librería Leaflet no cargó (revisar index.html) — se muestra un mensaje en vez de un div vacío. */
-  mapaNoDisponible = false;
-  incidenteSeleccionado: DtoMapaIncidente | null = null;
+  readonly mapaNoDisponible = signal(false);
+  readonly incidenteSeleccionado = signal<DtoMapaIncidente | null>(null);
 
   // ── Búsqueda de dirección ─────────────────────────────────────────────────
   direccionBusqueda = '';
@@ -59,17 +62,17 @@ export class MapaIncidentesComponent implements OnInit, AfterViewInit, OnDestroy
   filtroCanalFuerzaId = 0;
 
   // ── Canales disponibles para el filtro ────────────────────────────────────
-  canalesDisponibles: DtoCanalItem[] = [];
+  readonly canalesDisponibles = signal<DtoCanalItem[]>([]);
 
   // ── Datos ─────────────────────────────────────────────────────────────────
-  incidentes:     DtoMapaIncidente[] = [];
-  incidentesFiltrados: DtoMapaIncidente[] = [];
+  readonly incidentes     = signal<DtoMapaIncidente[]>([]);
+  readonly incidentesFiltrados = signal<DtoMapaIncidente[]>([]);
 
   // ── Estadísticas rápidas ──────────────────────────────────────────────────
-  get totalActivos():   number { return this.incidentes.filter(i => i.estado === 'A').length; }
-  get totalPendientes():number { return this.incidentes.filter(i => i.estado === 'P').length; }
-  get totalEnProceso(): number { return this.incidentes.filter(i => ['E','T','R'].includes(i.estado)).length; }
-  get totalFlash():     number { return this.incidentes.filter(i => this.esFlash(i.prioridad)).length; }
+  get totalActivos():   number { return this.incidentes().filter(i => i.estado === 'A').length; }
+  get totalPendientes():number { return this.incidentes().filter(i => i.estado === 'P').length; }
+  get totalEnProceso(): number { return this.incidentes().filter(i => ['E','T','R'].includes(i.estado)).length; }
+  get totalFlash():     number { return this.incidentes().filter(i => this.esFlash(i.prioridad)).length; }
 
   // ── Mapa Leaflet ──────────────────────────────────────────────────────────
   private map:             any = null;
@@ -86,15 +89,12 @@ export class MapaIncidentesComponent implements OnInit, AfterViewInit, OnDestroy
   /** Dispara una recarga inmediata (cambio de filtro de canal) fuera del ciclo de polling. */
   private recargar$ = new Subject<void>();
 
-  constructor(
-    private auth:       AuthService,
-    private svc:        MapaService,
-    private eventoSvc:  EventoService,
-    private toast:      ToastService,
-    private zone:       NgZone,
-    private cdr:        ChangeDetectorRef,
-    private router:     Router
-  ) {}
+  private readonly auth      = inject(AuthService);
+  private readonly svc       = inject(MapaService);
+  private readonly eventoSvc = inject(EventoService);
+  private readonly toast     = inject(ToastService);
+  private readonly zone      = inject(NgZone);
+  private readonly router    = inject(Router);
 
   // ══════════════════════════════════════════════════════════════════════════
   //  Lifecycle
@@ -112,8 +112,7 @@ export class MapaIncidentesComponent implements OnInit, AfterViewInit, OnDestroy
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: data => {
-          this.canalesDisponibles = data ?? [];
-          this.cdr.detectChanges();
+          this.canalesDisponibles.set(data ?? []);
         },
         error: () => { /* no crítico — filtro de canal simplemente no aparece */ }
       });
@@ -125,9 +124,8 @@ export class MapaIncidentesComponent implements OnInit, AfterViewInit, OnDestroy
     // Registrar callback global para botones dentro de popups de Leaflet
     (window as any)._secadMapaAbrirDetalle = (id: string) => {
       this.zone.run(() => {
-        const inc = this.incidentes.find(i => i.id === id);
+        const inc = this.incidentes().find(i => i.id === id);
         if (inc) this.seleccionarIncidente(inc);
-        this.cdr.detectChanges();
       });
     };
   }
@@ -151,8 +149,7 @@ export class MapaIncidentesComponent implements OnInit, AfterViewInit, OnDestroy
   private initMap(): void {
     if (typeof L === 'undefined') {
       console.warn('[Mapa] Leaflet no disponible. Verifique index.html.');
-      this.mapaNoDisponible = true;
-      this.cdr.detectChanges();
+      this.mapaNoDisponible.set(true);
       return;
     }
 
@@ -193,26 +190,24 @@ export class MapaIncidentesComponent implements OnInit, AfterViewInit, OnDestroy
       filter(() => !document.hidden),
       startWith(0),
       switchMap(() => {
-        this.cargando = true;
+        this.cargando.set(true);
         return this.svc.getIncidentesActivos(this.sitioGraba, this.filtroCanal, this.filtroCanalFuerzaId);
       }),
       takeUntil(this.destroy$)
     ).subscribe({
       next: (data) => {
         this.zone.run(() => {
-          this.cargando    = false;
-          this.errorCarga  = false;
-          this.incidentes  = data;
+          this.cargando.set(false);
+          this.errorCarga.set(false);
+          this.incidentes.set(data);
           this.aplicarFiltros();
           this.sincronizarMarcadores(data);
-          this.cdr.detectChanges();
         });
       },
       error: () => {
         this.zone.run(() => {
-          this.cargando   = false;
-          this.errorCarga = true;
-          this.cdr.detectChanges();
+          this.cargando.set(false);
+          this.errorCarga.set(true);
         });
       }
     });
@@ -267,7 +262,6 @@ export class MapaIncidentesComponent implements OnInit, AfterViewInit, OnDestroy
           .on('click', () => {
             this.zone.run(() => {
               this.seleccionarIncidente(marker._incidente);
-              this.cdr.detectChanges();
             });
           });
         marker._prioridad = inc.prioridad;
@@ -476,7 +470,6 @@ export class MapaIncidentesComponent implements OnInit, AfterViewInit, OnDestroy
         const lon = parseFloat(data[0].lon);
         this.zone.run(() => {
           this.map?.setView([lat, lon], 17);
-          this.cdr.detectChanges();
         });
       })
       .catch(() => this.toast.error('Mapa', 'Error al geocodificar'));
@@ -491,7 +484,7 @@ export class MapaIncidentesComponent implements OnInit, AfterViewInit, OnDestroy
   // ══════════════════════════════════════════════════════════════════════════
 
   aplicarFiltros(): void {
-    let lista = this.incidentes;
+    let lista = this.incidentes();
 
     if (this.filtroEstado) {
       if (this.filtroEstado === 'EP') {
@@ -515,7 +508,7 @@ export class MapaIncidentesComponent implements OnInit, AfterViewInit, OnDestroy
       );
     }
 
-    this.incidentesFiltrados = lista;
+    this.incidentesFiltrados.set(lista);
 
     // Actualizar visibilidad de marcadores
     if (this.map) {
@@ -562,8 +555,8 @@ export class MapaIncidentesComponent implements OnInit, AfterViewInit, OnDestroy
   // ══════════════════════════════════════════════════════════════════════════
 
   seleccionarIncidente(inc: DtoMapaIncidente): void {
-    this.incidenteSeleccionado = inc;
-    this.panelAbierto = true;
+    this.incidenteSeleccionado.set(inc);
+    this.panelAbierto.set(true);
 
     // Centrar mapa en el incidente seleccionado
     const lat = parseFloat(inc.latitudCaso);
@@ -572,13 +565,11 @@ export class MapaIncidentesComponent implements OnInit, AfterViewInit, OnDestroy
       this.map.setView([lat, lng], 16);
       this.markers.get(inc.id)?.openPopup();
     }
-
-    this.cdr.detectChanges();
   }
 
   cerrarPanel(): void {
-    this.panelAbierto          = false;
-    this.incidenteSeleccionado = null;
+    this.panelAbierto.set(false);
+    this.incidenteSeleccionado.set(null);
   }
 
   /** Navega al módulo de Pedido con el ID del incidente seleccionado. */
