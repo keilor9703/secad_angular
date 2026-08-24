@@ -8,7 +8,7 @@ using System.Security.Claims;
 namespace Api.Controllers.Operacion
 {
     /// <summary>
-    /// Gestión de fotos adjuntas a pedidos de recepción.
+    /// Gestión de fotos (y grabaciones de videollamada) adjuntas a pedidos de recepción.
     /// El archivo se guarda en disco en este controlador; el servicio sólo maneja la BD.
     /// </summary>
     [ApiController]
@@ -17,13 +17,18 @@ namespace Api.Controllers.Operacion
     public class AdjuntoController : ControllerBase
     {
         private readonly IDbAdjuntoService          _svc;
+        private readonly IDbVideoLlamadaService      _videoSvc;
         private readonly ILogger<AdjuntoController> _logger;
         private readonly string                     _uploadsPath;
 
-        private const long MaxFotoBytes = 8 * 1024 * 1024; // 8 MB
+        private const long MaxFotoBytes  = 8 * 1024 * 1024;    // 8 MB
+        private const long MaxVideoBytes = 100 * 1024 * 1024;  // 100 MB — deja margen bajo el límite global de Kestrel (150 MB)
 
         private static readonly HashSet<string> AllowedExtensions =
             new(StringComparer.OrdinalIgnoreCase) { ".jpg", ".jpeg", ".png", ".webp" };
+
+        private static readonly HashSet<string> AllowedVideoExtensions =
+            new(StringComparer.OrdinalIgnoreCase) { ".webm", ".mp4" };
 
         private string UsuarioClaim => User.FindFirstValue(ClaimTypes.Name)
                                     ?? User.FindFirstValue("unique_name") ?? "sistema";
@@ -31,12 +36,14 @@ namespace Api.Controllers.Operacion
 
         public AdjuntoController(
             IDbAdjuntoService          svc,
+            IDbVideoLlamadaService     videoSvc,
             IConfiguration             configuration,
             IWebHostEnvironment        environment,
             ILogger<AdjuntoController> logger)
         {
-            _svc    = svc;
-            _logger = logger;
+            _svc      = svc;
+            _videoSvc = videoSvc;
+            _logger   = logger;
 
             var configured = configuration["AppSettings:UploadsPath"];
             var root = string.IsNullOrWhiteSpace(configured)
@@ -117,6 +124,82 @@ namespace Api.Controllers.Operacion
 
                 _logger.LogError(ex, "SubirAdjunto error pedidoId={Id}", req.PedidoId);
                 return StatusCode(500, new { success = false, message = "Error interno al subir la foto." });
+            }
+        }
+
+        // ── POST api/Adjunto/subir-video ─────────────────────────────────────────
+        // Grabación de una videollamada (MediaRecorder del navegador del
+        // despachador) — mismo patrón que SubirAdjunto, con límites propios de video.
+        [HttpPost("subir-video")]
+        [Consumes("multipart/form-data")]
+        [RequestSizeLimit(101 * 1024 * 1024)]
+        public async Task<IActionResult> SubirVideo(
+            [FromForm] DtoUploadAdjuntoRequest req,
+            [FromForm] long sesionId,
+            CancellationToken ct)
+        {
+            var file = req?.File;
+            if (file is null || file.Length == 0)
+                return BadRequest(new { success = false, message = "Archivo requerido." });
+
+            if (req!.PedidoId <= 0)
+                return BadRequest(new { success = false, message = "PedidoId requerido." });
+
+            if (file.Length > MaxVideoBytes)
+                return BadRequest(new { success = false, message = $"El video excede {MaxVideoBytes / 1024 / 1024} MB." });
+
+            var ext = Path.GetExtension(file.FileName)?.ToLowerInvariant() ?? "";
+            if (!AllowedVideoExtensions.Contains(ext))
+                return BadRequest(new { success = false, message = "Formato inválido. Use WEBM o MP4." });
+
+            if (!SecurityGuards.HasValidVideoSignature(file, ext))
+                return BadRequest(new { success = false, message = "Firma de archivo inválida." });
+
+            var sitio    = req.SitioGraba > 0 ? req.SitioGraba : SitioGraba;
+            var subDir   = Path.Combine(_uploadsPath, sitio.ToString(), req.PedidoId.ToString());
+            Directory.CreateDirectory(subDir);
+
+            var safeName = $"{Guid.NewGuid():N}{ext}";
+            var fullPath = Path.Combine(subDir, safeName);
+
+            try
+            {
+                await using (var stream = new FileStream(fullPath, FileMode.Create))
+                    await file.CopyToAsync(stream, ct);
+
+                var rutaRelativa = string.Join("/", "uploads", "adjuntos",
+                    sitio.ToString(), req.PedidoId.ToString(), safeName);
+
+                var adjunto = new DtoAdjunto
+                {
+                    PedidoId       = req.PedidoId,
+                    SitioGraba     = sitio,
+                    TipoAdjunto    = "VIDEO",
+                    NombreOriginal = Path.GetFileName(file.FileName),
+                    NombreGuardado = safeName,
+                    RutaRelativa   = rutaRelativa,
+                    MimeType       = file.ContentType,
+                    TamanioBytes   = file.Length,
+                    Descripcion    = req.Descripcion,
+                    CanalOrigen    = "VIDEOLLAMADA",
+                    SubidoPor      = UsuarioClaim,
+                    UrlPublica     = "/" + rutaRelativa
+                };
+
+                adjunto.Id = await _svc.RegistrarAdjuntoAsync(adjunto, ct);
+
+                if (sesionId > 0)
+                    await _videoSvc.VincularGrabacionAsync(sesionId, adjunto.Id, ct);
+
+                return Ok(new { success = true, data = adjunto, message = "Grabación subida correctamente." });
+            }
+            catch (Exception ex)
+            {
+                if (System.IO.File.Exists(fullPath))
+                    try { System.IO.File.Delete(fullPath); } catch { /* ignorar */ }
+
+                _logger.LogError(ex, "SubirVideo error pedidoId={Id} sesionId={Sesion}", req.PedidoId, sesionId);
+                return StatusCode(500, new { success = false, message = "Error interno al subir la grabación." });
             }
         }
 

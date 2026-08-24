@@ -1,5 +1,6 @@
 using Api.BackgroundServices;
 using Api.Converters;
+using Api.Hubs;
 using Api.Services;
 using Servicios.Api;
 using Servicios.ApiInterfaz;
@@ -87,6 +88,22 @@ builder.Services.AddAuthentication("Bearer")
             ValidAudience = jwtAudience,
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey))
         };
+
+        // SignalR: el navegador no puede poner cabecera Authorization en el
+        // handshake WebSocket, así que el cliente manda el JWT como
+        // ?access_token=... — solo se acepta así para las rutas del hub,
+        // el resto de la API sigue exigiendo la cabecera Authorization normal.
+        options.Events = new JwtBearerEvents
+        {
+            OnMessageReceived = ctx =>
+            {
+                var accessToken = ctx.Request.Query["access_token"];
+                var path = ctx.HttpContext.Request.Path;
+                if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/api/hubs"))
+                    ctx.Token = accessToken;
+                return Task.CompletedTask;
+            }
+        };
     });
 
 builder.Services.AddAuthorization(options =>
@@ -140,6 +157,16 @@ builder.Services.AddScoped<IApiWebToken, ApiWebToken>();
 builder.Services.AddHttpClient<IMfaCentralService, MfaCentralService>(c =>
     c.Timeout = TimeSpan.FromSeconds(10));
 builder.Services.AddSingleton<MfaSessionTokenService>();
+
+// ── Videollamada en vivo con el ciudadano (WebRTC señalizado por VideoSignalingHub) ──
+// VideoSessionTokenService: singleton, mismo criterio que MfaSessionTokenService.
+// IProveedorSms: sin proveedor de SMS saliente contratado todavía — LogOnlyProveedorSms
+// deja el link en el log y en la respuesta HTTP para copiarlo manualmente mientras tanto.
+builder.Services.AddSingleton<VideoSessionTokenService>();
+builder.Services.AddScoped<IProveedorSms, LogOnlyProveedorSms>();
+builder.Services.AddScoped<IDbVideoLlamadaRepository, DbVideoLlamadaRepository>();
+builder.Services.AddScoped<IDbVideoLlamadaService, DbVideoLlamadaService>();
+builder.Services.AddSignalR();
 
 // Data repositories
 builder.Services.AddScoped<IDbMasterRepository, DbMasterRepository>();
@@ -288,6 +315,7 @@ app.UseMiddleware<TenantMiddleware>();
 
 app.UseAuthorization();
 app.MapControllers();
+app.MapHub<VideoSignalingHub>("/api/hubs/video");
 app.MapGet("/health", () => Results.Ok("OK"));
 
 app.Run();

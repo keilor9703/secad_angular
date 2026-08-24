@@ -1,0 +1,70 @@
+:host {
+  display: block;
+  min-height: 100vh;
+  background: #0b1e33;
+}
+
+.vc-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.vc-card {
+  width: 100%;
+  max-width: 420px;
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 28px 24px;
+  text-align: center;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+
+  h1 {
+    font-size: 1.15rem;
+    margin: 12px 0 18px;
+    color: #0b1e33;
+  }
+}
+
+.vc-escudo {
+  width: 64px;
+  height: 64px;
+  object-fit: contain;
+}
+
+.vc-msg {
+  margin: 6px 0;
+  color: #374151;
+  font-size: 0.95rem;
+
+  &--error { color: #b91c1c; font-weight: 600; }
+  &--ok    { color: #15803d; font-weight: 600; }
+}
+
+.vc-video-local {
+  width: 100%;
+  border-radius: 8px;
+  background: #000;
+  margin-top: 14px;
+  max-height: 360px;
+  object-fit: cover;
+
+  &--oculto { display: none; }
+}
+
+.vc-btn-colgar {
+  margin-top: 16px;
+  width: 100%;
+  padding: 12px;
+  border: none;
+  border-radius: 8px;
+  background: #dc2626;
+  color: #fff;
+  font-weight: 600;
+  font-size: 0.95rem;
+  cursor: pointer;
+
+  &:hover { background: #b91c1c; }
+}

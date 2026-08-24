@@ -1,0 +1,46 @@
+<div class="vc-page">
+  <div class="vc-card">
+    <img src="/escudo.png" alt="Policía Nacional" class="vc-escudo">
+    <h1>Videollamada con la Policía</h1>
+
+    @switch (estado) {
+      @case ('validando') {
+        <p class="vc-msg">Validando enlace…</p>
+      }
+      @case ('invalido') {
+        <p class="vc-msg vc-msg--error">{{ mensajeError }}</p>
+      }
+      @case ('pidiendo-permiso') {
+        <p class="vc-msg">Este enlace fue enviado por la Policía Nacional para atender su emergencia.</p>
+        <p class="vc-msg">Solicitando acceso a su cámara y micrófono…</p>
+      }
+      @case ('permiso-denegado') {
+        <p class="vc-msg vc-msg--error">
+          No fue posible acceder a su cámara y micrófono. Verifique los permisos del navegador y vuelva a abrir el enlace.
+        </p>
+      }
+      @case ('esperando') {
+        <p class="vc-msg">Conectando con el despachador…</p>
+      }
+      @case ('conectada') {
+        <p class="vc-msg vc-msg--ok">Conectado</p>
+      }
+      @case ('finalizada') {
+        <p class="vc-msg">La videollamada finalizó. Puede cerrar esta ventana.</p>
+      }
+      @case ('error') {
+        <p class="vc-msg vc-msg--error">{{ mensajeError || 'Ocurrió un error de conexión.' }}</p>
+      }
+    }
+
+    <!-- El elemento de video se mantiene siempre montado (aunque oculto) para que la
+         referencia #videoLocal esté disponible en cuanto se conceden los permisos,
+         sin depender del timing del @switch. -->
+    <video #videoLocal autoplay playsinline muted class="vc-video-local"
+           [class.vc-video-local--oculto]="estado !== 'esperando' && estado !== 'conectada'"></video>
+
+    @if (estado === 'conectada') {
+      <button type="button" class="vc-btn-colgar" (click)="colgar()">Finalizar</button>
+    }
+  </div>
+</div>

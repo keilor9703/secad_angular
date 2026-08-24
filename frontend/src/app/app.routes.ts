@@ -23,6 +23,12 @@ import { TurnosComponent } from './pages/operacion/turnos/turnos';
 export const routes: Routes = [
   { path: '', redirectTo: 'login', pathMatch: 'full' },
   { path: 'login', component: LoginComponent },
+  // ─── Página pública del ciudadano (videollamada) — sin authGuard, el token
+  // de la URL es la única credencial. Ver video-ciudadano.ts. ────────────────
+  {
+    path: 'video/:token',
+    loadComponent: () => import('./pages/operacion/video-ciudadano/video-ciudadano').then(m => m.VideoCiudadanoComponent)
+  },
   {
     path: '',
     component: LayoutComponent,

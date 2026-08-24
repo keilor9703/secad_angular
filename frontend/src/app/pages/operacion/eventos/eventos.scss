@@ -2826,6 +2826,39 @@ html.dark-mode {
 
 
 // -- Fotos adjuntas del caso ---------------------------------------------------
+// ─── Videollamada con el ciudadano ─────────────────────────────────────────
+.ev-video-panel {
+  display:        flex;
+  flex-direction: column;
+  gap:            10px;
+}
+
+.ev-video-link {
+  display: flex;
+  gap:     8px;
+
+  input { flex: 1; }
+}
+
+.ev-video-mensaje {
+  margin:     0;
+  font-size:  0.85rem;
+  color:      var(--ui-text-muted, #6b7280);
+}
+
+.ev-video-remoto {
+  width:            100%;
+  max-height:       360px;
+  border-radius:    8px;
+  background:       #000;
+  object-fit:       contain;
+}
+
+.ev-video-controles {
+  display: flex;
+  gap:     8px;
+}
+
 .ev-adjuntos-grid {
   display:   flex;
   flex-wrap: wrap;

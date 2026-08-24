@@ -47,6 +47,7 @@ import {
   DtoCanalSeleccionado,
   DtoAdjunto
 } from '../../../core/services/operacion/recepcion.service';
+import { VideoLlamadaService, EstadoLlamada } from '../../../core/services/operacion/video-llamada.service';
 import { PanelColapsableComponent } from '../../../components/panel-colapsable/panel-colapsable';
 import { animateMarkerTo, stopMarkerAnimation } from '../../../shared/utils/leaflet-marker-animator';
 
@@ -74,6 +75,7 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
   private asistenteSvc  = inject(AsistenteService);
   private agenciaSvc    = inject(AgenciaExternaService);
   private recepcionSvc  = inject(RecepcionService);
+  private videoSvc      = inject(VideoLlamadaService);
   private toast         = inject(ToastService);
   private cdr           = inject(ChangeDetectorRef);
 
@@ -337,6 +339,18 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
   // ─── Adjuntos (fotos del pedido) ──────────────────────────────────────────────
   adjuntos: DtoAdjunto[] = [];
 
+  // ─── Videollamada con el ciudadano (WebRTC P2P) ──────────────────────────────
+  videollamadaAbierta      = true;
+  videollamadaEstado:       EstadoLlamada = 'inactiva';
+  videollamadaLink          = '';
+  videollamadaMensaje       = '';
+  videollamadaTelefono      = '';
+  creandoVideollamada       = false;
+  videollamadaRemoteStream: MediaStream | null = null;
+  grabandoVideollamada      = false;
+  private videoSesionId     = '';
+  private videoSubs         = new Subscription();
+
   // ─── §6.17 Asistente Inteligente ─────────────────────────────────────────────
   /** Panel colapsable visible en el detalle del evento. */
   asistenteAbierto      = false;
@@ -397,6 +411,17 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
 
     // Load available channels for the selector
     this.cargarCanales();
+
+    // ── Videollamada — reflejar estado/track remoto del servicio en la UI ─────
+    this.videoSubs.add(
+      this.videoSvc.estado$.subscribe(e => { this.videollamadaEstado = e; })
+    );
+    this.videoSubs.add(
+      this.videoSvc.remoteStream$.subscribe(s => { this.videollamadaRemoteStream = s; })
+    );
+    this.videoSubs.add(
+      this.videoSvc.error$.subscribe(msg => { if (msg) this.toast.error('Videollamada', msg); })
+    );
 
     // ── Preferencia de alerta sonora (persistida por navegador) ───────────────
     const sonidoGuardado = localStorage.getItem(this.SONIDO_KEY);
@@ -527,6 +552,8 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
 
   ngOnDestroy(): void {
     this.subs.unsubscribe();
+    this.videoSubs.unsubscribe();
+    if (this.videollamadaEstado !== 'inactiva') this.videoSvc.colgar();
     this.destroyMapaDetalle();
     this.detenerPollingRecursos();
     this.detenerPollingActuaciones();
@@ -698,6 +725,8 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
     this.duplicados            = [];
     this.duplicadosDescartados = false;
     this.detenerPollingPresencia();
+    this.resetVideollamada();
+    this.videollamadaTelefono  = String(evento.numeTelefono ?? '');
     // Snapshot del id pedido: si el dispatcher selecciona OTRO evento antes de que
     // esta respuesta llegue, una respuesta fuera de orden no debe pisar el panel
     // que ya está mostrando el evento más reciente.
@@ -758,6 +787,7 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
     this.estadoHistorial    = [];
     this.duplicados         = [];
     this.resetAsistente();
+    this.resetVideollamada();
   }
 
   // ─── Estado change ────────────────────────────────────────────────────────────
@@ -968,6 +998,70 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
     if (!ref) return 0;
     const ms = Date.now() - new Date(ref).getTime();
     return ms > 0 ? Math.floor(ms / 60000) : 0;
+  }
+
+  // ─── Videollamada con el ciudadano (WebRTC P2P, sin SFU) ─────────────────────
+
+  private resetVideollamada(): void {
+    if (this.videollamadaEstado !== 'inactiva') this.videoSvc.colgar();
+    this.videollamadaLink     = '';
+    this.videollamadaMensaje  = '';
+    this.grabandoVideollamada = false;
+    this.videoSesionId        = '';
+  }
+
+  /** Crea la sesión, envía el link por SMS y abre la señalización a la espera del ciudadano. */
+  iniciarVideollamada(): void {
+    if (!this.detalle || this.creandoVideollamada) return;
+    if (!this.videollamadaTelefono.trim()) {
+      this.toast.warning('Videollamada', 'Ingrese el número de teléfono del ciudadano.');
+      return;
+    }
+    this.creandoVideollamada = true;
+    this.videoSvc.crearSesion(this.detalle.id, this.videollamadaTelefono.trim())
+      .then(async (r) => {
+        this.creandoVideollamada = false;
+        if (!r.success) {
+          this.toast.error('Videollamada', r.message || 'No se pudo crear la sesión.');
+          return;
+        }
+        this.videoSesionId       = r.sesionId;
+        this.videollamadaLink    = `${window.location.origin}/video/${r.sessionToken}`;
+        this.videollamadaMensaje = r.message;
+        this.toast[r.smsEnviado ? 'success' : 'warning']('Videollamada', r.message);
+        await this.videoSvc.iniciar(r.sesionId);
+      })
+      .catch((e) => {
+        this.creandoVideollamada = false;
+        this.toast.error('Videollamada', e?.error?.message ?? 'Error al crear la videollamada.');
+      });
+  }
+
+  copiarLinkVideollamada(): void {
+    if (!this.videollamadaLink) return;
+    navigator.clipboard?.writeText(this.videollamadaLink)
+      .then(() => this.toast.success('Videollamada', 'Enlace copiado al portapapeles.'))
+      .catch(() => {});
+  }
+
+  toggleGrabacionVideollamada(): void {
+    if (this.grabandoVideollamada) {
+      if (!this.detalle) return;
+      this.grabandoVideollamada = false;
+      this.videoSvc.detenerYSubirGrabacion(this.detalle.id, this.detalle.sitioGraba)
+        .then(() => this.toast.success('Videollamada', 'Grabación subida al caso.'))
+        .catch(() => this.toast.error('Videollamada', 'No se pudo subir la grabación.'));
+    } else {
+      this.videoSvc.iniciarGrabacion();
+      this.grabandoVideollamada = true;
+    }
+  }
+
+  colgarVideollamada(): void {
+    if (this.grabandoVideollamada) this.toggleGrabacionVideollamada();
+    this.videoSvc.colgar();
+    this.videollamadaLink    = '';
+    this.videollamadaMensaje = '';
   }
 
   // ─── Plantillas rápidas de anotaciones ───────────────────────────────────────

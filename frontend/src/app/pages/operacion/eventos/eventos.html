@@ -1276,6 +1276,75 @@
                 </app-panel-colapsable>
               }
 
+              <!-- VIDEOLLAMADA CON EL CIUDADANO (WebRTC P2P) -->
+              @if (detalle.estado !== 'C') {
+                <app-panel-colapsable titulo="Videollamada con el ciudadano" icono="fa-solid fa-video"
+                                      [(abierto)]="videollamadaAbierta">
+                  <div style="padding:12px 14px;">
+                    @if (videollamadaEstado === 'inactiva' || videollamadaEstado === 'finalizada') {
+                      <div class="ui-grid" style="gap:10px; align-items:end;">
+                        <div class="ui-field ui-col-8">
+                          <label class="ui-label">Teléfono del ciudadano</label>
+                          <input class="ui-control" type="text"
+                                 [(ngModel)]="videollamadaTelefono"
+                                 placeholder="Número al que se enviará el enlace…">
+                        </div>
+                        <div class="ui-col-4">
+                          <button type="button" class="ui-btn ui-btn-primary" style="width:100%;"
+                                  [disabled]="creandoVideollamada"
+                                  (click)="iniciarVideollamada()">
+                            @if (creandoVideollamada) { Creando… } @else { <i class="fa-solid fa-video"></i> Iniciar }
+                          </button>
+                        </div>
+                      </div>
+                    } @else {
+                      <div class="ev-video-panel">
+                        <div class="ev-video-estado">
+                          @switch (videollamadaEstado) {
+                            @case ('esperando')  { <span class="ui-badge ui-badge-warning">Esperando al ciudadano…</span> }
+                            @case ('conectando') { <span class="ui-badge ui-badge-warning">Conectando…</span> }
+                            @case ('conectada')  { <span class="ui-badge ui-badge-success">Conectada</span> }
+                            @case ('error')      { <span class="ui-badge ui-badge-danger">Error de conexión</span> }
+                          }
+                        </div>
+
+                        @if (videollamadaLink) {
+                          <div class="ev-video-link">
+                            <input class="ui-control" type="text" readonly [value]="videollamadaLink">
+                            <button type="button" class="ui-btn ui-btn-secondary" (click)="copiarLinkVideollamada()">
+                              <i class="fa-solid fa-copy"></i> Copiar
+                            </button>
+                          </div>
+                          @if (videollamadaMensaje) {
+                            <p class="ev-video-mensaje">{{ videollamadaMensaje }}</p>
+                          }
+                        }
+
+                        @if (videollamadaEstado === 'conectada') {
+                          <video #videoRemoto autoplay playsinline class="ev-video-remoto"
+                                 [srcObject]="videollamadaRemoteStream"></video>
+                        }
+
+                        <div class="ev-video-controles">
+                          @if (videollamadaEstado === 'conectada') {
+                            <button type="button" class="ui-btn"
+                                    [class.ui-btn-danger]="grabandoVideollamada"
+                                    [class.ui-btn-secondary]="!grabandoVideollamada"
+                                    (click)="toggleGrabacionVideollamada()">
+                              <i class="fa-solid" [class.fa-record-vinyl]="!grabandoVideollamada" [class.fa-stop]="grabandoVideollamada"></i>
+                              {{ grabandoVideollamada ? 'Detener grabación' : 'Grabar' }}
+                            </button>
+                          }
+                          <button type="button" class="ui-btn ui-btn-danger" (click)="colgarVideollamada()">
+                            <i class="fa-solid fa-phone-slash"></i> Colgar
+                          </button>
+                        </div>
+                      </div>
+                    }
+                  </div>
+                </app-panel-colapsable>
+              }
+
               <!-- ANOTACIONES -->
               <app-panel-colapsable [titulo]="'Anotaciones (' + detalle.anotaciones.length + ')'"
                                     icono="fa-solid fa-notes-medical"
