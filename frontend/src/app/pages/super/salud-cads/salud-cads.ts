@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, ChangeDetectionStrategy, DestroyRef, OnInit, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { SuperAdminService, TenantPublico, SaludHistorial } from '../../../core/services/super-admin.service';
@@ -9,89 +9,90 @@ import { ToastService } from '../../../core/services/toast.service';
   templateUrl: './salud-cads.html',
   styleUrls: ['./salud-cads.scss'],
   standalone: true,
-  imports: [CommonModule, FormsModule]
+  imports: [CommonModule, FormsModule],
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class SaludCadsComponent implements OnInit, OnDestroy {
-  cads: TenantPublico[] = [];
-  loading   = false;
-  minimized = false;
-  lastUpdated: Date | null = null;
+export class SaludCadsComponent implements OnInit {
+  private readonly service = inject(SuperAdminService);
+  private readonly toast   = inject(ToastService);
+
+  readonly cads        = signal<TenantPublico[]>([]);
+  readonly loading     = signal(false);
+  readonly minimized   = signal(false);
+  readonly lastUpdated = signal<Date | null>(null);
 
   // Selected CAD for historial panel
-  selectedCad: TenantPublico | null = null;
-  historial: SaludHistorial[] = [];
-  loadingHistorial = false;
-  showHistorial    = false;
+  readonly selectedCad      = signal<TenantPublico | null>(null);
+  readonly historial        = signal<SaludHistorial[]>([]);
+  readonly loadingHistorial = signal(false);
+  readonly showHistorial    = signal(false);
 
   // Filter
-  filterNivel = 0;  // 0 = all
-  filterText  = '';
+  readonly filterNivel = signal(0);  // 0 = all
+  readonly filterText  = signal('');
 
   // Auto-refresh
   private refreshInterval: any;
   readonly REFRESH_SECONDS = 30;
-  nextRefreshIn = this.REFRESH_SECONDS;
-  paused        = false;
+  readonly nextRefreshIn = signal(this.REFRESH_SECONDS);
+  readonly paused        = signal(false);
 
-  constructor(
-    private service: SuperAdminService,
-    private toast:   ToastService
-  ) {}
+  constructor() {
+    inject(DestroyRef).onDestroy(() => clearInterval(this.refreshInterval));
+  }
 
   ngOnInit(): void {
     this.load();
     this.startAutoRefresh();
   }
 
-  ngOnDestroy(): void {
-    clearInterval(this.refreshInterval);
-  }
-
   load(): void {
-    this.loading = true;
+    this.loading.set(true);
     this.service.getSaludCads().subscribe({
       next: data => {
-        this.cads        = data;
-        this.loading     = false;
-        this.lastUpdated = new Date();
+        this.cads.set(data);
+        this.loading.set(false);
+        this.lastUpdated.set(new Date());
         this.checkAlerts();
       },
       error: () => {
-        this.loading = false;
+        this.loading.set(false);
         this.toast.error('Error', 'Error al cargar datos de salud.');
       }
     });
   }
 
-  get filteredCads(): TenantPublico[] {
-    return this.cads.filter(c => {
-      const matchNivel = this.filterNivel === 0 || c.nivelOperacion === this.filterNivel;
-      const matchText  = !this.filterText ||
-        c.nombre.toLowerCase().includes(this.filterText.toLowerCase()) ||
-        c.codDane.includes(this.filterText);
+  readonly filteredCads = computed(() => {
+    const nivel = this.filterNivel();
+    const text  = this.filterText().toLowerCase();
+    return this.cads().filter(c => {
+      const matchNivel = nivel === 0 || c.nivelOperacion === nivel;
+      const matchText  = !text ||
+        c.nombre.toLowerCase().includes(text) ||
+        c.codDane.includes(this.filterText());
       return matchNivel && matchText;
     });
-  }
+  });
 
-  get totalNormal():    number { return this.cads.filter(c => c.nivelOperacion === 1).length; }
-  get totalDegradado(): number { return this.cads.filter(c => c.nivelOperacion === 2).length; }
-  get totalOffline():   number { return this.cads.filter(c => c.nivelOperacion === 3).length; }
+  readonly totalNormal    = computed(() => this.cads().filter(c => c.nivelOperacion === 1).length);
+  readonly totalDegradado = computed(() => this.cads().filter(c => c.nivelOperacion === 2).length);
+  readonly totalOffline   = computed(() => this.cads().filter(c => c.nivelOperacion === 3).length);
 
   openHistorial(cad: TenantPublico): void {
-    this.selectedCad     = cad;
-    this.showHistorial   = true;
-    this.historial       = [];
-    this.loadingHistorial = true;
+    this.selectedCad.set(cad);
+    this.showHistorial.set(true);
+    this.historial.set([]);
+    this.loadingHistorial.set(true);
 
     this.service.getHistorial(cad.codDane, 48).subscribe({
-      next: data => { this.historial = data; this.loadingHistorial = false; },
-      error: ()   => { this.loadingHistorial = false; this.toast.error('Error', 'Error al cargar historial.'); }
+      next: data => { this.historial.set(data); this.loadingHistorial.set(false); },
+      error: ()   => { this.loadingHistorial.set(false); this.toast.error('Error', 'Error al cargar historial.'); }
     });
   }
 
   closeHistorial(): void {
-    this.showHistorial = false;
-    this.selectedCad   = null;
+    this.showHistorial.set(false);
+    this.selectedCad.set(null);
   }
 
   nivelLabel = (n: number) => this.service.nivelLabel(n);
@@ -116,7 +117,7 @@ export class SaludCadsComponent implements OnInit, OnDestroy {
   }
 
   private checkAlerts(): void {
-    const alertas = this.cads.filter(c => c.nivelOperacion >= 2);
+    const alertas = this.cads().filter(c => c.nivelOperacion >= 2);
     if (alertas.length > 0) {
       const names = alertas.map(c => c.nombre).join(', ');
       this.toast.warning(
@@ -127,9 +128,10 @@ export class SaludCadsComponent implements OnInit, OnDestroy {
   }
 
   togglePause(): void {
-    this.paused = !this.paused;
+    const nowPaused = !this.paused();
+    this.paused.set(nowPaused);
 
-    if (this.paused) {
+    if (nowPaused) {
       // Detener el intervalo y congelar el contador
       clearInterval(this.refreshInterval);
       this.refreshInterval = null;
@@ -141,12 +143,12 @@ export class SaludCadsComponent implements OnInit, OnDestroy {
   }
 
   private startAutoRefresh(): void {
-    this.nextRefreshIn = this.REFRESH_SECONDS;
+    this.nextRefreshIn.set(this.REFRESH_SECONDS);
     this.refreshInterval = setInterval(() => {
-      this.nextRefreshIn--;
-      if (this.nextRefreshIn <= 0) {
+      this.nextRefreshIn.update(v => v - 1);
+      if (this.nextRefreshIn() <= 0) {
         this.load();
-        this.nextRefreshIn = this.REFRESH_SECONDS;
+        this.nextRefreshIn.set(this.REFRESH_SECONDS);
       }
     }, 1000);
   }

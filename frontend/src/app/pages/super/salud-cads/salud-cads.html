@@ -10,35 +10,35 @@
       <div class="ui-panel__actions ui-window-controls">
 
         <!-- Contador de refresco (solo visible cuando activo) -->
-        @if (!paused) {
+        @if (!paused()) {
           <span class="refresh-badge">
             <i class="fa-regular fa-clock"></i>
-            {{ nextRefreshIn }}s
+            {{ nextRefreshIn() }}s
           </span>
         }
 
         <!-- Botón pausar / reanudar monitoreo -->
         <button class="ui-btn sm"
-          [class.monitor-paused]="paused"
-          [class.secondary]="!paused"
+          [class.monitor-paused]="paused()"
+          [class.secondary]="!paused()"
           type="button"
           (click)="togglePause()"
-          [title]="paused ? 'Reanudar monitoreo automático' : 'Pausar monitoreo automático'">
-          <i class="fa-solid" [ngClass]="paused ? 'fa-play' : 'fa-pause'"></i>
-          {{ paused ? 'Reanudar' : 'Pausar' }}
+          [title]="paused() ? 'Reanudar monitoreo automático' : 'Pausar monitoreo automático'">
+          <i class="fa-solid" [ngClass]="paused() ? 'fa-play' : 'fa-pause'"></i>
+          {{ paused() ? 'Reanudar' : 'Pausar' }}
         </button>
 
         <button class="ui-icon-btn ui-win-btn is-min" type="button" title="Minimizar"
-          (click)="minimized = !minimized">
+          (click)="minimized.set(!minimized())">
           <i class="fa-solid fa-minus"></i>
         </button>
       </div>
     </div>
 
-    @if (!minimized) {
+    @if (!minimized()) {
       <div class="ui-panel__body">
         <!-- Banner: monitoreo pausado -->
-        @if (paused) {
+        @if (paused()) {
           <div class="monitor-pause-banner">
             <i class="fa-solid fa-circle-pause"></i>
             <span>
@@ -53,25 +53,25 @@
         <!-- Tarjetas resumen -->
         <div class="summary-row">
           <div class="summary-tile summary-tile--ok">
-            <span class="summary-tile__count">{{ totalNormal }}</span>
+            <span class="summary-tile__count">{{ totalNormal() }}</span>
             <span class="summary-tile__label">
               <i class="fa-solid fa-circle-check"></i> Normal
             </span>
           </div>
           <div class="summary-tile summary-tile--warn">
-            <span class="summary-tile__count">{{ totalDegradado }}</span>
+            <span class="summary-tile__count">{{ totalDegradado() }}</span>
             <span class="summary-tile__label">
               <i class="fa-solid fa-triangle-exclamation"></i> Degradado
             </span>
           </div>
           <div class="summary-tile summary-tile--err">
-            <span class="summary-tile__count">{{ totalOffline }}</span>
+            <span class="summary-tile__count">{{ totalOffline() }}</span>
             <span class="summary-tile__label">
               <i class="fa-solid fa-circle-xmark"></i> Offline
             </span>
           </div>
           <div class="summary-tile summary-tile--info">
-            <span class="summary-tile__count">{{ cads.length }}</span>
+            <span class="summary-tile__count">{{ cads().length }}</span>
             <span class="summary-tile__label">
               <i class="fa-solid fa-server"></i> Total CADs
             </span>
@@ -81,12 +81,12 @@
         <div class="ui-grid filter-grid">
           <div class="ui-field ui-col-6">
             <label class="ui-label">Buscar CAD</label>
-            <input class="ui-control" type="text" [(ngModel)]="filterText"
+            <input class="ui-control" type="text" [ngModel]="filterText()" (ngModelChange)="filterText.set($event)"
               placeholder="Nombre o código DANE…">
           </div>
           <div class="ui-field ui-col-4">
             <label class="ui-label">Nivel operación</label>
-            <select class="ui-control" [(ngModel)]="filterNivel">
+            <select class="ui-control" [ngModel]="filterNivel()" (ngModelChange)="filterNivel.set($event)">
               <option [ngValue]="0">Todos</option>
               <option [ngValue]="1">Normal</option>
               <option [ngValue]="2">Degradado</option>
@@ -94,26 +94,26 @@
             </select>
           </div>
           <div class="ui-col-2 filter-actions">
-            <button class="ui-btn secondary" (click)="load()" [disabled]="loading">
-              <i class="fa-solid" [ngClass]="loading ? 'fa-spinner fa-spin' : 'fa-arrows-rotate'"></i>
+            <button class="ui-btn secondary" (click)="load()" [disabled]="loading()">
+              <i class="fa-solid" [ngClass]="loading() ? 'fa-spinner fa-spin' : 'fa-arrows-rotate'"></i>
               Actualizar
             </button>
           </div>
         </div>
         <p class="filter-meta meta">
-          Mostrando {{ filteredCads.length }} de {{ cads.length }} CADs
-          @if (lastUpdated) {
-            · Actualizado {{ lastUpdated | date:'HH:mm:ss' }}
+          Mostrando {{ filteredCads().length }} de {{ cads().length }} CADs
+          @if (lastUpdated(); as fecha) {
+            · Actualizado {{ fecha | date:'HH:mm:ss' }}
           }
         </p>
         <!-- Grilla de tarjetas CAD -->
-        @if (!loading) {
+        @if (!loading()) {
           <div class="cad-grid">
-            @for (c of filteredCads; track c) {
+            @for (c of filteredCads(); track c.id) {
               <div class="cad-card"
                 [class.cad-card--degradado]="c.nivelOperacion === 2"
                 [class.cad-card--offline]="c.nivelOperacion === 3"
-                [class.cad-card--selected]="selectedCad?.id === c.id">
+                [class.cad-card--selected]="selectedCad()?.id === c.id">
                 <div class="cad-card__band">
                   <span class="ui-badge" [ngClass]="nivelClass(c.nivelOperacion)">
                     <i class="fa-solid" [ngClass]="nivelIcon(c.nivelOperacion)"></i>
@@ -160,14 +160,14 @@
               </div>
             }
             <!-- Estado vacío -->
-            @if (filteredCads.length === 0 && cads.length > 0) {
+            @if (filteredCads().length === 0 && cads().length > 0) {
               <div class="cad-grid__empty"
                 >
                 <i class="fa-solid fa-filter-slash fa-2x"></i>
                 <p>Sin resultados para el filtro aplicado.</p>
               </div>
             }
-            @if (cads.length === 0) {
+            @if (cads().length === 0) {
               <div class="cad-grid__empty">
                 <i class="fa-solid fa-server fa-2x"></i>
                 <p>No hay tenants registrados.</p>
@@ -186,12 +186,12 @@
 
 
     <!-- ─── Panel historial (aparece al seleccionar un CAD) ──────────────────── -->
-    @if (showHistorial) {
+    @if (showHistorial()) {
       <div class="ui-panel historial-panel">
         <div class="ui-panel__head">
           <div class="ui-panel__title">
             <i class="fa-solid fa-chart-line"></i>
-            Historial — {{ selectedCad?.nombre }}
+            Historial — {{ selectedCad()?.nombre }}
             <span class="meta">· últimas 48 h</span>
           </div>
           <div class="ui-panel__actions ui-window-controls">
@@ -202,12 +202,12 @@
           </div>
         </div>
         <div class="ui-panel__body">
-          @if (loadingHistorial) {
+          @if (loadingHistorial()) {
             <div class="list-loading">
               <i class="fa-solid fa-spinner fa-spin"></i> Cargando historial...
             </div>
           }
-          @if (!loadingHistorial && historial.length > 0) {
+          @if (!loadingHistorial() && historial().length > 0) {
             <div class="historial-table-wrap">
               <table class="historial-tbl">
                 <thead>
@@ -219,7 +219,7 @@
                   </tr>
                 </thead>
                 <tbody>
-                  @for (h of historial; track h) {
+                  @for (h of historial(); track h.id) {
                     <tr class="historial-row">
                       <td class="col-fecha">{{ h.registradoEn | date:'dd/MM/yyyy HH:mm' }}</td>
                       <td class="col-estado">
@@ -253,7 +253,7 @@
               </table>
             </div>
           }
-          @if (!loadingHistorial && historial.length === 0) {
+          @if (!loadingHistorial() && historial().length === 0) {
             <div class="news-state">
               Sin registros históricos para este CAD en las últimas 48 horas.
             </div>
