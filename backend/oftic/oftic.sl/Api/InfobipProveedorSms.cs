@@ -66,7 +66,7 @@ namespace Servicios.Api
                     new InfobipMensaje
                     {
                         Destinations = new[] { new InfobipDestino { To = destino } },
-                        Text         = mensaje,
+                        Content      = new InfobipContent { Text = mensaje },
                         From         = string.IsNullOrWhiteSpace(_cfg["Sms:Infobip:Sender"])
                             ? null
                             : _cfg["Sms:Infobip:Sender"]!.Trim()
@@ -131,7 +131,12 @@ namespace Servicios.Api
         {
             public InfobipDestino[] Destinations { get; init; } = Array.Empty<InfobipDestino>();
             public string?          From         { get; init; }
-            public string           Text         { get; init; } = "";
+            public InfobipContent   Content      { get; init; } = new();
+        }
+
+        private sealed class InfobipContent
+        {
+            public string Text { get; init; } = "";
         }
 
         private sealed class InfobipDestino
