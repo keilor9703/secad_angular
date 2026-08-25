@@ -81,9 +81,30 @@ export class VideoCiudadanoComponent implements OnInit, OnDestroy {
 
   private async pedirPermisos(): Promise<void> {
     this.estado.set('pidiendo-permiso');
+
+    if (!navigator.mediaDevices?.getUserMedia) {
+      // Los navegadores solo exponen getUserMedia en un "contexto seguro"
+      // (HTTPS, o localhost) — si el enlace se abrió por HTTP en un host
+      // distinto de localhost, la API ni siquiera existe y nunca se llega a
+      // pedir el permiso nativo.
+      this.mensajeError.set(
+        'Este enlace debe abrirse con conexión segura (https://). Contacte al despachador para que verifique el enlace enviado.'
+      );
+      this.estado.set('permiso-denegado');
+      return;
+    }
+
     try {
       this.localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-    } catch {
+    } catch (err) {
+      const nombre = err instanceof DOMException ? err.name : '';
+      this.mensajeError.set(
+        nombre === 'NotFoundError' || nombre === 'DevicesNotFoundError'
+          ? 'No se encontró una cámara o micrófono en este dispositivo.'
+          : nombre === 'NotReadableError' || nombre === 'TrackStartError'
+            ? 'La cámara o el micrófono ya están siendo usados por otra aplicación.'
+            : 'No fue posible acceder a su cámara y micrófono. Verifique los permisos del navegador y vuelva a abrir el enlace.'
+      );
       this.estado.set('permiso-denegado');
       return;
     }

@@ -16,7 +16,7 @@
       }
       @case ('permiso-denegado') {
         <p class="vc-msg vc-msg--error">
-          No fue posible acceder a su cámara y micrófono. Verifique los permisos del navegador y vuelva a abrir el enlace.
+          {{ mensajeError() || 'No fue posible acceder a su cámara y micrófono. Verifique los permisos del navegador y vuelva a abrir el enlace.' }}
         </p>
       }
       @case ('esperando') {
