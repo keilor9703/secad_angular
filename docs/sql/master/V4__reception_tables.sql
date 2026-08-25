@@ -54,18 +54,28 @@ CREATE TABLE IF NOT EXISTS cad_canales (
 
 CREATE INDEX IF NOT EXISTS idx_canales_fuerza ON cad_canales(cadfuerz_id);
 
--- 7. CTI interface table (incoming telephony events)
-CREATE TABLE IF NOT EXISTS cad_interfaz_cti (
-    id             BIGSERIAL    PRIMARY KEY,
-    sitio_graba    INTEGER      NOT NULL DEFAULT 0,
-    acd            INTEGER      NOT NULL DEFAULT 0,
-    registrada     CHAR(1)      NOT NULL DEFAULT 'N',
-    nume_telefono  BIGINT,
-    fecha_registro TIMESTAMPTZ  DEFAULT NOW()
-);
+-- 7. CTI interface table (incoming telephony events) — renombrada a
+-- cad_plantatel por V38. El IF NOT EXISTS de abajo no basta por sí solo: en
+-- una re-corrida completa DESPUÉS de que V38 ya renombró la tabla, esta
+-- CREATE (mirando solo el nombre viejo) la recrearía vacía, y V38 luego
+-- fallaría al intentar renombrarla porque el nombre nuevo ya existe. Se
+-- comprueba también que cad_plantatel no exista ya.
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_tables WHERE tablename = 'cad_plantatel') THEN
+        CREATE TABLE IF NOT EXISTS cad_interfaz_cti (
+            id             BIGSERIAL    PRIMARY KEY,
+            sitio_graba    INTEGER      NOT NULL DEFAULT 0,
+            acd            INTEGER      NOT NULL DEFAULT 0,
+            registrada     CHAR(1)      NOT NULL DEFAULT 'N',
+            nume_telefono  BIGINT,
+            fecha_registro TIMESTAMPTZ  DEFAULT NOW()
+        );
 
-CREATE INDEX IF NOT EXISTS idx_cti_sitio_acd_reg
-    ON cad_interfaz_cti(sitio_graba, acd, registrada);
+        CREATE INDEX IF NOT EXISTS idx_cti_sitio_acd_reg
+            ON cad_interfaz_cti(sitio_graba, acd, registrada);
+    END IF;
+END $$;
 
 -- 8. SECAD reference catalog (TIPO_PEDIDO, CALI_PEDIDO, ESTADO_CASO, …)
 CREATE TABLE IF NOT EXISTS cad_referencias_secad (
