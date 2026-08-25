@@ -6,7 +6,7 @@ services:
     image: secad-api:latest
     container_name: secad-api
     ports:
-      - "8088:8088"
+      - "${API_PORT:-8088}:8088"
     environment:
       - ASPNETCORE_ENVIRONMENT=Production
       - TZ=America/Bogota
@@ -21,6 +21,18 @@ services:
       # en appsettings.json y protege los endpoints de ingesta (PlantaTel/Chat/SMS).
       - RecepcionExterna__ApiKey=${RECEPCION_EXTERNA_API_KEY}
       - AppSettings__UploadsPath=/app/uploads
+      # Dominio público real de este despliegue — VideoLlamadaController lo usa
+      # para armar el link que se envía al ciudadano (.../video/{token}). Sin
+      # este override, appsettings.json trae el dominio de producción hardcoded
+      # (https://secad.policia.gov.co) y el link de cualquier otro despliegue
+      # (staging, otro servidor) apuntaría al lugar equivocado.
+      - ApiSettings__SecadBaseUrl=${SECAD_BASE_URL}
+      # Envío de SMS del link de videollamada (Infobip). Si se dejan vacías,
+      # InfobipProveedorSms degrada solo (log + false) sin romper el flujo — el
+      # despachador siempre puede copiar el link manualmente.
+      - Sms__Infobip__BaseUrl=${INFOBIP_BASE_URL:-}
+      - Sms__Infobip__ApiKey=${INFOBIP_API_KEY:-}
+      - Sms__Infobip__Sender=${INFOBIP_SENDER:-}
     volumes:
       - uploads:/app/uploads
     restart: unless-stopped
@@ -39,7 +51,7 @@ services:
     image: secad-frontend:latest
     container_name: secad-frontend
     ports:
-      - "80:80"
+      - "${FRONTEND_PORT:-80}:80"
     depends_on:
       - api
     restart: unless-stopped
