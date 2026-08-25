@@ -42,6 +42,30 @@ services:
       timeout: 5s
       retries: 5
 
+  # Postgres del tenant 11001 (CAD Bogotá D.C.) — la fila de secad_tenants para
+  # este cod_dane venía apuntando a un Postgres local de desarrollo
+  # (localhost:5433) que no existe en este servidor; se le da su propio
+  # contenedor aislado, igual que a Cali. dbHost=postgres-bogota en
+  # secad_tenants tras cargar el esquema aquí.
+  postgres-bogota:
+    image: postgres:16-alpine
+    container_name: secad-postgres-bogota
+    environment:
+      - POSTGRES_DB=${POSTGRES_BOGOTA_DB:-Secad_Bogota}
+      - POSTGRES_USER=${POSTGRES_BOGOTA_USER:-secad_bogota_app}
+      - POSTGRES_PASSWORD=${POSTGRES_BOGOTA_PASSWORD}
+      - TZ=America/Bogota
+    volumes:
+      - pgdata_bogota:/var/lib/postgresql/data
+    restart: unless-stopped
+    networks:
+      - secad-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_BOGOTA_USER:-secad_bogota_app} -d ${POSTGRES_BOGOTA_DB:-Secad_Bogota}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   api:
     build:
       context: .
@@ -116,6 +140,7 @@ volumes:
   uploads:
   pgdata:
   pgdata_cali:
+  pgdata_bogota:
 
 networks:
   secad-network:
