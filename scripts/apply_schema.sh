@@ -38,6 +38,10 @@ MASTER_FILES=(
   "V1__master_schema.sql"
   "V23__master_salud_cad.sql"
   "V41__tenant_gespo_sigla_unidad.sql"
+  # V31 toca secad_tenants (master) Y cad_sitios_grabacion (tenant) en el
+  # mismo archivo — cada bloque se protege comprobando que su tabla exista,
+  # así que es seguro correrlo contra ambas bases (ver el archivo).
+  "V31__tenant_sitio_grabacion_codane.sql"
 )
 
 # Todos los demás, EN ORDEN — aplican a cada base de datos de tenant/CAD.
