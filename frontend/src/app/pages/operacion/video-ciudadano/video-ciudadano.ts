@@ -52,6 +52,8 @@ export class VideoCiudadanoComponent implements OnInit, OnDestroy {
   readonly chatDisponible = signal(false);
   readonly chatAbierto = signal(false);
   readonly chatTexto = signal('');
+  /** true mientras el navegador está reportando la posición GPS al despachador. */
+  readonly ubicacionActiva = signal(false);
 
   private readonly token: string;
   private sesionId = '';
@@ -60,6 +62,7 @@ export class VideoCiudadanoComponent implements OnInit, OnDestroy {
   private localStream: MediaStream | null = null;
   private facingModeActual: 'environment' | 'user' = 'environment';
   private dataChannel: RTCDataChannel | null = null;
+  private watchId: number | null = null;
 
   /** Ver comentario equivalente en video-llamada.service.ts (lado despachador). */
   private construirIceServers(): RTCIceServer[] {
@@ -188,10 +191,36 @@ export class VideoCiudadanoComponent implements OnInit, OnDestroy {
     try {
       await this.hub.start();
       await this.hub.invoke('JoinAsCiudadano', this.token);
+      this.iniciarUbicacion();
     } catch {
       this.estado.set('error');
       this.mensajeError.set('No fue posible conectar con el despachador.');
     }
+  }
+
+  /**
+   * Comparte la posición GPS en vivo con el despachador (además del video) para
+   * que pueda ubicar al ciudadano y despachar recursos con precisión. Es
+   * best-effort: si el navegador no soporta geolocalización o el ciudadano
+   * niega el permiso, la llamada sigue funcionando igual, solo sin este dato
+   * — el mismo criterio que ya se aplica al micrófono del despachador.
+   */
+  private iniciarUbicacion(): void {
+    if (!navigator.geolocation) return;
+
+    this.watchId = navigator.geolocation.watchPosition(
+      (pos) => {
+        this.ubicacionActiva.set(true);
+        const { latitude, longitude, accuracy } = pos.coords;
+        this.hub?.invoke('EnviarUbicacion', this.sesionId, latitude, longitude, accuracy).catch(() => { /* conexión caída, se reintentará con la próxima posición */ });
+      },
+      (err) => {
+        // eslint-disable-next-line no-console
+        console.warn('[video-ciudadano] geolocalización no disponible:', err.message);
+        this.ubicacionActiva.set(false);
+      },
+      { enableHighAccuracy: true, maximumAge: 5000, timeout: 15000 }
+    );
   }
 
   private prepararPeerConnection(): void {
@@ -317,6 +346,11 @@ export class VideoCiudadanoComponent implements OnInit, OnDestroy {
     this.dataChannel = null;
     this.localStream?.getTracks().forEach(t => t.stop());
     this.localStream = null;
+    if (this.watchId !== null) {
+      navigator.geolocation.clearWatch(this.watchId);
+      this.watchId = null;
+    }
+    this.ubicacionActiva.set(false);
     const audioRef = this.audioRemotoRef();
     if (audioRef) audioRef.nativeElement.srcObject = null;
     if (this.estado() !== 'invalido' && this.estado() !== 'permiso-denegado') this.estado.set('finalizada');

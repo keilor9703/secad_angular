@@ -1343,6 +1343,21 @@
                           }
                         }
 
+                        @if (videollamadaUbicacion(); as ubic) {
+                          <div class="ev-video-ubicacion">
+                            <div id="ev-video-mapa" class="ev-video-mapa"></div>
+                            <div class="ev-video-ubicacion-info">
+                              <span><i class="fa-solid fa-location-dot"></i> Ubicación en vivo del ciudadano
+                                @if (ubic.precision) { <small>(precisión ~{{ ubic.precision | number:'1.0-0' }} m)</small> }
+                              </span>
+                              <a class="ui-btn ui-btn-secondary" [href]="'https://www.google.com/maps?q=' + ubic.lat + ',' + ubic.lng"
+                                 target="_blank" rel="noopener">
+                                <i class="fa-solid fa-up-right-from-square"></i> Abrir en Google Maps
+                              </a>
+                            </div>
+                          </div>
+                        }
+
                         @if (videollamadaEstado() === 'conectada') {
                           <div class="ev-video-frame">
                             <video #videoRemoto autoplay playsinline class="ev-video-remoto"

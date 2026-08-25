@@ -21,6 +21,9 @@ namespace Datos.Interfaz
         /// <summary>Vincula el adjunto de la grabación subida al cerrar la sesión.</summary>
         Task VincularGrabacionAsync(long sesionId, long adjuntoId, CancellationToken ct);
 
+        /// <summary>Sobrescribe la última ubicación GPS conocida del ciudadano (no es histórico, solo la más reciente).</summary>
+        Task ActualizarUbicacionAsync(long sesionId, double lat, double lng, double? precision, CancellationToken ct);
+
         /// <summary>Barrido de sesiones PENDIENTE cuya fecha_expira ya pasó → EXPIRADA. Llamado bajo demanda, no hay job de fondo.</summary>
         Task ExpirarVencidasAsync(CancellationToken ct);
     }

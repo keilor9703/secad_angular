@@ -48,7 +48,7 @@ import {
   DtoCanalSeleccionado,
   DtoAdjunto
 } from '../../../core/services/operacion/recepcion.service';
-import { VideoLlamadaService, EstadoLlamada, ChatMensaje } from '../../../core/services/operacion/video-llamada.service';
+import { VideoLlamadaService, EstadoLlamada, ChatMensaje, UbicacionCiudadano } from '../../../core/services/operacion/video-llamada.service';
 import { PanelColapsableComponent } from '../../../components/panel-colapsable/panel-colapsable';
 import { animateMarkerTo, stopMarkerAnimation } from '../../../shared/utils/leaflet-marker-animator';
 
@@ -356,6 +356,9 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
   grabandoVideollamada      = false;
   private videoSesionId     = '';
   private videoSubs         = new Subscription();
+  readonly videollamadaUbicacion = signal<UbicacionCiudadano | null>(null);
+  private videoMapa: any = null;
+  private videoMapaMarker: any = null;
 
   // ─── §6.17 Asistente Inteligente ─────────────────────────────────────────────
   /** Panel colapsable visible en el detalle del evento. */
@@ -436,6 +439,12 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
     );
     this.videoSubs.add(
       this.videoSvc.chatMensajes$.subscribe((msgs: ChatMensaje[]) => { this.videollamadaChatMensajes.set(msgs); })
+    );
+    this.videoSubs.add(
+      this.videoSvc.ubicacion$.subscribe(u => {
+        this.videollamadaUbicacion.set(u);
+        if (u) this.actualizarMapaUbicacion(u);
+      })
     );
 
     // ── Preferencia de alerta sonora (persistida por navegador) ───────────────
@@ -567,6 +576,7 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
     this.subs.unsubscribe();
     this.videoSubs.unsubscribe();
     if (this.videollamadaEstado() !== 'inactiva') this.videoSvc.colgar();
+    this.destruirMapaUbicacion();
     this.destroyMapaDetalle();
     this.detenerPollingRecursos();
     this.detenerPollingActuaciones();
@@ -1035,6 +1045,41 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
     this.videoSesionId        = '';
     this.videollamadaChatAbierto = false;
     this.videollamadaChatTexto   = '';
+    this.videollamadaUbicacion.set(null);
+    this.destruirMapaUbicacion();
+  }
+
+  /**
+   * Crea (la primera vez) o reposiciona el mini-mapa Leaflet con la última
+   * ubicación GPS del ciudadano. Se hace en un setTimeout porque el <div>
+   * contenedor se renderiza condicionalmente (@if) — hay que esperar al
+   * siguiente tick para que ya exista en el DOM antes de L.map().
+   */
+  private actualizarMapaUbicacion(u: UbicacionCiudadano): void {
+    setTimeout(() => {
+      if (typeof L === 'undefined') return;
+      const el = document.getElementById('ev-video-mapa');
+      if (!el) return;
+
+      if (!this.videoMapa) {
+        this.videoMapa = L.map('ev-video-mapa', { zoomControl: false, attributionControl: false }).setView([u.lat, u.lng], 16);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(this.videoMapa);
+        this.videoMapaMarker = L.marker([u.lat, u.lng]).addTo(this.videoMapa);
+      } else {
+        this.videoMapa.setView([u.lat, u.lng]);
+        this.videoMapaMarker.setLatLng([u.lat, u.lng]);
+      }
+      this.videoMapa.invalidateSize();
+    }, 0);
+  }
+
+  private destruirMapaUbicacion(): void {
+    if (this.videoMapa) {
+      this.videoMapa.off();
+      this.videoMapa.remove();
+      this.videoMapa = null;
+      this.videoMapaMarker = null;
+    }
   }
 
   /** Crea la sesión, envía el link por SMS y abre la señalización a la espera del ciudadano. */
@@ -1094,6 +1139,8 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
     this.videollamadaMensaje.set('');
     this.videollamadaChatAbierto = false;
     this.videollamadaChatTexto   = '';
+    this.videollamadaUbicacion.set(null);
+    this.destruirMapaUbicacion();
   }
 
   /**
