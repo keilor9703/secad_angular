@@ -15,10 +15,35 @@
       }
     </div>
 
+    @if (chatAbierto()) {
+      <div class="vc-chat">
+        <div class="vc-chat-mensajes">
+          @if (chatMensajes().length === 0) {
+            <p class="vc-chat-vacio">Puede escribirle al despachador sin hablar en voz alta.</p>
+          }
+          @for (m of chatMensajes(); track $index) {
+            <div class="vc-chat-burbuja" [class.vc-chat-burbuja--propia]="m.propio">
+              <span>{{ m.texto }}</span>
+              <small>{{ m.hora }}</small>
+            </div>
+          }
+        </div>
+        <form class="vc-chat-form" (submit)="enviarChat(); $event.preventDefault()">
+          <input type="text" placeholder="Escriba un mensaje…" [value]="chatTexto()"
+                 (input)="chatTexto.set($any($event.target).value)">
+          <button type="submit" aria-label="Enviar"><i class="fa-solid fa-paper-plane"></i></button>
+        </form>
+      </div>
+    }
+
     <div class="vc-call-bottom">
       <button type="button" class="vc-btn-icon" (click)="cambiarCamara()" [disabled]="cambiandoCamara()"
               aria-label="Cambiar cámara" title="Cambiar cámara">
         <i class="fa-solid fa-camera-rotate"></i>
+      </button>
+      <button type="button" class="vc-btn-icon" (click)="toggleChat()" aria-label="Chat" title="Chat">
+        <i class="fa-solid fa-comment"></i>
+        @if (!chatAbierto() && chatMensajes().length > 0) { <span class="vc-chat-badge"></span> }
       </button>
       <button type="button" class="vc-btn-colgar-round" (click)="colgar()" aria-label="Finalizar" title="Finalizar">
         <i class="fa-solid fa-phone-slash"></i>
