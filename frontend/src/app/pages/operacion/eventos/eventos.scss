@@ -2846,12 +2846,64 @@ html.dark-mode {
   color:      var(--ui-text-muted, #6b7280);
 }
 
+// Contenedor con relación de aspecto fija (retrato, la más común en video de
+// celular sostenido en vertical) para que el video nunca se vea como una
+// franja alargada mientras espera a que lleguen los metadatos del track.
+.ev-video-frame {
+  position:        relative;
+  width:            100%;
+  max-width:        360px;
+  aspect-ratio:     9 / 16;
+  max-height:       520px;
+  margin:           0 auto;
+  border-radius:    12px;
+  overflow:         hidden;
+  background:       #0b1220;
+  box-shadow:       0 4px 18px rgba(0, 0, 0, 0.25);
+}
+
 .ev-video-remoto {
   width:            100%;
-  max-height:       360px;
-  border-radius:    8px;
+  height:           100%;
+  object-fit:       cover;
   background:       #000;
-  object-fit:       contain;
+}
+
+.ev-video-badges {
+  position:         absolute;
+  top:              10px;
+  left:             10px;
+  right:            10px;
+  display:          flex;
+  justify-content:  space-between;
+  align-items:      flex-start;
+  gap:              8px;
+  pointer-events:   none;
+}
+
+.ev-video-badge {
+  display:          inline-flex;
+  align-items:      center;
+  gap:              6px;
+  padding:          4px 10px;
+  border-radius:    999px;
+  font-size:        0.72rem;
+  font-weight:      700;
+  letter-spacing:   0.02em;
+  color:            #fff;
+  background:       rgba(17, 24, 39, 0.6);
+  backdrop-filter:  blur(4px);
+
+  &--live .ev-video-dot { background: #22c55e; }
+  &--rec  .ev-video-dot { background: #ef4444; }
+}
+
+.ev-video-dot {
+  width:            7px;
+  height:           7px;
+  border-radius:    50%;
+  background:       #9ca3af;
+  flex-shrink:      0;
 }
 
 .ev-video-controles {
