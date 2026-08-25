@@ -84,7 +84,9 @@
 .vc-call-top {
   padding: max(16px, env(safe-area-inset-top)) 16px 0;
   display: flex;
+  flex-wrap: wrap;
   justify-content: center;
+  gap: 8px;
 }
 
 .vc-pill {
@@ -102,6 +104,7 @@
 
   &--live .vc-dot { background: #22c55e; }
   &--warning .vc-dot { background: #f59e0b; }
+  &--info { background: rgba(0, 82, 204, 0.55); }
 }
 
 .vc-dot {

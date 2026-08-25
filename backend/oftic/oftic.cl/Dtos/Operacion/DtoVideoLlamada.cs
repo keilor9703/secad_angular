@@ -46,6 +46,11 @@ namespace Comun.Dtos.Operacion
         public DateTime FechaExpira      { get; set; }
         public DateTime? FechaConectado  { get; set; }
         public DateTime? FechaFinalizado { get; set; }
+        /// <summary>Última posición GPS reportada por el ciudadano (video-ciudadano.ts), si compartió ubicación.</summary>
+        public double?   UltimaLat              { get; set; }
+        public double?   UltimaLng              { get; set; }
+        public double?   UltimaPrecision        { get; set; }
+        public DateTime? UltimaUbicacionFecha    { get; set; }
     }
 
     /// <summary>

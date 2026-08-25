@@ -50,7 +50,8 @@ VALUES
             await using var conn = await _tenant.DataSource.OpenConnectionAsync(ct);
             await using var cmd  = conn.CreateCommand();
             cmd.CommandText = @"
-SELECT id, sitio_graba, estado, fecha_creacion, fecha_expira, fecha_conectado, fecha_finalizado
+SELECT id, sitio_graba, estado, fecha_creacion, fecha_expira, fecha_conectado, fecha_finalizado,
+       ultima_lat, ultima_lng, ultima_precision, ultima_ubicacion_fecha
 FROM   cad_video_sesiones
 WHERE  id = @id";
             cmd.Parameters.AddWithValue("id", sesionId);
@@ -60,13 +61,17 @@ WHERE  id = @id";
 
             return new DtoVideoSesionEstado
             {
-                SesionId        = rdr.GetInt64(0),
-                SitioGraba      = rdr.GetInt32(1),
-                Estado          = rdr.GetString(2),
-                FechaCreacion   = rdr.GetDateTime(3),
-                FechaExpira     = rdr.GetDateTime(4),
-                FechaConectado  = rdr.IsDBNull(5) ? null : rdr.GetDateTime(5),
-                FechaFinalizado = rdr.IsDBNull(6) ? null : rdr.GetDateTime(6)
+                SesionId             = rdr.GetInt64(0),
+                SitioGraba           = rdr.GetInt32(1),
+                Estado               = rdr.GetString(2),
+                FechaCreacion        = rdr.GetDateTime(3),
+                FechaExpira          = rdr.GetDateTime(4),
+                FechaConectado       = rdr.IsDBNull(5) ? null : rdr.GetDateTime(5),
+                FechaFinalizado      = rdr.IsDBNull(6) ? null : rdr.GetDateTime(6),
+                UltimaLat            = rdr.IsDBNull(7) ? null : rdr.GetDouble(7),
+                UltimaLng            = rdr.IsDBNull(8) ? null : rdr.GetDouble(8),
+                UltimaPrecision      = rdr.IsDBNull(9) ? null : rdr.GetDouble(9),
+                UltimaUbicacionFecha = rdr.IsDBNull(10) ? null : rdr.GetDateTime(10)
             };
         }
 
@@ -110,6 +115,24 @@ SET    adjunto_grabacion_id = @adjuntoId
 WHERE  id = @id";
             cmd.Parameters.AddWithValue("id", sesionId);
             cmd.Parameters.AddWithValue("adjuntoId", adjuntoId);
+            await cmd.ExecuteNonQueryAsync(ct);
+        }
+
+        public async Task ActualizarUbicacionAsync(long sesionId, double lat, double lng, double? precision, CancellationToken ct)
+        {
+            await using var conn = await _tenant.DataSource.OpenConnectionAsync(ct);
+            await using var cmd  = conn.CreateCommand();
+            cmd.CommandText = @"
+UPDATE cad_video_sesiones
+SET    ultima_lat              = @lat,
+       ultima_lng              = @lng,
+       ultima_precision        = @precision,
+       ultima_ubicacion_fecha  = NOW()
+WHERE  id = @id";
+            cmd.Parameters.AddWithValue("id", sesionId);
+            cmd.Parameters.AddWithValue("lat", lat);
+            cmd.Parameters.AddWithValue("lng", lng);
+            cmd.Parameters.AddWithValue("precision", (object?)precision ?? DBNull.Value);
             await cmd.ExecuteNonQueryAsync(ct);
         }
 

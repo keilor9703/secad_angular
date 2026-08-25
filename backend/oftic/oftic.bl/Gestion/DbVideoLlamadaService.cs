@@ -54,5 +54,17 @@ namespace Negocio.Gestion
 
         public Task VincularGrabacionAsync(long sesionId, long adjuntoId, CancellationToken ct)
             => _repo.VincularGrabacionAsync(sesionId, adjuntoId, ct);
+
+        public Task ActualizarUbicacionAsync(long sesionId, double lat, double lng, double? precision, CancellationToken ct)
+        {
+            // Defensa contra un cliente que envíe basura (GPS glitch, valor manipulado) —
+            // coordenadas fuera de rango simplemente se descartan en vez de guardarse.
+            if (lat < -90 || lat > 90 || lng < -180 || lng > 180)
+            {
+                _logger.LogWarning("[VideoLlamada] Ubicación fuera de rango descartada, sesión={SesionId} lat={Lat} lng={Lng}", sesionId, lat, lng);
+                return Task.CompletedTask;
+            }
+            return _repo.ActualizarUbicacionAsync(sesionId, lat, lng, precision, ct);
+        }
     }
 }

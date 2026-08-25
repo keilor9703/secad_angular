@@ -195,6 +195,22 @@ namespace Api.Hubs
             long.TryParse(sesionId, out var id) ? id : 0;
 
         // ════════════════════════════════════════════════════════════════════════
+        // UBICACIÓN — el ciudadano reporta su posición GPS en vivo (opcional, si
+        // concedió el permiso). Se persiste (última conocida, no histórico) y se
+        // relaya al despachador para que la vea en el mini-mapa del panel.
+        // ════════════════════════════════════════════════════════════════════════
+
+        public async Task EnviarUbicacion(string sesionId, double lat, double lng, double? precision)
+        {
+            var id = ParseSesionId(sesionId);
+            if (id == 0) return;
+            if (!await AsegurarTenantAsync()) return;
+
+            await _videoService.ActualizarUbicacionAsync(id, lat, lng, precision, Context.ConnectionAborted);
+            await Clients.OthersInGroup(GroupName(id)).SendAsync("ubicacion", lat, lng, precision);
+        }
+
+        // ════════════════════════════════════════════════════════════════════════
         // CIERRE
         // ════════════════════════════════════════════════════════════════════════
 

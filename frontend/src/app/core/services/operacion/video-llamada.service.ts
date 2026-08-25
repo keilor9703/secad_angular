@@ -27,6 +27,12 @@ export interface ChatMensaje {
   hora: string;
 }
 
+export interface UbicacionCiudadano {
+  lat: number;
+  lng: number;
+  precision?: number;
+}
+
 /**
  * Lado despachador de la videollamada WebRTC punto-a-punto con el ciudadano.
  * Se conecta al mismo VideoSignalingHub que la página pública del ciudadano
@@ -67,6 +73,10 @@ export class VideoLlamadaService {
 
   private readonly chatMensajesSubject = new BehaviorSubject<ChatMensaje[]>([]);
   readonly chatMensajes$: Observable<ChatMensaje[]> = this.chatMensajesSubject.asObservable();
+
+  /** Última ubicación GPS reportada por el ciudadano — null si no ha compartido (o no ha llegado) ninguna. */
+  private readonly ubicacionSubject = new BehaviorSubject<UbicacionCiudadano | null>(null);
+  readonly ubicacion$: Observable<UbicacionCiudadano | null> = this.ubicacionSubject.asObservable();
 
   /**
    * Servidores ICE — STUN público de Google siempre incluido; el TURN propio
@@ -125,6 +135,10 @@ export class VideoLlamadaService {
     });
 
     this.hub.on('sesion-finalizada', () => this.finalizarLocal());
+
+    this.hub.on('ubicacion', (lat: number, lng: number, precision: number | null) => {
+      this.ubicacionSubject.next({ lat, lng, precision: precision ?? undefined });
+    });
 
     await this.hub.start();
     await this.hub.invoke('JoinAsDespachador', sesionId);
@@ -282,6 +296,7 @@ export class VideoLlamadaService {
     this.chatMensajesSubject.next([]);
     this.chatDisponibleSubject.next(false);
     this.microfonoActivoSubject.next(true);
+    this.ubicacionSubject.next(null);
     this.estadoSubject.next('finalizada');
   }
 }

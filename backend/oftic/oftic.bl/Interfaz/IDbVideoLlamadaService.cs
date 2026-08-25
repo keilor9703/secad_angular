@@ -16,5 +16,8 @@ namespace Negocio.Interfaz
         Task MarcarConectadaAsync(long sesionId, string? ipCiudadano, CancellationToken ct);
         Task MarcarFinalizadaAsync(long sesionId, CancellationToken ct);
         Task VincularGrabacionAsync(long sesionId, long adjuntoId, CancellationToken ct);
+
+        /// <summary>Persiste la última posición GPS reportada por el ciudadano. Ignora coordenadas fuera de rango.</summary>
+        Task ActualizarUbicacionAsync(long sesionId, double lat, double lng, double? precision, CancellationToken ct);
     }
 }

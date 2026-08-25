@@ -2912,6 +2912,33 @@ html.dark-mode {
   gap:       8px;
 }
 
+.ev-video-ubicacion {
+  display:        flex;
+  flex-direction: column;
+  gap:            6px;
+  margin:         10px 0;
+}
+
+.ev-video-mapa {
+  width:         100%;
+  height:        220px;
+  border-radius: 10px;
+  overflow:      hidden;
+  border:        1px solid var(--ui-border, #ddd);
+}
+
+.ev-video-ubicacion-info {
+  display:         flex;
+  flex-wrap:       wrap;
+  align-items:     center;
+  justify-content: space-between;
+  gap:             8px;
+  font-size:       0.82rem;
+  color:           var(--ui-muted, #555);
+
+  small { color: var(--ui-muted, #888); }
+}
+
 .ev-chat-badge {
   display:          inline-block;
   width:            7px;

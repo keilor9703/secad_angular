@@ -16,6 +16,9 @@
         @case ('esperando')  { <span class="vc-pill vc-pill--warning"><i class="vc-dot"></i>Conectando con el despachador…</span> }
         @case ('conectada')  { <span class="vc-pill vc-pill--live"><i class="vc-dot"></i>En vivo con la Policía</span> }
       }
+      @if (ubicacionActiva()) {
+        <span class="vc-pill vc-pill--info"><i class="fa-solid fa-location-dot"></i>Compartiendo su ubicación</span>
+      }
     </div>
 
     @if (chatAbierto()) {
