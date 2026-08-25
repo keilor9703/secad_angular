@@ -7,7 +7,7 @@ namespace Negocio.Interfaz
         /// <summary>Crea la sesión en estado PENDIENTE. La firma del token JWT la hace el controlador (VideoSessionTokenService).</summary>
         Task<long> CrearSesionAsync(
             long pedidoId, int sitioGraba, string usuarioDespachador,
-            DateTime fechaExpira, CancellationToken ct);
+            DateTime fechaExpira, string? numeroTelefono, CancellationToken ct);
 
         /// <summary>Envía el link por SMS (best-effort, ver IProveedorSms). No lanza si falla — el llamador decide qué mostrar.</summary>
         Task<bool> EnviarLinkAsync(string numeroTelefono, string link, CancellationToken ct);

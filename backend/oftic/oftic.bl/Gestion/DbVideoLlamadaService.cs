@@ -22,8 +22,8 @@ namespace Negocio.Gestion
 
         public Task<long> CrearSesionAsync(
             long pedidoId, int sitioGraba, string usuarioDespachador,
-            DateTime fechaExpira, CancellationToken ct)
-            => _repo.CrearSesionAsync(pedidoId, sitioGraba, usuarioDespachador, fechaExpira, ct);
+            DateTime fechaExpira, string? numeroTelefono, CancellationToken ct)
+            => _repo.CrearSesionAsync(pedidoId, sitioGraba, usuarioDespachador, fechaExpira, numeroTelefono, ct);
 
         public async Task<bool> EnviarLinkAsync(string numeroTelefono, string link, CancellationToken ct)
         {

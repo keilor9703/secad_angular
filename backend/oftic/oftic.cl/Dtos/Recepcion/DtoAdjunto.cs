@@ -22,6 +22,13 @@ namespace Comun.Dtos.Recepcion
         public string CanalOrigen    { get; set; } = "MANUAL";
         public string SubidoPor      { get; set; } = "";
         public string FechaSubida    { get; set; } = "";
+
+        // ── Metadatos de la videollamada (solo si CanalOrigen == "VIDEOLLAMADA") ──
+        // Vienen de un LEFT JOIN con cad_video_sesiones por adjunto_grabacion_id;
+        // null para cualquier otro adjunto (foto/documento manual, chat, SMS…).
+        public string? NumeroTelefonoLlamada { get; set; }
+        public string? FechaInicioLlamada    { get; set; }
+        public int?    DuracionSegundos      { get; set; }
     }
 
     // ── Solicitud multipart para subir una foto ──────────────────────────────
