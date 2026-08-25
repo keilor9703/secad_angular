@@ -1,7 +1,6 @@
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Servicios.ApiInterfaz;
 
@@ -9,19 +8,11 @@ namespace Servicios.Api
 {
     /// <summary>
     /// Envío de SMS vía Infobip (https://www.infobip.com/docs/api) — endpoint
-    /// POST /sms/3/messages. Configuración en la sección "Sms:Infobip" de
-    /// appsettings (BaseUrl/ApiKey/Sender) — nunca commitear el ApiKey real acá:
-    /// va en appsettings.Local.json (ignorado en git) o en la variable de entorno
-    /// Sms__Infobip__ApiKey.
-    ///
-    /// Mientras la cuenta Infobip esté en modo de prueba gratuito, solo entrega a
-    /// números verificados en el portal y con un cupo limitado de mensajes — fuera
-    /// de eso (o si BaseUrl/ApiKey no están configurados), el método degrada
-    /// igual que antes: deja el intento en el log y devuelve false, sin romper el
-    /// flujo de videollamada — el despachador siempre ve el link en la respuesta
-    /// de VideoLlamadaController para copiarlo y enviarlo manualmente.
+    /// POST /sms/3/messages. Las credenciales llegan como parámetros (leídas de
+    /// ctr_config_sms por DbConfigProveedorSms) — este cliente no conoce de dónde
+    /// vienen ni las cachea.
     /// </summary>
-    public class InfobipProveedorSms : IProveedorSms
+    public class InfobipSmsSender : IInfobipSmsSender
     {
         private static readonly JsonSerializerOptions JsonOpts = new()
         {
@@ -30,25 +21,20 @@ namespace Servicios.Api
         };
 
         private readonly HttpClient _http;
-        private readonly IConfiguration _cfg;
-        private readonly ILogger<InfobipProveedorSms> _logger;
+        private readonly ILogger<InfobipSmsSender> _logger;
 
-        public InfobipProveedorSms(HttpClient http, IConfiguration cfg, ILogger<InfobipProveedorSms> logger)
+        public InfobipSmsSender(HttpClient http, ILogger<InfobipSmsSender> logger)
         {
             _http   = http;
-            _cfg    = cfg;
             _logger = logger;
         }
 
-        public async Task<bool> EnviarSmsAsync(string numero, string mensaje, CancellationToken ct = default)
+        public async Task<bool> EnviarAsync(string baseUrl, string apiKey, string? sender, string numero, string mensaje, CancellationToken ct = default)
         {
-            var host   = NormalizarHost(_cfg["Sms:Infobip:BaseUrl"]);
-            var apiKey = _cfg["Sms:Infobip:ApiKey"]?.Trim();
-
+            var host = NormalizarHost(baseUrl);
             if (string.IsNullOrWhiteSpace(host) || string.IsNullOrWhiteSpace(apiKey))
             {
-                _logger.LogWarning(
-                    "Sms:Infobip no configurado (BaseUrl/ApiKey) — SMS NO enviado. Destino={Numero}", numero);
+                _logger.LogWarning("Infobip no configurado (BaseUrl/ApiKey) — SMS NO enviado. Destino={Numero}", numero);
                 return false;
             }
 
@@ -67,9 +53,7 @@ namespace Servicios.Api
                     {
                         Destinations = new[] { new InfobipDestino { To = destino } },
                         Content      = new InfobipContent { Text = mensaje },
-                        From         = string.IsNullOrWhiteSpace(_cfg["Sms:Infobip:Sender"])
-                            ? null
-                            : _cfg["Sms:Infobip:Sender"]!.Trim()
+                        From         = string.IsNullOrWhiteSpace(sender) ? null : sender.Trim()
                     }
                 }
             };

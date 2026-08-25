@@ -99,12 +99,9 @@ services:
       # (https://secad.policia.gov.co) y el link de cualquier otro despliegue
       # (staging, otro servidor) apuntaría al lugar equivocado.
       - ApiSettings__SecadBaseUrl=${SECAD_BASE_URL}
-      # Envío de SMS del link de videollamada (Infobip). Si se dejan vacías,
-      # InfobipProveedorSms degrada solo (log + false) sin romper el flujo — el
-      # despachador siempre puede copiar el link manualmente.
-      - Sms__Infobip__BaseUrl=${INFOBIP_BASE_URL:-}
-      - Sms__Infobip__ApiKey=${INFOBIP_API_KEY:-}
-      - Sms__Infobip__Sender=${INFOBIP_SENDER:-}
+      # El proveedor de SMS (link de videollamada) ya no se configura por
+      # variables de entorno — se administra desde Administración → Proveedor
+      # SMS (tabla ctr_config_sms), editable sin redeploy.
     volumes:
       - uploads:/app/uploads
     restart: unless-stopped

@@ -160,11 +160,18 @@ builder.Services.AddSingleton<MfaSessionTokenService>();
 
 // ── Videollamada en vivo con el ciudadano (WebRTC señalizado por VideoSignalingHub) ──
 // VideoSessionTokenService: singleton, mismo criterio que MfaSessionTokenService.
-// IProveedorSms → Infobip (sección "Sms:Infobip" en appsettings). Si el ApiKey no
-// está configurado, InfobipProveedorSms degrada solo (log + false) sin romper el flujo.
+// IProveedorSms → DbConfigProveedorSms, que lee el proveedor activo y sus
+// credenciales de ctr_config_sms (Administración → Proveedor SMS) y despacha
+// al cliente correspondiente. Cambiar de proveedor (Infobip ⇄ Inalambria
+// Express) es editar esa tabla desde la UI, sin redeploy.
 builder.Services.AddSingleton<VideoSessionTokenService>();
-builder.Services.AddHttpClient<IProveedorSms, InfobipProveedorSms>(c =>
+builder.Services.AddHttpClient<IInfobipSmsSender, InfobipSmsSender>(c =>
     c.Timeout = TimeSpan.FromSeconds(15));
+builder.Services.AddHttpClient<IInalambriaExpressSmsSender, InalambriaExpressSmsSender>(c =>
+    c.Timeout = TimeSpan.FromSeconds(15));
+builder.Services.AddScoped<IDbConfigSmsRepository, DbConfigSmsRepository>();
+builder.Services.AddScoped<IDbConfigSmsService, DbConfigSmsService>();
+builder.Services.AddScoped<IProveedorSms, DbConfigProveedorSms>();
 builder.Services.AddScoped<IDbVideoLlamadaRepository, DbVideoLlamadaRepository>();
 builder.Services.AddScoped<IDbVideoLlamadaService, DbVideoLlamadaService>();
 builder.Services.AddSignalR();

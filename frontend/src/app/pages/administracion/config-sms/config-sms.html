@@ -1,0 +1,93 @@
+<div class="page-container">
+
+  <div class="page-header">
+    <div class="page-header__info">
+      <h1 class="page-title">
+        <i class="fa-solid fa-comment-sms"></i>
+        Proveedor SMS
+      </h1>
+      <p class="page-subtitle">
+        Configura qué proveedor envía los SMS salientes (enlace de videollamada al ciudadano, etc.).
+        Cambiar de proveedor no requiere reiniciar el servidor.
+      </p>
+    </div>
+  </div>
+
+  @if (loading()) {
+    <div class="ui-loading">
+      <i class="fa-solid fa-spinner fa-spin"></i> Cargando configuración…
+    </div>
+  }
+
+  @if (!loading()) {
+    <div class="ui-card cs-card">
+      <div [formGroup]="form" class="cs-form">
+        <div class="cs-field">
+          <label class="ui-label">Proveedor</label>
+          <select class="ui-control" formControlName="proveedor">
+            @for (p of proveedores; track p.value) {
+              <option [value]="p.value">{{ p.label }}</option>
+            }
+          </select>
+        </div>
+
+        <div class="cs-field">
+          <label class="ui-label">
+            URL base
+            @if (proveedorSeleccionado().baseUrlPorDefecto) {
+              <span class="sub-text">· vacío = {{ proveedorSeleccionado().baseUrlPorDefecto }}</span>
+            }
+          </label>
+          <input class="ui-control" formControlName="baseUrl"
+                 [placeholder]="proveedorSeleccionado().baseUrlPorDefecto || 'Host asignado por el proveedor'">
+        </div>
+
+        <div class="cs-field">
+          <label class="ui-label">
+            API Key
+            @if (config()?.tieneApiKey) {
+              <span class="sub-text">· actual: {{ config()?.apiKeyMascara }} — deje vacío para mantenerla</span>
+            }
+          </label>
+          <input class="ui-control" type="password" formControlName="apiKey" autocomplete="new-password"
+                 placeholder="Pegue la nueva API Key…">
+        </div>
+
+        @if (proveedorSeleccionado().usaSender) {
+          <div class="cs-field">
+            <label class="ui-label">Remitente (Sender) <span class="sub-text">· opcional</span></label>
+            <input class="ui-control" formControlName="sender" placeholder="Vacío = remitente por defecto de la cuenta">
+          </div>
+        }
+
+        @if (config()?.fechaModifica) {
+          <p class="sub-text">
+            Última modificación: {{ config()?.fechaModifica }}
+            @if (config()?.usuarioModifica) { por {{ config()?.usuarioModifica }} }
+          </p>
+        }
+      </div>
+
+      <div class="cs-actions">
+        <button class="ui-btn primary" type="button" (click)="guardar()" [disabled]="saving()">
+          <i class="fa-solid" [ngClass]="saving() ? 'fa-spinner fa-spin' : 'fa-floppy-disk'"></i>
+          {{ saving() ? 'Guardando…' : 'Guardar configuración' }}
+        </button>
+      </div>
+    </div>
+
+    <div class="ui-card cs-card">
+      <h2 class="cs-subtitle"><i class="fa-solid fa-vial"></i> Probar envío</h2>
+      <p class="sub-text">Envía un SMS de prueba con la configuración guardada, para confirmar que el proveedor quedó bien conectado.</p>
+      <div class="cs-test-row">
+        <input class="ui-control" type="text" placeholder="Número de teléfono (ej: 3001234567)"
+               [value]="telefonoPrueba()" (input)="telefonoPrueba.set($any($event.target).value)">
+        <button class="ui-btn secondary" type="button" (click)="probarEnvio()" [disabled]="probando()">
+          <i class="fa-solid" [ngClass]="probando() ? 'fa-spinner fa-spin' : 'fa-paper-plane'"></i>
+          {{ probando() ? 'Enviando…' : 'Enviar prueba' }}
+        </button>
+      </div>
+    </div>
+  }
+
+</div>
