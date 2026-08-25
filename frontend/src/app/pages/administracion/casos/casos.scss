@@ -164,6 +164,21 @@ code {
   ul { margin: 0.4rem 0 0; padding-left: 1.2rem; }
 }
 
+// ─── Paginación ─────────────────────────────────────────────────────────────
+.ca-paginacion {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 0.9rem;
+  border-top: 1px solid var(--ui-border, #dbe2ef);
+}
+
+.ca-paginacion-botones {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
 // ─── Modal ──────────────────────────────────────────────────────────────────
 .ca-form {
   display: flex;

@@ -83,7 +83,7 @@
             </tr>
           </thead>
           <tbody>
-            @for (c of casos(); track c.codigo) {
+            @for (c of casosPaginados(); track c.codigo) {
               <tr>
                 <td><code>{{ c.codigo }}</code></td>
                 <td>{{ c.descripcion }}</td>
@@ -112,6 +112,19 @@
             }
           </tbody>
         </table>
+
+        <div class="ca-paginacion">
+          <span class="sub-text">Mostrando {{ rangoMostrado() }}</span>
+          <div class="ca-paginacion-botones">
+            <button class="ui-btn sm ghost" type="button" (click)="paginaAnterior()" [disabled]="pagina() <= 1">
+              <i class="fa-solid fa-chevron-left"></i>
+            </button>
+            <span class="sub-text">Página {{ pagina() }} de {{ totalPaginas() }}</span>
+            <button class="ui-btn sm ghost" type="button" (click)="paginaSiguiente()" [disabled]="pagina() >= totalPaginas()">
+              <i class="fa-solid fa-chevron-right"></i>
+            </button>
+          </div>
+        </div>
       } @else {
         <div class="ui-empty">
           <i class="fa-solid fa-clipboard-list fa-2x"></i>
