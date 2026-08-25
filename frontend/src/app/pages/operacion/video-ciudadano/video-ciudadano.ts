@@ -42,6 +42,7 @@ export class VideoCiudadanoComponent implements OnInit, OnDestroy {
   private readonly http = inject(HttpClient);
 
   readonly videoLocalRef = viewChild<ElementRef<HTMLVideoElement>>('videoLocal');
+  readonly audioRemotoRef = viewChild<ElementRef<HTMLAudioElement>>('audioRemoto');
 
   readonly estado = signal<EstadoPagina>('validando');
   readonly mensajeError = signal('');
@@ -198,6 +199,19 @@ export class VideoCiudadanoComponent implements OnInit, OnDestroy {
 
     this.localStream?.getTracks().forEach(track => this.pc!.addTrack(track, this.localStream!));
 
+    // Audio del despachador (el CAD le habla al ciudadano) — sin este
+    // handler el audio entrante llega por WebRTC pero nunca se reproduce en
+    // ningún lado: el ciudadano nunca escucha nada del CAD.
+    this.pc.ontrack = (ev) => {
+      const audioRef = this.audioRemotoRef();
+      if (!audioRef) return;
+      audioRef.nativeElement.srcObject = ev.streams[0] ?? new MediaStream([ev.track]);
+      audioRef.nativeElement.play().catch(err => {
+        // eslint-disable-next-line no-console
+        console.error('[video-ciudadano] no se pudo reproducir el audio del despachador:', err);
+      });
+    };
+
     // Chat de texto P2P — el despachador (offerer) crea el canal; el
     // ciudadano solo lo recibe. Permite escribir sin hablar (p. ej. si no
     // puede recibir sonido del CAD sin delatarse ante un agresor).
@@ -303,6 +317,8 @@ export class VideoCiudadanoComponent implements OnInit, OnDestroy {
     this.dataChannel = null;
     this.localStream?.getTracks().forEach(t => t.stop());
     this.localStream = null;
+    const audioRef = this.audioRemotoRef();
+    if (audioRef) audioRef.nativeElement.srcObject = null;
     if (this.estado() !== 'invalido' && this.estado() !== 'permiso-denegado') this.estado.set('finalizada');
   }
 }

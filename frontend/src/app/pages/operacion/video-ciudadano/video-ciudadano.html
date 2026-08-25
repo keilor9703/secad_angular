@@ -5,6 +5,9 @@
        [class.vc-video-local--activo]="estado() === 'esperando' || estado() === 'conectada'"
        [class.vc-video-local--frontal]="camaraFrontal()"></video>
 
+<!-- Audio del despachador (el CAD le habla al ciudadano) — no se ve, solo se escucha. -->
+<audio #audioRemoto autoplay></audio>
+
 @if (estado() === 'esperando' || estado() === 'conectada') {
   <!-- Vista de llamada en curso: video a pantalla completa con controles superpuestos -->
   <div class="vc-call">
