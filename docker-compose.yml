@@ -18,6 +18,30 @@ services:
       timeout: 5s
       retries: 5
 
+  # Postgres del tenant Cali — instancia propia y aislada (volumen propio),
+  # separada de la base maestra (servicio "postgres" de arriba). Se registra
+  # en SECAD como un tenant más desde Super Admin → Tenants, con
+  # dbHost=postgres-cali (nombre de este servicio, resuelto por DNS interno
+  # de Docker — igual que "postgres" para la base maestra).
+  postgres-cali:
+    image: postgres:16-alpine
+    container_name: secad-postgres-cali
+    environment:
+      - POSTGRES_DB=${POSTGRES_CALI_DB:-Secad_Cali}
+      - POSTGRES_USER=${POSTGRES_CALI_USER:-secad_cali_app}
+      - POSTGRES_PASSWORD=${POSTGRES_CALI_PASSWORD}
+      - TZ=America/Bogota
+    volumes:
+      - pgdata_cali:/var/lib/postgresql/data
+    restart: unless-stopped
+    networks:
+      - secad-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_CALI_USER:-secad_cali_app} -d ${POSTGRES_CALI_DB:-Secad_Cali}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   api:
     build:
       context: .
@@ -85,6 +109,7 @@ services:
 volumes:
   uploads:
   pgdata:
+  pgdata_cali:
 
 networks:
   secad-network:
