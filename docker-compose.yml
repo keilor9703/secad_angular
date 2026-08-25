@@ -1,10 +1,32 @@
 services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: secad-postgres
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB:-Secad}
+      - POSTGRES_USER=${POSTGRES_USER:-secad_app}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - TZ=America/Bogota
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    restart: unless-stopped
+    networks:
+      - secad-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-secad_app} -d ${POSTGRES_DB:-Secad}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   api:
     build:
       context: .
       dockerfile: Dockerfile
     image: secad-api:latest
     container_name: secad-api
+    depends_on:
+      postgres:
+        condition: service_healthy
     ports:
       - "${API_PORT:-8088}:8088"
     environment:
@@ -13,7 +35,9 @@ services:
       # ConnectionStrings:MasterDb es la única cadena que Program.cs exige al
       # arrancar (Postgres — el motor real del sistema; Oracle solo se usa para
       # la integración externa GESPO, configurada aparte en appsettings.json).
-      - ConnectionStrings__MasterDb=${DB_MASTER}
+      # "postgres" es el nombre del servicio de arriba — resuelve por DNS
+      # interno de Docker, no es un host externo.
+      - ConnectionStrings__MasterDb=Host=postgres;Port=5432;Database=${POSTGRES_DB:-Secad};Username=${POSTGRES_USER:-secad_app};Password=${POSTGRES_PASSWORD}
       # appsettings.json trae Jwt:Key como placeholder ("CAMBIAR_EN_PRODUCCION...") —
       # sin este override el contenedor firmaría tokens con una clave pública y conocida.
       - Jwt__Key=${JWT_KEY}
@@ -60,6 +84,7 @@ services:
 
 volumes:
   uploads:
+  pgdata:
 
 networks:
   secad-network:
