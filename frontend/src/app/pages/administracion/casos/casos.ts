@@ -1,4 +1,4 @@
-import { Component, ChangeDetectionStrategy, OnInit, inject, signal } from '@angular/core';
+import { Component, ChangeDetectionStrategy, OnInit, inject, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import ExcelJS from 'exceljs';
@@ -35,6 +35,25 @@ export class CasosComponent implements OnInit {
   readonly importando       = signal(false);
   readonly resultadoImport  = signal<DtoImportarCasosResult | null>(null);
 
+  // ─── Paginación (client-side, sobre el resultado ya filtrado por búsqueda) ──
+  readonly porPagina = 20;
+  readonly pagina    = signal(1);
+
+  readonly totalPaginas = computed(() => Math.max(1, Math.ceil(this.casos().length / this.porPagina)));
+
+  readonly casosPaginados = computed(() => {
+    const inicio = (this.pagina() - 1) * this.porPagina;
+    return this.casos().slice(inicio, inicio + this.porPagina);
+  });
+
+  readonly rangoMostrado = computed(() => {
+    const total = this.casos().length;
+    if (total === 0) return '0 de 0';
+    const inicio = (this.pagina() - 1) * this.porPagina + 1;
+    const fin = Math.min(inicio + this.porPagina - 1, total);
+    return `${inicio}-${fin} de ${total}`;
+  });
+
   readonly form = this.fb.nonNullable.group({
     codigo:              ['', [Validators.required]],
     descripcion:         ['', [Validators.required]],
@@ -55,6 +74,7 @@ export class CasosComponent implements OnInit {
     this.svc.getAll(this.busqueda().trim() || undefined).subscribe({
       next: (r) => {
         this.casos.set(r.data ?? []);
+        this.pagina.set(1);
         this.loading.set(false);
       },
       error: () => {
@@ -67,6 +87,19 @@ export class CasosComponent implements OnInit {
   buscar(texto: string): void {
     this.busqueda.set(texto);
     this.load();
+  }
+
+  irAPagina(pagina: number): void {
+    const total = this.totalPaginas();
+    this.pagina.set(Math.min(Math.max(1, pagina), total));
+  }
+
+  paginaAnterior(): void {
+    this.irAPagina(this.pagina() - 1);
+  }
+
+  paginaSiguiente(): void {
+    this.irAPagina(this.pagina() + 1);
   }
 
   openCreate(): void {
