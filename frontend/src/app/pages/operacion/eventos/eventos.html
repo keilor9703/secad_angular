@@ -1323,8 +1323,16 @@
                         }
 
                         @if (videollamadaEstado() === 'conectada') {
-                          <video #videoRemoto autoplay playsinline class="ev-video-remoto"
-                                 [srcObject]="videollamadaRemoteStream()"></video>
+                          <div class="ev-video-frame">
+                            <video #videoRemoto autoplay playsinline class="ev-video-remoto"
+                                   [srcObject]="videollamadaRemoteStream()"></video>
+                            <div class="ev-video-badges">
+                              <span class="ev-video-badge ev-video-badge--live"><i class="ev-video-dot"></i>En vivo</span>
+                              @if (grabandoVideollamada) {
+                                <span class="ev-video-badge ev-video-badge--rec"><i class="ev-video-dot"></i>REC</span>
+                              }
+                            </div>
+                          </div>
                         }
 
                         <div class="ev-video-controles">

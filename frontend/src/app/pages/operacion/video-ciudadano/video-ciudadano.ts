@@ -39,12 +39,15 @@ export class VideoCiudadanoComponent implements OnInit, OnDestroy {
 
   readonly estado = signal<EstadoPagina>('validando');
   readonly mensajeError = signal('');
+  readonly camaraFrontal = signal(false);
+  readonly cambiandoCamara = signal(false);
 
   private readonly token: string;
   private sesionId = '';
   private hub: signalR.HubConnection | null = null;
   private pc: RTCPeerConnection | null = null;
   private localStream: MediaStream | null = null;
+  private facingModeActual: 'environment' | 'user' = 'environment';
 
   private readonly iceServers: RTCIceServer[] = [
     { urls: 'stun:stun.l.google.com:19302' }
@@ -95,7 +98,14 @@ export class VideoCiudadanoComponent implements OnInit, OnDestroy {
     }
 
     try {
-      this.localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+      // La cámara trasera (environment) es la útil para mostrar la escena al
+      // despachador — la frontal (selfie) es la que activan los navegadores
+      // por defecto si no se pide explícitamente. "ideal" (no "exact") para
+      // no fallar en equipos con una sola cámara (ej. laptops/PCs).
+      this.localStream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: 'environment' } },
+        audio: true
+      });
     } catch (err) {
       const nombre = err instanceof DOMException ? err.name : '';
       // eslint-disable-next-line no-console
@@ -170,6 +180,42 @@ export class VideoCiudadanoComponent implements OnInit, OnDestroy {
     this.pc.onconnectionstatechange = () => {
       if (this.pc?.connectionState === 'connected') this.estado.set('conectada');
     };
+  }
+
+  async cambiarCamara(): Promise<void> {
+    if (!this.localStream || this.cambiandoCamara()) return;
+    this.cambiandoCamara.set(true);
+
+    const nuevoFacingMode: 'environment' | 'user' = this.facingModeActual === 'environment' ? 'user' : 'environment';
+
+    try {
+      const nuevoStream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: nuevoFacingMode } },
+        audio: false
+      });
+      const nuevoTrack = nuevoStream.getVideoTracks()[0];
+      const trackViejo = this.localStream.getVideoTracks()[0];
+
+      if (trackViejo) {
+        this.localStream.removeTrack(trackViejo);
+        trackViejo.stop();
+      }
+      this.localStream.addTrack(nuevoTrack);
+
+      const sender = this.pc?.getSenders().find(s => s.track?.kind === 'video');
+      if (sender) await sender.replaceTrack(nuevoTrack);
+
+      const videoLocalRef = this.videoLocalRef();
+      if (videoLocalRef) videoLocalRef.nativeElement.srcObject = this.localStream;
+
+      this.facingModeActual = nuevoFacingMode;
+      this.camaraFrontal.set(nuevoFacingMode === 'user');
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error('[video-ciudadano] no se pudo cambiar de cámara:', err);
+    } finally {
+      this.cambiandoCamara.set(false);
+    }
   }
 
   colgar(): void {
