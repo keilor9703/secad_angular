@@ -8,6 +8,19 @@
 -- =============================================================================
 
 -- ── 1. Renombrar tabla + índice ─────────────────────────────────────────────
+-- Si cad_plantatel ya existe (el renombre ya ocurrió en una corrida
+-- anterior) y cad_interfaz_cti TAMBIÉN existe, es una tabla vacía huérfana
+-- recreada por una corrida vieja de V4 que nunca llegó a este punto (p.ej.
+-- se cortó antes por otro error) — se descarta en vez de intentar
+-- renombrarla, porque el nombre destino ya está ocupado por la tabla real.
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM pg_tables WHERE tablename = 'cad_plantatel')
+       AND EXISTS (SELECT 1 FROM pg_tables WHERE tablename = 'cad_interfaz_cti') THEN
+        DROP TABLE cad_interfaz_cti;
+    END IF;
+END $$;
+
 ALTER TABLE  IF EXISTS cad_interfaz_cti RENAME TO cad_plantatel;
 ALTER INDEX  IF EXISTS idx_cti_sitio_acd_reg RENAME TO idx_plantatel_sitio_acd_reg;
 
