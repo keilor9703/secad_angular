@@ -51,8 +51,13 @@ CREATE TABLE IF NOT EXISTS cad_turnos (
     tipo_turno          INTEGER,                    -- FK cad_referencias_secad(TIPO_TURNO)
     hora_inicia         TIMESTAMPTZ     NOT NULL,
     hora_termina        TIMESTAMPTZ     NOT NULL,
-    dia_inicia          DATE            NOT NULL GENERATED ALWAYS AS
-                            (hora_inicia::date) STORED,
+    -- No puede ser GENERATED ALWAYS AS (hora_inicia::date) STORED: el cast
+    -- timestamptz→date depende del TimeZone de sesión, así que Postgres lo
+    -- marca STABLE, no IMMUTABLE, y las columnas generadas exigen IMMUTABLE
+    -- ("generation expression is not immutable"). Se calcula en su lugar con
+    -- el trigger trg_turnos_dia_inicia más abajo — el código de la app nunca
+    -- inserta este valor a mano, siempre deja que la base lo calcule.
+    dia_inicia          DATE            NOT NULL DEFAULT CURRENT_DATE,
     consignas           TEXT,
     estado              CHAR(1)         NOT NULL DEFAULT 'A'
                             CHECK (estado IN ('A','C','V')),
@@ -86,6 +91,23 @@ COMMENT ON COLUMN cad_turnos.clase_turno IS
 COMMENT ON COLUMN cad_turnos.consignas IS
     'Instrucciones generales del turno para todos los recursos. '
     'Equivalente a CONSIGNAS en el sistema Oracle anterior.';
+
+-- dia_inicia se mantiene con este trigger en vez de GENERATED ALWAYS AS
+-- STORED (ver comentario en la definición de la columna, arriba).
+CREATE OR REPLACE FUNCTION fn_turnos_set_dia_inicia()
+RETURNS TRIGGER
+LANGUAGE plpgsql AS $$
+BEGIN
+    NEW.dia_inicia := NEW.hora_inicia::date;
+    RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_turnos_dia_inicia ON cad_turnos;
+CREATE TRIGGER trg_turnos_dia_inicia
+    BEFORE INSERT OR UPDATE OF hora_inicia ON cad_turnos
+    FOR EACH ROW
+    EXECUTE FUNCTION fn_turnos_set_dia_inicia();
 
 
 -- ────────────────────────────────────────────────────────────
