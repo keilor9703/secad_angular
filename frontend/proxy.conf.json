@@ -3,6 +3,7 @@
       "target": "https://127.0.0.1:7095",
       "secure": false,
       "changeOrigin": true,
+      "ws": true,
       "logLevel": "debug"
     },
     "/uploads": {
