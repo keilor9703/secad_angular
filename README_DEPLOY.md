@@ -27,25 +27,35 @@ Guía rápida para compilar, empaquetar y publicar SECAD en producción usando l
 
 ## Opción Docker (alternativa a los pasos 1-5)
 
-El repositorio incluye un `docker-compose.yml` en la raíz que levanta backend (`secad-api`, puerto 8088) y frontend (`secad-frontend`, puerto 80) en un solo stack.
+El repositorio incluye un `docker-compose.yml` en la raíz que levanta Postgres (`secad-postgres`), backend (`secad-api`, puerto 8088) y frontend (`secad-frontend`, puerto 80) en un solo stack — el Postgres es propio y aislado, con su propio volumen (`pgdata`), no comparte nada con otros proyectos del servidor.
 
 ```bash
 git clone <url-del-repo> secad_angular
 cd secad_angular
 cp .env.example .env
-nano .env   # completar DB_MASTER, JWT_KEY, RECEPCION_EXTERNA_API_KEY
+nano .env   # completar POSTGRES_PASSWORD, JWT_KEY, RECEPCION_EXTERNA_API_KEY, SECAD_BASE_URL
 docker-compose up --build -d
 docker-compose ps
 docker-compose logs -f
 ```
 
 **Variables obligatorias en `.env`** (ver `.env.example`):
-- `DB_MASTER`: cadena de conexión PostgreSQL a la base maestra (`ConnectionStrings:MasterDb`). Es la única base que la API exige al arrancar — el enrutamiento a la base de cada CAD/tenant se resuelve desde ahí (tabla `secad_tenants`), no por variable de entorno.
+- `POSTGRES_DB` / `POSTGRES_USER` / `POSTGRES_PASSWORD`: credenciales del Postgres que el propio `docker-compose.yml` provisiona — con ellas arma `ConnectionStrings:MasterDb` automáticamente apuntando al contenedor `postgres`. Esa base maestra es la única que la API exige al arrancar; el enrutamiento a la base de cada CAD/tenant se resuelve desde ahí (tabla `secad_tenants`).
 - `JWT_KEY`: reemplaza el placeholder de `appsettings.json`. Mínimo 32 caracteres aleatorios.
 - `RECEPCION_EXTERNA_API_KEY`: reemplaza el placeholder que protege los endpoints de ingesta externa (PlantaTel/Chat/SMS, `RecepcionExternaController`).
+- `SECAD_BASE_URL`: dominio público real de este despliegue (arma el link de videollamada que recibe el ciudadano).
+
+**Primer arranque — cargar el esquema:** un Postgres recién creado está vacío. Hay que aplicar los scripts de `docs/sql/master/` (`V1` en adelante) contra la base maestra, y por cada tenant/CAD crear su propia base y aplicarle los scripts marcados como "apply to each tenant database" en su encabezado, además de insertar su fila en `secad_tenants`. No hay un runner de migraciones automático — se aplican a mano, por ejemplo:
+```bash
+for f in docs/sql/master/V*.sql; do
+  echo "== $f =="
+  docker exec -i secad-postgres psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" < "$f"
+done
+```
+(revisa el encabezado de cada archivo — algunos dicen explícitamente "apply to each CAD database", no a la maestra).
 
 Troubleshooting:
-- `ConnectionStrings:MasterDb no configurada` en los logs → falta `DB_MASTER` en `.env` o el contenedor no lo está recibiendo (revisa `docker-compose config`).
+- `ConnectionStrings:MasterDb no configurada` en los logs → falta `POSTGRES_PASSWORD` en `.env`, o `secad-postgres` no pasó su healthcheck todavía (`docker-compose ps`).
 - Frontend carga pero las llamadas a `/api/...` fallan → confirma que el contenedor `secad-api` está `healthy` (`docker-compose ps`) antes de culpar al nginx del frontend.
 
 ### Servidor con otros proyectos ya desplegados (p.ej. Oracle OCI)
