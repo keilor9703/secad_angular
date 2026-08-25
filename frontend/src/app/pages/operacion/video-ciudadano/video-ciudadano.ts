@@ -98,12 +98,16 @@ export class VideoCiudadanoComponent implements OnInit, OnDestroy {
       this.localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
     } catch (err) {
       const nombre = err instanceof DOMException ? err.name : '';
+      // eslint-disable-next-line no-console
+      console.error('[video-ciudadano] getUserMedia falló:', nombre, err);
       this.mensajeError.set(
         nombre === 'NotFoundError' || nombre === 'DevicesNotFoundError'
           ? 'No se encontró una cámara o micrófono en este dispositivo.'
           : nombre === 'NotReadableError' || nombre === 'TrackStartError'
-            ? 'La cámara o el micrófono ya están siendo usados por otra aplicación.'
-            : 'No fue posible acceder a su cámara y micrófono. Verifique los permisos del navegador y vuelva a abrir el enlace.'
+            ? 'La cámara o el micrófono ya están siendo usados por otra aplicación (cierre otras videollamadas y vuelva a intentar).'
+            : nombre === 'NotAllowedError' || nombre === 'PermissionDeniedError'
+              ? 'El navegador o el sistema operativo bloquearon el acceso a la cámara/micrófono. Revise el ícono de candado junto a la dirección para habilitar ambos permisos, y también los ajustes de privacidad de cámara/micrófono del sistema operativo — luego recargue esta página.'
+              : `No fue posible acceder a su cámara y micrófono (detalle técnico: ${nombre || 'desconocido'}). Verifique los permisos del navegador y vuelva a abrir el enlace.`
       );
       this.estado.set('permiso-denegado');
       return;
