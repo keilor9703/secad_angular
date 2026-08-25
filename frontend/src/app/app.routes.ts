@@ -69,6 +69,11 @@ export const routes: Routes = [
             loadComponent: () => import('./pages/administracion/casos/casos').then(m => m.CasosComponent),
             canActivate: [adminGuard]
           },
+          {
+            path: 'sms',
+            loadComponent: () => import('./pages/administracion/config-sms/config-sms').then(m => m.ConfigSmsComponent),
+            canActivate: [adminGuard]
+          },
           // ─── Hub de Integraciones (salientes + entrantes + auditoría) ──────
           {
             path: 'integraciones',

@@ -1,0 +1,83 @@
+// Proveedor SMS — usa clases globales del sistema (.ui-card, .ui-control, etc.)
+
+.page-container { padding: 1.5rem 2rem; max-width: 720px; }
+
+.page-header { margin-bottom: 1.5rem; }
+
+.page-title {
+  font-size: calc(22px * var(--font-size-scale, 1));
+  font-weight: 700;
+  color: var(--ui-text, #151b3b);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0 0 0.25rem;
+}
+
+.page-subtitle {
+  margin: 0;
+  color: var(--ui-muted, #64748b);
+  font-size: calc(13px * var(--font-size-scale, 1));
+}
+
+.ui-card {
+  background: #fff;
+  border: 1px solid var(--ui-border, #dbe2ef);
+  border-radius: 12px;
+  padding: 1.25rem 1.5rem;
+}
+
+.cs-card { margin-bottom: 1.25rem; }
+
+.sub-text {
+  font-size: calc(11px * var(--font-size-scale, 1));
+  color: var(--ui-muted, #94a3b8);
+  font-weight: 400;
+}
+
+.ui-loading {
+  padding: 2.5rem;
+  text-align: center;
+  color: var(--ui-muted, #64748b);
+}
+
+.cs-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.cs-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.cs-actions {
+  margin-top: 1.25rem;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.cs-subtitle {
+  font-size: calc(15px * var(--font-size-scale, 1));
+  font-weight: 700;
+  color: var(--ui-text, #151b3b);
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0 0 0.4rem;
+}
+
+.cs-test-row {
+  display: flex;
+  gap: 0.6rem;
+  margin-top: 0.75rem;
+
+  input { flex: 1; }
+}
+
+// Dark mode
+html.dark-mode {
+  .ui-card { background: var(--ui-surface); border-color: var(--ui-border); }
+}

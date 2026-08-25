@@ -93,6 +93,8 @@ TENANT_FILES=(
   "V48__menu_ajustes_reales.sql"
   "V49__video_sesion_telefono.sql"
   "V50__menu_codigos_caso.sql"
+  "V51__config_sms_proveedor.sql"
+  "V52__menu_proveedor_sms.sql"
 )
 
 case "$SCOPE" in

@@ -74,9 +74,10 @@ nivel de servidor son los **puertos publicados en el host**:
    `FRONTEND_PORT` y/o `API_PORT` en `.env` (ver `.env.example`) — no hace
    falta tocar `docker-compose.yml`.
 3. Completa también `SECAD_BASE_URL` (dominio público real de este
-   despliegue — arma el link de videollamada que recibe el ciudadano) e,
-   si aplica, `INFOBIP_BASE_URL`/`INFOBIP_API_KEY`/`INFOBIP_SENDER` (envío
-   del link por SMS) en `.env`.
+   despliegue — arma el link de videollamada que recibe el ciudadano) en
+   `.env`. El proveedor de SMS para enviar ese link (Infobip, Inalambria
+   Express, etc.) ya no se configura acá — se administra desde
+   Administración → Proveedor SMS dentro de la propia app, sin redeploy.
 4. Para actualizar el despliegue más adelante (traer cambios del repo y
    reconstruir/reiniciar solo lo que cambió), usa:
    ```bash
