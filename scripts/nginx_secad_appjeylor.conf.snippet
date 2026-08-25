@@ -20,6 +20,12 @@ server {
     ssl_certificate     /etc/nginx/certs/origin.pem;
     ssl_certificate_key /etc/nginx/certs/origin.key;
 
+    # Debe igualar (o superar) el límite de Kestrel en el backend (150 MB) —
+    # si no, este nginx corta el cuerpo de la petición con un 413 antes de
+    # que llegue siquiera a secad-frontend. Afecta la subida de grabaciones
+    # de videollamada (POST /api/Adjunto/subir-video).
+    client_max_body_size 150m;
+
     location / {
         proxy_pass http://secad-frontend:80;
         proxy_http_version 1.1;
