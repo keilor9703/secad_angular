@@ -267,9 +267,13 @@ export interface DtoAdjunto {
   mimeType:       string;
   tamanioBytes:   number;
   descripcion?:   string | null;
-  canalOrigen:    'MANUAL' | 'API_CHAT' | 'API_SMS' | 'API_FOTO';
+  canalOrigen:    'MANUAL' | 'API_CHAT' | 'API_SMS' | 'API_FOTO' | 'VIDEOLLAMADA';
   subidoPor:      string;
   fechaSubida:    string;
+  /** Metadatos de la videollamada (solo si canalOrigen === 'VIDEOLLAMADA') */
+  numeroTelefonoLlamada?: string | null;
+  fechaInicioLlamada?:    string | null;
+  duracionSegundos?:      number | null;
 }
 
 // ─── Service ─────────────────────────────────────────────────────────────────────

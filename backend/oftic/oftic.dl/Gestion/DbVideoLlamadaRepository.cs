@@ -23,7 +23,7 @@ namespace Datos.Gestion
 
         public async Task<long> CrearSesionAsync(
             long pedidoId, int sitioGraba, string usuarioDespachador,
-            DateTime fechaExpira, CancellationToken ct)
+            DateTime fechaExpira, string? numeroTelefono, CancellationToken ct)
         {
             var id = _snowflake.NextId();
 
@@ -31,14 +31,15 @@ namespace Datos.Gestion
             await using var cmd  = conn.CreateCommand();
             cmd.CommandText = @"
 INSERT INTO cad_video_sesiones
-    (id, pedido_id, sitio_graba, estado, usuario_despachador, fecha_creacion, fecha_expira)
+    (id, pedido_id, sitio_graba, estado, usuario_despachador, fecha_creacion, fecha_expira, numero_telefono)
 VALUES
-    (@id, @pedidoId, @sg, 'PENDIENTE', @usuario, NOW(), @fechaExpira)";
+    (@id, @pedidoId, @sg, 'PENDIENTE', @usuario, NOW(), @fechaExpira, @numeroTelefono)";
             cmd.Parameters.AddWithValue("id",          id);
             cmd.Parameters.AddWithValue("pedidoId",    pedidoId);
             cmd.Parameters.AddWithValue("sg",          sitioGraba);
             cmd.Parameters.AddWithValue("usuario",     usuarioDespachador);
             cmd.Parameters.AddWithValue("fechaExpira", fechaExpira);
+            cmd.Parameters.AddWithValue("numeroTelefono", (object?)numeroTelefono ?? DBNull.Value);
             await cmd.ExecuteNonQueryAsync(ct);
 
             return id;

@@ -67,13 +67,19 @@ namespace Datos.Gestion
             // pedido_id es Snowflake (globalmente único) — no se filtra por sitio_graba
             // para que cualquier despachador/supervisor pueda ver las fotos sin importar su sitio.
             cmd.CommandText = """
-                SELECT id, pedido_id, sitio_graba, tipo_adjunto, nombre_original,
-                       nombre_guardado, ruta_relativa, mime_type, tamanio_bytes,
-                       descripcion, canal_origen, subido_por,
-                       TO_CHAR(fecha_subida AT TIME ZONE 'America/Bogota', 'DD/MM/YYYY HH24:MI:SS') AS fecha_subida
-                FROM   cad_adjuntos
-                WHERE  pedido_id = @pid
-                ORDER  BY fecha_subida DESC
+                SELECT a.id, a.pedido_id, a.sitio_graba, a.tipo_adjunto, a.nombre_original,
+                       a.nombre_guardado, a.ruta_relativa, a.mime_type, a.tamanio_bytes,
+                       a.descripcion, a.canal_origen, a.subido_por,
+                       TO_CHAR(a.fecha_subida AT TIME ZONE 'America/Bogota', 'DD/MM/YYYY HH24:MI:SS') AS fecha_subida,
+                       vs.numero_telefono,
+                       TO_CHAR(vs.fecha_conectado AT TIME ZONE 'America/Bogota', 'DD/MM/YYYY HH24:MI:SS') AS fecha_inicio_llamada,
+                       CASE WHEN vs.fecha_conectado IS NOT NULL AND vs.fecha_finalizado IS NOT NULL
+                            THEN EXTRACT(EPOCH FROM (vs.fecha_finalizado - vs.fecha_conectado))::INT
+                       END AS duracion_segundos
+                FROM   cad_adjuntos a
+                LEFT   JOIN cad_video_sesiones vs ON vs.adjunto_grabacion_id = a.id
+                WHERE  a.pedido_id = @pid
+                ORDER  BY a.fecha_subida DESC
                 """;
             cmd.Parameters.AddWithValue("@pid", pedidoId);
             await using var reader = await cmd.ExecuteReaderAsync(ct);
@@ -81,20 +87,23 @@ namespace Datos.Gestion
             {
                 list.Add(new DtoAdjunto
                 {
-                    Id             = reader.GetInt64(0),
-                    PedidoId       = reader.GetInt64(1),
-                    SitioGraba     = reader.GetInt32(2),
-                    TipoAdjunto    = reader.GetString(3),
-                    NombreOriginal = reader.GetString(4),
-                    NombreGuardado = reader.GetString(5),
-                    RutaRelativa   = reader.GetString(6),
-                    MimeType       = reader.GetString(7),
-                    TamanioBytes   = reader.GetInt64(8),
-                    Descripcion    = reader.IsDBNull(9)  ? null : reader.GetString(9),
-                    CanalOrigen    = reader.GetString(10),
-                    SubidoPor      = reader.GetString(11),
-                    FechaSubida    = reader.IsDBNull(12) ? "" : reader.GetString(12),
-                    UrlPublica     = "/" + reader.GetString(6).Replace('\\', '/')
+                    Id                    = reader.GetInt64(0),
+                    PedidoId              = reader.GetInt64(1),
+                    SitioGraba            = reader.GetInt32(2),
+                    TipoAdjunto           = reader.GetString(3),
+                    NombreOriginal        = reader.GetString(4),
+                    NombreGuardado        = reader.GetString(5),
+                    RutaRelativa          = reader.GetString(6),
+                    MimeType              = reader.GetString(7),
+                    TamanioBytes          = reader.GetInt64(8),
+                    Descripcion           = reader.IsDBNull(9)  ? null : reader.GetString(9),
+                    CanalOrigen           = reader.GetString(10),
+                    SubidoPor             = reader.GetString(11),
+                    FechaSubida           = reader.IsDBNull(12) ? "" : reader.GetString(12),
+                    NumeroTelefonoLlamada = reader.IsDBNull(13) ? null : reader.GetString(13),
+                    FechaInicioLlamada    = reader.IsDBNull(14) ? null : reader.GetString(14),
+                    DuracionSegundos      = reader.IsDBNull(15) ? null : reader.GetInt32(15),
+                    UrlPublica            = "/" + reader.GetString(6).Replace('\\', '/')
                 });
             }
             return list;

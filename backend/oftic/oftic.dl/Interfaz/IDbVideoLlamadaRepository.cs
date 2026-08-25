@@ -7,7 +7,7 @@ namespace Datos.Interfaz
         /// <summary>Inserta la sesión en estado PENDIENTE. Retorna el id generado (Snowflake).</summary>
         Task<long> CrearSesionAsync(
             long pedidoId, int sitioGraba, string usuarioDespachador,
-            DateTime fechaExpira, CancellationToken ct);
+            DateTime fechaExpira, string? numeroTelefono, CancellationToken ct);
 
         /// <summary>Lee el estado de una sesión por id. Null si no existe.</summary>
         Task<DtoVideoSesionEstado?> GetPorIdAsync(long sesionId, CancellationToken ct);

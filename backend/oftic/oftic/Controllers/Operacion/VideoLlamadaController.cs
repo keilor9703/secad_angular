@@ -65,7 +65,7 @@ namespace Api.Controllers.Operacion
                 var codDane     = User.FindFirstValue("cod_dane") ?? "";
 
                 var sesionId = await _videoService.CrearSesionAsync(
-                    req.PedidoId, pedido.SitioGraba, usuario, fechaExpira, ct);
+                    req.PedidoId, pedido.SitioGraba, usuario, fechaExpira, req.NumeroTelefono, ct);
 
                 var token = _sessionToken.CreateToken(
                     new VideoSessionTokenService.VideoSessionData(

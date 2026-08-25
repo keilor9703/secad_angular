@@ -1253,26 +1253,47 @@
                   </div>
               </app-panel-colapsable><!-- /ASISTENTE -->
 
-              <!-- FOTOS ADJUNTAS DEL CASO -->
+              <!-- ARCHIVOS MULTIMEDIA DEL CASO (fotos + grabaciones de videollamada) -->
               @if (adjuntos().length > 0) {
-                <app-panel-colapsable titulo="Fotos del caso" icono="fa-solid fa-camera"
+                <app-panel-colapsable titulo="Archivos multimedia" icono="fa-solid fa-photo-film"
                                       [(abierto)]="fotosAbierto">
                   <span extra class="ev-badge" style="margin-left:auto;">{{ adjuntos().length }}</span>
                   <div class="ev-adjuntos-grid">
                     @for (adj of adjuntos(); track adj.id) {
-                      <a [href]="adj.urlPublica" target="_blank"
-                         class="ev-adjunto-card" [title]="adj.nombreOriginal">
-                        <div class="ev-adjunto-card__img">
-                          <img [src]="adj.urlPublica" [alt]="adj.nombreOriginal" loading="lazy">
-                          <i class="fa-solid fa-image ev-adjunto-card__fallback"></i>
-                        </div>
-                        <span class="ev-adjunto-card__nombre">{{ adj.nombreOriginal }}</span>
-                        <span class="ev-adjunto-card__canal">
-                          @if (adj.canalOrigen === 'API_CHAT') { Chat }
-                          @else if (adj.canalOrigen === 'API_SMS') { SMS }
-                          @else { Manual }
-                        </span>
-                      </a>
+                      @if (adj.tipoAdjunto === 'VIDEO') {
+                        <a [href]="adj.urlPublica" target="_blank"
+                           class="ev-adjunto-card ev-adjunto-card--video" [title]="adj.nombreOriginal">
+                          <div class="ev-adjunto-card__img ev-adjunto-card__img--video">
+                            <video [src]="adj.urlPublica" preload="metadata" muted></video>
+                            <i class="fa-solid fa-circle-play ev-adjunto-card__play"></i>
+                          </div>
+                          <div class="ev-adjunto-video-meta">
+                            @if (adj.numeroTelefonoLlamada) {
+                              <span><i class="fa-solid fa-phone"></i> {{ adj.numeroTelefonoLlamada }}</span>
+                            }
+                            @if (adj.fechaInicioLlamada) {
+                              <span><i class="fa-regular fa-calendar"></i> {{ adj.fechaInicioLlamada }}</span>
+                            }
+                            @if (adj.duracionSegundos != null) {
+                              <span><i class="fa-regular fa-clock"></i> {{ formatDuracion(adj.duracionSegundos) }}</span>
+                            }
+                          </div>
+                        </a>
+                      } @else {
+                        <a [href]="adj.urlPublica" target="_blank"
+                           class="ev-adjunto-card" [title]="adj.nombreOriginal">
+                          <div class="ev-adjunto-card__img">
+                            <img [src]="adj.urlPublica" [alt]="adj.nombreOriginal" loading="lazy">
+                            <i class="fa-solid fa-image ev-adjunto-card__fallback"></i>
+                          </div>
+                          <span class="ev-adjunto-card__nombre">{{ adj.nombreOriginal }}</span>
+                          <span class="ev-adjunto-card__canal">
+                            @if (adj.canalOrigen === 'API_CHAT') { Chat }
+                            @else if (adj.canalOrigen === 'API_SMS') { SMS }
+                            @else { Manual }
+                          </span>
+                        </a>
+                      }
                     }
                   </div>
                 </app-panel-colapsable>

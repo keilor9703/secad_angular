@@ -3034,6 +3034,40 @@ html.dark-mode {
     color:      var(--ui-text-muted, #6b7280);
     font-style: italic;
   }
+
+  &--video {
+    width: 150px;
+
+    .ev-adjunto-card__img--video {
+      width:  150px;
+      height: 110px;
+
+      video {
+        width:      100%;
+        height:     100%;
+        object-fit: cover;
+        background: #000;
+      }
+    }
+  }
+}
+
+.ev-adjunto-card__play {
+  position:  absolute;
+  font-size: 2rem;
+  color:     rgba(255, 255, 255, 0.9);
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.6);
+}
+
+.ev-adjunto-video-meta {
+  display:        flex;
+  flex-direction: column;
+  gap:            2px;
+  font-size:      0.68rem;
+  color:          var(--ui-text-muted, #6b7280);
+
+  span { display: flex; align-items: center; gap: 4px; }
+  i    { width: 12px; text-align: center; }
 }
 
 html.dark-mode {

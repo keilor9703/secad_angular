@@ -1008,6 +1008,13 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
     });
   }
 
+  /** Formatea segundos como mm:ss para la duración de una grabación de videollamada. */
+  formatDuracion(segundos: number): string {
+    const m = Math.floor(segundos / 60);
+    const s = segundos % 60;
+    return `${m}:${s.toString().padStart(2, '0')}`;
+  }
+
   /** Minutos transcurridos desde que el recurso entró en su estado actual — para el timer visual. */
   minutosEnEstadoActual(act: DtoActuacionListItem): number {
     const ref = act.estado === 'A' ? act.fechaLlegada
