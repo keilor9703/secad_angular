@@ -12,6 +12,12 @@ interface DtoVideoSesionPublica {
   sesionId: string;
 }
 
+interface ChatMensaje {
+  texto: string;
+  propio: boolean;
+  hora: string;
+}
+
 type EstadoPagina =
   | 'validando' | 'invalido' | 'pidiendo-permiso' | 'permiso-denegado'
   | 'esperando' | 'conectada' | 'finalizada' | 'error';
@@ -41,6 +47,10 @@ export class VideoCiudadanoComponent implements OnInit, OnDestroy {
   readonly mensajeError = signal('');
   readonly camaraFrontal = signal(false);
   readonly cambiandoCamara = signal(false);
+  readonly chatMensajes = signal<ChatMensaje[]>([]);
+  readonly chatDisponible = signal(false);
+  readonly chatAbierto = signal(false);
+  readonly chatTexto = signal('');
 
   private readonly token: string;
   private sesionId = '';
@@ -48,10 +58,19 @@ export class VideoCiudadanoComponent implements OnInit, OnDestroy {
   private pc: RTCPeerConnection | null = null;
   private localStream: MediaStream | null = null;
   private facingModeActual: 'environment' | 'user' = 'environment';
+  private dataChannel: RTCDataChannel | null = null;
 
-  private readonly iceServers: RTCIceServer[] = [
-    { urls: 'stun:stun.l.google.com:19302' }
-  ];
+  /** Ver comentario equivalente en video-llamada.service.ts (lado despachador). */
+  private construirIceServers(): RTCIceServer[] {
+    const servers: RTCIceServer[] = [{ urls: 'stun:stun.l.google.com:19302' }];
+    const turnUrls = (environment as Partial<{ turnUrls: string[] }>).turnUrls;
+    const turnUsername = (environment as Partial<{ turnUsername: string }>).turnUsername;
+    const turnCredential = (environment as Partial<{ turnCredential: string }>).turnCredential;
+    if (turnUrls?.length) {
+      servers.push({ urls: turnUrls, username: turnUsername, credential: turnCredential });
+    }
+    return servers;
+  }
 
   constructor() {
     this.token = this.route.snapshot.paramMap.get('token') ?? '';
@@ -124,7 +143,15 @@ export class VideoCiudadanoComponent implements OnInit, OnDestroy {
     }
 
     const videoLocalRef = this.videoLocalRef();
-    if (videoLocalRef) videoLocalRef.nativeElement.srcObject = this.localStream;
+    if (videoLocalRef) {
+      // El atributo HTML "muted" ya está puesto en la plantilla, pero se
+      // fuerza también por JS (defensivo): algunos navegadores móviles no
+      // garantizan que la propiedad quede en sync con el atributo cuando el
+      // srcObject se asigna dinámicamente después del render inicial, lo que
+      // puede hacer que el ciudadano escuche su propia voz por el parlante.
+      videoLocalRef.nativeElement.muted = true;
+      videoLocalRef.nativeElement.srcObject = this.localStream;
+    }
 
     await this.conectar();
   }
@@ -167,9 +194,14 @@ export class VideoCiudadanoComponent implements OnInit, OnDestroy {
   }
 
   private prepararPeerConnection(): void {
-    this.pc = new RTCPeerConnection({ iceServers: this.iceServers });
+    this.pc = new RTCPeerConnection({ iceServers: this.construirIceServers() });
 
     this.localStream?.getTracks().forEach(track => this.pc!.addTrack(track, this.localStream!));
+
+    // Chat de texto P2P — el despachador (offerer) crea el canal; el
+    // ciudadano solo lo recibe. Permite escribir sin hablar (p. ej. si no
+    // puede recibir sonido del CAD sin delatarse ante un agresor).
+    this.pc.ondatachannel = (ev) => this.configurarDataChannel(ev.channel);
 
     this.pc.onicecandidate = (ev) => {
       if (ev.candidate && this.hub) {
@@ -206,7 +238,10 @@ export class VideoCiudadanoComponent implements OnInit, OnDestroy {
       if (sender) await sender.replaceTrack(nuevoTrack);
 
       const videoLocalRef = this.videoLocalRef();
-      if (videoLocalRef) videoLocalRef.nativeElement.srcObject = this.localStream;
+      if (videoLocalRef) {
+        videoLocalRef.nativeElement.muted = true;
+        videoLocalRef.nativeElement.srcObject = this.localStream;
+      }
 
       this.facingModeActual = nuevoFacingMode;
       this.camaraFrontal.set(nuevoFacingMode === 'user');
@@ -216,6 +251,40 @@ export class VideoCiudadanoComponent implements OnInit, OnDestroy {
     } finally {
       this.cambiandoCamara.set(false);
     }
+  }
+
+  private configurarDataChannel(dc: RTCDataChannel): void {
+    this.dataChannel = dc;
+    dc.onopen = () => this.chatDisponible.set(true);
+    dc.onclose = () => this.chatDisponible.set(false);
+    dc.onmessage = (ev) => this.recibirChat(ev.data);
+  }
+
+  private recibirChat(data: string): void {
+    try {
+      const msg = JSON.parse(data);
+      this.chatMensajes.update(actuales => [
+        ...actuales,
+        { texto: String(msg.texto ?? ''), propio: false, hora: this.horaActual() }
+      ]);
+      this.chatAbierto.set(true);
+    } catch { /* mensaje malformado, ignorar */ }
+  }
+
+  private horaActual(): string {
+    return new Date().toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
+  }
+
+  toggleChat(): void {
+    this.chatAbierto.update(v => !v);
+  }
+
+  enviarChat(): void {
+    const texto = this.chatTexto().trim();
+    if (!texto || !this.dataChannel || this.dataChannel.readyState !== 'open') return;
+    this.dataChannel.send(JSON.stringify({ texto }));
+    this.chatMensajes.update(actuales => [...actuales, { texto, propio: true, hora: this.horaActual() }]);
+    this.chatTexto.set('');
   }
 
   colgar(): void {
@@ -230,6 +299,8 @@ export class VideoCiudadanoComponent implements OnInit, OnDestroy {
     this.pc = null;
     this.hub?.stop();
     this.hub = null;
+    this.dataChannel?.close();
+    this.dataChannel = null;
     this.localStream?.getTracks().forEach(t => t.stop());
     this.localStream = null;
     if (this.estado() !== 'invalido' && this.estado() !== 'permiso-denegado') this.estado.set('finalizada');

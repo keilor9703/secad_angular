@@ -1338,6 +1338,20 @@
                         <div class="ev-video-controles">
                           @if (videollamadaEstado() === 'conectada') {
                             <button type="button" class="ui-btn"
+                                    [class.ui-btn-danger]="!videollamadaMicActivo()"
+                                    [class.ui-btn-secondary]="videollamadaMicActivo()"
+                                    (click)="toggleMicVideollamada()"
+                                    title="Silenciar/activar su propio micrófono — el ciudadano puede seguir escribiéndole por chat aunque lo silencie">
+                              <i class="fa-solid" [class.fa-microphone]="videollamadaMicActivo()" [class.fa-microphone-slash]="!videollamadaMicActivo()"></i>
+                              {{ videollamadaMicActivo() ? 'Silenciar mi micrófono' : 'Mi micrófono está silenciado' }}
+                            </button>
+                            <button type="button" class="ui-btn ui-btn-secondary" (click)="toggleChatVideollamada()">
+                              <i class="fa-solid fa-comment"></i> Chat
+                              @if (!videollamadaChatAbierto && videollamadaChatMensajes().length > 0) {
+                                <span class="ev-chat-badge"></span>
+                              }
+                            </button>
+                            <button type="button" class="ui-btn"
                                     [class.ui-btn-danger]="grabandoVideollamada"
                                     [class.ui-btn-secondary]="!grabandoVideollamada"
                                     (click)="toggleGrabacionVideollamada()">
@@ -1349,6 +1363,29 @@
                             <i class="fa-solid fa-phone-slash"></i> Colgar
                           </button>
                         </div>
+
+                        @if (videollamadaChatAbierto && videollamadaEstado() === 'conectada') {
+                          <div class="ev-chat-panel">
+                            <div class="ev-chat-mensajes">
+                              @if (videollamadaChatMensajes().length === 0) {
+                                <p class="ev-chat-vacio">Sin mensajes todavía.</p>
+                              }
+                              @for (m of videollamadaChatMensajes(); track $index) {
+                                <div class="ev-chat-burbuja" [class.ev-chat-burbuja--propia]="m.propio">
+                                  <span>{{ m.texto }}</span>
+                                  <small>{{ m.hora }}</small>
+                                </div>
+                              }
+                            </div>
+                            <form class="ev-chat-form" (submit)="enviarChatVideollamada(); $event.preventDefault()">
+                              <input class="ui-control" type="text" placeholder="Escriba un mensaje al ciudadano…"
+                                     [(ngModel)]="videollamadaChatTexto" name="videollamadaChatTexto">
+                              <button type="submit" class="ui-btn ui-btn-primary">
+                                <i class="fa-solid fa-paper-plane"></i>
+                              </button>
+                            </form>
+                          </div>
+                        }
                       </div>
                     }
                   </div>

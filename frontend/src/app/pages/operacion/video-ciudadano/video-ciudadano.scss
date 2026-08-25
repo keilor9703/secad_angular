@@ -122,6 +122,7 @@
 }
 
 .vc-btn-icon {
+  position: relative;
   width: 52px;
   height: 52px;
   border-radius: 50%;
@@ -134,6 +135,97 @@
 
   &:hover { background: rgba(255, 255, 255, 0.28); }
   &:disabled { opacity: 0.5; cursor: default; }
+}
+
+.vc-chat-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #ef4444;
+  border: 2px solid rgba(0, 0, 0, 0.4);
+}
+
+.vc-chat {
+  pointer-events: auto;
+  margin: 0 16px 12px;
+  max-height: 42vh;
+  display: flex;
+  flex-direction: column;
+  background: rgba(17, 24, 39, 0.72);
+  backdrop-filter: blur(8px);
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.vc-chat-mensajes {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.vc-chat-vacio {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.65);
+  font-size: 0.8rem;
+  text-align: center;
+}
+
+.vc-chat-burbuja {
+  align-self: flex-start;
+  max-width: 80%;
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  padding: 6px 10px;
+  border-radius: 10px;
+  font-size: 0.85rem;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+
+  small { opacity: 0.6; font-size: 0.68rem; }
+
+  &--propia {
+    align-self: flex-end;
+    background: #2563eb;
+  }
+}
+
+.vc-chat-form {
+  display: flex;
+  gap: 8px;
+  padding: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+
+  input {
+    flex: 1;
+    border: none;
+    border-radius: 999px;
+    padding: 8px 14px;
+    background: rgba(255, 255, 255, 0.12);
+    color: #fff;
+    font-size: 0.85rem;
+
+    &::placeholder { color: rgba(255, 255, 255, 0.5); }
+    &:focus { outline: 2px solid rgba(255, 255, 255, 0.4); }
+  }
+
+  button {
+    width: 38px;
+    height: 38px;
+    border: none;
+    border-radius: 50%;
+    background: #2563eb;
+    color: #fff;
+    cursor: pointer;
+
+    &:hover { background: #1d4ed8; }
+  }
 }
 
 .vc-btn-colgar-round {

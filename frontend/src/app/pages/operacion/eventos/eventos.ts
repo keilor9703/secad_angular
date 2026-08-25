@@ -48,7 +48,7 @@ import {
   DtoCanalSeleccionado,
   DtoAdjunto
 } from '../../../core/services/operacion/recepcion.service';
-import { VideoLlamadaService, EstadoLlamada } from '../../../core/services/operacion/video-llamada.service';
+import { VideoLlamadaService, EstadoLlamada, ChatMensaje } from '../../../core/services/operacion/video-llamada.service';
 import { PanelColapsableComponent } from '../../../components/panel-colapsable/panel-colapsable';
 import { animateMarkerTo, stopMarkerAnimation } from '../../../shared/utils/leaflet-marker-animator';
 
@@ -348,6 +348,11 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
   videollamadaTelefono      = '';
   readonly creandoVideollamada = signal(false);
   readonly videollamadaRemoteStream = signal<MediaStream | null>(null);
+  readonly videollamadaMicActivo = signal(true);
+  readonly videollamadaChatDisponible = signal(false);
+  readonly videollamadaChatMensajes = signal<ChatMensaje[]>([]);
+  videollamadaChatAbierto  = false;
+  videollamadaChatTexto    = '';
   grabandoVideollamada      = false;
   private videoSesionId     = '';
   private videoSubs         = new Subscription();
@@ -422,6 +427,15 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
     );
     this.videoSubs.add(
       this.videoSvc.error$.subscribe(msg => { if (msg) this.toast.error('Videollamada', msg); })
+    );
+    this.videoSubs.add(
+      this.videoSvc.microfonoActivo$.subscribe(activo => { this.videollamadaMicActivo.set(activo); })
+    );
+    this.videoSubs.add(
+      this.videoSvc.chatDisponible$.subscribe(disp => { this.videollamadaChatDisponible.set(disp); })
+    );
+    this.videoSubs.add(
+      this.videoSvc.chatMensajes$.subscribe((msgs: ChatMensaje[]) => { this.videollamadaChatMensajes.set(msgs); })
     );
 
     // ── Preferencia de alerta sonora (persistida por navegador) ───────────────
@@ -1012,6 +1026,8 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
     this.videollamadaMensaje.set('');
     this.grabandoVideollamada = false;
     this.videoSesionId        = '';
+    this.videollamadaChatAbierto = false;
+    this.videollamadaChatTexto   = '';
   }
 
   /** Crea la sesión, envía el link por SMS y abre la señalización a la espera del ciudadano. */
@@ -1069,6 +1085,28 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
     this.videoSvc.colgar();
     this.videollamadaLink.set('');
     this.videollamadaMensaje.set('');
+    this.videollamadaChatAbierto = false;
+    this.videollamadaChatTexto   = '';
+  }
+
+  /**
+   * Silencia/reactiva el micrófono del despachador sin colgar la llamada —
+   * útil cuando el ciudadano no puede recibir audio del CAD sin delatarse
+   * ante un agresor, pero puede seguir comunicándose por el chat de texto.
+   */
+  toggleMicVideollamada(): void {
+    this.videoSvc.toggleMicrofono();
+  }
+
+  toggleChatVideollamada(): void {
+    this.videollamadaChatAbierto = !this.videollamadaChatAbierto;
+  }
+
+  enviarChatVideollamada(): void {
+    const texto = this.videollamadaChatTexto.trim();
+    if (!texto) return;
+    this.videoSvc.enviarChat(texto);
+    this.videollamadaChatTexto = '';
   }
 
   setAnotacionTitulo(titulo: string): void {
