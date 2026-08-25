@@ -48,6 +48,32 @@ Troubleshooting:
 - `ConnectionStrings:MasterDb no configurada` en los logs → falta `DB_MASTER` en `.env` o el contenedor no lo está recibiendo (revisa `docker-compose config`).
 - Frontend carga pero las llamadas a `/api/...` fallan → confirma que el contenedor `secad-api` está `healthy` (`docker-compose ps`) antes de culpar al nginx del frontend.
 
+### Servidor con otros proyectos ya desplegados (p.ej. Oracle OCI)
+
+Este `docker-compose.yml` usa nombres de contenedor, red y volumen propios
+(`secad-api`, `secad-frontend`, `secad-network`) — no interfiere con otros
+proyectos en Docker en el mismo servidor. Lo único que sí es compartido a
+nivel de servidor son los **puertos publicados en el host**:
+
+1. Antes del primer `docker-compose up`, revisa qué puertos ya están en uso:
+   ```bash
+   sudo ss -tulnp | grep LISTEN
+   sudo docker ps --format 'table {{.Names}}\t{{.Ports}}'
+   ```
+2. Si `80` y/o `8088` ya están tomados por otro proyecto, cambia
+   `FRONTEND_PORT` y/o `API_PORT` en `.env` (ver `.env.example`) — no hace
+   falta tocar `docker-compose.yml`.
+3. Completa también `SECAD_BASE_URL` (dominio público real de este
+   despliegue — arma el link de videollamada que recibe el ciudadano) e,
+   si aplica, `INFOBIP_BASE_URL`/`INFOBIP_API_KEY`/`INFOBIP_SENDER` (envío
+   del link por SMS) en `.env`.
+4. Para actualizar el despliegue más adelante (traer cambios del repo y
+   reconstruir/reiniciar solo lo que cambió), usa:
+   ```bash
+   ./scripts/update_docker.sh                 # actualiza la rama activa
+   ./scripts/update_docker.sh Dev_TMartinez1  # o fuerza una rama puntual
+   ```
+
 ---
 
 ## 1) Build en Windows
