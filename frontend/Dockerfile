@@ -8,6 +8,11 @@ WORKDIR /app
 COPY package*.json ./
 COPY scripts ./scripts
 COPY patches ./patches
+# package.json referencia "@policia/mfa" como dependencia local
+# (file:dist-libs/policia-mfa-1.0.0.tgz) — npm ci necesita ese .tgz presente
+# en el contexto de build, así que se copia junto con el resto de manifiestos,
+# antes de npm ci (el resto del código fuente recién se copia después).
+COPY dist-libs ./dist-libs
 
 RUN npm ci
 
