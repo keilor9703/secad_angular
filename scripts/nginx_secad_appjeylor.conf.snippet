@@ -1,0 +1,37 @@
+# ══════════════════════════════════════════════════════════════════════════
+# Bloque para agregar a /home/ubuntu/falcon-deploy/nginx.conf (falcon-deploy
+# tiene ese archivo montado tal cual en el contenedor falcon-deploy-nginx-1,
+# como /etc/nginx/conf.d/default.conf) — se AGREGA al final del archivo, sin
+# tocar el server { server_name _; } que ya existe. nginx elige el bloque
+# correcto según server_name (match exacto gana sobre el catch-all "_"), así
+# que el resto de tu tráfico sigue cayendo en el bloque de siempre.
+#
+# Requiere que falcon-deploy-nginx-1 y secad-frontend estén en la misma red
+# Docker (falcon-deploy_default) — ver docker-compose.yml de SECAD, servicio
+# "frontend". El nombre "secad-frontend" se resuelve por DNS interno de
+# Docker una vez esté en esa red — no hace falta IP ni puerto publicado.
+# ══════════════════════════════════════════════════════════════════════════
+
+server {
+    listen 80;
+    listen 443 ssl;
+    server_name secad.appjeylor.com;
+
+    ssl_certificate     /etc/nginx/certs/origin.pem;
+    ssl_certificate_key /etc/nginx/certs/origin.key;
+
+    location / {
+        proxy_pass http://secad-frontend:80;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        # Sin esto, la señalización SignalR de la videollamada (WebSocket)
+        # nunca hace el upgrade y la conexión del despachador falla — mismo
+        # fix que ya se aplicó al proxy de ng serve en desarrollo.
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_read_timeout 3600s;
+    }
+}

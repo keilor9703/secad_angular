@@ -105,6 +105,12 @@ services:
     restart: unless-stopped
     networks:
       - secad-network
+      # Red del nginx compartido de otro proyecto ya desplegado en este
+      # servidor (falcon-deploy) — necesaria para que ese nginx pueda
+      # alcanzar este contenedor por nombre ("secad-frontend") y hacerle
+      # reverse proxy a secad.appjeylor.com sin publicar el 80/443 acá
+      # (esos puertos ya los tiene tomados falcon-deploy-nginx-1).
+      - falcon-deploy_default
 
 volumes:
   uploads:
@@ -114,3 +120,5 @@ volumes:
 networks:
   secad-network:
     driver: bridge
+  falcon-deploy_default:
+    external: true
