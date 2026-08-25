@@ -165,9 +165,17 @@ export class VideoLlamadaService {
     } catch (err) {
       // El despachador sigue pudiendo ver/oír al ciudadano aunque no
       // conceda su propio micrófono — solo no podrá hablar por audio (le
-      // queda el chat de texto).
+      // queda el chat de texto). Antes esto fallaba en silencio (solo
+      // console.error) y la UI seguía mostrando "Silenciar mi micrófono"
+      // como si estuviera activo, sin ninguna pista de por qué el
+      // ciudadano no escuchaba nada — ahora se refleja en la UI y se avisa.
       // eslint-disable-next-line no-console
       console.error('[video-llamada] no se pudo capturar el micrófono del despachador:', err);
+      this.microfonoActivoSubject.next(false);
+      this.errorSubject.next(
+        'No se pudo activar su micrófono — el ciudadano no lo escuchará. ' +
+        'Revise el ícono de candado junto a la dirección para conceder el permiso de micrófono a este sitio y vuelva a iniciar la videollamada.'
+      );
     }
 
     // Chat de texto P2P — el despachador (offerer) crea el canal de datos;
