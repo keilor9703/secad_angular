@@ -1,0 +1,182 @@
+<div class="page-container">
+
+  <!-- Header -->
+  <div class="page-header">
+    <div class="page-header__info">
+      <h1 class="page-title">
+        <i class="fa-solid fa-clipboard-list"></i>
+        Códigos de caso
+      </h1>
+      <p class="page-subtitle">
+        Catálogo de tipos de incidente (códigos de caso) que se usa en Recepción, Eventos, Reportes y el Asistente Inteligente.
+      </p>
+    </div>
+    <button class="ui-btn primary" type="button" (click)="openCreate()">
+      <i class="fa-solid fa-plus"></i> Nuevo código
+    </button>
+  </div>
+
+  <!-- Importación masiva -->
+  <div class="ui-card ca-import-card">
+    <div class="ca-import-head">
+      <i class="fa-solid fa-file-excel"></i>
+      <div>
+        <strong>Importar códigos desde Excel</strong>
+        <p class="sub-text">
+          Archivo .xlsx con encabezado en la fila 1: columna A = Código, columna B = Descripción.
+          Si un código ya existe, se actualiza su descripción — no se duplica.
+        </p>
+      </div>
+    </div>
+    <div class="ca-import-actions">
+      <button class="ui-btn sm ghost" type="button" (click)="descargarPlantilla()">
+        <i class="fa-solid fa-download"></i> Descargar plantilla
+      </button>
+      <label class="ui-btn sm secondary ca-file-label">
+        <i class="fa-solid" [ngClass]="importando() ? 'fa-spinner fa-spin' : 'fa-file-arrow-up'"></i>
+        {{ importando() ? 'Importando…' : 'Seleccionar archivo Excel' }}
+        <input type="file" accept=".xlsx" hidden [disabled]="importando()" (change)="onArchivoSeleccionado($event)">
+      </label>
+    </div>
+
+    @if (resultadoImport(); as r) {
+      <div class="ca-import-resultado" [class.ca-import-resultado--ok]="r.success">
+        <p><strong>{{ r.message }}</strong></p>
+        @if (r.errores.length > 0) {
+          <details>
+            <summary>{{ r.errores.length }} observación(es)</summary>
+            <ul>
+              @for (e of r.errores; track e) { <li>{{ e }}</li> }
+            </ul>
+          </details>
+        }
+      </div>
+    }
+  </div>
+
+  <!-- Buscador -->
+  <div class="ca-search">
+    <i class="fa-solid fa-magnifying-glass"></i>
+    <input class="ui-control" type="text" placeholder="Buscar por código o descripción…"
+           [value]="busqueda()" (input)="buscar($any($event.target).value)">
+  </div>
+
+  <!-- Loading -->
+  @if (loading()) {
+    <div class="ui-loading">
+      <i class="fa-solid fa-spinner fa-spin"></i> Cargando códigos de caso…
+    </div>
+  }
+
+  <!-- Tabla -->
+  @if (!loading()) {
+    <div class="ui-card">
+      @if (casos().length) {
+        <table class="ui-table">
+          <thead>
+            <tr>
+              <th>Código</th>
+              <th>Descripción</th>
+              <th>Categoría asistente</th>
+              <th>Estado</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (c of casos(); track c.codigo) {
+              <tr>
+                <td><code>{{ c.codigo }}</code></td>
+                <td>{{ c.descripcion }}</td>
+                <td>
+                  @if (c.categoriaDescripcion) {
+                    <span class="ui-badge info">{{ c.categoriaDescripcion }}</span>
+                  } @else {
+                    <span class="sub-text">Sin asignar</span>
+                  }
+                </td>
+                <td>
+                  <span class="ui-badge" [class.success]="c.vigente" [class.danger]="!c.vigente">
+                    {{ c.vigente ? 'Activo' : 'Inactivo' }}
+                  </span>
+                </td>
+                <td class="actions-cell">
+                  <button class="ui-btn secondary" type="button" (click)="openEdit(c)" title="Editar">
+                    <i class="fa-solid fa-pen"></i>
+                  </button>
+                  <button class="ui-btn" type="button" (click)="toggleEstado(c)"
+                          [title]="c.vigente ? 'Inactivar' : 'Activar'">
+                    <i class="fa-solid" [ngClass]="c.vigente ? 'fa-toggle-on' : 'fa-toggle-off'"></i>
+                  </button>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      } @else {
+        <div class="ui-empty">
+          <i class="fa-solid fa-clipboard-list fa-2x"></i>
+          <p>No hay códigos de caso registrados. <a (click)="openCreate()">Crear el primero</a> o importe un Excel.</p>
+        </div>
+      }
+    </div>
+  }
+
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+MODAL: Crear / Editar código de caso
+══════════════════════════════════════════════════════════ -->
+@if (showModal()) {
+  <div class="ui-modal" (click)="closeModal()">
+    <div class="ui-modal__dialog" (click)="$event.stopPropagation()">
+      <div class="ui-modal__head">
+        <div class="ui-modal__title">
+          <i class="fa-solid" [ngClass]="modalMode() === 'create' ? 'fa-plus-circle' : 'fa-pen-to-square'"></i>
+          {{ modalMode() === 'create' ? 'Nuevo código de caso' : 'Editar código de caso' }}
+        </div>
+        <button class="ui-icon-btn" type="button" (click)="closeModal()">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      <div class="ui-modal__body">
+        <div [formGroup]="form" class="ca-form">
+          <div class="ca-field">
+            <label class="ui-label">Código <span class="ca-req">*</span></label>
+            <input class="ui-control" formControlName="codigo" maxlength="50"
+                   [readonly]="modalMode() === 'edit'" placeholder="Ej: 904">
+          </div>
+          <div class="ca-field">
+            <label class="ui-label">Descripción <span class="ca-req">*</span></label>
+            <input class="ui-control" formControlName="descripcion" maxlength="300"
+                   placeholder="Ej: Hurto calificado">
+          </div>
+          <div class="ca-field">
+            <label class="ui-label">Categoría del Asistente Inteligente</label>
+            <select class="ui-control" formControlName="idCategoriaAsistente">
+              <option value="">Sin asignar</option>
+              @for (cat of categorias(); track cat.id) {
+                <option [value]="cat.id">{{ cat.descripcion }}</option>
+              }
+            </select>
+          </div>
+          <div class="ca-field">
+            <label class="ui-label">Estado</label>
+            <select class="ui-control" formControlName="vigente">
+              <option [ngValue]="true">Activo</option>
+              <option [ngValue]="false">Inactivo</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <div class="ui-modal__foot">
+        <button class="ui-btn sm ghost" type="button" (click)="closeModal()">
+          <i class="fa-solid fa-xmark"></i> Cancelar
+        </button>
+        <button class="ui-btn sm primary" type="button" (click)="save()" [disabled]="saving()">
+          <i class="fa-solid" [ngClass]="saving() ? 'fa-spinner fa-spin' : 'fa-floppy-disk'"></i>
+          {{ saving() ? 'Guardando...' : 'Guardar' }}
+        </button>
+      </div>
+    </div>
+  </div>
+}
