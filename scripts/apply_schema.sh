@@ -90,6 +90,7 @@ TENANT_FILES=(
   "V45__video_llamadas.sql"
   "V46__adjuntos_canal_videollamada.sql"
   "V47__menu_completo.sql"
+  "V48__menu_ajustes_reales.sql"
 )
 
 case "$SCOPE" in
