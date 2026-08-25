@@ -22,6 +22,15 @@
 --   ALTER TABLE cad_pedidos VALIDATE CONSTRAINT chk_cad_pedidos_estado;
 -- ============================================================
 
-ALTER TABLE cad_pedidos
-    ADD CONSTRAINT chk_cad_pedidos_estado
-    CHECK (estado IN ('A','P','E','T','R','C')) NOT VALID;
+-- Postgres no soporta ADD CONSTRAINT IF NOT EXISTS de forma nativa —
+-- se comprueba a mano para que el script sea seguro de re-correr.
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'chk_cad_pedidos_estado'
+    ) THEN
+        ALTER TABLE cad_pedidos
+            ADD CONSTRAINT chk_cad_pedidos_estado
+            CHECK (estado IN ('A','P','E','T','R','C')) NOT VALID;
+    END IF;
+END $$;
