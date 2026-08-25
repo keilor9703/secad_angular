@@ -64,6 +64,11 @@ export const routes: Routes = [
             loadComponent: () => import('./pages/administracion/asistente/asistente').then(m => m.AsistenteAdminComponent),
             canActivate: [adminGuard]
           },
+          {
+            path: 'casos',
+            loadComponent: () => import('./pages/administracion/casos/casos').then(m => m.CasosComponent),
+            canActivate: [adminGuard]
+          },
           // ─── Hub de Integraciones (salientes + entrantes + auditoría) ──────
           {
             path: 'integraciones',

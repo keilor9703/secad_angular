@@ -178,6 +178,8 @@ builder.Services.AddScoped<IDbUsuarioRepository, DbUsuarioRepository>();
 builder.Services.AddScoped<IDbHomeRepository, DbHomeRepository>();
 builder.Services.AddScoped<IDbDominioRepository, DbDominioRepository>();
 builder.Services.AddScoped<IDbDominioService, DbDominioService>();
+builder.Services.AddScoped<IDbCasoRepository, DbCasoRepository>();
+builder.Services.AddScoped<IDbCasoService, DbCasoService>();
 builder.Services.AddScoped<IDbVideoRepository, DbVideoRepository>();
 builder.Services.AddScoped<IDbVideoService, DbVideoService>();
 builder.Services.AddScoped<IDbLineaMandoRepository, DbLineaMandoRepository>();
