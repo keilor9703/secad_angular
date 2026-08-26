@@ -111,7 +111,6 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
   datosAbierto            = true;
   recursosAbierto         = true;
   despachoAbierto         = true;
-  fotosAbierto            = true;
   anotacionesAbierto      = true;
   canalesAsignadosAbierto = true;
 
@@ -341,7 +340,6 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
   readonly adjuntos = signal<DtoAdjunto[]>([]);
 
   // ─── Videollamada con el ciudadano (WebRTC P2P) ──────────────────────────────
-  videollamadaAbierta      = true;
   readonly videollamadaEstado = signal<EstadoLlamada>('inactiva');
   readonly videollamadaLink   = signal('');
   readonly videollamadaMensaje = signal('');
@@ -357,8 +355,10 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
   private videoSesionId     = '';
   private videoSubs         = new Subscription();
   readonly videollamadaUbicacion = signal<UbicacionCiudadano | null>(null);
-  private videoMapa: any = null;
-  private videoMapaMarker: any = null;
+  /** Marcador + recorrido del ciudadano, dibujados sobre el mismo mapa de recursos (mapaDetalle) — no un mapa aparte. */
+  private ciudadanoMarker: any = null;
+  private ciudadanoTrail: any = null;
+  private ciudadanoHistorial: [number, number][] = [];
 
   // ─── §6.17 Asistente Inteligente ─────────────────────────────────────────────
   /** Panel colapsable visible en el detalle del evento. */
@@ -443,7 +443,7 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
     this.videoSubs.add(
       this.videoSvc.ubicacion$.subscribe(u => {
         this.videollamadaUbicacion.set(u);
-        if (u) this.actualizarMapaUbicacion(u);
+        if (u) this.actualizarUbicacionCiudadanoEnMapa(u);
       })
     );
 
@@ -576,7 +576,6 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
     this.subs.unsubscribe();
     this.videoSubs.unsubscribe();
     if (this.videollamadaEstado() !== 'inactiva') this.videoSvc.colgar();
-    this.destruirMapaUbicacion();
     this.destroyMapaDetalle();
     this.detenerPollingRecursos();
     this.detenerPollingActuaciones();
@@ -1046,40 +1045,42 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
     this.videollamadaChatAbierto = false;
     this.videollamadaChatTexto   = '';
     this.videollamadaUbicacion.set(null);
-    this.destruirMapaUbicacion();
+    this.limpiarUbicacionCiudadanoEnMapa();
   }
 
   /**
-   * Crea (la primera vez) o reposiciona el mini-mapa Leaflet con la última
-   * ubicación GPS del ciudadano. Se hace en un setTimeout porque el <div>
-   * contenedor se renderiza condicionalmente (@if) — hay que esperar al
-   * siguiente tick para que ya exista en el DOM antes de L.map().
+   * Dibuja/actualiza la posición en vivo del ciudadano y su recorrido (hilo)
+   * sobre el MISMO mapa de "Recursos y ubicación en tiempo real" (mapaDetalle)
+   * — no un mapa aparte — para que el despachador vea en un solo lugar el
+   * incidente, las patrullas y al ciudadano. Si el mapa aún no existe (el
+   * panel nunca se ha renderizado) se descarta el punto — se retoma con la
+   * próxima actualización una vez el mapa exista.
    */
-  private actualizarMapaUbicacion(u: UbicacionCiudadano): void {
-    setTimeout(() => {
-      if (typeof L === 'undefined') return;
-      const el = document.getElementById('ev-video-mapa');
-      if (!el) return;
+  private actualizarUbicacionCiudadanoEnMapa(u: UbicacionCiudadano): void {
+    this.ciudadanoHistorial.push([u.lat, u.lng]);
+    if (this.ciudadanoHistorial.length > 500) this.ciudadanoHistorial.shift();
 
-      if (!this.videoMapa) {
-        this.videoMapa = L.map('ev-video-mapa', { zoomControl: false, attributionControl: false }).setView([u.lat, u.lng], 16);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(this.videoMapa);
-        this.videoMapaMarker = L.marker([u.lat, u.lng]).addTo(this.videoMapa);
-      } else {
-        this.videoMapa.setView([u.lat, u.lng]);
-        this.videoMapaMarker.setLatLng([u.lat, u.lng]);
-      }
-      this.videoMapa.invalidateSize();
-    }, 0);
+    if (!this.mapaDetalle) return;
+
+    if (!this.ciudadanoMarker) {
+      this.ciudadanoMarker = L.circleMarker([u.lat, u.lng], {
+        radius: 9, color: '#fff', weight: 2, fillColor: '#2563eb', fillOpacity: 1
+      }).addTo(this.mapaDetalle).bindPopup('<b>Ciudadano</b><br>Ubicación en vivo (videollamada)');
+      this.ciudadanoTrail = L.polyline(this.ciudadanoHistorial, {
+        color: '#2563eb', weight: 3, opacity: 0.55, dashArray: '4 6'
+      }).addTo(this.mapaDetalle);
+    } else {
+      this.ciudadanoMarker.setLatLng([u.lat, u.lng]);
+      this.ciudadanoTrail.setLatLngs(this.ciudadanoHistorial);
+    }
   }
 
-  private destruirMapaUbicacion(): void {
-    if (this.videoMapa) {
-      this.videoMapa.off();
-      this.videoMapa.remove();
-      this.videoMapa = null;
-      this.videoMapaMarker = null;
-    }
+  private limpiarUbicacionCiudadanoEnMapa(): void {
+    if (this.ciudadanoMarker) { try { this.ciudadanoMarker.remove(); } catch { /* mapa ya destruido */ } }
+    if (this.ciudadanoTrail)  { try { this.ciudadanoTrail.remove(); }  catch { /* mapa ya destruido */ } }
+    this.ciudadanoMarker   = null;
+    this.ciudadanoTrail    = null;
+    this.ciudadanoHistorial = [];
   }
 
   /** Crea la sesión, envía el link por SMS y abre la señalización a la espera del ciudadano. */
@@ -1140,7 +1141,7 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
     this.videollamadaChatAbierto = false;
     this.videollamadaChatTexto   = '';
     this.videollamadaUbicacion.set(null);
-    this.destruirMapaUbicacion();
+    this.limpiarUbicacionCiudadanoEnMapa();
   }
 
   /**
@@ -2409,6 +2410,13 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
     this.recursoMarkersPorCodigo.get(r.patrullaCodigo)?.openPopup();
   }
 
+  /** Centra el mapa en la última ubicación conocida del ciudadano — botón "Centrar" del panel de videollamada. */
+  centrarEnCiudadano(): void {
+    if (!this.mapaDetalle || !this.ciudadanoMarker) return;
+    this.mapaDetalle.flyTo(this.ciudadanoMarker.getLatLng(), 16, { duration: 0.6 });
+    this.ciudadanoMarker.openPopup();
+  }
+
   formatDistancia(km?: number): string {
     return this.turnosSvc.formatearDistancia(km);
   }
@@ -2468,6 +2476,10 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
   }
 
   private destroyMapaDetalle(): void {
+    // El marcador/recorrido del ciudadano son capas de este mismo mapa — al
+    // destruirlo, sus referencias JS quedan apuntando a capas ya removidas.
+    this.ciudadanoMarker = null;
+    this.ciudadanoTrail  = null;
     if (this.mapaDetalle) {
       try { this.mapaDetalle.remove(); } catch { /* ignore */ }
       this.mapaDetalle     = null;

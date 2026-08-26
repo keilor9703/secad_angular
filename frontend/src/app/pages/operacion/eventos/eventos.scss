@@ -768,15 +768,76 @@ html.dark-mode .ev-no-canal-banner {
   i { font-size: 10px; }
 }
 
+// 3 columnas: lista de recursos | mapa (protagonista) | videollamada + multimedia.
+// Antes el mapa y la videollamada vivían en secciones separadas, lejos entre sí —
+// ahora comparten esta misma fila para que el despachador vea todo de un vistazo:
+// caso + patrullas + ciudadano en el mapa central, control de la llamada al lado.
 .ev-recmap-main {
   display:               grid;
-  grid-template-columns: 340px 1fr;
+  grid-template-columns: 340px 1fr 360px;
   gap:                   12px;
   margin-bottom:         10px;
 
+  @media (max-width: 1300px) {
+    grid-template-columns: 300px 1fr;
+
+    // La columna de videollamada pasa a ocupar toda la fila siguiente en vez
+    // de angostarse hasta ser inusable.
+    .ev-recmap-video { grid-column: 1 / -1; }
+  }
+
   @media (max-width: 900px) {
     grid-template-columns: 1fr;
+
+    .ev-recmap-video { grid-column: auto; }
   }
+}
+
+.ev-recmap-video {
+  display:        flex;
+  flex-direction: column;
+  gap:            12px;
+  max-height:     680px;
+  overflow-y:     auto;
+
+  @media (max-width: 900px) {
+    max-height: none;
+  }
+}
+
+.ev-video-card {
+  border:        1px solid var(--ui-border, rgba(21,27,59,.14));
+  border-radius: var(--ui-radius-sm, 10px);
+  overflow:      hidden;
+  background:    var(--ui-surface, #fff);
+}
+
+.ev-video-card__head {
+  display:        flex;
+  align-items:    center;
+  gap:            8px;
+  padding:        10px 14px;
+  background:     var(--policia-gradiente-deep);
+  color:          #fff;
+  font-size:      calc(12px * var(--font-size-scale, 1));
+  font-weight:    900;
+  letter-spacing: .25px;
+  text-transform: uppercase;
+
+  > i:first-child { color: var(--policia-acento); }
+}
+
+.ev-video-card__body {
+  padding: 12px 14px;
+}
+
+// Grilla de adjuntos compacta — la misma tarjeta pero en una columna angosta
+// (360px) en vez del ancho completo del panel de "Archivos multimedia" original.
+.ev-adjuntos-grid--compacta {
+  padding:  0;
+  gap:      8px;
+
+  .ev-adjunto-card { width: 100px; }
 }
 
 .ev-recmap-list {
@@ -2912,31 +2973,24 @@ html.dark-mode {
   gap:       8px;
 }
 
+// Fila informativa dentro de la tarjeta de videollamada — la ubicación en sí
+// se dibuja en el mapa grande del panel (mapaEvento, ver actualizarUbicacionCiudadanoEnMapa
+// en eventos.ts), esto es solo el aviso + acceso rápido para centrar el mapa ahí.
 .ev-video-ubicacion {
-  display:        flex;
-  flex-direction: column;
-  gap:            6px;
-  margin:         10px 0;
-}
-
-.ev-video-mapa {
-  width:         100%;
-  height:        220px;
-  border-radius: 10px;
-  overflow:      hidden;
-  border:        1px solid var(--ui-border, #ddd);
-}
-
-.ev-video-ubicacion-info {
   display:         flex;
   flex-wrap:       wrap;
   align-items:     center;
-  justify-content: space-between;
   gap:             8px;
+  margin:          10px 0;
+  padding:         8px 10px;
+  border-radius:   8px;
+  background:      rgba(37, 99, 235, 0.08);
   font-size:       0.82rem;
-  color:           var(--ui-muted, #555);
+  color:           var(--ui-text, #1a1a2e);
 
+  > i { color: #2563eb; }
   small { color: var(--ui-muted, #888); }
+  .ui-btn { margin-left: auto; }
 }
 
 .ev-chat-badge {
@@ -3121,6 +3175,13 @@ html.dark-mode {
   }
 
   .ev-map { background: rgba(255,255,255,.04); }
+
+  .ev-video-card {
+    background:   rgba(255,255,255,.03);
+    border-color: rgba(255,255,255,.08);
+  }
+
+  .ev-video-ubicacion { background: rgba(37, 99, 235, 0.16); color: var(--ui-text); }
 
   .ev-recmap-ubicacion { color: var(--ui-text-muted); }
 
