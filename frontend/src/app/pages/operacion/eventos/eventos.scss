@@ -869,7 +869,7 @@ html.dark-mode .ev-no-canal-banner {
   .ev-recmap-list--sm { order: -1; }
 
   .ev-map--md          { height: 560px; }
-  .ev-recmap-list--sm  { height: 560px; }
+  .ev-recmap-list--sm  { max-height: 560px; }
 }
 
 .ev-live-mapwrap {
@@ -878,11 +878,15 @@ html.dark-mode .ev-no-canal-banner {
   gap:            8px;
 }
 
+// max-height, no height fijo — con pocos recursos (o uno solo, el caso más
+// común) una altura fija deja media caja en blanco; con max-height la caja
+// se ajusta al contenido real y solo llega al tope (con scroll) cuando de
+// verdad hay muchos recursos.
 .ev-recmap-list {
   display:        flex;
   flex-direction: column;
   gap:            5px;
-  height:         680px;
+  max-height:     680px;
   overflow-y:     auto;
   padding:        6px;
   border:         1px solid var(--ui-border, rgba(21,27,59,.12));
@@ -890,13 +894,13 @@ html.dark-mode .ev-no-canal-banner {
   background:     rgba(21,27,59,.015);
 
   @media (max-width: 900px) {
-    height: 280px;
+    max-height: 280px;
   }
 
   // Junto al mapa --md en la columna derecha: más baja que la lista "grande"
   // original, para no alargar esa columna mucho más que la videollamada.
   &--sm {
-    height: 300px;
+    max-height: 300px;
   }
 }
 
