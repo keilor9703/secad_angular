@@ -252,30 +252,44 @@ export class PedidoComponent implements OnInit, OnDestroy {
     .pipe(takeUntil(this.destroy$))
     .subscribe({
       next: ({ pedidos, eventos, conteos }) => {
-        // Turno vigente para el encabezado del dashboard
-        this.conteos.set(conteos);
+        // Todo el armado va dentro de try/finally: una excepción aquí adentro NO
+        // llega al callback de error de RxJS, así que antes dejaba el loading en
+        // true para siempre y el módulo se quedaba "cargando" sin explicación.
+        // Para un puesto de operación, la pantalla congelada es lo peor que puede
+        // pasar: pase lo que pase con los datos, el spinner tiene que apagarse.
+        try {
+          // Turno vigente para el encabezado del dashboard
+          this.conteos.set(conteos);
 
-        // Construir mapa de enriquecimiento: pedido.id → eventoListItem
-        this.eventoMap = {};
-        for (const ev of (eventos ?? [])) {
-          this.eventoMap[String(ev.id)] = ev;
-        }
-
-        const listaPedidos = (pedidos?.items ?? []).map(p => this.normalizarListItem(p as any));
-        this.listaPedidos.set(listaPedidos);
-        this.totalPedidos.set(pedidos?.total ?? listaPedidos.length);
-        this.loading.set(false);
-        this.lastRefresh.set(new Date());
-        this.computarStats();
-        this.computarKpis();
-
-        // Deep link pendiente (?id=...): abrir el incidente indicado apenas esté en la lista.
-        if (this.deepLinkPendienteId) {
-          const item = listaPedidos.find(p => p.id === this.deepLinkPendienteId);
-          if (item) {
-            this.deepLinkPendienteId = null;
-            this.seleccionarIncidente(item);
+          // Construir mapa de enriquecimiento: pedido.id → eventoListItem
+          this.eventoMap = {};
+          for (const ev of (Array.isArray(eventos) ? eventos : [])) {
+            this.eventoMap[String(ev.id)] = ev;
           }
+
+          const items = Array.isArray(pedidos?.items) ? pedidos.items : [];
+          const listaPedidos = items.map(p => this.normalizarListItem(p as any));
+          this.listaPedidos.set(listaPedidos);
+          this.totalPedidos.set(pedidos?.total ?? listaPedidos.length);
+          this.lastRefresh.set(new Date());
+          this.computarStats();
+          this.computarKpis();
+
+          // Deep link pendiente (?id=...): abrir el incidente indicado apenas esté en la lista.
+          if (this.deepLinkPendienteId) {
+            const item = listaPedidos.find(p => p.id === this.deepLinkPendienteId);
+            if (item) {
+              this.deepLinkPendienteId = null;
+              this.seleccionarIncidente(item);
+            }
+          }
+        } catch (e) {
+          console.error('[Pedido] Error procesando la respuesta del listado:', e);
+          if (!silencioso) {
+            this.toast.error('Seguimiento CAD', 'Los datos llegaron en un formato inesperado.');
+          }
+        } finally {
+          this.loading.set(false);
         }
       },
       error: () => {

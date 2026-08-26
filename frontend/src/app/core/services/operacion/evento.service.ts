@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
+import { map } from 'rxjs/operators';
 import { environment } from '../../../../environments/environment';
 import { DtoAnotacion, DtoAnotacionRequest, DtoPedidoDetalle, DtoPedidoResult } from './pedido.service';
 
@@ -181,7 +182,17 @@ export class EventoService {
     if (canalId  != null && canalId  > 0) params = params.set('canalId',  canalId.toString());
     if (fuerzaId != null && fuerzaId > 0) params = params.set('fuerzaId', fuerzaId.toString());
     if (estado) params = params.set('estado', estado);
-    return this.http.get<DtoEventoListItem[]>(this.baseUrl, { params });
+    return this.http.get<unknown>(this.baseUrl, { params }).pipe(
+      // Blindaje de contrato: quien llama recorre esto con for..of, así que aquí
+      // se garantiza que SIEMPRE salga un arreglo. El backend llegó a devolver
+      // un objeto { items, warning } cuando el usuario no tenía canal (caso del
+      // jefe de turno) y eso reventaba el módulo de Pedido con "is not iterable",
+      // dejándolo cargando indefinidamente. Ya se corrigió en el backend, pero un
+      // consumidor de una lista no debería poder romperse por la forma del payload.
+      map(resp => Array.isArray(resp)
+        ? resp as DtoEventoListItem[]
+        : ((resp as { items?: DtoEventoListItem[] })?.items ?? []))
+    );
   }
 
   /** Full detail for one event including annotations. */

@@ -55,12 +55,16 @@ namespace Api.Controllers.Operacion
 
             if (resolvedCanal <= 0)
             {
-                // Canal not configured — return empty list with a hint
-                return Ok(new
-                {
-                    items   = Array.Empty<object>(),
-                    warning = "Canal no configurado para este usuario. Seleccione un canal."
-                });
+                // Sin canal configurado (típico del jefe de turno, que supervisa varios
+                // canales) no hay eventos que listar.
+                //
+                // OJO: este endpoint DEBE devolver siempre un array. Antes esta rama
+                // devolvía un objeto { items, warning } mientras la ruta de éxito
+                // devolvía un array pelado. El frontend lo tipa como arreglo y lo
+                // recorre con for..of, así que al jefe de turno le explotaba con
+                // "is not iterable" y el módulo de Pedido se quedaba cargando para
+                // siempre. Nadie consumía "warning".
+                return Ok(Array.Empty<object>());
             }
 
             try
