@@ -787,16 +787,27 @@
                             <video #videoRemoto autoplay playsinline class="ev-video-remoto"
                                    [srcObject]="videollamadaRemoteStream()"></video>
                             <div class="ev-video-badges">
-                              <span class="ev-video-badge ev-video-badge--live"><i class="ev-video-dot"></i>En vivo</span>
-                              @if (grabandoVideollamada) {
-                                <span class="ev-video-badge ev-video-badge--rec"><i class="ev-video-dot"></i>REC</span>
-                              }
+                              <span class="ev-video-badges__left">
+                                <span class="ev-video-badge ev-video-badge--live"><i class="ev-video-dot"></i>En vivo</span>
+                                @if (grabandoVideollamada) {
+                                  <span class="ev-video-badge ev-video-badge--rec"><i class="ev-video-dot"></i>REC</span>
+                                }
+                              </span>
+                              <button type="button" class="ev-video-badge ev-video-badge--expand"
+                                      (click)="verVideollamadaPantallaCompleta()"
+                                      title="Ver a pantalla completa">
+                                <i class="fa-solid fa-expand"></i>
+                              </button>
                             </div>
                           </div>
                         }
 
                         <div class="ev-video-controles">
                           @if (videollamadaEstado() === 'conectada') {
+                            <button type="button" class="ui-btn ui-btn-secondary" (click)="verVideollamadaPantallaCompleta()"
+                                    title="Ver la transmisión del ciudadano a su tamaño real, en una vista dedicada">
+                              <i class="fa-solid fa-expand"></i> Pantalla completa
+                            </button>
                             <button type="button" class="ui-btn"
                                     [class.ui-btn-danger]="!videollamadaMicActivo()"
                                     [class.ui-btn-secondary]="videollamadaMicActivo()"

@@ -5,8 +5,10 @@ import {
   OnDestroy,
   AfterViewChecked,
   HostListener,
+  ElementRef,
   inject,
-  signal
+  signal,
+  viewChild
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -355,6 +357,7 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
   grabandoVideollamada      = false;
   private videoSesionId     = '';
   private videoSubs         = new Subscription();
+  readonly videoRemotoRef   = viewChild<ElementRef<HTMLVideoElement>>('videoRemoto');
   readonly videollamadaUbicacion = signal<UbicacionCiudadano | null>(null);
   /** Marcador + recorrido del ciudadano, dibujados sobre el mismo mapa de recursos (mapaDetalle) — no un mapa aparte. */
   private ciudadanoMarker: any = null;
@@ -1087,6 +1090,23 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
     return detalle.estado !== 'C'
       && this.videollamadaEstado() !== 'inactiva'
       && this.videollamadaEstado() !== 'finalizada';
+  }
+
+  /**
+   * Muestra el video del ciudadano a pantalla completa. No es un "abrir en
+   * pestaña nueva" real: el stream de WebRTC vive dentro de este
+   * RTCPeerConnection, en esta pestaña — un MediaStream no se puede pasar a
+   * otra pestaña/ventana del navegador (cada una corre en su propio proceso
+   * aislado). Pantalla completa logra el mismo objetivo práctico (ver la
+   * transmisión del ciudadano a su tamaño real, en una vista dedicada) sin
+   * necesitar una segunda conexión WebRTC independiente.
+   */
+  verVideollamadaPantallaCompleta(): void {
+    const el = this.videoRemotoRef()?.nativeElement;
+    if (!el) return;
+    el.requestFullscreen?.().catch(() => {
+      this.toast.warning('Videollamada', 'El navegador no permitió abrir pantalla completa.');
+    });
   }
 
   /** Centra el mapa en la última ubicación conocida del ciudadano — botón "Centrar" del panel de videollamada. */
