@@ -188,6 +188,36 @@ namespace Api.Controllers.Operacion
         }
 
         /// <summary>
+        /// Trazabilidad de las videollamadas de un caso — quién la atendió, cuándo
+        /// empezó, cuánto duró, si dejó grabación y cuál, y la transcripción del
+        /// chat. La consume la revisión del incidente en el módulo de Pedido, donde
+        /// el caso ya está cerrado y esto es todo lo que queda de la llamada.
+        /// </summary>
+        [HttpGet("pedido/{pedidoId:long}")]
+        public async Task<ActionResult> GetPorPedido(long pedidoId, CancellationToken ct)
+        {
+            try
+            {
+                var pedido = await _pedidoService.GetByIdAsync(pedidoId, ct);
+                if (pedido is null)
+                    return NotFound(new { success = false, message = "Caso no encontrado." });
+
+                if (!IsAdmin() && pedido.SitioGraba != GetIntClaim("sitio_graba"))
+                    return Forbid();
+
+                var sesiones = await _videoService.GetSesionesPorPedidoAsync(pedidoId, ct);
+                // Siempre un array: la mayoría de casos no tuvo videollamada y el
+                // frontend no debe tener que distinguir "vacío" de "otra forma".
+                return Ok(sesiones);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "GetPorPedido error pedidoId={Id}", pedidoId);
+                return StatusCode(500, new { success = false, message = "Error consultando la trazabilidad de videollamadas." });
+            }
+        }
+
+        /// <summary>
         /// Único endpoint anónimo: la página pública del ciudadano lo llama para
         /// saber si su enlace todavía es válido antes de pedir cámara/micrófono.
         /// </summary>

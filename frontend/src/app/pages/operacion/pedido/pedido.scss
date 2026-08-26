@@ -1890,6 +1890,267 @@
   }
 }
 
+// ── Grabaciones de videollamada dentro de "Archivos multimedia" ────────────────
+// Un <video> con póster del primer frame; antes se pintaban con <img> y salía
+// el ícono de imagen rota.
+.ev-adjunto-card--video {
+  width: 150px;
+
+  .ev-adjunto-card__img--video {
+    width:  150px;
+    height: 110px;
+
+    video {
+      width:      100%;
+      height:     100%;
+      object-fit: cover;
+      background: #000;
+    }
+  }
+}
+
+.ev-adjunto-card__play {
+  position:    absolute;
+  font-size:   2rem;
+  color:       rgba(255,255,255,.9);
+  text-shadow: 0 2px 6px rgba(0,0,0,.6);
+}
+
+.ev-adjunto-video-meta {
+  display:        flex;
+  flex-direction: column;
+  gap:            2px;
+  font-size:      0.68rem;
+  color:          var(--ui-text-muted, #6b7280);
+
+  span { display: flex; align-items: center; gap: 4px; }
+  i    { width: 12px; text-align: center; }
+}
+
+// ── Trazabilidad de videollamadas del caso ─────────────────────────────────────
+.seg-vc-lista {
+  display:        flex;
+  flex-direction: column;
+  gap:            12px;
+  padding:        12px 14px;
+}
+
+.seg-vc {
+  border:        1px solid var(--ui-border, #e5e9f0);
+  border-radius: 8px;
+  overflow:      hidden;
+  background:    var(--ui-surface, #fff);
+
+  &__head {
+    display:     flex;
+    align-items: center;
+    gap:         10px;
+    flex-wrap:   wrap;
+    padding:     8px 12px;
+    background:  rgba(8,166,203,.08);
+    border-bottom: 1px solid var(--ui-border, #e5e9f0);
+  }
+
+  &__estado {
+    font-size:      0.68rem;
+    font-weight:    700;
+    text-transform: uppercase;
+    letter-spacing: .3px;
+    padding:        2px 8px;
+    border-radius:  20px;
+    background:     rgba(107,114,128,.15);
+    color:          #4b5563;
+
+    &--ok   { background: rgba(22,163,74,.15);  color: #15803d; }
+    &--viva { background: rgba(37,99,235,.15);  color: #1d4ed8; }
+    &--nula { background: rgba(220,38,38,.12);  color: #b91c1c; }
+  }
+
+  &__atendio {
+    display:     flex;
+    align-items: center;
+    gap:         6px;
+    font-size:   0.78rem;
+    color:       var(--ui-text);
+    i { color: var(--ui-text-muted, #6b7280); }
+  }
+
+  // Rejilla de datos: se adapta al ancho del panel de detalle sin desbordarlo.
+  &__datos {
+    display:               grid;
+    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+    gap:                   8px 16px;
+    padding:               10px 12px;
+  }
+
+  &__dato {
+    display:        flex;
+    flex-direction: column;
+    gap:            2px;
+    min-width:      0;
+  }
+
+  &__lbl {
+    display:     flex;
+    align-items: center;
+    gap:         5px;
+    font-size:   0.66rem;
+    text-transform: uppercase;
+    letter-spacing: .3px;
+    color:       var(--ui-text-muted, #6b7280);
+    i { width: 12px; text-align: center; }
+  }
+
+  &__val {
+    font-size:     0.8rem;
+    color:         var(--ui-text);
+    word-break:    break-word;
+    em { color: var(--ui-text-muted, #6b7280); font-size: 0.76rem; }
+  }
+
+  &__link {
+    color:           #0ea5c9;
+    text-decoration: none;
+    &:hover { text-decoration: underline; }
+  }
+
+  // ── Grabación ───────────────────────────────────────────────────────────
+  &__grab {
+    display:     flex;
+    align-items: center;
+    gap:         12px;
+    padding:     10px 12px;
+    border-top:  1px dashed var(--ui-border, #e5e9f0);
+  }
+
+  &__grab-card {
+    position:      relative;
+    flex:          0 0 auto;
+    width:         150px;
+    height:        90px;
+    border-radius: 6px;
+    overflow:      hidden;
+    border:        1px solid var(--ui-border, #e5e9f0);
+    display:       flex;
+    align-items:   center;
+    justify-content: center;
+
+    video {
+      width:      100%;
+      height:     100%;
+      object-fit: cover;
+      background: #000;
+    }
+  }
+
+  &__grab-play {
+    position:    absolute;
+    font-size:   2rem;
+    color:       rgba(255,255,255,.9);
+    text-shadow: 0 2px 6px rgba(0,0,0,.6);
+    pointer-events: none;
+  }
+
+  &__grab-info {
+    display:        flex;
+    flex-direction: column;
+    gap:            3px;
+    min-width:      0;
+    font-size:      0.76rem;
+  }
+
+  &__grab-si {
+    display:     flex;
+    align-items: center;
+    gap:         5px;
+    font-weight: 600;
+    color:       #15803d;
+  }
+
+  &__grab-nombre {
+    color:         var(--ui-text-muted, #6b7280);
+    white-space:   nowrap;
+    overflow:      hidden;
+    text-overflow: ellipsis;
+  }
+
+  &__grab-no {
+    display:     flex;
+    align-items: center;
+    gap:         6px;
+    font-size:   0.78rem;
+    font-style:  italic;
+    color:       var(--ui-text-muted, #6b7280);
+
+    &--abierta { color: #b45309; font-style: normal; }
+  }
+
+  // ── Transcripción del chat ──────────────────────────────────────────────
+  &__chat { border-top: 1px dashed var(--ui-border, #e5e9f0); }
+
+  &__chat-head {
+    display:        flex;
+    align-items:    center;
+    gap:            7px;
+    padding:        8px 12px;
+    font-size:      0.72rem;
+    font-weight:    700;
+    text-transform: uppercase;
+    letter-spacing: .3px;
+    color:          var(--ui-text-muted, #6b7280);
+  }
+
+  &__chat-vacio {
+    padding:    0 12px 10px;
+    font-size:  0.78rem;
+    font-style: italic;
+    color:      var(--ui-text-muted, #6b7280);
+  }
+
+  // Se limita la altura para que una conversación larga no empuje el resto del
+  // expediente fuera de la vista; el hilo se desplaza dentro de su caja.
+  &__chat-hilo {
+    display:        flex;
+    flex-direction: column;
+    gap:            6px;
+    padding:        0 12px 12px;
+    max-height:     260px;
+    overflow-y:     auto;
+  }
+
+  // El ciudadano a la izquierda, el CAD a la derecha — misma convención que la
+  // pantalla de la videollamada, para que se lea igual al revisar el caso.
+  &__msg {
+    align-self:    flex-start;
+    max-width:     78%;
+    padding:       6px 10px;
+    border-radius: 10px 10px 10px 2px;
+    background:    rgba(21,27,59,.06);
+
+    &--cad {
+      align-self:    flex-end;
+      border-radius: 10px 10px 2px 10px;
+      background:    rgba(8,166,203,.14);
+    }
+  }
+
+  &__msg-meta {
+    display:     flex;
+    align-items: baseline;
+    gap:         8px;
+    font-size:   0.66rem;
+    color:       var(--ui-text-muted, #6b7280);
+    margin-bottom: 2px;
+  }
+
+  &__msg-texto {
+    font-size:   0.82rem;
+    color:       var(--ui-text);
+    white-space: pre-wrap;
+    word-break:  break-word;
+  }
+}
+
 // ════════════════════════════════════════════════════════════════════════════════
 //  Dark mode
 // ════════════════════════════════════════════════════════════════════════════════
@@ -1899,7 +2160,29 @@ html.dark-mode {
     background:   rgba(255,255,255,.06);
     border-color: rgba(255,255,255,.12);
   }
-  .ev-adjunto-card__nombre { color: rgba(228,231,235,.9); }
+  .ev-adjunto-card__nombre   { color: rgba(228,231,235,.9); }
+  .ev-adjunto-card__fallback { color: rgba(228,231,235,.3); }
+
+  .seg-vc {
+    background:   rgba(255,255,255,.03);
+    border-color: rgba(255,255,255,.12);
+
+    &__head       { background: rgba(8,166,203,.12); border-bottom-color: rgba(255,255,255,.12); }
+    &__grab,
+    &__chat       { border-top-color: rgba(255,255,255,.12); }
+    &__grab-card  { border-color: rgba(255,255,255,.12); }
+    &__val        { color: rgba(228,231,235,.92); }
+    &__atendio    { color: rgba(228,231,235,.92); }
+    &__msg        { background: rgba(255,255,255,.07); }
+    &__msg--cad   { background: rgba(8,166,203,.20); }
+    &__msg-texto  { color: rgba(228,231,235,.92); }
+    &__estado     { background: rgba(255,255,255,.10); color: rgba(228,231,235,.85); }
+    &__estado--ok   { background: rgba(22,163,74,.22);  color: #4ade80; }
+    &__estado--viva { background: rgba(37,99,235,.25);  color: #93c5fd; }
+    &__estado--nula { background: rgba(220,38,38,.22);  color: #fca5a5; }
+    &__grab-si      { color: #4ade80; }
+    &__grab-no--abierta { color: #fbbf24; }
+  }
 
   // Canales de atención (detalle del pedido)
   .seg-canales-bloque {
