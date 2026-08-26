@@ -50,7 +50,9 @@ namespace Api.Hubs
 
         private static string GroupName(long sesionId) => $"video-{sesionId}";
 
-        private const string CodDaneItemKey = "codDane";
+        private const string CodDaneItemKey  = "codDane";
+        private const string SesionIdItemKey = "sesionId";
+        private const string RolItemKey      = "rol";
 
         /// <summary>
         /// SignalR crea una instancia nueva del Hub (y un scope de DI nuevo, por
@@ -142,7 +144,15 @@ namespace Api.Hubs
             }
 
             await Groups.AddToGroupAsync(Context.ConnectionId, GroupName(id));
+            Context.Items[SesionIdItemKey] = id;
+            Context.Items[RolItemKey]      = "despachador";
+
             await Clients.Caller.SendAsync("unido", estado.Estado);
+
+            // El ciudadano puede llevar rato esperando (el despachador refrescó, se
+            // le cayó la red, o entró un relevo de turno). Avisarle que ya hay
+            // alguien atendiendo otra vez, para que su pantalla lo refleje.
+            await Clients.OthersInGroup(GroupName(id)).SendAsync("despachador-conectado");
         }
 
         // ════════════════════════════════════════════════════════════════════════
@@ -171,6 +181,9 @@ namespace Api.Hubs
             await _videoService.MarcarConectadaAsync(data.SesionId, ip, Context.ConnectionAborted);
 
             await Groups.AddToGroupAsync(Context.ConnectionId, GroupName(data.SesionId));
+            Context.Items[SesionIdItemKey] = data.SesionId;
+            Context.Items[RolItemKey]      = "ciudadano";
+
             await Clients.Caller.SendAsync("unido", "CONECTADA");
             await Clients.OthersInGroup(GroupName(data.SesionId)).SendAsync("ciudadano-conectado");
         }
@@ -220,6 +233,35 @@ namespace Api.Hubs
             if (!await AsegurarTenantAsync()) return;
             await _videoService.MarcarFinalizadaAsync(id, Context.ConnectionAborted);
             await Clients.Group(GroupName(id)).SendAsync("sesion-finalizada");
+        }
+
+        /// <summary>
+        /// Alguien se fue sin colgar: cerró la pestaña, refrescó, se quedó sin red o
+        /// se apagó el equipo. NO se finaliza la sesión — el otro extremo sigue en
+        /// ella y el que se cayó puede volver (ver GET api/VideoLlamada/activa).
+        /// Solo se avisa, para que la otra pantalla deje de mostrar una llamada
+        /// activa que en realidad ya no tiene a nadie del otro lado.
+        /// </summary>
+        public override async Task OnDisconnectedAsync(Exception? exception)
+        {
+            if (Context.Items.TryGetValue(SesionIdItemKey, out var raw) && raw is long id && id > 0)
+            {
+                var rol = Context.Items.TryGetValue(RolItemKey, out var r) ? r as string : null;
+
+                _logger.LogInformation(
+                    "[VideoHub] Desconexión de {Rol} en la sesión {SesionId}{Motivo}.",
+                    rol ?? "desconocido", id,
+                    exception is null ? "" : $" ({exception.Message})");
+
+                try
+                {
+                    await Clients.OthersInGroup(GroupName(id))
+                                 .SendAsync("participante-desconectado", rol ?? "desconocido");
+                }
+                catch { /* el grupo pudo quedar vacío; no es un error */ }
+            }
+
+            await base.OnDisconnectedAsync(exception);
         }
     }
 }

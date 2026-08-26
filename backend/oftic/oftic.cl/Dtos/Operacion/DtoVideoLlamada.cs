@@ -54,6 +54,54 @@ namespace Comun.Dtos.Operacion
     }
 
     /// <summary>
+    /// Videollamada vigente de un caso (PENDIENTE o CONECTADA). Permite que el
+    /// despachador se RECONECTE a la llamada en curso — tras un F5, un cambio de
+    /// pestaña o una caída de red — en vez de generar un enlace nuevo y obligar
+    /// al ciudadano a volver a entrar.
+    /// </summary>
+    public class DtoVideoSesionActiva
+    {
+        public bool     Hay            { get; set; }
+        [JsonNumberHandling(JsonNumberHandling.WriteAsString | JsonNumberHandling.AllowReadingFromString)]
+        public long     SesionId       { get; set; }
+        public string   Estado         { get; set; } = "";
+        /// <summary>Token re-firmado con la vigencia restante de la sesión, para rearmar el link.</summary>
+        public string   SessionToken   { get; set; } = "";
+        public DateTime FechaExpira    { get; set; }
+        public string?  NumeroTelefono { get; set; }
+        /// <summary>true si quedó una grabación abierta en el servidor (se sigue anexando a ella).</summary>
+        public bool     Grabando       { get; set; }
+    }
+
+    /// <summary>Body de POST api/Adjunto/grabacion/iniciar y .../finalizar.</summary>
+    public class DtoIniciarGrabacionRequest
+    {
+        [JsonNumberHandling(JsonNumberHandling.WriteAsString | JsonNumberHandling.AllowReadingFromString)]
+        public long SesionId { get; set; }
+    }
+
+    /// <summary>
+    /// Estado de la grabación de una sesión, tal como lo conoce el SERVIDOR (no el
+    /// navegador). El archivo temporal existe en disco desde el primer trozo, así
+    /// que la evidencia sobrevive aunque el puesto del despachador muera.
+    /// </summary>
+    public class DtoVideoGrabacion
+    {
+        [JsonNumberHandling(JsonNumberHandling.WriteAsString | JsonNumberHandling.AllowReadingFromString)]
+        public long      SesionId    { get; set; }
+        [JsonNumberHandling(JsonNumberHandling.WriteAsString | JsonNumberHandling.AllowReadingFromString)]
+        public long      PedidoId    { get; set; }
+        public int       SitioGraba  { get; set; }
+        /// <summary>null | GRABANDO | FINALIZADA</summary>
+        public string?   Estado      { get; set; }
+        public string?   ArchivoTemp { get; set; }
+        public long      Bytes       { get; set; }
+        public DateTime? Inicio      { get; set; }
+        public DateTime? UltimoChunk { get; set; }
+        public string?   Usuario     { get; set; }
+    }
+
+    /// <summary>
     /// Lo mínimo que la página pública del ciudadano necesita saber al validar su
     /// token — nunca expone el pedidoId real ni datos internos del caso.
     /// </summary>

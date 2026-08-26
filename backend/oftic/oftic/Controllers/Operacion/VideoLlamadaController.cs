@@ -64,6 +64,29 @@ namespace Api.Controllers.Operacion
                 var usuario     = User.FindFirstValue("username") ?? User.FindFirstValue(ClaimTypes.Name) ?? "sistema";
                 var codDane     = User.FindFirstValue("cod_dane") ?? "";
 
+                // Idempotencia: si el caso YA tiene una videollamada vigente, se
+                // devuelve esa misma en vez de crear otra. Sin esto, un despachador
+                // que refresca o vuelve al caso generaba un enlace nuevo y dejaba
+                // al ciudadano conectado a una sesión que ya nadie atiende.
+                var vigente = await _videoService.GetActivaPorPedidoAsync(req.PedidoId, ct);
+                if (vigente is not null)
+                {
+                    var tokenVigente = _sessionToken.CreateToken(
+                        new VideoSessionTokenService.VideoSessionData(
+                            vigente.SesionId, req.PedidoId, pedido.SitioGraba, codDane, usuario),
+                        vigente.FechaExpira);
+
+                    return Ok(new DtoCrearVideoSesionResult
+                    {
+                        Success      = true,
+                        Message      = "Ya había una videollamada en curso para este caso — se reutiliza el mismo enlace.",
+                        SesionId     = vigente.SesionId,
+                        SessionToken = tokenVigente,
+                        FechaExpira  = vigente.FechaExpira,
+                        SmsEnviado   = false
+                    });
+                }
+
                 var sesionId = await _videoService.CrearSesionAsync(
                     req.PedidoId, pedido.SitioGraba, usuario, fechaExpira, req.NumeroTelefono, ct);
 
@@ -108,6 +131,60 @@ namespace Api.Controllers.Operacion
                 return Forbid();
 
             return Ok(estado);
+        }
+
+        /// <summary>
+        /// ¿Este caso tiene una videollamada en curso? Lo consulta el panel del
+        /// despachador al abrir el caso, para ofrecer <b>reconectarse</b> a la
+        /// llamada existente en lugar de generar otro enlace.
+        ///
+        /// Es lo que permite recuperar la llamada tras un F5, un cambio de pestaña,
+        /// una caída de red o incluso un relevo de turno: el ciudadano sigue en la
+        /// misma sesión y no tiene que volver a entrar por un enlace nuevo.
+        /// </summary>
+        [HttpGet("activa/{pedidoId:long}")]
+        public async Task<ActionResult> GetActiva(long pedidoId, CancellationToken ct)
+        {
+            try
+            {
+                var pedido = await _pedidoService.GetByIdAsync(pedidoId, ct);
+                if (pedido is null)
+                    return NotFound(new { success = false, message = "Caso no encontrado." });
+
+                if (!IsAdmin() && pedido.SitioGraba != GetIntClaim("sitio_graba"))
+                    return Forbid();
+
+                var activa = await _videoService.GetActivaPorPedidoAsync(pedidoId, ct);
+                if (activa is null)
+                    return Ok(new DtoVideoSesionActiva { Hay = false });
+
+                var usuario = User.FindFirstValue("username") ?? User.FindFirstValue(ClaimTypes.Name) ?? "sistema";
+                var codDane = User.FindFirstValue("cod_dane") ?? "";
+
+                // Se re-firma el token con la vigencia que le queda a la sesión, para
+                // que el despachador pueda rearmar el link sin haberlo guardado.
+                var token = _sessionToken.CreateToken(
+                    new VideoSessionTokenService.VideoSessionData(
+                        activa.SesionId, pedidoId, pedido.SitioGraba, codDane, usuario),
+                    activa.FechaExpira);
+
+                var grabacion = await _videoService.GetGrabacionAsync(activa.SesionId, ct);
+
+                return Ok(new DtoVideoSesionActiva
+                {
+                    Hay          = true,
+                    SesionId     = activa.SesionId,
+                    Estado       = activa.Estado,
+                    SessionToken = token,
+                    FechaExpira  = activa.FechaExpira,
+                    Grabando     = grabacion?.Estado == "GRABANDO"
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "GetActiva error pedidoId={Id}", pedidoId);
+                return StatusCode(500, new { success = false, message = "Error consultando la videollamada en curso." });
+            }
         }
 
         /// <summary>

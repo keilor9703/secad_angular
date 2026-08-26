@@ -174,6 +174,12 @@ builder.Services.AddScoped<IDbConfigSmsService, DbConfigSmsService>();
 builder.Services.AddScoped<IProveedorSms, DbConfigProveedorSms>();
 builder.Services.AddScoped<IDbVideoLlamadaRepository, DbVideoLlamadaRepository>();
 builder.Services.AddScoped<IDbVideoLlamadaService, DbVideoLlamadaService>();
+// Grabación resiliente: el navegador sube el video por trozos mientras graba, así
+// la evidencia queda en el servidor desde el primer trozo aunque el puesto del
+// despachador muera. El store es singleton (solo maneja rutas y archivos); el
+// finalizador es scoped porque toca la BD del tenant del scope.
+builder.Services.AddSingleton<GrabacionVideoStore>();
+builder.Services.AddScoped<GrabacionFinalizador>();
 builder.Services.AddSignalR();
 
 // Data repositories
@@ -250,6 +256,12 @@ builder.Services.AddScoped<IDbMapaEstadisticoRepository, DbMapaEstadisticoReposi
 builder.Services.Configure<CadHealthMonitorOptions>(
     builder.Configuration.GetSection(CadHealthMonitorOptions.Section));
 builder.Services.AddHostedService<CadHealthMonitorService>();
+
+// ── Cierre automático de grabaciones huérfanas ────────────────────────────────
+// Red de seguridad de la evidencia: si el puesto del despachador murió sin cerrar
+// una grabación, este servicio la finaliza y la registra como adjunto del caso.
+// Garantiza que una grabación iniciada SIEMPRE termine guardada.
+builder.Services.AddHostedService<GrabacionesHuerfanasService>();
 
 // ── Lectura directa de GPS/minuta desde Oracle GESPO (sin FDW) ────────────────
 // Oracle.ManagedDataAccess.Core — driver 100% administrado, no requiere instalar

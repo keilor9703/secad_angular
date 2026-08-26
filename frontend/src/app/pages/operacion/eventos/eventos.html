@@ -766,16 +766,36 @@
                     }
 
                     @if (!llamadaEnCurso(detalle) && detalle.estado !== 'C') {
-                      <span class="ev-live-start">
-                        <input class="ui-control" type="text"
-                               [(ngModel)]="videollamadaTelefono"
-                               placeholder="Teléfono del ciudadano…">
-                        <button type="button" class="ui-btn ui-btn-primary"
-                                [disabled]="creandoVideollamada()"
-                                (click)="iniciarVideollamada()">
-                          @if (creandoVideollamada()) { Creando… } @else { <i class="fa-solid fa-video"></i> Iniciar videollamada }
-                        </button>
-                      </span>
+                      @if (videollamadaReconectable(); as activa) {
+                        <!-- Ya hay una llamada en curso para este caso (el despachador
+                             refrescó, cambió de pestaña, se le cayó la red, o es un
+                             relevo de turno). Se reconecta a ELLA en vez de generar
+                             otro enlace y dejar al ciudadano hablando solo. -->
+                        <span class="ev-live-start ev-live-start--reconectar">
+                          <span class="ev-live-reconectar-aviso">
+                            <i class="fa-solid fa-circle-exclamation"></i>
+                            Hay una videollamada en curso para este caso
+                            @if (activa.grabando) { <small>· con grabación abierta</small> }
+                          </span>
+                          <button type="button" class="ui-btn ui-btn-primary"
+                                  [disabled]="reconectandoVideollamada()"
+                                  (click)="reconectarVideollamada()">
+                            @if (reconectandoVideollamada()) { Reconectando… }
+                            @else { <i class="fa-solid fa-plug-circle-bolt"></i> Reconectar }
+                          </button>
+                        </span>
+                      } @else {
+                        <span class="ev-live-start">
+                          <input class="ui-control" type="text"
+                                 [(ngModel)]="videollamadaTelefono"
+                                 placeholder="Teléfono del ciudadano…">
+                          <button type="button" class="ui-btn ui-btn-primary"
+                                  [disabled]="creandoVideollamada()"
+                                  (click)="iniciarVideollamada()">
+                            @if (creandoVideollamada()) { Creando… } @else { <i class="fa-solid fa-video"></i> Iniciar videollamada }
+                          </button>
+                        </span>
+                      }
                     }
                   </div>
 
@@ -890,7 +910,7 @@
                             <div class="ev-video-badges">
                               <span class="ev-video-badges__left">
                                 <span class="ev-video-badge ev-video-badge--live"><i class="ev-video-dot"></i>En vivo</span>
-                                @if (grabandoVideollamada) {
+                                @if (grabandoVideollamada()) {
                                   <span class="ev-video-badge ev-video-badge--rec"><i class="ev-video-dot"></i>REC</span>
                                 }
                               </span>
@@ -918,11 +938,11 @@
                               {{ videollamadaMicActivo() ? 'Silenciar mi micrófono' : 'Mi micrófono está silenciado' }}
                             </button>
                             <button type="button" class="ui-btn"
-                                    [class.ui-btn-danger]="grabandoVideollamada"
-                                    [class.ui-btn-secondary]="!grabandoVideollamada"
+                                    [class.ui-btn-danger]="grabandoVideollamada()"
+                                    [class.ui-btn-secondary]="!grabandoVideollamada()"
                                     (click)="toggleGrabacionVideollamada()">
-                              <i class="fa-solid" [class.fa-record-vinyl]="!grabandoVideollamada" [class.fa-stop]="grabandoVideollamada"></i>
-                              {{ grabandoVideollamada ? 'Detener grabación' : 'Grabar' }}
+                              <i class="fa-solid" [class.fa-record-vinyl]="!grabandoVideollamada()" [class.fa-stop]="grabandoVideollamada()"></i>
+                              {{ grabandoVideollamada() ? 'Detener grabación' : 'Grabar' }}
                             </button>
                           }
                           <button type="button" class="ui-btn ui-btn-danger" (click)="colgarVideollamada()">

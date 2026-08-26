@@ -49,6 +49,8 @@ export class VideoCiudadanoComponent implements OnInit, OnDestroy {
   readonly camaraFrontal = signal(false);
   readonly cambiandoCamara = signal(false);
   readonly errorCamara = signal('');
+  /** Aviso al ciudadano mientras el despachador se cae y vuelve — no se corta la llamada. */
+  readonly mensajeEspera = signal('');
   readonly chatMensajes = signal<ChatMensaje[]>([]);
   readonly chatDisponible = signal(false);
   readonly chatAbierto = signal(false);
@@ -174,12 +176,17 @@ export class VideoCiudadanoComponent implements OnInit, OnDestroy {
       this.estado.set('error');
     });
 
+    // Puede llegar MÁS DE UNA oferta: si el despachador refresca, cambia de
+    // pestaña o se reconecta tras una caída, renegocia desde cero. El ciudadano
+    // debe aceptar la oferta nueva y seguir en la misma llamada, sin tener que
+    // volver a abrir el enlace ni volver a dar permisos.
     this.hub.on('offer', async (sdp: string) => {
-      this.prepararPeerConnection();
+      this.prepararPeerConnection();   // cierra la anterior si existía
       await this.pc!.setRemoteDescription({ type: 'offer', sdp });
       const answer = await this.pc!.createAnswer();
       await this.pc!.setLocalDescription(answer);
       await this.hub!.invoke('SendAnswer', this.sesionId, answer.sdp);
+      this.mensajeEspera.set('');
     });
 
     this.hub.on('ice-candidate', async (candidateJson: string) => {
@@ -187,6 +194,20 @@ export class VideoCiudadanoComponent implements OnInit, OnDestroy {
       try { await this.pc.addIceCandidate(JSON.parse(candidateJson)); } catch { /* candidato tardío, ignorar */ }
     });
 
+    // El despachador se cayó SIN colgar. La llamada no se termina: él puede
+    // volver a entrar a esta misma sesión. Se mantiene la cámara encendida y se
+    // informa al ciudadano en vez de cortarle la transmisión.
+    this.hub.on('participante-desconectado', (rol: string) => {
+      if (rol !== 'despachador') return;
+      this.estado.set('esperando');
+      this.mensajeEspera.set('Se perdió la conexión con el despachador. No cuelgue, se está reconectando…');
+    });
+
+    this.hub.on('despachador-conectado', () => {
+      this.mensajeEspera.set('El despachador se está reconectando…');
+    });
+
+    // Solo un EndSession explícito termina la llamada del lado del ciudadano.
     this.hub.on('sesion-finalizada', () => this.finalizarLocal());
 
     try {
@@ -225,6 +246,10 @@ export class VideoCiudadanoComponent implements OnInit, OnDestroy {
   }
 
   private prepararPeerConnection(): void {
+    // Renegociación: si el despachador vuelve tras caerse, llega una oferta
+    // nueva y la conexión anterior ya está muerta. Cerrarla antes de crear la
+    // siguiente evita dejar transceivers y candidatos huérfanos.
+    this.pc?.close();
     this.pc = new RTCPeerConnection({ iceServers: this.construirIceServers() });
 
     this.localStream?.getTracks().forEach(track => this.pc!.addTrack(track, this.localStream!));
