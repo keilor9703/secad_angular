@@ -89,5 +89,31 @@ namespace Negocio.Gestion
 
         public Task<List<DtoVideoGrabacion>> GetGrabacionesHuerfanasAsync(int minutosInactividad, CancellationToken ct)
             => _repo.GetGrabacionesHuerfanasAsync(minutosInactividad, ct);
+
+        // ── Chat persistido y trazabilidad del caso ────────────────────────────
+
+        /// <summary>Longitud máxima del texto — coincide con VARCHAR(2000) de la tabla.</summary>
+        private const int MaxTextoChat = 2000;
+
+        public Task<DtoVideoChatMensaje?> GuardarMensajeChatAsync(
+            long sesionId, string emisor, string texto, string? usuario, CancellationToken ct)
+        {
+            // El texto viene del navegador: se normaliza aquí para que un cliente
+            // manipulado no pueda romper el CHECK ni el VARCHAR de la tabla.
+            texto = (texto ?? "").Trim();
+            if (texto.Length == 0) return Task.FromResult<DtoVideoChatMensaje?>(null);
+            if (texto.Length > MaxTextoChat) texto = texto[..MaxTextoChat];
+
+            if (emisor != "DESPACHADOR" && emisor != "CIUDADANO")
+            {
+                _logger.LogWarning("[VideoLlamada] Emisor de chat inválido '{Emisor}', sesión={SesionId}", emisor, sesionId);
+                return Task.FromResult<DtoVideoChatMensaje?>(null);
+            }
+
+            return _repo.GuardarMensajeChatAsync(sesionId, emisor, texto, usuario, ct);
+        }
+
+        public Task<List<DtoVideoSesionResumen>> GetSesionesPorPedidoAsync(long pedidoId, CancellationToken ct)
+            => _repo.GetSesionesPorPedidoAsync(pedidoId, ct);
     }
 }

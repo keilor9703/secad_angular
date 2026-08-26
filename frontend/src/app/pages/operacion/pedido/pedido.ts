@@ -25,6 +25,10 @@ import {
   RecepcionService,
   DtoAdjunto
 } from '../../../core/services/operacion/recepcion.service';
+import {
+  VideoLlamadaService,
+  DtoVideoSesionResumen
+} from '../../../core/services/operacion/video-llamada.service';
 
 type VistaCad    = 'dashboard' | 'incidentes' | 'kpis';
 type SemaforoColor = 'semaforo-verde' | 'semaforo-amarillo' | 'semaforo-rojo';
@@ -155,6 +159,8 @@ export class PedidoComponent implements OnInit, OnDestroy {
   readonly detalle       = signal<DtoPedidoDetalle | null>(null);
   readonly actuaciones   = signal<DtoActuacionListItem[]>([]);
   readonly adjuntos      = signal<DtoAdjunto[]>([]);
+  /** Trazabilidad de las videollamadas del caso: quién atendió, duración, grabación y chat. */
+  readonly videoSesiones = signal<DtoVideoSesionResumen[]>([]);
   readonly loadingDetalle = signal(false);
   readonly timeline      = signal<TimelineItem[]>([]);
   readonly lastRefresh   = signal<Date>(new Date());
@@ -186,6 +192,7 @@ export class PedidoComponent implements OnInit, OnDestroy {
   private readonly eventoService      = inject(EventoService);
   private readonly actuacionesService = inject(ActuacionesService);
   private readonly recepcionSvc       = inject(RecepcionService);
+  private readonly videoSvc           = inject(VideoLlamadaService);
   private readonly toast              = inject(ToastService);
   private readonly route              = inject(ActivatedRoute);
 
@@ -331,6 +338,7 @@ export class PedidoComponent implements OnInit, OnDestroy {
     this.timeline.set([]);
     this.actuaciones.set([]);
     this.adjuntos.set([]);
+    this.videoSesiones.set([]);
     this.showAnotForm.set(false);
     this.equipoExpandido.set({});
     this.equipoDetalle.set({});
@@ -353,10 +361,18 @@ export class PedidoComponent implements OnInit, OnDestroy {
         this.loadingDetalle.set(false);
         this.buildTimeline(detalleNormalizado, actuaciones);
         if (this.vista() === 'dashboard') this.vista.set('incidentes');
-        // Cargar fotos adjuntas del incidente
+        // Cargar archivos multimedia del incidente
         this.recepcionSvc.getAdjuntos(item.id)
           .pipe(takeUntil(this.destroy$))
           .subscribe({ next: r => { if (r.success) this.adjuntos.set(r.data); } });
+
+        // Trazabilidad de videollamadas: en un caso cerrado esto es todo lo que
+        // queda de la llamada (quién atendió, duración, grabación, chat). Un
+        // fallo aquí no debe tumbar el detalle del incidente — la mayoría de
+        // casos ni siquiera tuvo videollamada.
+        this.videoSvc.getSesionesPorPedido(item.id)
+          .pipe(takeUntil(this.destroy$), catchError(() => of([] as DtoVideoSesionResumen[])))
+          .subscribe({ next: r => this.videoSesiones.set(Array.isArray(r) ? r : []) });
       },
       error: () => {
         this.loadingDetalle.set(false);
@@ -370,6 +386,7 @@ export class PedidoComponent implements OnInit, OnDestroy {
     this.detalle.set(null);
     this.timeline.set([]);
     this.actuaciones.set([]);
+    this.videoSesiones.set([]);
     this.showAnotForm.set(false);
     this.equipoExpandido.set({});
     this.equipoDetalle.set({});
@@ -905,6 +922,58 @@ export class PedidoComponent implements OnInit, OnDestroy {
   setVista(v: VistaCad): void  { this.vista.set(v); }
   toggleMinimize():    void    { this.minimized = !this.minimized; }
   closePanel():        void    { this.visible   = false; }
+
+  // ──────────────────────────────────────────────────────────────────────────
+  //  Videollamadas — trazabilidad del caso
+  // ──────────────────────────────────────────────────────────────────────────
+
+  /** Segundos → "m:ss" (o "h:mm:ss" si pasó de la hora). '—' si no hay dato. */
+  formatDuracion(segundos: number | null | undefined): string {
+    if (segundos == null || segundos < 0) return '—';
+    const h = Math.floor(segundos / 3600);
+    const m = Math.floor((segundos % 3600) / 60);
+    const s = segundos % 60;
+    const dosDigitos = (n: number) => n.toString().padStart(2, '0');
+    return h > 0
+      ? `${h}:${dosDigitos(m)}:${dosDigitos(s)}`
+      : `${m}:${dosDigitos(s)}`;
+  }
+
+  /** Fecha ISO del backend → "DD/MM/YYYY HH:mm". '—' si viene nula o inválida. */
+  formatFechaHora(iso: string | null | undefined): string {
+    if (!iso) return '—';
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return '—';
+    return d.toLocaleString('es-CO', {
+      day: '2-digit', month: '2-digit', year: 'numeric',
+      hour: '2-digit', minute: '2-digit'
+    });
+  }
+
+  /** Solo la hora de un mensaje del chat — la fecha ya la da la cabecera de la sesión. */
+  formatHoraChat(iso: string | null | undefined): string {
+    if (!iso) return '';
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return '';
+    return d.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
+  }
+
+  /** Etiqueta legible del estado en el que quedó la sesión. */
+  etiquetaEstadoVideo(estado: string): string {
+    switch (estado) {
+      case 'CONECTADA':  return 'Conectada';
+      case 'FINALIZADA': return 'Finalizada';
+      case 'PENDIENTE':  return 'Nunca contestada';
+      case 'EXPIRADA':   return 'Enlace expirado';
+      case 'CANCELADA':  return 'Cancelada';
+      default:           return estado;
+    }
+  }
+
+  /** Enlace de Google Maps a la última posición reportada por el ciudadano. */
+  urlMapaUbicacion(lat: number, lng: number): string {
+    return `https://www.google.com/maps?q=${lat},${lng}`;
+  }
 
   // ──────────────────────────────────────────────────────────────────────────
   //  Private helpers

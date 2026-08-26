@@ -21,6 +21,15 @@ export interface DtoCrearVideoSesionResult {
 
 export type EstadoLlamada = 'inactiva' | 'esperando' | 'conectando' | 'conectada' | 'finalizada' | 'error';
 
+/** Payload de chat tal como lo emite VideoSignalingHub (ya persistido). */
+interface DtoChatHub {
+  id: string;
+  emisor: 'DESPACHADOR' | 'CIUDADANO';
+  texto: string;
+  usuario: string | null;
+  fecha: string;
+}
+
 export interface ChatMensaje {
   texto: string;
   propio: boolean;
@@ -34,6 +43,39 @@ export interface UbicacionCiudadano {
 }
 
 /** Videollamada vigente de un caso — permite reconectarse sin generar otro enlace. */
+/** Un mensaje del chat tal como quedó registrado en el caso. */
+export interface DtoVideoChatMensaje {
+  id: string;
+  emisor: 'DESPACHADOR' | 'CIUDADANO';
+  texto: string;
+  usuario: string | null;
+  fecha: string;
+}
+
+/**
+ * Trazabilidad de una videollamada para la revisión del caso cerrado: quién la
+ * atendió, cuándo, cuánto duró, si dejó grabación y cuál, y la transcripción.
+ */
+export interface DtoVideoSesionResumen {
+  sesionId: string;
+  estado: string;
+  usuarioDespachador: string;
+  numeroTelefono: string | null;
+  fechaCreacion: string;
+  fechaConectado: string | null;
+  fechaFinalizado: string | null;
+  duracionSegundos: number | null;
+  ipCiudadano: string | null;
+  tieneGrabacion: boolean;
+  adjuntoGrabacionId: string | null;
+  grabacionUrl: string | null;
+  grabacionNombre: string | null;
+  grabacionEstado: string | null;
+  ultimaLat: number | null;
+  ultimaLng: number | null;
+  chat: DtoVideoChatMensaje[];
+}
+
 export interface DtoVideoSesionActiva {
   hay: boolean;
   sesionId: string;
@@ -62,10 +104,9 @@ export class VideoLlamadaService {
   private pc: RTCPeerConnection | null = null;
   private sesionId = '';
 
-  // Micrófono propio del despachador (se captura al crear la oferta) y canal
-  // de datos P2P para chat de texto — ver decisiones en crearOferta().
+  // Micrófono propio del despachador (se captura al crear la oferta).
+  // El chat ya no usa RTCDataChannel: viaja por el Hub para quedar registrado.
   private micStream: MediaStream | null = null;
-  private dataChannel: RTCDataChannel | null = null;
 
   private readonly estadoSubject = new BehaviorSubject<EstadoLlamada>('inactiva');
   readonly estado$: Observable<EstadoLlamada> = this.estadoSubject.asObservable();
@@ -123,6 +164,15 @@ export class VideoLlamadaService {
     return firstValueFrom(
       this.http.get<DtoVideoSesionActiva>(`${this.base}/activa/${pedidoId}`)
     );
+  }
+
+  /**
+   * Trazabilidad de las videollamadas de un caso — para la revisión del
+   * incidente ya cerrado (módulo Pedido), donde esto es todo lo que queda de la
+   * llamada: quién atendió, duración, grabación y transcripción del chat.
+   */
+  getSesionesPorPedido(pedidoId: string): Observable<DtoVideoSesionResumen[]> {
+    return this.http.get<DtoVideoSesionResumen[]>(`${this.base}/pedido/${pedidoId}`);
   }
 
   /**
@@ -190,8 +240,27 @@ export class VideoLlamadaService {
       this.ubicacionSubject.next({ lat, lng, precision: precision ?? undefined });
     });
 
+    // El chat llega por el Hub (ya persistido) y el servidor lo reenvía al GRUPO
+    // completo, emisor incluido: por eso los mensajes propios también entran por
+    // aquí y no se agregan a mano al enviarlos. Lo que se ve en pantalla es
+    // exactamente lo que quedó registrado en el caso.
+    this.hub.on('chat', (msg: DtoChatHub) => {
+      this.chatMensajesSubject.next([
+        ...this.chatMensajesSubject.value,
+        {
+          texto:  String(msg?.texto ?? ''),
+          propio: msg?.emisor === 'DESPACHADOR',
+          hora:   this.horaDe(msg?.fecha)
+        }
+      ]);
+    });
+
     await this.hub.start();
     await this.hub.invoke('JoinAsDespachador', sesionId);
+
+    // El chat depende solo de la señalización, no del enlace P2P: sigue
+    // sirviendo aunque el video no logre establecerse.
+    this.chatDisponibleSubject.next(true);
 
     this.prepararPeerConnection();
   }
@@ -261,47 +330,29 @@ export class VideoLlamadaService {
       );
     }
 
-    // Chat de texto P2P — el despachador (offerer) crea el canal de datos;
-    // el ciudadano lo recibe vía pc.ondatachannel. Permite comunicarse aunque
-    // el despachador silencie su micrófono (p. ej. si el ciudadano no puede
-    // recibir sonido sin delatarse ante un agresor).
-    this.configurarDataChannel(this.pc.createDataChannel('chat'));
-
     const offer = await this.pc.createOffer();
     await this.pc.setLocalDescription(offer);
     await this.hub.invoke('SendOffer', this.sesionId, offer.sdp);
   }
 
-  private configurarDataChannel(dc: RTCDataChannel): void {
-    this.dataChannel = dc;
-    dc.onopen = () => this.chatDisponibleSubject.next(true);
-    dc.onclose = () => this.chatDisponibleSubject.next(false);
-    dc.onmessage = (ev) => this.recibirChat(ev.data);
+  private horaDe(fecha: string | undefined): string {
+    const d = fecha ? new Date(fecha) : new Date();
+    return (isNaN(d.getTime()) ? new Date() : d)
+      .toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
   }
 
-  private recibirChat(data: string): void {
-    try {
-      const msg = JSON.parse(data);
-      this.chatMensajesSubject.next([
-        ...this.chatMensajesSubject.value,
-        { texto: String(msg.texto ?? ''), propio: false, hora: this.horaActual() }
-      ]);
-    } catch { /* mensaje malformado, ignorar */ }
-  }
-
-  private horaActual(): string {
-    return new Date().toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
-  }
-
-  /** Envía un mensaje de chat al ciudadano por el canal de datos P2P. */
+  /**
+   * Envía un mensaje de chat al ciudadano. Va por el Hub —no por el canal P2P—
+   * para que quede registrado en el caso: en una emergencia el chat suele ser
+   * donde está lo crítico (una placa, "no puedo hablar") y al revisar el
+   * incidente cerrado debe poder consultarse. El mensaje NO se pinta aquí: se
+   * pinta cuando vuelve del servidor, ya persistido.
+   */
   enviarChat(texto: string): void {
     const limpio = texto.trim();
-    if (!limpio || !this.dataChannel || this.dataChannel.readyState !== 'open') return;
-    this.dataChannel.send(JSON.stringify({ texto: limpio }));
-    this.chatMensajesSubject.next([
-      ...this.chatMensajesSubject.value,
-      { texto: limpio, propio: true, hora: this.horaActual() }
-    ]);
+    if (!limpio || !this.hub || !this.sesionId) return;
+    this.hub.invoke('EnviarChat', this.sesionId, limpio)
+      .catch(() => this.errorSubject.next('No se pudo enviar el mensaje de chat.'));
   }
 
   /** Silencia/reactiva el micrófono del despachador sin renegociar la conexión. */
@@ -460,8 +511,6 @@ export class VideoLlamadaService {
     this.pc = null;
     this.hub?.stop();
     this.hub = null;
-    this.dataChannel?.close();
-    this.dataChannel = null;
     this.micStream?.getTracks().forEach(t => t.stop());
     this.micStream = null;
     this.remoteStreamSubject.next(null);

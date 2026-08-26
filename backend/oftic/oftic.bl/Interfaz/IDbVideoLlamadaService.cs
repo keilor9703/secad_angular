@@ -30,5 +30,14 @@ namespace Negocio.Interfaz
         Task FinalizarGrabacionAsync(long sesionId, long adjuntoId, CancellationToken ct);
         Task CerrarGrabacionSinAdjuntoAsync(long sesionId, CancellationToken ct);
         Task<List<DtoVideoGrabacion>> GetGrabacionesHuerfanasAsync(int minutosInactividad, CancellationToken ct);
+
+        // ── Chat persistido y trazabilidad del caso ────────────────────────────
+
+        /// <summary>Guarda un mensaje del chat y lo devuelve ya persistido (id + fecha del servidor).</summary>
+        Task<DtoVideoChatMensaje?> GuardarMensajeChatAsync(
+            long sesionId, string emisor, string texto, string? usuario, CancellationToken ct);
+
+        /// <summary>Trazabilidad de todas las videollamadas de un caso, para la revisión del incidente.</summary>
+        Task<List<DtoVideoSesionResumen>> GetSesionesPorPedidoAsync(long pedidoId, CancellationToken ct);
     }
 }

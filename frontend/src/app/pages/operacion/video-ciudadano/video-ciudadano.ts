@@ -12,6 +12,15 @@ interface DtoVideoSesionPublica {
   sesionId: string;
 }
 
+/** Payload de chat tal como lo emite VideoSignalingHub (ya persistido). */
+interface DtoChatHub {
+  id: string;
+  emisor: 'DESPACHADOR' | 'CIUDADANO';
+  texto: string;
+  usuario: string | null;
+  fecha: string;
+}
+
 interface ChatMensaje {
   texto: string;
   propio: boolean;
@@ -64,7 +73,6 @@ export class VideoCiudadanoComponent implements OnInit, OnDestroy {
   private pc: RTCPeerConnection | null = null;
   private localStream: MediaStream | null = null;
   private facingModeActual: 'environment' | 'user' = 'environment';
-  private dataChannel: RTCDataChannel | null = null;
   private watchId: number | null = null;
 
   /** Ver comentario equivalente en video-llamada.service.ts (lado despachador). */
@@ -210,9 +218,27 @@ export class VideoCiudadanoComponent implements OnInit, OnDestroy {
     // Solo un EndSession explícito termina la llamada del lado del ciudadano.
     this.hub.on('sesion-finalizada', () => this.finalizarLocal());
 
+    // El chat llega por el Hub (ya guardado en el caso) y el servidor lo reenvía
+    // al grupo completo, emisor incluido: por eso los mensajes propios también
+    // entran por aquí y no se agregan a mano al enviarlos.
+    this.hub.on('chat', (msg: DtoChatHub) => {
+      const propio = msg?.emisor === 'CIUDADANO';
+      this.chatMensajes.update(actuales => [
+        ...actuales,
+        { texto: String(msg?.texto ?? ''), propio, hora: this.horaDe(msg?.fecha) }
+      ]);
+      // Si escribe el CAD, abrir el chat solo: el ciudadano puede no estar
+      // mirando la pantalla y ese mensaje puede ser lo importante.
+      if (!propio) this.chatAbierto.set(true);
+    });
+
     try {
       await this.hub.start();
       await this.hub.invoke('JoinAsCiudadano', this.token);
+
+      // El chat depende solo de la señalización: sirve aunque el video P2P
+      // todavía no se haya establecido (o no llegue a establecerse nunca).
+      this.chatDisponible.set(true);
       this.iniciarUbicacion();
     } catch {
       this.estado.set('error');
@@ -266,11 +292,6 @@ export class VideoCiudadanoComponent implements OnInit, OnDestroy {
         console.error('[video-ciudadano] no se pudo reproducir el audio del despachador:', err);
       });
     };
-
-    // Chat de texto P2P — el despachador (offerer) crea el canal; el
-    // ciudadano solo lo recibe. Permite escribir sin hablar (p. ej. si no
-    // puede recibir sonido del CAD sin delatarse ante un agresor).
-    this.pc.ondatachannel = (ev) => this.configurarDataChannel(ev.channel);
 
     this.pc.onicecandidate = (ev) => {
       if (ev.candidate && this.hub) {
@@ -355,37 +376,25 @@ export class VideoCiudadanoComponent implements OnInit, OnDestroy {
     setTimeout(() => this.errorCamara.set(''), 4000);
   }
 
-  private configurarDataChannel(dc: RTCDataChannel): void {
-    this.dataChannel = dc;
-    dc.onopen = () => this.chatDisponible.set(true);
-    dc.onclose = () => this.chatDisponible.set(false);
-    dc.onmessage = (ev) => this.recibirChat(ev.data);
-  }
-
-  private recibirChat(data: string): void {
-    try {
-      const msg = JSON.parse(data);
-      this.chatMensajes.update(actuales => [
-        ...actuales,
-        { texto: String(msg.texto ?? ''), propio: false, hora: this.horaActual() }
-      ]);
-      this.chatAbierto.set(true);
-    } catch { /* mensaje malformado, ignorar */ }
-  }
-
-  private horaActual(): string {
-    return new Date().toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
+  private horaDe(fecha: string | undefined): string {
+    const d = fecha ? new Date(fecha) : new Date();
+    return (isNaN(d.getTime()) ? new Date() : d)
+      .toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
   }
 
   toggleChat(): void {
     this.chatAbierto.update(v => !v);
   }
 
+  /**
+   * Va por el Hub —no por un canal P2P— para que la conversación quede
+   * registrada en el caso: en una emergencia el chat suele ser donde está lo
+   * crítico. El mensaje se pinta cuando vuelve del servidor, ya guardado.
+   */
   enviarChat(): void {
     const texto = this.chatTexto().trim();
-    if (!texto || !this.dataChannel || this.dataChannel.readyState !== 'open') return;
-    this.dataChannel.send(JSON.stringify({ texto }));
-    this.chatMensajes.update(actuales => [...actuales, { texto, propio: true, hora: this.horaActual() }]);
+    if (!texto || !this.hub || !this.sesionId) return;
+    this.hub.invoke('EnviarChat', this.sesionId, texto);
     this.chatTexto.set('');
   }
 
@@ -401,8 +410,6 @@ export class VideoCiudadanoComponent implements OnInit, OnDestroy {
     this.pc = null;
     this.hub?.stop();
     this.hub = null;
-    this.dataChannel?.close();
-    this.dataChannel = null;
     this.localStream?.getTracks().forEach(t => t.stop());
     this.localStream = null;
     if (this.watchId !== null) {

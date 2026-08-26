@@ -224,6 +224,50 @@ namespace Api.Hubs
         }
 
         // ════════════════════════════════════════════════════════════════════════
+        // CHAT — antes viajaba por un RTCDataChannel punto a punto, así que los
+        // mensajes nunca tocaban el servidor y no quedaba ni rastro al cerrar el
+        // caso. En una emergencia el chat es a menudo donde está lo crítico ("no
+        // puedo hablar", una placa, una dirección), y puede ser material
+        // probatorio: ahora pasa por aquí, se persiste y se relaya.
+        // ════════════════════════════════════════════════════════════════════════
+
+        public async Task EnviarChat(string sesionId, string texto)
+        {
+            var id = ParseSesionId(sesionId);
+            if (id == 0 || string.IsNullOrWhiteSpace(texto)) return;
+
+            // El emisor NO lo dice el cliente: se toma del rol con el que esta
+            // conexión se unió al grupo (JoinAsDespachador / JoinAsCiudadano).
+            var rol = Context.Items.TryGetValue(RolItemKey, out var r) ? r as string : null;
+            if (rol is null) return;
+
+            var emisor  = rol == "despachador" ? "DESPACHADOR" : "CIUDADANO";
+            var usuario = emisor == "DESPACHADOR"
+                ? (Context.User?.FindFirst("username")?.Value
+                   ?? Context.User?.FindFirst(ClaimTypes.Name)?.Value)
+                : null;
+
+            if (!await AsegurarTenantAsync()) return;
+
+            var mensaje = await _videoService.GuardarMensajeChatAsync(
+                id, emisor, texto, usuario, Context.ConnectionAborted);
+
+            // Si no se pudo persistir (sesión inexistente, texto vacío tras limpiar)
+            // tampoco se relaya: lo que ve el otro extremo es exactamente lo que
+            // quedó registrado — sin mensajes fantasma que no estén en la evidencia.
+            if (mensaje is null) return;
+
+            await Clients.Group(GroupName(id)).SendAsync("chat", new
+            {
+                id      = mensaje.Id.ToString(),
+                emisor  = mensaje.Emisor,
+                texto   = mensaje.Texto,
+                usuario = mensaje.Usuario,
+                fecha   = mensaje.Fecha
+            });
+        }
+
+        // ════════════════════════════════════════════════════════════════════════
         // CIERRE
         // ════════════════════════════════════════════════════════════════════════
 

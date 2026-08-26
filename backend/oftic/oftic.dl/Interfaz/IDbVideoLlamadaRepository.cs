@@ -60,5 +60,23 @@ namespace Datos.Interfaz
         /// el puesto del despachador murió sin cerrarlas. Las finaliza el sweeper.
         /// </summary>
         Task<List<DtoVideoGrabacion>> GetGrabacionesHuerfanasAsync(int minutosInactividad, CancellationToken ct);
+
+        // ── Chat persistido y trazabilidad del caso (ver V55) ──────────────────
+
+        /// <summary>
+        /// Guarda un mensaje del chat de la videollamada. El pedido_id se resuelve
+        /// desde la propia sesión, así que el Hub solo necesita el sesionId.
+        /// Retorna el mensaje ya persistido (con id y fecha del servidor) para
+        /// reenviarlo al otro extremo; null si la sesión no existe.
+        /// </summary>
+        Task<DtoVideoChatMensaje?> GuardarMensajeChatAsync(
+            long sesionId, string emisor, string texto, string? usuario, CancellationToken ct);
+
+        /// <summary>
+        /// Todas las videollamadas de un caso con su trazabilidad completa —
+        /// quién atendió, duración, grabación asociada y transcripción del chat —
+        /// para la revisión del incidente en el módulo de Pedido.
+        /// </summary>
+        Task<List<DtoVideoSesionResumen>> GetSesionesPorPedidoAsync(long pedidoId, CancellationToken ct);
     }
 }

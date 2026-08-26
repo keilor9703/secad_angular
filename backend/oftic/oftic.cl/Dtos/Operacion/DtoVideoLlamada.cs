@@ -73,6 +73,54 @@ namespace Comun.Dtos.Operacion
         public bool     Grabando       { get; set; }
     }
 
+    /// <summary>Un mensaje del chat de la videollamada, tal como quedó registrado.</summary>
+    public class DtoVideoChatMensaje
+    {
+        [JsonNumberHandling(JsonNumberHandling.WriteAsString | JsonNumberHandling.AllowReadingFromString)]
+        public long     Id      { get; set; }
+        /// <summary>DESPACHADOR | CIUDADANO</summary>
+        public string   Emisor  { get; set; } = "";
+        public string   Texto   { get; set; } = "";
+        /// <summary>Usuario del CAD; null cuando escribió el ciudadano (anónimo por diseño).</summary>
+        public string?  Usuario { get; set; }
+        public DateTime Fecha   { get; set; }
+    }
+
+    /// <summary>
+    /// Trazabilidad completa de una videollamada, para la revisión del caso en el
+    /// módulo de Pedido: quién la atendió, cuándo, cuánto duró, si dejó grabación
+    /// y cuál, la última ubicación reportada y la transcripción del chat.
+    /// </summary>
+    public class DtoVideoSesionResumen
+    {
+        [JsonNumberHandling(JsonNumberHandling.WriteAsString | JsonNumberHandling.AllowReadingFromString)]
+        public long      SesionId           { get; set; }
+        public string    Estado             { get; set; } = "";
+        public string    UsuarioDespachador { get; set; } = "";
+        public string?   NumeroTelefono     { get; set; }
+        public DateTime  FechaCreacion      { get; set; }
+        public DateTime? FechaConectado     { get; set; }
+        public DateTime? FechaFinalizado    { get; set; }
+        /// <summary>Segundos entre conexión y cierre. Null si nunca llegó a conectar.</summary>
+        public int?      DuracionSegundos   { get; set; }
+        public string?   IpCiudadano        { get; set; }
+
+        // ── Grabación asociada ─────────────────────────────────────────────
+        public bool      TieneGrabacion     { get; set; }
+        [JsonNumberHandling(JsonNumberHandling.WriteAsString | JsonNumberHandling.AllowReadingFromString)]
+        public long?     AdjuntoGrabacionId { get; set; }
+        public string?   GrabacionUrl       { get; set; }
+        public string?   GrabacionNombre    { get; set; }
+        /// <summary>null | GRABANDO | FINALIZADA — GRABANDO en revisión significa que quedó abierta.</summary>
+        public string?   GrabacionEstado    { get; set; }
+
+        // ── Última ubicación reportada por el ciudadano ────────────────────
+        public double?   UltimaLat          { get; set; }
+        public double?   UltimaLng          { get; set; }
+
+        public List<DtoVideoChatMensaje> Chat { get; set; } = new();
+    }
+
     /// <summary>Body de POST api/Adjunto/grabacion/iniciar y .../finalizar.</summary>
     public class DtoIniciarGrabacionRequest
     {

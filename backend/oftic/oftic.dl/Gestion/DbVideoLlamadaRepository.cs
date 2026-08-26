@@ -291,6 +291,129 @@ ORDER  BY grabacion_ultimo_chunk";
             Usuario     = rdr.IsDBNull(8) ? null : rdr.GetString(8)
         };
 
+        // ══════════════════════════════════════════════════════════════════════
+        //  Chat persistido y trazabilidad del caso (V55)
+        // ══════════════════════════════════════════════════════════════════════
+
+        public async Task<DtoVideoChatMensaje?> GuardarMensajeChatAsync(
+            long sesionId, string emisor, string texto, string? usuario, CancellationToken ct)
+        {
+            var id = _snowflake.NextId();
+
+            await using var conn = await _tenant.DataSource.OpenConnectionAsync(ct);
+            await using var cmd  = conn.CreateCommand();
+            // El pedido_id sale de la propia sesión: el Hub no lo conoce y no debe
+            // confiar en que el cliente se lo mande. Si la sesión no existe, el
+            // SELECT no produce filas y el INSERT no inserta nada (RETURNING vacío).
+            cmd.CommandText = @"
+INSERT INTO cad_video_chat_mensajes (id, sesion_id, pedido_id, emisor, texto, usuario, fecha)
+SELECT @id, s.id, s.pedido_id, @emisor, @texto, @usuario, NOW()
+FROM   cad_video_sesiones s
+WHERE  s.id = @sid
+RETURNING id, emisor, texto, usuario, fecha";
+            cmd.Parameters.AddWithValue("id",      id);
+            cmd.Parameters.AddWithValue("sid",     sesionId);
+            cmd.Parameters.AddWithValue("emisor",  emisor);
+            cmd.Parameters.AddWithValue("texto",   texto);
+            cmd.Parameters.AddWithValue("usuario", (object?)usuario ?? DBNull.Value);
+
+            await using var rdr = await cmd.ExecuteReaderAsync(ct);
+            if (!await rdr.ReadAsync(ct)) return null;
+
+            return new DtoVideoChatMensaje
+            {
+                Id      = rdr.GetInt64(0),
+                Emisor  = rdr.GetString(1),
+                Texto   = rdr.GetString(2),
+                Usuario = rdr.IsDBNull(3) ? null : rdr.GetString(3),
+                Fecha   = rdr.GetDateTime(4)
+            };
+        }
+
+        public async Task<List<DtoVideoSesionResumen>> GetSesionesPorPedidoAsync(long pedidoId, CancellationToken ct)
+        {
+            var sesiones = new List<DtoVideoSesionResumen>();
+
+            await using var conn = await _tenant.DataSource.OpenConnectionAsync(ct);
+
+            // 1) Las sesiones del caso, con la grabación que quedó vinculada (si la hubo).
+            await using (var cmd = conn.CreateCommand())
+            {
+                cmd.CommandText = @"
+SELECT s.id, s.estado, s.usuario_despachador, s.numero_telefono,
+       s.fecha_creacion, s.fecha_conectado, s.fecha_finalizado,
+       CASE WHEN s.fecha_conectado IS NOT NULL AND s.fecha_finalizado IS NOT NULL
+            THEN EXTRACT(EPOCH FROM (s.fecha_finalizado - s.fecha_conectado))::INT
+       END AS duracion_segundos,
+       s.ip_ciudadano, s.adjunto_grabacion_id, s.grabacion_estado,
+       a.ruta_relativa, a.nombre_original,
+       s.ultima_lat, s.ultima_lng
+FROM   cad_video_sesiones s
+LEFT   JOIN cad_adjuntos a ON a.id = s.adjunto_grabacion_id
+WHERE  s.pedido_id = @pid
+ORDER  BY s.fecha_creacion";
+                cmd.Parameters.AddWithValue("pid", pedidoId);
+
+                await using var rdr = await cmd.ExecuteReaderAsync(ct);
+                while (await rdr.ReadAsync(ct))
+                {
+                    var ruta = rdr.IsDBNull(11) ? null : rdr.GetString(11);
+                    sesiones.Add(new DtoVideoSesionResumen
+                    {
+                        SesionId           = rdr.GetInt64(0),
+                        Estado             = rdr.GetString(1),
+                        UsuarioDespachador = rdr.IsDBNull(2) ? "" : rdr.GetString(2),
+                        NumeroTelefono     = rdr.IsDBNull(3) ? null : rdr.GetString(3),
+                        FechaCreacion      = rdr.GetDateTime(4),
+                        FechaConectado     = rdr.IsDBNull(5) ? null : rdr.GetDateTime(5),
+                        FechaFinalizado    = rdr.IsDBNull(6) ? null : rdr.GetDateTime(6),
+                        DuracionSegundos   = rdr.IsDBNull(7) ? null : rdr.GetInt32(7),
+                        IpCiudadano        = rdr.IsDBNull(8) ? null : rdr.GetString(8),
+                        AdjuntoGrabacionId = rdr.IsDBNull(9) ? null : rdr.GetInt64(9),
+                        GrabacionEstado    = rdr.IsDBNull(10) ? null : rdr.GetString(10),
+                        TieneGrabacion     = !rdr.IsDBNull(9) && ruta != null,
+                        GrabacionUrl       = ruta == null ? null : "/" + ruta.Replace('\\', '/'),
+                        GrabacionNombre    = rdr.IsDBNull(12) ? null : rdr.GetString(12),
+                        UltimaLat          = rdr.IsDBNull(13) ? null : rdr.GetDouble(13),
+                        UltimaLng          = rdr.IsDBNull(14) ? null : rdr.GetDouble(14)
+                    });
+                }
+            }
+
+            if (sesiones.Count == 0) return sesiones;
+
+            // 2) Toda la transcripción del caso en una sola consulta, repartida
+            //    después por sesión — evita N+1 cuando un caso tuvo varias llamadas.
+            var porSesion = sesiones.ToDictionary(x => x.SesionId);
+
+            await using (var cmd = conn.CreateCommand())
+            {
+                cmd.CommandText = @"
+SELECT id, sesion_id, emisor, texto, usuario, fecha
+FROM   cad_video_chat_mensajes
+WHERE  pedido_id = @pid
+ORDER  BY fecha, id";
+                cmd.Parameters.AddWithValue("pid", pedidoId);
+
+                await using var rdr = await cmd.ExecuteReaderAsync(ct);
+                while (await rdr.ReadAsync(ct))
+                {
+                    var sid = rdr.GetInt64(1);
+                    if (!porSesion.TryGetValue(sid, out var sesion)) continue;
+                    sesion.Chat.Add(new DtoVideoChatMensaje
+                    {
+                        Id      = rdr.GetInt64(0),
+                        Emisor  = rdr.GetString(2),
+                        Texto   = rdr.GetString(3),
+                        Usuario = rdr.IsDBNull(4) ? null : rdr.GetString(4),
+                        Fecha   = rdr.GetDateTime(5)
+                    });
+                }
+            }
+
+            return sesiones;
+        }
+
         public async Task ExpirarVencidasAsync(CancellationToken ct)
         {
             await using var conn = await _tenant.DataSource.OpenConnectionAsync(ct);
