@@ -935,6 +935,26 @@ html.dark-mode .ev-no-canal-banner {
     width:       100%;
     input { flex: 1; width: auto; }
   }
+
+  // Hay una llamada en curso que se puede retomar: se destaca en ámbar para que
+  // el despachador no genere otro enlace por error.
+  &--reconectar {
+    padding:       4px 10px;
+    border-radius: 8px;
+    background:    rgba(245, 158, 11, .12);
+    border:        1px solid rgba(245, 158, 11, .35);
+  }
+}
+
+.ev-live-reconectar-aviso {
+  display:     inline-flex;
+  align-items: center;
+  gap:         6px;
+  font-size:   calc(11.5px * var(--font-size-scale, 1));
+  font-weight: 700;
+  color:       #92400e;
+
+  small { font-weight: 600; opacity: .8; }
 }
 
 .ev-recmap-item {

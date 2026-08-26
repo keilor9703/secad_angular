@@ -19,5 +19,16 @@ namespace Negocio.Interfaz
 
         /// <summary>Persiste la última posición GPS reportada por el ciudadano. Ignora coordenadas fuera de rango.</summary>
         Task ActualizarUbicacionAsync(long sesionId, double lat, double lng, double? precision, CancellationToken ct);
+
+        /// <summary>Videollamada vigente del caso, si la hay — para reconectarse en vez de generar otro enlace.</summary>
+        Task<DtoVideoSesionEstado?> GetActivaPorPedidoAsync(long pedidoId, CancellationToken ct);
+
+        // ── Grabación resiliente (por trozos) ──────────────────────────────────
+        Task IniciarGrabacionAsync(long sesionId, string archivoTemp, string usuario, CancellationToken ct);
+        Task RegistrarChunkAsync(long sesionId, long bytes, CancellationToken ct);
+        Task<DtoVideoGrabacion?> GetGrabacionAsync(long sesionId, CancellationToken ct);
+        Task FinalizarGrabacionAsync(long sesionId, long adjuntoId, CancellationToken ct);
+        Task CerrarGrabacionSinAdjuntoAsync(long sesionId, CancellationToken ct);
+        Task<List<DtoVideoGrabacion>> GetGrabacionesHuerfanasAsync(int minutosInactividad, CancellationToken ct);
     }
 }

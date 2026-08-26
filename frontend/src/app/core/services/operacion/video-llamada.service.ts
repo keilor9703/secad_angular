@@ -33,6 +33,17 @@ export interface UbicacionCiudadano {
   precision?: number;
 }
 
+/** Videollamada vigente de un caso — permite reconectarse sin generar otro enlace. */
+export interface DtoVideoSesionActiva {
+  hay: boolean;
+  sesionId: string;
+  estado: string;
+  sessionToken: string;
+  fechaExpira: string;
+  numeroTelefono?: string;
+  grabando: boolean;
+}
+
 /**
  * Lado despachador de la videollamada WebRTC punto-a-punto con el ciudadano.
  * Se conecta al mismo VideoSignalingHub que la página pública del ciudadano
@@ -103,6 +114,31 @@ export class VideoLlamadaService {
     );
   }
 
+  /**
+   * ¿Este caso tiene una videollamada en curso? Se consulta al abrir el caso
+   * para ofrecer RECONECTARSE en vez de generar otro enlace — necesario tras un
+   * F5, un cambio de pestaña, una caída de red o un relevo de turno.
+   */
+  getSesionActiva(pedidoId: string): Promise<DtoVideoSesionActiva> {
+    return firstValueFrom(
+      this.http.get<DtoVideoSesionActiva>(`${this.base}/activa/${pedidoId}`)
+    );
+  }
+
+  /**
+   * Vuelve a entrar a una llamada que ya estaba en curso. Reusa la misma sesión
+   * (el ciudadano no tiene que hacer nada) y renegocia WebRTC desde cero,
+   * porque la RTCPeerConnection anterior murió con la pestaña.
+   */
+  async reconectar(sesionId: string): Promise<void> {
+    await this.iniciar(sesionId);
+
+    // El ciudadano ya está dentro, así que no llegará ningún 'ciudadano-conectado'
+    // que dispare la oferta: hay que iniciar la renegociación desde aquí.
+    this.estadoSubject.next('conectando');
+    await this.crearOferta();
+  }
+
   /** Inicia la conexión de señalización y espera a que el ciudadano se conecte. */
   async iniciar(sesionId: string): Promise<void> {
     this.sesionId = sesionId;
@@ -134,7 +170,21 @@ export class VideoLlamadaService {
       try { await this.pc.addIceCandidate(JSON.parse(candidateJson)); } catch { /* candidato tardío, ignorar */ }
     });
 
-    this.hub.on('sesion-finalizada', () => this.finalizarLocal());
+    // El ciudadano colgó: hay que GUARDAR la grabación antes de desmontar todo.
+    // Este era el agujero más grave — antes finalizarLocal() ni tocaba el
+    // MediaRecorder y la grabación se perdía entera.
+    this.hub.on('sesion-finalizada', () => { void this.cerrarTodo(); });
+
+    // El otro extremo desapareció sin colgar (cerró la pestaña, se quedó sin
+    // red). La sesión NO se da por terminada —puede volver— pero la grabación
+    // sí se asegura ya, porque el video que llegaba dejó de llegar.
+    this.hub.on('participante-desconectado', (rol: string) => {
+      if (rol === 'ciudadano') {
+        this.estadoSubject.next('esperando');
+        this.errorSubject.next('El ciudadano se desconectó. La grabación se guardó automáticamente.');
+        void this.finalizarGrabacion();
+      }
+    });
 
     this.hub.on('ubicacion', (lat: number, lng: number, precision: number | null) => {
       this.ubicacionSubject.next({ lat, lng, precision: precision ?? undefined });
@@ -147,6 +197,9 @@ export class VideoLlamadaService {
   }
 
   private prepararPeerConnection(): void {
+    // Al reconectar, la conexión anterior quedó muerta: cerrarla antes de crear
+    // la nueva o el navegador se queda con transceivers huérfanos.
+    this.pc?.close();
     this.pc = new RTCPeerConnection({ iceServers: this.construirIceServers() });
 
     this.pc.ontrack = (ev) => {
@@ -157,6 +210,22 @@ export class VideoLlamadaService {
     this.pc.onicecandidate = (ev) => {
       if (ev.candidate && this.hub) {
         this.hub.invoke('SendIceCandidate', this.sesionId, JSON.stringify(ev.candidate));
+      }
+    };
+
+    // Se cortó el flujo de medios (se cayó la red del ciudadano, se apagó el
+    // celular). El video que se estaba grabando dejó de llegar, así que la
+    // grabación se asegura de inmediato en vez de esperar a que alguien cuelgue.
+    this.pc.onconnectionstatechange = () => {
+      const st = this.pc?.connectionState;
+      if (st === 'connected') {
+        this.estadoSubject.next('conectada');
+      } else if (st === 'failed' || st === 'disconnected') {
+        if (this.grabacionActiva) {
+          this.errorSubject.next('Se perdió la conexión con el ciudadano. La grabación se guardó automáticamente.');
+          void this.finalizarGrabacion();
+        }
+        this.estadoSubject.next('esperando');
       }
     };
   }
@@ -243,42 +312,145 @@ export class VideoLlamadaService {
     this.microfonoActivoSubject.next(track.enabled);
   }
 
-  /** Graba lo que se está recibiendo (MediaRecorder) — se sube al backend al colgar. */
+  // ══════════════════════════════════════════════════════════════════════════
+  //  GRABACIÓN A PRUEBA DE FALLOS
+  //
+  //  Antes la grabación se acumulaba ENTERA en memoria y solo se subía si el
+  //  despachador oprimía "Detener". Cualquier final abrupto —el ciudadano
+  //  cuelga, se refresca la página, se cae la red, se cierra Chrome— perdía la
+  //  grabación completa. Como esto puede ser material probatorio, no sirve.
+  //
+  //  Ahora MediaRecorder emite un trozo cada TROZO_MS y cada trozo se sube de
+  //  inmediato. Lo que ya llegó al servidor está a salvo pase lo que pase aquí.
+  //  Y el cierre se dispara desde TODOS los caminos de terminación, no solo
+  //  desde el botón (ver registrarCierresAutomaticos y finalizarGrabacion).
+  // ══════════════════════════════════════════════════════════════════════════
+
   private recorder: MediaRecorder | null = null;
-  private chunks: Blob[] = [];
+  /** Cola secuencial: los trozos deben llegar EN ORDEN o el .webm sale corrupto. */
+  private colaSubida: Promise<void> = Promise.resolve();
+  private grabacionActiva = false;
 
-  iniciarGrabacion(): void {
+  private static readonly TROZO_MS = 4000;
+
+  private readonly grabandoSubject = new BehaviorSubject<boolean>(false);
+  readonly grabando$: Observable<boolean> = this.grabandoSubject.asObservable();
+
+  async iniciarGrabacion(): Promise<void> {
     const stream = this.remoteStreamSubject.value;
-    if (!stream) return;
-    this.chunks = [];
+    if (!stream || this.grabacionActiva) return;
+
+    // Avisar al backend ANTES de grabar: deja la sesión en estado GRABANDO, de
+    // modo que si esta pestaña muere el sweeder del servidor sabe que hay una
+    // grabación abierta que debe cerrar.
+    await firstValueFrom(this.http.post(
+      `${environment.apiBaseUrl}/Adjunto/grabacion/iniciar`, { sesionId: this.sesionId }));
+
+    this.grabacionActiva = true;
+    this.grabandoSubject.next(true);
+
     this.recorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
-    this.recorder.ondataavailable = (e) => { if (e.data.size > 0) this.chunks.push(e.data); };
-    this.recorder.start();
+    this.recorder.ondataavailable = (e) => {
+      if (e.data.size > 0) this.encolarTrozo(e.data);
+    };
+    this.recorder.start(VideoLlamadaService.TROZO_MS);
   }
 
-  async detenerYSubirGrabacion(pedidoId: string, sitioGraba: number): Promise<void> {
-    if (!this.recorder) return;
-    const grabacionLista = new Promise<void>((resolve) => {
-      this.recorder!.onstop = () => resolve();
-    });
-    this.recorder.stop();
-    await grabacionLista;
+  /** Encola la subida de un trozo preservando el orden y sin bloquear al grabador. */
+  private encolarTrozo(trozo: Blob): void {
+    const sesion = this.sesionId;
+    this.colaSubida = this.colaSubida.then(() => this.subirTrozo(trozo, sesion));
+  }
 
-    if (this.chunks.length === 0) return;
-    const blob = new Blob(this.chunks, { type: 'video/webm' });
+  private async subirTrozo(trozo: Blob, sesionId: string): Promise<void> {
     const form = new FormData();
-    form.append('file', blob, `videollamada_${this.sesionId}.webm`);
-    form.append('pedidoId', pedidoId);
-    form.append('sitioGraba', String(sitioGraba));
-    form.append('canalOrigen', 'VIDEOLLAMADA');
-    form.append('sesionId', this.sesionId);
+    form.append('file', trozo, `chunk_${sesionId}.webm`);
+    form.append('sesionId', sesionId);
 
-    await firstValueFrom(this.http.post(`${environment.apiBaseUrl}/Adjunto/subir-video`, form));
+    // Un trozo perdido es un hueco en la evidencia: se reintenta antes de rendirse.
+    for (let intento = 1; intento <= 3; intento++) {
+      try {
+        await firstValueFrom(
+          this.http.post(`${environment.apiBaseUrl}/Adjunto/grabacion/chunk`, form));
+        return;
+      } catch {
+        if (intento < 3) await new Promise(r => setTimeout(r, 500 * intento));
+      }
+    }
+    // eslint-disable-next-line no-console
+    console.error('[video-llamada] no se pudo subir un trozo de la grabación tras 3 intentos.');
   }
 
+  /**
+   * Cierra la grabación y la registra como adjunto del caso. Es idempotente y
+   * segura de llamar desde cualquier camino de terminación (botón, colgar, el
+   * ciudadano cuelga, se cae la conexión, se destruye el componente).
+   */
+  async finalizarGrabacion(): Promise<boolean> {
+    if (!this.grabacionActiva) return false;
+    this.grabacionActiva = false;
+    this.grabandoSubject.next(false);
+
+    const sesion = this.sesionId;
+
+    if (this.recorder && this.recorder.state !== 'inactive') {
+      // stop() dispara un último ondataavailable con la cola pendiente.
+      const ultimoTrozo = new Promise<void>((resolve) => {
+        this.recorder!.onstop = () => resolve();
+      });
+      this.recorder.stop();
+      await ultimoTrozo;
+    }
+    this.recorder = null;
+
+    // Esperar a que termine de subir todo lo encolado antes de cerrar.
+    await this.colaSubida;
+
+    try {
+      await firstValueFrom(this.http.post(
+        `${environment.apiBaseUrl}/Adjunto/grabacion/finalizar`, { sesionId: sesion }));
+      return true;
+    } catch {
+      // Aunque falle el cierre, los trozos YA están en el servidor: el sweeper
+      // del backend la finalizará solo. La evidencia no se pierde.
+      // eslint-disable-next-line no-console
+      console.error('[video-llamada] falló el cierre de la grabación; el servidor la finalizará automáticamente.');
+      return false;
+    }
+  }
+
+  get estaGrabando(): boolean { return this.grabacionActiva; }
+
+  /**
+   * Cierre completo y ordenado: primero se asegura la grabación, después se
+   * cierra la sesión. El orden importa — si se desmontara la conexión antes,
+   * el último trozo del video se perdería.
+   */
   async colgar(): Promise<void> {
+    await this.finalizarGrabacion();
+
     if (this.hub && this.sesionId) {
       try { await this.hub.invoke('EndSession', this.sesionId); } catch { /* la conexión ya pudo haberse caído */ }
+    }
+    this.finalizarLocal();
+  }
+
+  /** Cierre por evento externo (el ciudadano colgó): guarda la grabación y desmonta. */
+  private async cerrarTodo(): Promise<void> {
+    await this.finalizarGrabacion();
+    this.finalizarLocal();
+  }
+
+  /**
+   * Cierre de emergencia para cuando el componente se destruye o el usuario
+   * abandona la página. No hay tiempo de esperar promesas, así que se dispara
+   * el guardado en segundo plano; los trozos ya subidos están a salvo de todos
+   * modos y el sweeper del servidor cierra lo que quede abierto.
+   */
+  abandonar(): void {
+    if (this.grabacionActiva) void this.finalizarGrabacion();
+    if (this.hub && this.sesionId) {
+      try { this.hub.invoke('EndSession', this.sesionId); } catch { /* ya caída */ }
     }
     this.finalizarLocal();
   }
@@ -297,6 +469,7 @@ export class VideoLlamadaService {
     this.chatDisponibleSubject.next(false);
     this.microfonoActivoSubject.next(true);
     this.ubicacionSubject.next(null);
+    this.grabandoSubject.next(false);
     this.estadoSubject.next('finalizada');
   }
 }

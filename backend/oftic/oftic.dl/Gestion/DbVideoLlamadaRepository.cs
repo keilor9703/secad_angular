@@ -136,6 +136,161 @@ WHERE  id = @id";
             await cmd.ExecuteNonQueryAsync(ct);
         }
 
+        // ══════════════════════════════════════════════════════════════════════
+        //  Reconexión
+        // ══════════════════════════════════════════════════════════════════════
+
+        public async Task<DtoVideoSesionEstado?> GetActivaPorPedidoAsync(long pedidoId, CancellationToken ct)
+        {
+            await using var conn = await _tenant.DataSource.OpenConnectionAsync(ct);
+            await using var cmd  = conn.CreateCommand();
+            // La más reciente: si por alguna razón quedaran dos abiertas, manda la última.
+            cmd.CommandText = @"
+SELECT id, sitio_graba, estado, fecha_creacion, fecha_expira, fecha_conectado, fecha_finalizado,
+       ultima_lat, ultima_lng, ultima_precision, ultima_ubicacion_fecha
+FROM   cad_video_sesiones
+WHERE  pedido_id = @pid
+  AND  estado IN ('PENDIENTE','CONECTADA')
+  AND  fecha_expira > NOW()
+ORDER  BY fecha_creacion DESC
+LIMIT  1";
+            cmd.Parameters.AddWithValue("pid", pedidoId);
+
+            await using var rdr = await cmd.ExecuteReaderAsync(ct);
+            if (!await rdr.ReadAsync(ct)) return null;
+
+            return new DtoVideoSesionEstado
+            {
+                SesionId             = rdr.GetInt64(0),
+                SitioGraba           = rdr.GetInt32(1),
+                Estado               = rdr.GetString(2),
+                FechaCreacion        = rdr.GetDateTime(3),
+                FechaExpira          = rdr.GetDateTime(4),
+                FechaConectado       = rdr.IsDBNull(5) ? null : rdr.GetDateTime(5),
+                FechaFinalizado      = rdr.IsDBNull(6) ? null : rdr.GetDateTime(6),
+                UltimaLat            = rdr.IsDBNull(7) ? null : rdr.GetDouble(7),
+                UltimaLng            = rdr.IsDBNull(8) ? null : rdr.GetDouble(8),
+                UltimaPrecision      = rdr.IsDBNull(9) ? null : rdr.GetDouble(9),
+                UltimaUbicacionFecha = rdr.IsDBNull(10) ? null : rdr.GetDateTime(10)
+            };
+        }
+
+        // ══════════════════════════════════════════════════════════════════════
+        //  Grabación resiliente (por trozos)
+        // ══════════════════════════════════════════════════════════════════════
+
+        public async Task IniciarGrabacionAsync(long sesionId, string archivoTemp, string usuario, CancellationToken ct)
+        {
+            await using var conn = await _tenant.DataSource.OpenConnectionAsync(ct);
+            await using var cmd  = conn.CreateCommand();
+            // IS DISTINCT FROM 'FINALIZADA': nunca se reabre una grabación ya cerrada
+            // y registrada como evidencia del caso.
+            cmd.CommandText = @"
+UPDATE cad_video_sesiones
+SET    grabacion_estado       = 'GRABANDO',
+       grabacion_archivo_temp = @archivo,
+       grabacion_usuario      = @usuario,
+       grabacion_bytes        = 0,
+       grabacion_inicio       = NOW(),
+       grabacion_ultimo_chunk = NOW()
+WHERE  id = @id
+  AND  grabacion_estado IS DISTINCT FROM 'FINALIZADA'";
+            cmd.Parameters.AddWithValue("id",      sesionId);
+            cmd.Parameters.AddWithValue("archivo", archivoTemp);
+            cmd.Parameters.AddWithValue("usuario", usuario);
+            await cmd.ExecuteNonQueryAsync(ct);
+        }
+
+        public async Task RegistrarChunkAsync(long sesionId, long bytes, CancellationToken ct)
+        {
+            await using var conn = await _tenant.DataSource.OpenConnectionAsync(ct);
+            await using var cmd  = conn.CreateCommand();
+            cmd.CommandText = @"
+UPDATE cad_video_sesiones
+SET    grabacion_bytes        = grabacion_bytes + @bytes,
+       grabacion_ultimo_chunk = NOW()
+WHERE  id = @id
+  AND  grabacion_estado = 'GRABANDO'";
+            cmd.Parameters.AddWithValue("id",    sesionId);
+            cmd.Parameters.AddWithValue("bytes", bytes);
+            await cmd.ExecuteNonQueryAsync(ct);
+        }
+
+        public async Task<DtoVideoGrabacion?> GetGrabacionAsync(long sesionId, CancellationToken ct)
+        {
+            await using var conn = await _tenant.DataSource.OpenConnectionAsync(ct);
+            await using var cmd  = conn.CreateCommand();
+            cmd.CommandText = @"
+SELECT id, pedido_id, sitio_graba, grabacion_estado, grabacion_archivo_temp,
+       grabacion_bytes, grabacion_inicio, grabacion_ultimo_chunk, grabacion_usuario
+FROM   cad_video_sesiones
+WHERE  id = @id";
+            cmd.Parameters.AddWithValue("id", sesionId);
+
+            await using var rdr = await cmd.ExecuteReaderAsync(ct);
+            if (!await rdr.ReadAsync(ct)) return null;
+            return LeerGrabacion(rdr);
+        }
+
+        public async Task FinalizarGrabacionAsync(long sesionId, long adjuntoId, CancellationToken ct)
+        {
+            await using var conn = await _tenant.DataSource.OpenConnectionAsync(ct);
+            await using var cmd  = conn.CreateCommand();
+            cmd.CommandText = @"
+UPDATE cad_video_sesiones
+SET    grabacion_estado     = 'FINALIZADA',
+       adjunto_grabacion_id = @adjuntoId
+WHERE  id = @id";
+            cmd.Parameters.AddWithValue("id",        sesionId);
+            cmd.Parameters.AddWithValue("adjuntoId", adjuntoId);
+            await cmd.ExecuteNonQueryAsync(ct);
+        }
+
+        public async Task CerrarGrabacionSinAdjuntoAsync(long sesionId, CancellationToken ct)
+        {
+            await using var conn = await _tenant.DataSource.OpenConnectionAsync(ct);
+            await using var cmd  = conn.CreateCommand();
+            cmd.CommandText = @"
+UPDATE cad_video_sesiones
+SET    grabacion_estado = 'FINALIZADA'
+WHERE  id = @id
+  AND  grabacion_estado = 'GRABANDO'";
+            cmd.Parameters.AddWithValue("id", sesionId);
+            await cmd.ExecuteNonQueryAsync(ct);
+        }
+
+        public async Task<List<DtoVideoGrabacion>> GetGrabacionesHuerfanasAsync(int minutosInactividad, CancellationToken ct)
+        {
+            await using var conn = await _tenant.DataSource.OpenConnectionAsync(ct);
+            await using var cmd  = conn.CreateCommand();
+            cmd.CommandText = @"
+SELECT id, pedido_id, sitio_graba, grabacion_estado, grabacion_archivo_temp,
+       grabacion_bytes, grabacion_inicio, grabacion_ultimo_chunk, grabacion_usuario
+FROM   cad_video_sesiones
+WHERE  grabacion_estado = 'GRABANDO'
+  AND  grabacion_ultimo_chunk < NOW() - make_interval(mins => @mins)
+ORDER  BY grabacion_ultimo_chunk";
+            cmd.Parameters.AddWithValue("mins", minutosInactividad);
+
+            var lista = new List<DtoVideoGrabacion>();
+            await using var rdr = await cmd.ExecuteReaderAsync(ct);
+            while (await rdr.ReadAsync(ct)) lista.Add(LeerGrabacion(rdr));
+            return lista;
+        }
+
+        private static DtoVideoGrabacion LeerGrabacion(NpgsqlDataReader rdr) => new()
+        {
+            SesionId    = rdr.GetInt64(0),
+            PedidoId    = rdr.GetInt64(1),
+            SitioGraba  = rdr.GetInt32(2),
+            Estado      = rdr.IsDBNull(3) ? null : rdr.GetString(3),
+            ArchivoTemp = rdr.IsDBNull(4) ? null : rdr.GetString(4),
+            Bytes       = rdr.GetInt64(5),
+            Inicio      = rdr.IsDBNull(6) ? null : rdr.GetDateTime(6),
+            UltimoChunk = rdr.IsDBNull(7) ? null : rdr.GetDateTime(7),
+            Usuario     = rdr.IsDBNull(8) ? null : rdr.GetString(8)
+        };
+
         public async Task ExpirarVencidasAsync(CancellationToken ct)
         {
             await using var conn = await _tenant.DataSource.OpenConnectionAsync(ct);

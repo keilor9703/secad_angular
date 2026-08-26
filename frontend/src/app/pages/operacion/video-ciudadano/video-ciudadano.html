@@ -22,6 +22,9 @@
       @if (errorCamara()) {
         <span class="vc-pill vc-pill--warning"><i class="fa-solid fa-triangle-exclamation"></i>{{ errorCamara() }}</span>
       }
+      @if (mensajeEspera()) {
+        <span class="vc-pill vc-pill--warning"><i class="vc-dot"></i>{{ mensajeEspera() }}</span>
+      }
     </div>
 
     @if (chatAbierto()) {

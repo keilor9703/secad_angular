@@ -66,5 +66,28 @@ namespace Negocio.Gestion
             }
             return _repo.ActualizarUbicacionAsync(sesionId, lat, lng, precision, ct);
         }
+
+        public Task<DtoVideoSesionEstado?> GetActivaPorPedidoAsync(long pedidoId, CancellationToken ct)
+            => _repo.GetActivaPorPedidoAsync(pedidoId, ct);
+
+        // ── Grabación resiliente (por trozos) ──────────────────────────────────
+
+        public Task IniciarGrabacionAsync(long sesionId, string archivoTemp, string usuario, CancellationToken ct)
+            => _repo.IniciarGrabacionAsync(sesionId, archivoTemp, usuario, ct);
+
+        public Task RegistrarChunkAsync(long sesionId, long bytes, CancellationToken ct)
+            => _repo.RegistrarChunkAsync(sesionId, bytes, ct);
+
+        public Task<DtoVideoGrabacion?> GetGrabacionAsync(long sesionId, CancellationToken ct)
+            => _repo.GetGrabacionAsync(sesionId, ct);
+
+        public Task FinalizarGrabacionAsync(long sesionId, long adjuntoId, CancellationToken ct)
+            => _repo.FinalizarGrabacionAsync(sesionId, adjuntoId, ct);
+
+        public Task CerrarGrabacionSinAdjuntoAsync(long sesionId, CancellationToken ct)
+            => _repo.CerrarGrabacionSinAdjuntoAsync(sesionId, ct);
+
+        public Task<List<DtoVideoGrabacion>> GetGrabacionesHuerfanasAsync(int minutosInactividad, CancellationToken ct)
+            => _repo.GetGrabacionesHuerfanasAsync(minutosInactividad, ct);
     }
 }

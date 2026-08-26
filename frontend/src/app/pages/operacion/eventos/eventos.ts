@@ -50,7 +50,7 @@ import {
   DtoCanalSeleccionado,
   DtoAdjunto
 } from '../../../core/services/operacion/recepcion.service';
-import { VideoLlamadaService, EstadoLlamada, ChatMensaje, UbicacionCiudadano } from '../../../core/services/operacion/video-llamada.service';
+import { VideoLlamadaService, EstadoLlamada, ChatMensaje, UbicacionCiudadano, DtoVideoSesionActiva } from '../../../core/services/operacion/video-llamada.service';
 import { PanelColapsableComponent } from '../../../components/panel-colapsable/panel-colapsable';
 import { animateMarkerTo, stopMarkerAnimation } from '../../../shared/utils/leaflet-marker-animator';
 
@@ -353,7 +353,11 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
   readonly videollamadaChatDisponible = signal(false);
   readonly videollamadaChatMensajes = signal<ChatMensaje[]>([]);
   videollamadaChatTexto    = '';
-  grabandoVideollamada      = false;
+  /** Lo manda el servicio, no la UI: la grabación puede detenerse sola (el ciudadano cuelga, se cae la red). */
+  readonly grabandoVideollamada = signal(false);
+  /** Videollamada en curso detectada al abrir el caso — se ofrece reconectar en vez de generar otro enlace. */
+  readonly videollamadaReconectable = signal<DtoVideoSesionActiva | null>(null);
+  readonly reconectandoVideollamada = signal(false);
   private videoSesionId     = '';
   private videoSubs         = new Subscription();
   readonly videoRemotoRef   = viewChild<ElementRef<HTMLVideoElement>>('videoRemoto');
@@ -448,6 +452,9 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
         this.videollamadaUbicacion.set(u);
         if (u) this.actualizarUbicacionCiudadanoEnMapa(u);
       })
+    );
+    this.videoSubs.add(
+      this.videoSvc.grabando$.subscribe(g => { this.grabandoVideollamada.set(g); })
     );
 
     // ── Preferencia de alerta sonora (persistida por navegador) ───────────────
@@ -578,7 +585,10 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
   ngOnDestroy(): void {
     this.subs.unsubscribe();
     this.videoSubs.unsubscribe();
-    if (this.videollamadaEstado() !== 'inactiva') this.videoSvc.colgar();
+    // abandonar() dispara el guardado de la grabación antes de desmontar. Los
+    // trozos ya subidos están a salvo igual, y si este cierre no alcanza a
+    // completarse el sweeper del servidor finaliza la grabación por su cuenta.
+    if (this.videollamadaEstado() !== 'inactiva') this.videoSvc.abandonar();
     this.destroyMapaDetalle();
     this.detenerPollingRecursos();
     this.detenerPollingActuaciones();
@@ -753,6 +763,9 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
     this.detenerPollingPresencia();
     this.resetVideollamada();
     this.videollamadaTelefono  = String(evento.numeTelefono ?? '');
+    // ¿Este caso ya tiene una llamada en curso? Si sí, se ofrece reconectar en
+    // vez de generar otro enlace (F5, cambio de pestaña, relevo de turno…).
+    this.verificarVideollamadaEnCurso(evento.id);
     // Snapshot del id pedido: si el dispatcher selecciona OTRO evento antes de que
     // esta respuesta llegue, una respuesta fuera de orden no debe pisar el panel
     // que ya está mostrando el evento más reciente.
@@ -1040,14 +1053,54 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
   // ─── Videollamada con el ciudadano (WebRTC P2P, sin SFU) ─────────────────────
 
   private resetVideollamada(): void {
-    if (this.videollamadaEstado() !== 'inactiva') this.videoSvc.colgar();
+    // colgar() ya asegura la grabación antes de desmontar la conexión.
+    if (this.videollamadaEstado() !== 'inactiva') void this.videoSvc.colgar();
     this.videollamadaLink.set('');
     this.videollamadaMensaje.set('');
-    this.grabandoVideollamada = false;
     this.videoSesionId        = '';
     this.videollamadaChatTexto   = '';
     this.videollamadaUbicacion.set(null);
+    this.videollamadaReconectable.set(null);
     this.limpiarUbicacionCiudadanoEnMapa();
+  }
+
+  /**
+   * Al abrir un caso, pregunta si ya hay una videollamada en curso. Si la hay,
+   * se ofrece RECONECTARSE a ella en vez de generar otro enlace: el despachador
+   * pudo haber refrescado, cambiado de pestaña, perdido la red, o puede tratarse
+   * de un relevo de turno. El ciudadano sigue en la misma llamada.
+   */
+  private verificarVideollamadaEnCurso(pedidoId: string): void {
+    this.videollamadaReconectable.set(null);
+    this.videoSvc.getSesionActiva(pedidoId)
+      .then(activa => {
+        // Si ya hay una llamada montada en esta pestaña, no ofrecer reconectar.
+        if (!activa?.hay || this.videollamadaEstado() !== 'inactiva') return;
+        this.videollamadaReconectable.set(activa);
+      })
+      .catch(() => { /* no crítico: simplemente no se ofrece reconectar */ });
+  }
+
+  /** Vuelve a entrar a la videollamada en curso, sin generar un enlace nuevo. */
+  reconectarVideollamada(): void {
+    const activa = this.videollamadaReconectable();
+    if (!activa || this.reconectandoVideollamada()) return;
+
+    this.reconectandoVideollamada.set(true);
+    this.videoSesionId = activa.sesionId;
+    this.videollamadaLink.set(`${window.location.origin}/video/${activa.sessionToken}`);
+
+    this.videoSvc.reconectar(activa.sesionId)
+      .then(() => {
+        this.videollamadaReconectable.set(null);
+        this.toast.success('Videollamada', 'Reconectado a la llamada en curso.');
+        if (activa.grabando) {
+          this.toast.warning('Videollamada',
+            'Había una grabación abierta; el servidor la cerrará y quedará guardada en el caso.');
+        }
+      })
+      .catch(() => this.toast.error('Videollamada', 'No fue posible reconectarse a la llamada.'))
+      .finally(() => this.reconectandoVideollamada.set(false));
   }
 
   /**
@@ -1159,22 +1212,23 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
   }
 
   toggleGrabacionVideollamada(): void {
-    if (this.grabandoVideollamada) {
-      const detalle = this.detalle();
-      if (!detalle) return;
-      this.grabandoVideollamada = false;
-      this.videoSvc.detenerYSubirGrabacion(detalle.id, detalle.sitioGraba)
-        .then(() => this.toast.success('Videollamada', 'Grabación subida al caso.'))
-        .catch(() => this.toast.error('Videollamada', 'No se pudo subir la grabación.'));
+    if (this.grabandoVideollamada()) {
+      this.videoSvc.finalizarGrabacion()
+        .then(ok => ok
+          ? this.toast.success('Videollamada', 'Grabación guardada en el caso.')
+          : this.toast.warning('Videollamada', 'La grabación quedó en el servidor y se registrará automáticamente.'))
+        .catch(() => this.toast.error('Videollamada', 'Error al cerrar la grabación.'));
     } else {
-      this.videoSvc.iniciarGrabacion();
-      this.grabandoVideollamada = true;
+      this.videoSvc.iniciarGrabacion()
+        .then(() => this.toast.success('Videollamada', 'Grabando — el video se resguarda en el servidor mientras avanza.'))
+        .catch(() => this.toast.error('Videollamada', 'No se pudo iniciar la grabación.'));
     }
   }
 
   colgarVideollamada(): void {
-    if (this.grabandoVideollamada) this.toggleGrabacionVideollamada();
-    this.videoSvc.colgar();
+    // colgar() ya asegura la grabación primero (y espera a que suba el último
+    // trozo) antes de desmontar la conexión — no hay que detenerla aparte.
+    void this.videoSvc.colgar();
     this.videollamadaLink.set('');
     this.videollamadaMensaje.set('');
     this.videollamadaChatTexto   = '';
@@ -1259,6 +1313,20 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
       const minutos = (Date.now() - new Date(ev.fechaPrimerAcceso).getTime()) / 60000;
       return minutos >= umbral;
     });
+  }
+
+  /**
+   * El despachador cierra la pestaña, refresca (F5) o navega fuera del sitio.
+   * Se usa 'pagehide' (no 'beforeunload') porque es el evento que sí dispara de
+   * forma confiable también en móviles y al restaurar desde caché.
+   *
+   * Aquí no hay tiempo para esperar promesas, así que esto es solo la última
+   * cortesía: la garantía real de que la grabación no se pierde son los trozos
+   * que ya están en el servidor más el sweeper que cierra lo que quede abierto.
+   */
+  @HostListener('window:pagehide')
+  onPageHide(): void {
+    if (this.videollamadaEstado() !== 'inactiva') this.videoSvc.abandonar();
   }
 
   // ─── Atajos de teclado ─────────────────────────────────────────────────────────
