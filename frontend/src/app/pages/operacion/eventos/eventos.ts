@@ -352,7 +352,6 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
   readonly videollamadaMicActivo = signal(true);
   readonly videollamadaChatDisponible = signal(false);
   readonly videollamadaChatMensajes = signal<ChatMensaje[]>([]);
-  videollamadaChatAbierto  = false;
   videollamadaChatTexto    = '';
   grabandoVideollamada      = false;
   private videoSesionId     = '';
@@ -1046,7 +1045,6 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
     this.videollamadaMensaje.set('');
     this.grabandoVideollamada = false;
     this.videoSesionId        = '';
-    this.videollamadaChatAbierto = false;
     this.videollamadaChatTexto   = '';
     this.videollamadaUbicacion.set(null);
     this.limpiarUbicacionCiudadanoEnMapa();
@@ -1179,7 +1177,6 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
     this.videoSvc.colgar();
     this.videollamadaLink.set('');
     this.videollamadaMensaje.set('');
-    this.videollamadaChatAbierto = false;
     this.videollamadaChatTexto   = '';
     this.videollamadaUbicacion.set(null);
     this.limpiarUbicacionCiudadanoEnMapa();
@@ -1192,10 +1189,6 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
    */
   toggleMicVideollamada(): void {
     this.videoSvc.toggleMicrofono();
-  }
-
-  toggleChatVideollamada(): void {
-    this.videollamadaChatAbierto = !this.videollamadaChatAbierto;
   }
 
   enviarChatVideollamada(): void {

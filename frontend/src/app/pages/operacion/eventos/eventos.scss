@@ -784,15 +784,15 @@ html.dark-mode .ev-no-canal-banner {
 //
 //   sin llamada:   [ mapa (grande) ][ recursos ]
 //
-//   con llamada:   [ video  ][ mapa     ]
-//                  [ (grande)][ recursos ]
+//   con llamada:   [ VIDEO (grande) ][ chat     ]
+//                  [ mapa           ][ recursos ]
 //
-// El video ocupa las dos filas de su columna; a su derecha el mapa arriba y
-// la lista de recursos debajo. Altura fija en la fila para que las columnas
-// queden alineadas arriba y abajo; cada bloque gestiona su scroll interno.
+// El chat es una sección propia de la grilla, NO un bloque dentro del panel
+// de video: por eso abrirlo ya no le roba alto al recuadro de la llamada.
+// Cada bloque gestiona su scroll interno, así las filas nunca se desbordan.
 .ev-live-grid {
   display:               grid;
-  grid-template-columns: 1fr 320px;
+  grid-template-columns: 1fr 340px;
   grid-template-rows:    1fr;
   gap:                   12px;
   height:                560px;
@@ -801,14 +801,14 @@ html.dark-mode .ev-no-canal-banner {
   .ev-live-list { grid-column: 2; grid-row: 1; }
 
   &--con-llamada {
-    // El video queda algo más ancho que el mapa: es el foco durante la
-    // emergencia, pero sin dejar el mapa relegado a una franja.
-    grid-template-columns: minmax(420px, 1.15fr) minmax(0, 1fr);
-    grid-template-rows:    1fr auto;
-    height:                640px;
+    // Fila 1 (video + chat) manda: es lo que se atiende en vivo. Fila 2
+    // (mapa + recursos) es el apoyo para despachar.
+    grid-template-rows: 620px 400px;
+    height:             auto;
 
-    .ev-live-video { grid-column: 1; grid-row: 1 / 3; }
-    .ev-live-map   { grid-column: 2; grid-row: 1; }
+    .ev-live-video { grid-column: 1; grid-row: 1; }
+    .ev-live-chat  { grid-column: 2; grid-row: 1; }
+    .ev-live-map   { grid-column: 1; grid-row: 2; }
     .ev-live-list  { grid-column: 2; grid-row: 2; }
   }
 
@@ -820,10 +820,12 @@ html.dark-mode .ev-no-canal-banner {
     height:                auto;
 
     .ev-live-video,
+    .ev-live-chat,
     .ev-live-map,
     .ev-live-list { grid-column: 1; grid-row: auto; }
 
     .ev-live-video { height: 480px; }
+    .ev-live-chat  { height: 340px; }
     .ev-live-map   { height: 360px; }
     .ev-live-list  { max-height: 320px; }
 
@@ -833,6 +835,48 @@ html.dark-mode .ev-no-canal-banner {
       height:                auto;
     }
   }
+}
+
+// Chat con el ciudadano — panel lateral propio, siempre visible durante la
+// llamada. Cabecera fija, mensajes con scroll, formulario anclado abajo.
+.ev-live-chat {
+  display:        flex;
+  flex-direction: column;
+  min-width:      0;
+  height:         100%;
+  overflow:       hidden;
+  border:         1px solid var(--ui-border, rgba(21,27,59,.14));
+  border-radius:  var(--ui-radius-sm, 10px);
+  background:     var(--ui-surface, #fff);
+}
+
+.ev-live-chat__head {
+  display:        flex;
+  align-items:    center;
+  gap:            8px;
+  flex-shrink:    0;
+  padding:        9px 12px;
+  border-bottom:  1px solid var(--ui-border, rgba(21,27,59,.12));
+  font-size:      calc(11.5px * var(--font-size-scale, 1));
+  font-weight:    800;
+  text-transform: uppercase;
+  letter-spacing: .02em;
+  color:          var(--ui-text, #1a1a2e);
+
+  > i:first-child { color: var(--policia-acento, #08a6cb); }
+}
+
+.ev-live-chat__estado {
+  margin-left:   auto;
+  padding:       2px 8px;
+  border-radius: 999px;
+  font-size:     calc(10px * var(--font-size-scale, 1));
+  font-weight:   700;
+  text-transform: none;
+  background:    rgba(21,27,59,.06);
+  color:         var(--ui-text-muted, #6b7280);
+
+  &--on { background: rgba(34,197,94,.15); color: #15803d; }
 }
 
 .ev-live-video,
@@ -2970,7 +3014,12 @@ html.dark-mode {
 .ev-video-remoto {
   width:            100%;
   height:           100%;
-  object-fit:       cover;
+  // "contain", NO "cover": el ciudadano graba en vertical con el celular y el
+  // recuadro es apaisado. Con "cover" el navegador recortaría arriba y abajo,
+  // que en una emergencia puede ocultar justo lo que importa (el arma, el
+  // vehículo, la herida). Se prefiere ver la escena completa aunque queden
+  // bandas laterales, igual que en cualquier app de videollamada.
+  object-fit:       contain;
   background:       #000;
 }
 
@@ -3065,26 +3114,11 @@ html.dark-mode {
   .ui-btn { margin-left: auto; }
 }
 
-.ev-chat-badge {
-  display:          inline-block;
-  width:            7px;
-  height:           7px;
-  border-radius:    50%;
-  background:       #ef4444;
-  margin-left:      6px;
-}
-
-.ev-chat-panel {
-  display:          flex;
-  flex-direction:   column;
-  max-height:       260px;
-  border:           1px solid var(--ui-border, #e5e7eb);
-  border-radius:    10px;
-  overflow:         hidden;
-}
-
+// Ocupa todo el alto que le deja la cabecera dentro de .ev-live-chat, y hace
+// scroll solo aquí adentro — nunca empuja ni encoge al resto del panel.
 .ev-chat-mensajes {
   flex:             1;
+  min-height:       0;
   overflow-y:       auto;
   padding:          10px;
   display:          flex;
@@ -3123,11 +3157,12 @@ html.dark-mode {
 
 .ev-chat-form {
   display:          flex;
+  flex-shrink:      0;
   gap:              8px;
   padding:          8px;
   border-top:       1px solid var(--ui-border, #e5e7eb);
 
-  input { flex: 1; }
+  input { flex: 1; min-width: 0; }
 }
 
 .ev-adjuntos-grid {
