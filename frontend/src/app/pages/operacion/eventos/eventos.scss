@@ -780,13 +780,33 @@ html.dark-mode .ev-no-canal-banner {
   gap:                   16px;
   margin-bottom:         10px;
 
+  // Sin llamada en curso: la columna de videollamada no se renderiza (ver
+  // @if en la plantilla) — el mapa y los recursos se expanden a todo el
+  // ancho en vez de dejar esa columna vacía, y el mapa además crece de alto
+  // (ver .ev-live-grid--sin-llamada .ev-map--md más abajo).
+  &--sin-llamada {
+    grid-template-columns: 1fr;
+  }
+
   @media (max-width: 1100px) {
     grid-template-columns: 1fr;
   }
 }
 
 .ev-live-video {
-  min-width: 0;
+  display:        flex;
+  flex-direction: column;
+  min-width:      0;
+  // Misma altura total que la columna derecha (mapa + recursos), para que
+  // ambas columnas queden bien delimitadas, a la misma altura — el frame de
+  // video (flex:1 más abajo) crece para llenar lo que sobra tras el estado/
+  // link/ubicación/controles, sin dejar franjas vacías a los lados ni abajo.
+  height:         700px;
+  overflow-y:     auto;
+
+  @media (max-width: 1100px) {
+    height: auto;
+  }
 }
 
 .ev-live-side {
@@ -794,6 +814,42 @@ html.dark-mode .ev-no-canal-banner {
   flex-direction: column;
   gap:            12px;
   min-width:      0;
+}
+
+// Barra compacta para iniciar una videollamada cuando no hay ninguna en
+// curso — reemplaza el formulario que antes vivía en la columna de
+// videollamada (ahora ni se renderiza). Fila normal del layout, NO flotando
+// sobre el mapa.
+.ev-live-start-call {
+  display:       flex;
+  flex-wrap:     wrap;
+  align-items:   center;
+  gap:           10px;
+  padding:       10px 12px;
+  border:        1px solid var(--ui-border, rgba(21,27,59,.14));
+  border-radius: var(--ui-radius-sm, 10px);
+  background:    var(--ui-surface, #fff);
+
+  input { flex: 1; min-width: 180px; }
+}
+
+.ev-live-start-call__label {
+  display:     flex;
+  align-items: center;
+  gap:         6px;
+  flex-basis:  100%;
+  font-size:   0.78rem;
+  font-weight: 700;
+  color:       var(--ui-text, #1a1a2e);
+
+  i { color: var(--policia-acento, #08a6cb); }
+}
+
+// Con el mapa y los recursos ocupando todo el ancho (sin llamada en curso),
+// vale la pena que también crezcan de alto — hay espacio de sobra.
+.ev-live-grid--sin-llamada {
+  .ev-map--md      { height: 460px; }
+  .ev-recmap-list--sm { height: 380px; }
 }
 
 .ev-live-mapwrap {
@@ -2857,6 +2913,8 @@ html.dark-mode {
 .ev-video-panel {
   display:        flex;
   flex-direction: column;
+  flex:           1;
+  min-height:     0;
   gap:            10px;
 }
 
@@ -2876,17 +2934,20 @@ html.dark-mode {
 // Contenedor con relación de aspecto fija (retrato, la más común en video de
 // celular sostenido en vertical) para que el video nunca se vea como una
 // franja alargada mientras espera a que lleguen los metadatos del track.
+// Antes tenía un ancho máximo de 560px centrado (pensado para un panel
+// angosto) — en la columna ancha de la videollamada eso dejaba franjas en
+// blanco a ambos lados. Ahora llena TODO el ancho y el alto disponibles de
+// la columna (flex:1), con un mínimo generoso para que nunca se vea como
+// una franja mientras no hay suficiente contenido alrededor.
 .ev-video-frame {
-  position:        relative;
-  width:            100%;
-  max-width:        560px;
-  aspect-ratio:     9 / 16;
-  max-height:       78vh;
-  margin:           0 auto;
-  border-radius:    12px;
-  overflow:         hidden;
-  background:       #0b1220;
-  box-shadow:       0 4px 18px rgba(0, 0, 0, 0.25);
+  position:      relative;
+  flex:          1;
+  width:         100%;
+  min-height:    380px;
+  border-radius: 12px;
+  overflow:      hidden;
+  background:    #0b1220;
+  box-shadow:    0 4px 18px rgba(0, 0, 0, 0.25);
 }
 
 .ev-video-remoto {
@@ -3142,6 +3203,11 @@ html.dark-mode {
   }
 
   .ev-map { background: rgba(255,255,255,.04); }
+
+  .ev-live-start-call {
+    background:   rgba(255,255,255,.03);
+    border-color: rgba(255,255,255,.08);
+  }
 
   .ev-recmap-ubicacion { color: var(--ui-text-muted); }
 

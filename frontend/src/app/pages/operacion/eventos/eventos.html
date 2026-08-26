@@ -733,144 +733,142 @@
                   c/8s
                 </span>
 
-                <div class="ev-live-grid">
+                <div class="ev-live-grid" [class.ev-live-grid--sin-llamada]="!llamadaEnCurso(detalle)">
 
                   <!-- IZQUIERDA: videollamada con el ciudadano — misma funcionalidad de
-                       siempre (link, ubicación, mic, chat, grabar, colgar), solo reubicada. -->
-                  <div class="ev-live-video">
-                    @if (detalle.estado !== 'C') {
-                      @if (videollamadaEstado() === 'inactiva' || videollamadaEstado() === 'finalizada') {
-                        <div class="ui-grid" style="gap:10px; align-items:end;">
-                          <div class="ui-field ui-col-8">
-                            <label class="ui-label">Teléfono del ciudadano</label>
-                            <input class="ui-control" type="text"
-                                   [(ngModel)]="videollamadaTelefono"
-                                   placeholder="Número al que se enviará el enlace…">
-                          </div>
-                          <div class="ui-col-4">
-                            <button type="button" class="ui-btn ui-btn-primary" style="width:100%;"
-                                    [disabled]="creandoVideollamada()"
-                                    (click)="iniciarVideollamada()">
-                              @if (creandoVideollamada()) { Creando… } @else { <i class="fa-solid fa-video"></i> Iniciar }
+                       siempre (link, ubicación, mic, chat, grabar, colgar), solo reubicada.
+                       Solo ocupa su columna mientras hay una llamada realmente en curso — si
+                       no, esta columna ni se renderiza (ver @if) y el mapa/recursos de la
+                       derecha se expanden a todo el ancho, para no dejar un hueco vacío. El
+                       control para iniciar una llamada nueva vive entonces en .ev-live-side
+                       (una barra normal, no flotando sobre el mapa). -->
+                  @if (llamadaEnCurso(detalle)) {
+                    <div class="ev-live-video">
+                      <div class="ev-video-panel">
+                        <div class="ev-video-estado">
+                          @switch (videollamadaEstado()) {
+                            @case ('esperando')  { <span class="ui-badge ui-badge-warning">Esperando al ciudadano…</span> }
+                            @case ('conectando') { <span class="ui-badge ui-badge-warning">Conectando…</span> }
+                            @case ('conectada')  { <span class="ui-badge ui-badge-success">Conectada</span> }
+                            @case ('error')      { <span class="ui-badge ui-badge-danger">Error de conexión</span> }
+                          }
+                        </div>
+
+                        @if (videollamadaLink()) {
+                          <div class="ev-video-link">
+                            <input class="ui-control" type="text" readonly [value]="videollamadaLink()">
+                            <button type="button" class="ui-btn ui-btn-secondary" (click)="copiarLinkVideollamada()">
+                              <i class="fa-solid fa-copy"></i> Copiar
                             </button>
                           </div>
-                        </div>
-                      } @else {
-                        <div class="ev-video-panel">
-                          <div class="ev-video-estado">
-                            @switch (videollamadaEstado()) {
-                              @case ('esperando')  { <span class="ui-badge ui-badge-warning">Esperando al ciudadano…</span> }
-                              @case ('conectando') { <span class="ui-badge ui-badge-warning">Conectando…</span> }
-                              @case ('conectada')  { <span class="ui-badge ui-badge-success">Conectada</span> }
-                              @case ('error')      { <span class="ui-badge ui-badge-danger">Error de conexión</span> }
-                            }
+                          @if (videollamadaMensaje()) {
+                            <p class="ev-video-mensaje">{{ videollamadaMensaje() }}</p>
+                          }
+                        }
+
+                        <!-- La ubicación en sí se dibuja sobre el mapa de la derecha (mismo
+                             mapa que muestra el caso y las patrullas) — ver
+                             actualizarUbicacionCiudadanoEnMapa() en el componente. -->
+                        @if (videollamadaUbicacion(); as ubic) {
+                          <div class="ev-video-ubicacion">
+                            <i class="fa-solid fa-location-dot"></i>
+                            <span>
+                              Ciudadano ubicado en el mapa
+                              @if (ubic.precision) { <small>(precisión ~{{ ubic.precision | number:'1.0-0' }} m)</small> }
+                            </span>
+                            <button type="button" class="ui-btn xs ui-btn-secondary" (click)="centrarEnCiudadano()">
+                              <i class="fa-solid fa-crosshairs"></i> Centrar
+                            </button>
                           </div>
+                        }
 
-                          @if (videollamadaLink()) {
-                            <div class="ev-video-link">
-                              <input class="ui-control" type="text" readonly [value]="videollamadaLink()">
-                              <button type="button" class="ui-btn ui-btn-secondary" (click)="copiarLinkVideollamada()">
-                                <i class="fa-solid fa-copy"></i> Copiar
-                              </button>
+                        @if (videollamadaEstado() === 'conectada') {
+                          <div class="ev-video-frame">
+                            <video #videoRemoto autoplay playsinline class="ev-video-remoto"
+                                   [srcObject]="videollamadaRemoteStream()"></video>
+                            <div class="ev-video-badges">
+                              <span class="ev-video-badge ev-video-badge--live"><i class="ev-video-dot"></i>En vivo</span>
+                              @if (grabandoVideollamada) {
+                                <span class="ev-video-badge ev-video-badge--rec"><i class="ev-video-dot"></i>REC</span>
+                              }
                             </div>
-                            @if (videollamadaMensaje()) {
-                              <p class="ev-video-mensaje">{{ videollamadaMensaje() }}</p>
-                            }
-                          }
+                          </div>
+                        }
 
-                          <!-- La ubicación en sí se dibuja sobre el mapa de la derecha (mismo
-                               mapa que muestra el caso y las patrullas) — ver
-                               actualizarUbicacionCiudadanoEnMapa() en el componente. -->
-                          @if (videollamadaUbicacion(); as ubic) {
-                            <div class="ev-video-ubicacion">
-                              <i class="fa-solid fa-location-dot"></i>
-                              <span>
-                                Ciudadano ubicado en el mapa
-                                @if (ubic.precision) { <small>(precisión ~{{ ubic.precision | number:'1.0-0' }} m)</small> }
-                              </span>
-                              <button type="button" class="ui-btn xs ui-btn-secondary" (click)="centrarEnCiudadano()">
-                                <i class="fa-solid fa-crosshairs"></i> Centrar
-                              </button>
-                            </div>
-                          }
-
+                        <div class="ev-video-controles">
                           @if (videollamadaEstado() === 'conectada') {
-                            <div class="ev-video-frame">
-                              <video #videoRemoto autoplay playsinline class="ev-video-remoto"
-                                     [srcObject]="videollamadaRemoteStream()"></video>
-                              <div class="ev-video-badges">
-                                <span class="ev-video-badge ev-video-badge--live"><i class="ev-video-dot"></i>En vivo</span>
-                                @if (grabandoVideollamada) {
-                                  <span class="ev-video-badge ev-video-badge--rec"><i class="ev-video-dot"></i>REC</span>
-                                }
-                              </div>
-                            </div>
-                          }
-
-                          <div class="ev-video-controles">
-                            @if (videollamadaEstado() === 'conectada') {
-                              <button type="button" class="ui-btn"
-                                      [class.ui-btn-danger]="!videollamadaMicActivo()"
-                                      [class.ui-btn-secondary]="videollamadaMicActivo()"
-                                      (click)="toggleMicVideollamada()"
-                                      title="Silenciar/activar su propio micrófono — el ciudadano puede seguir escribiéndole por chat aunque lo silencie">
-                                <i class="fa-solid" [class.fa-microphone]="videollamadaMicActivo()" [class.fa-microphone-slash]="!videollamadaMicActivo()"></i>
-                                {{ videollamadaMicActivo() ? 'Silenciar mi micrófono' : 'Mi micrófono está silenciado' }}
-                              </button>
-                              <button type="button" class="ui-btn ui-btn-secondary" (click)="toggleChatVideollamada()">
-                                <i class="fa-solid fa-comment"></i> Chat
-                                @if (!videollamadaChatAbierto && videollamadaChatMensajes().length > 0) {
-                                  <span class="ev-chat-badge"></span>
-                                }
-                              </button>
-                              <button type="button" class="ui-btn"
-                                      [class.ui-btn-danger]="grabandoVideollamada"
-                                      [class.ui-btn-secondary]="!grabandoVideollamada"
-                                      (click)="toggleGrabacionVideollamada()">
-                                <i class="fa-solid" [class.fa-record-vinyl]="!grabandoVideollamada" [class.fa-stop]="grabandoVideollamada"></i>
-                                {{ grabandoVideollamada ? 'Detener grabación' : 'Grabar' }}
-                              </button>
-                            }
-                            <button type="button" class="ui-btn ui-btn-danger" (click)="colgarVideollamada()">
-                              <i class="fa-solid fa-phone-slash"></i> Colgar
+                            <button type="button" class="ui-btn"
+                                    [class.ui-btn-danger]="!videollamadaMicActivo()"
+                                    [class.ui-btn-secondary]="videollamadaMicActivo()"
+                                    (click)="toggleMicVideollamada()"
+                                    title="Silenciar/activar su propio micrófono — el ciudadano puede seguir escribiéndole por chat aunque lo silencie">
+                              <i class="fa-solid" [class.fa-microphone]="videollamadaMicActivo()" [class.fa-microphone-slash]="!videollamadaMicActivo()"></i>
+                              {{ videollamadaMicActivo() ? 'Silenciar mi micrófono' : 'Mi micrófono está silenciado' }}
                             </button>
-                          </div>
-
-                          @if (videollamadaChatAbierto && videollamadaEstado() === 'conectada') {
-                            <div class="ev-chat-panel">
-                              <div class="ev-chat-mensajes">
-                                @if (videollamadaChatMensajes().length === 0) {
-                                  <p class="ev-chat-vacio">Sin mensajes todavía.</p>
-                                }
-                                @for (m of videollamadaChatMensajes(); track $index) {
-                                  <div class="ev-chat-burbuja" [class.ev-chat-burbuja--propia]="m.propio">
-                                    <span>{{ m.texto }}</span>
-                                    <small>{{ m.hora }}</small>
-                                  </div>
-                                }
-                              </div>
-                              <form class="ev-chat-form" (submit)="enviarChatVideollamada(); $event.preventDefault()">
-                                <input class="ui-control" type="text" placeholder="Escriba un mensaje al ciudadano…"
-                                       [(ngModel)]="videollamadaChatTexto" name="videollamadaChatTexto">
-                                <button type="submit" class="ui-btn ui-btn-primary">
-                                  <i class="fa-solid fa-paper-plane"></i>
-                                </button>
-                              </form>
-                            </div>
+                            <button type="button" class="ui-btn ui-btn-secondary" (click)="toggleChatVideollamada()">
+                              <i class="fa-solid fa-comment"></i> Chat
+                              @if (!videollamadaChatAbierto && videollamadaChatMensajes().length > 0) {
+                                <span class="ev-chat-badge"></span>
+                              }
+                            </button>
+                            <button type="button" class="ui-btn"
+                                    [class.ui-btn-danger]="grabandoVideollamada"
+                                    [class.ui-btn-secondary]="!grabandoVideollamada"
+                                    (click)="toggleGrabacionVideollamada()">
+                              <i class="fa-solid" [class.fa-record-vinyl]="!grabandoVideollamada" [class.fa-stop]="grabandoVideollamada"></i>
+                              {{ grabandoVideollamada ? 'Detener grabación' : 'Grabar' }}
+                            </button>
                           }
+                          <button type="button" class="ui-btn ui-btn-danger" (click)="colgarVideollamada()">
+                            <i class="fa-solid fa-phone-slash"></i> Colgar
+                          </button>
                         </div>
-                      }
-                    } @else {
-                      <div class="ev-empty-state">
-                        <i class="fa-solid fa-video-slash"></i>
-                        <p>Caso cerrado — videollamada no disponible.</p>
+
+                        @if (videollamadaChatAbierto && videollamadaEstado() === 'conectada') {
+                          <div class="ev-chat-panel">
+                            <div class="ev-chat-mensajes">
+                              @if (videollamadaChatMensajes().length === 0) {
+                                <p class="ev-chat-vacio">Sin mensajes todavía.</p>
+                              }
+                              @for (m of videollamadaChatMensajes(); track $index) {
+                                <div class="ev-chat-burbuja" [class.ev-chat-burbuja--propia]="m.propio">
+                                  <span>{{ m.texto }}</span>
+                                  <small>{{ m.hora }}</small>
+                                </div>
+                              }
+                            </div>
+                            <form class="ev-chat-form" (submit)="enviarChatVideollamada(); $event.preventDefault()">
+                              <input class="ui-control" type="text" placeholder="Escriba un mensaje al ciudadano…"
+                                     [(ngModel)]="videollamadaChatTexto" name="videollamadaChatTexto">
+                              <button type="submit" class="ui-btn ui-btn-primary">
+                                <i class="fa-solid fa-paper-plane"></i>
+                              </button>
+                            </form>
+                          </div>
+                        }
+                      </div>
+                    </div>
+                  }
+
+                  <!-- DERECHA: mapa (arriba) + lista de recursos (abajo). Cuando no hay
+                       llamada en curso, esta columna se expande a todo el ancho y absorbe el
+                       control para iniciar una llamada nueva (barra compacta, no flotando
+                       sobre el mapa). -->
+                  <div class="ev-live-side">
+
+                    @if (!llamadaEnCurso(detalle) && detalle.estado !== 'C') {
+                      <div class="ev-live-start-call">
+                        <span class="ev-live-start-call__label"><i class="fa-solid fa-video"></i> Videollamada con el ciudadano</span>
+                        <input class="ui-control" type="text"
+                               [(ngModel)]="videollamadaTelefono"
+                               placeholder="Teléfono del ciudadano…">
+                        <button type="button" class="ui-btn ui-btn-primary"
+                                [disabled]="creandoVideollamada()"
+                                (click)="iniciarVideollamada()">
+                          @if (creandoVideollamada()) { Creando… } @else { <i class="fa-solid fa-video"></i> Iniciar }
+                        </button>
                       </div>
                     }
-                  </div>
-
-                  <!-- DERECHA: mapa (arriba) + lista de recursos (abajo) — más pequeños,
-                       apoyando a la videollamada en vez de competir con ella. -->
-                  <div class="ev-live-side">
 
                     <div class="ev-live-mapwrap">
                       <!-- Cabecera y última actualización -->
