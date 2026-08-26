@@ -721,11 +721,12 @@
               }
               }
 
-              <!-- VIDEOLLAMADA (grande, izquierda) + MAPA Y RECURSOS (más pequeños, apilados
-                   a la derecha) — misma línea de visión: el despachador ve al ciudadano y el
-                   mapa/las patrullas de un vistazo, sin tener que bajar por la página.
-                   No se gatea en canalSeleccionado>0 (la videollamada no depende del canal) —
-                   la lista de recursos ya maneja su propio estado vacío cuando no hay canal. -->
+              <!-- PUESTO DE TRABAJO DEL DESPACHADOR — todo lo operativo en vivo en una sola
+                   fila: [videollamada] [mapa] [recursos]. La videollamada solo ocupa columna
+                   mientras hay una llamada real en curso; si no, el mapa se lleva ese espacio
+                   y el control para iniciar una queda como un grupo compacto en la barra de
+                   estado de arriba. No se gatea en canalSeleccionado>0 (la videollamada no
+                   depende del canal) — la lista ya maneja su propio estado vacío. -->
               <app-panel-colapsable titulo="Videollamada y mapa en vivo" icono="fa-solid fa-video"
                                     [(abierto)]="recursosAbierto" [sticky]="true">
                 <span extra class="ev-rec-live">
@@ -733,15 +734,111 @@
                   c/8s
                 </span>
 
-                <div class="ev-live-grid" [class.ev-live-grid--sin-llamada]="!llamadaEnCurso(detalle)">
+                <div class="ev-live">
 
-                  <!-- IZQUIERDA: videollamada con el ciudadano — misma funcionalidad de
-                       siempre (link, ubicación, mic, chat, grabar, colgar), solo reubicada.
-                       Solo ocupa su columna mientras hay una llamada realmente en curso — si
-                       no, esta columna ni se renderiza (ver @if) y el mapa/recursos de la
-                       derecha se expanden a todo el ancho, para no dejar un hueco vacío. El
-                       control para iniciar una llamada nueva vive entonces en .ev-live-side
-                       (una barra normal, no flotando sobre el mapa). -->
+                  <!-- Barra de estado: metadatos del refresco + (si no hay llamada) el control
+                       compacto para iniciar una. Ancho completo, una sola línea. -->
+                  <div class="ev-rec-meta">
+                    @if (ultimaActRecursos()) {
+                      <span class="ev-rec-time">
+                        <i class="fa-regular fa-clock"></i>
+                        Actualizado {{ ultimaActRecursos() | date:'HH:mm:ss' }}
+                      </span>
+                    }
+                    <span class="ev-rec-count">{{ recursos().length }} recurso(s)</span>
+                    <button type="button" class="ui-btn xs ghost ev-rec-btn"
+                            (click)="sugerirRecursoCercano()"
+                            title="Sugerir el cuadrante libre más cercano al sitio del hecho">
+                      <i class="fa-solid fa-location-crosshairs"></i>
+                      Cuadrante más cercano
+                    </button>
+                    @if (detalle.latitudCaso || detalle.longitudCaso) {
+                      <span class="ev-recmap-ubicacion" title="Coordenadas del incidente">
+                        <i class="fa-solid fa-location-dot"></i>
+                        {{ detalle.latitudCaso || '—' }}, {{ detalle.longitudCaso || '—' }}
+                      </span>
+                    }
+                    @if (errorRecursos()) {
+                      <span class="ev-err">
+                        <i class="fa-solid fa-triangle-exclamation"></i>
+                        {{ errorRecursos() }}
+                      </span>
+                    }
+
+                    @if (!llamadaEnCurso(detalle) && detalle.estado !== 'C') {
+                      <span class="ev-live-start">
+                        <input class="ui-control" type="text"
+                               [(ngModel)]="videollamadaTelefono"
+                               placeholder="Teléfono del ciudadano…">
+                        <button type="button" class="ui-btn ui-btn-primary"
+                                [disabled]="creandoVideollamada()"
+                                (click)="iniciarVideollamada()">
+                          @if (creandoVideollamada()) { Creando… } @else { <i class="fa-solid fa-video"></i> Iniciar videollamada }
+                        </button>
+                      </span>
+                    }
+                  </div>
+
+                  <!-- Sugerencia de cuadrante más cercano (PostGIS) — ancho completo, encima
+                       de la fila operativa para que nunca requiera scroll. -->
+                  @if (mostrarSugerencia()) {
+                    <div class="ev-sugerencia-box">
+                      <div class="ev-sugerencia-box__head">
+                        <i class="fa-solid fa-location-crosshairs"></i>
+                        Recomendación — más cercano al hecho
+                        <button type="button" class="ev-sugerencia-box__close"
+                                (click)="mostrarSugerencia.set(false)">
+                          <i class="fa-solid fa-xmark"></i>
+                        </button>
+                      </div>
+                      @if (cargandoSugerencia()) {
+                        <div class="ev-empty-state" style="padding:10px 0">
+                          <i class="fa-solid fa-spinner fa-spin"></i>
+                          <p>Buscando el más cercano…</p>
+                        </div>
+                      } @else if (errorSugerencia()) {
+                        <div class="ev-sugerencia-box__empty">{{ errorSugerencia() }}</div>
+                      } @else {
+                        @for (s of sugerenciasRecurso(); track s.medioId; let i = $index) {
+                          <div class="ev-sugerencia-item" [class.ev-sugerencia-item--top]="i === 0">
+                            <span class="ev-sugerencia-item__rank">{{ i + 1 }}</span>
+                            <div class="ev-sugerencia-item__info">
+                              <strong>{{ nombrePatrulla(s) }}</strong>
+                            </div>
+                            <span class="ev-sugerencia-item__dist">
+                              {{ s.distanciaM < 1000 ? (s.distanciaM + ' m') : ((s.distanciaM/1000 | number:'1.1-1') + ' km') }}
+                              @if (etaMin(s.distanciaM / 1000, s.tipoMedio) !== null) {
+                                <span class="ev-eta" title="Tiempo estimado de llegada (estimación por distancia y tipo de recurso)">
+                                  · ~{{ etaMin(s.distanciaM / 1000, s.tipoMedio) }} min
+                                </span>
+                              }
+                            </span>
+                            <button type="button" class="ui-btn xs primary"
+                                    [disabled]="!!asignandoMedioId()"
+                                    (click)="asignarSugerido(s)">
+                              Asignar
+                            </button>
+                          </div>
+                        }
+                      }
+                    </div>
+                  }
+
+                  @if (errorAsignacion()) {
+                    <div class="ev-assign-error">
+                      <i class="fa-solid fa-triangle-exclamation"></i>
+                      {{ errorAsignacion() }}
+                      <button class="ev-assign-error__close" type="button"
+                              (click)="errorAsignacion.set('')">
+                        <i class="fa-solid fa-xmark"></i>
+                      </button>
+                    </div>
+                  }
+
+                  <!-- Fila operativa: grilla PLANA de máximo 3 columnas, todas a la misma
+                       altura. Sin sub-grillas ni reordenamientos — cada hijo es una columna. -->
+                  <div class="ev-live-grid" [class.ev-live-grid--con-llamada]="llamadaEnCurso(detalle)">
+
                   @if (llamadaEnCurso(detalle)) {
                     <div class="ev-live-video">
                       <div class="ev-video-panel">
@@ -861,120 +958,15 @@
                     </div>
                   }
 
-                  <!-- DERECHA: mapa (arriba) + lista de recursos (abajo). Cuando no hay
-                       llamada en curso, esta columna se expande a todo el ancho y absorbe el
-                       control para iniciar una llamada nueva (barra compacta, no flotando
-                       sobre el mapa). -->
-                  <div class="ev-live-side">
+                  <!-- COLUMNA MAPA — el mapa vive fuera de cualquier @if de "recursos.length"
+                       para que el div #mapaEvento siempre exista en el DOM y initMapaDetalle()
+                       no se quede esperando un elemento que nunca aparece. -->
+                  <div class="ev-live-map">
+                    <div id="mapaEvento" class="ev-map"></div>
+                  </div>
 
-                    @if (!llamadaEnCurso(detalle) && detalle.estado !== 'C') {
-                      <div class="ev-live-start-call">
-                        <span class="ev-live-start-call__label"><i class="fa-solid fa-video"></i> Videollamada con el ciudadano</span>
-                        <input class="ui-control" type="text"
-                               [(ngModel)]="videollamadaTelefono"
-                               placeholder="Teléfono del ciudadano…">
-                        <button type="button" class="ui-btn ui-btn-primary"
-                                [disabled]="creandoVideollamada()"
-                                (click)="iniciarVideollamada()">
-                          @if (creandoVideollamada()) { Creando… } @else { <i class="fa-solid fa-video"></i> Iniciar }
-                        </button>
-                      </div>
-                    }
-
-                    <div class="ev-live-mapwrap">
-                      <!-- Cabecera y última actualización -->
-                      <div class="ev-rec-meta">
-                        @if (ultimaActRecursos()) {
-                          <span class="ev-rec-time">
-                            <i class="fa-regular fa-clock"></i>
-                            Actualizado {{ ultimaActRecursos() | date:'HH:mm:ss' }}
-                          </span>
-                        }
-                        <span class="ev-rec-count">{{ recursos().length }} recurso(s)</span>
-                        <button type="button" class="ui-btn xs ghost ev-rec-btn"
-                                (click)="sugerirRecursoCercano()"
-                                title="Sugerir el cuadrante libre más cercano al sitio del hecho">
-                          <i class="fa-solid fa-location-crosshairs"></i>
-                          Cuadrante más cercano
-                        </button>
-                        @if (detalle.latitudCaso || detalle.longitudCaso) {
-                          <span class="ev-recmap-ubicacion" title="Coordenadas del incidente">
-                            <i class="fa-solid fa-location-dot"></i>
-                            {{ detalle.latitudCaso || '—' }}, {{ detalle.longitudCaso || '—' }}
-                          </span>
-                        }
-                        @if (errorRecursos()) {
-                          <span class="ev-err">
-                            <i class="fa-solid fa-triangle-exclamation"></i>
-                            {{ errorRecursos() }}
-                          </span>
-                        }
-                      </div>
-
-                      <!-- Sugerencia de cuadrante más cercano (PostGIS). -->
-                      @if (mostrarSugerencia()) {
-                        <div class="ev-sugerencia-box">
-                          <div class="ev-sugerencia-box__head">
-                            <i class="fa-solid fa-location-crosshairs"></i>
-                            Recomendación — más cercano al hecho
-                            <button type="button" class="ev-sugerencia-box__close"
-                                    (click)="mostrarSugerencia.set(false)">
-                              <i class="fa-solid fa-xmark"></i>
-                            </button>
-                          </div>
-                          @if (cargandoSugerencia()) {
-                            <div class="ev-empty-state" style="padding:10px 0">
-                              <i class="fa-solid fa-spinner fa-spin"></i>
-                              <p>Buscando el más cercano…</p>
-                            </div>
-                          } @else if (errorSugerencia()) {
-                            <div class="ev-sugerencia-box__empty">{{ errorSugerencia() }}</div>
-                          } @else {
-                            @for (s of sugerenciasRecurso(); track s.medioId; let i = $index) {
-                              <div class="ev-sugerencia-item" [class.ev-sugerencia-item--top]="i === 0">
-                                <span class="ev-sugerencia-item__rank">{{ i + 1 }}</span>
-                                <div class="ev-sugerencia-item__info">
-                                  <strong>{{ nombrePatrulla(s) }}</strong>
-                                </div>
-                                <span class="ev-sugerencia-item__dist">
-                                  {{ s.distanciaM < 1000 ? (s.distanciaM + ' m') : ((s.distanciaM/1000 | number:'1.1-1') + ' km') }}
-                                  @if (etaMin(s.distanciaM / 1000, s.tipoMedio) !== null) {
-                                    <span class="ev-eta" title="Tiempo estimado de llegada (estimación por distancia y tipo de recurso)">
-                                      · ~{{ etaMin(s.distanciaM / 1000, s.tipoMedio) }} min
-                                    </span>
-                                  }
-                                </span>
-                                <button type="button" class="ui-btn xs primary"
-                                        [disabled]="!!asignandoMedioId()"
-                                        (click)="asignarSugerido(s)">
-                                  Asignar
-                                </button>
-                              </div>
-                            }
-                          }
-                        </div>
-                      }
-
-                      <!-- El mapa vive fuera de cualquier @if de "recursos.length" para que
-                           el div #mapaEvento siempre exista en el DOM y initMapaDetalle() no
-                           se quede esperando un elemento que nunca aparece. -->
-                      <div id="mapaEvento" class="ev-map ev-map--md"></div>
-
-                      <!-- Error de asignación -->
-                      @if (errorAsignacion()) {
-                        <div class="ev-assign-error">
-                          <i class="fa-solid fa-triangle-exclamation"></i>
-                          {{ errorAsignacion() }}
-                          <button class="ev-assign-error__close" type="button"
-                                  (click)="errorAsignacion.set('')">
-                            <i class="fa-solid fa-xmark"></i>
-                          </button>
-                        </div>
-                      }
-                    </div>
-
-                    <!-- Lista de recursos — debajo del mapa, solo identificación. -->
-                    <div class="ev-recmap-list ev-recmap-list--sm">
+                  <!-- COLUMNA RECURSOS — solo identificación; clic en un ítem centra el mapa. -->
+                  <div class="ev-live-list">
                       @if (cargandoRecursos() && recursos().length === 0) {
                         <div class="ev-empty-state" style="padding:20px 0">
                           <i class="fa-solid fa-hourglass-half fa-spin"></i>
@@ -1060,11 +1052,11 @@
                           </div>
                         }
                       }
-                    </div>
+                  </div><!-- /ev-live-list -->
 
-                  </div>
+                  </div><!-- /ev-live-grid -->
 
-                </div><!-- /ev-live-grid -->
+                </div><!-- /ev-live -->
               </app-panel-colapsable>
 
               <!-- ════════════ TIMELINE DE DESPACHO ════════════ -->
