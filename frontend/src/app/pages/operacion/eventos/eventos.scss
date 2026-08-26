@@ -743,18 +743,14 @@ html.dark-mode .ev-no-canal-banner {
 // ── Leaflet map ───────────────────────────────────────────────
 .ev-map {
   width:         100%;
-  height:        250px;
+  // Dentro de .ev-live-map llena la altura de la fila (la fija .ev-live-grid);
+  // fuera de ese contexto conserva una altura propia razonable.
+  height:        100%;
+  min-height:    250px;
   border-radius: var(--ui-radius-sm, 10px);
   overflow:      hidden;
   border:        1px solid rgba(21,27,59,.12);
   background:    #e8eff8;
-
-  // El mapa es el centro de atención del panel de recursos — bastante más
-  // grande que el mini-mapa de "solo consulta" que tenía antes.
-  &--lg { height: 680px; }
-  // Comparte fila con la videollamada (que es la protagonista ahí) — más
-  // chico que --lg, apoyando en vez de competir por espacio.
-  &--md { height: 340px; }
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -771,136 +767,129 @@ html.dark-mode .ev-no-canal-banner {
   i { font-size: 10px; }
 }
 
-// Videollamada (grande, izquierda) + mapa y recursos (más pequeños, apilados
-// a la derecha) — misma línea de visión, sin que el despachador tenga que
-// bajar por la página para ver ambos a la vez.
+// ══════════════════════════════════════════════════════════════
+//  PUESTO DE TRABAJO EN VIVO — videollamada + mapa + recursos
+// ══════════════════════════════════════════════════════════════
+
+.ev-live {
+  display:        flex;
+  flex-direction: column;
+  gap:            10px;
+  padding:        10px 14px;
+}
+
+// Grilla PLANA con colocación explícita — nada de sub-grillas ni "order"
+// (eso fue justo lo que rompía el layout antes: un hijo con grid-column
+// 1/-1 forzaba fila nueva y todo terminaba apilado en una columna angosta).
+//
+//   sin llamada:   [ mapa (grande) ][ recursos ]
+//
+//   con llamada:   [ video  ][ mapa     ]
+//                  [ (grande)][ recursos ]
+//
+// El video ocupa las dos filas de su columna; a su derecha el mapa arriba y
+// la lista de recursos debajo. Altura fija en la fila para que las columnas
+// queden alineadas arriba y abajo; cada bloque gestiona su scroll interno.
 .ev-live-grid {
   display:               grid;
-  grid-template-columns: 1.5fr 1fr;
-  gap:                   16px;
-  margin-bottom:         10px;
+  grid-template-columns: 1fr 320px;
+  grid-template-rows:    1fr;
+  gap:                   12px;
+  height:                560px;
 
-  // Sin llamada en curso: la columna de videollamada no se renderiza (ver
-  // @if en la plantilla) — el mapa y los recursos se expanden a todo el
-  // ancho en vez de dejar esa columna vacía, y el mapa además crece de alto
-  // (ver .ev-live-grid--sin-llamada .ev-map--md más abajo).
-  &--sin-llamada {
-    grid-template-columns: 1fr;
+  .ev-live-map  { grid-column: 1; grid-row: 1; }
+  .ev-live-list { grid-column: 2; grid-row: 1; }
+
+  &--con-llamada {
+    // El video queda algo más ancho que el mapa: es el foco durante la
+    // emergencia, pero sin dejar el mapa relegado a una franja.
+    grid-template-columns: minmax(420px, 1.15fr) minmax(0, 1fr);
+    grid-template-rows:    1fr auto;
+    height:                640px;
+
+    .ev-live-video { grid-column: 1; grid-row: 1 / 3; }
+    .ev-live-map   { grid-column: 2; grid-row: 1; }
+    .ev-live-list  { grid-column: 2; grid-row: 2; }
   }
 
-  @media (max-width: 1100px) {
+  // Móvil/tablet angosto: todo apilado en una columna, cada bloque con su
+  // propia altura.
+  @media (max-width: 1000px) {
     grid-template-columns: 1fr;
+    grid-template-rows:    none;
+    height:                auto;
+
+    .ev-live-video,
+    .ev-live-map,
+    .ev-live-list { grid-column: 1; grid-row: auto; }
+
+    .ev-live-video { height: 480px; }
+    .ev-live-map   { height: 360px; }
+    .ev-live-list  { max-height: 320px; }
+
+    &--con-llamada {
+      grid-template-columns: 1fr;
+      grid-template-rows:    none;
+      height:                auto;
+    }
   }
+}
+
+.ev-live-video,
+.ev-live-map {
+  min-width: 0;   // sin esto, un hijo ancho (el video) desborda su columna
+  height:    100%;
 }
 
 .ev-live-video {
   display:        flex;
   flex-direction: column;
-  min-width:      0;
-  // Misma altura total que la columna derecha (mapa + recursos), para que
-  // ambas columnas queden bien delimitadas, a la misma altura — el frame de
-  // video (flex:1 más abajo) crece para llenar lo que sobra tras el estado/
-  // link/ubicación/controles, sin dejar franjas vacías a los lados ni abajo.
-  height:         700px;
-  overflow-y:     auto;
-
-  @media (max-width: 1100px) {
-    height: auto;
-  }
+  overflow:       hidden;   // el scroll lo maneja .ev-video-panel adentro
 }
 
-.ev-live-side {
-  display:        flex;
-  flex-direction: column;
-  gap:            12px;
-  min-width:      0;
-}
-
-// Barra compacta para iniciar una videollamada cuando no hay ninguna en
-// curso — reemplaza el formulario que antes vivía en la columna de
-// videollamada (ahora ni se renderiza). Fila normal del layout, NO flotando
-// sobre el mapa.
-.ev-live-start-call {
-  display:       flex;
-  flex-wrap:     wrap;
-  align-items:   center;
-  gap:           10px;
-  padding:       10px 12px;
-  border:        1px solid var(--ui-border, rgba(21,27,59,.14));
-  border-radius: var(--ui-radius-sm, 10px);
-  background:    var(--ui-surface, #fff);
-
-  input { flex: 1; min-width: 180px; }
-}
-
-.ev-live-start-call__label {
-  display:     flex;
-  align-items: center;
-  gap:         6px;
-  flex-basis:  100%;
-  font-size:   0.78rem;
-  font-weight: 700;
-  color:       var(--ui-text, #1a1a2e);
-
-  i { color: var(--policia-acento, #08a6cb); }
-}
-
-// Sin llamada en curso, el mapa y los recursos ocupan todo el ancho — la
-// lista vuelve a ir AL LADO del mapa (como el panel original de "Recursos y
-// ubicación en tiempo real"), no apilada debajo, que es como se ve cuando sí
-// hay una videollamada angosta a su lado. También crecen de alto: hay
-// espacio de sobra.
-.ev-live-grid--sin-llamada {
-  .ev-live-side {
-    display:               grid;
-    grid-template-columns: 320px 1fr;
-    gap:                   12px;
-    align-items:           start;
-
-    @media (max-width: 900px) {
-      grid-template-columns: 1fr;
-    }
-  }
-
-  // La barra para iniciar llamada ocupa las dos columnas; la lista se
-  // reordena para quedar a la izquierda del mapa (el DOM trae primero el
-  // mapa y luego la lista).
-  .ev-live-start-call { grid-column: 1 / -1; }
-  .ev-recmap-list--sm { order: -1; }
-
-  .ev-map--md          { height: 560px; }
-  .ev-recmap-list--sm  { max-height: 560px; }
-}
-
-.ev-live-mapwrap {
-  display:        flex;
-  flex-direction: column;
-  gap:            8px;
-}
-
-// max-height, no height fijo — con pocos recursos (o uno solo, el caso más
-// común) una altura fija deja media caja en blanco; con max-height la caja
-// se ajusta al contenido real y solo llega al tope (con scroll) cuando de
-// verdad hay muchos recursos.
-.ev-recmap-list {
+// La lista se pega arriba y crece solo lo que necesite: con un solo recurso
+// (el caso más común) no deja media caja en blanco, y con muchos hace scroll
+// sin pasarse de la altura de la fila.
+.ev-live-list {
   display:        flex;
   flex-direction: column;
   gap:            5px;
-  max-height:     680px;
+  align-self:     start;
+  max-height:     100%;
   overflow-y:     auto;
+  min-width:      0;
   padding:        6px;
   border:         1px solid var(--ui-border, rgba(21,27,59,.12));
   border-radius:  var(--ui-radius-sm, 10px);
   background:     rgba(21,27,59,.015);
+}
 
-  @media (max-width: 900px) {
-    max-height: 280px;
+// Grupo compacto (teléfono + botón) para iniciar una videollamada, dentro de
+// la barra de estado de arriba — así no ocupa una fila propia enorme cuando
+// no hay ninguna llamada en curso.
+.ev-live-start {
+  display:     inline-flex;
+  align-items: center;
+  gap:         6px;
+  margin-left: auto;   // se va al extremo derecho de la barra
+
+  input {
+    width:     190px;
+    height:    30px;
+    font-size: calc(11.5px * var(--font-size-scale, 1));
   }
 
-  // Junto al mapa --md en la columna derecha: más baja que la lista "grande"
-  // original, para no alargar esa columna mucho más que la videollamada.
-  &--sm {
-    max-height: 300px;
+  .ui-btn {
+    white-space: nowrap;
+    height:      30px;
+    padding:     0 12px;
+    font-size:   calc(11.5px * var(--font-size-scale, 1));
+  }
+
+  @media (max-width: 900px) {
+    margin-left: 0;
+    width:       100%;
+    input { flex: 1; width: auto; }
   }
 }
 
@@ -2934,12 +2923,16 @@ html.dark-mode {
 
 // -- Fotos adjuntas del caso ---------------------------------------------------
 // ─── Videollamada con el ciudadano ─────────────────────────────────────────
+// Llena la columna .ev-live-video (de altura fija) y hace scroll interno si
+// el chat abierto + controles no caben — así la columna nunca se desborda ni
+// desalinea respecto al mapa/recursos de al lado.
 .ev-video-panel {
   display:        flex;
   flex-direction: column;
   flex:           1;
   min-height:     0;
   gap:            10px;
+  overflow-y:     auto;
 }
 
 .ev-video-link {
@@ -2967,7 +2960,7 @@ html.dark-mode {
   position:      relative;
   flex:          1;
   width:         100%;
-  min-height:    380px;
+  min-height:    260px;
   border-radius: 12px;
   overflow:      hidden;
   background:    #0b1220;
@@ -3036,10 +3029,19 @@ html.dark-mode {
   flex-shrink:      0;
 }
 
+// Controles compactos: son 5 botones en una columna que no es muy ancha, así
+// que se aprietan un poco para caber en una o dos filas limpias en vez de
+// desbordar de a uno.
 .ev-video-controles {
   display:   flex;
   flex-wrap: wrap;
-  gap:       8px;
+  gap:       6px;
+
+  .ui-btn {
+    padding:     5px 10px;
+    font-size:   calc(11px * var(--font-size-scale, 1));
+    white-space: nowrap;
+  }
 }
 
 // Fila informativa dentro del panel de videollamada — la ubicación en sí se
@@ -3246,14 +3248,9 @@ html.dark-mode {
 
   .ev-map { background: rgba(255,255,255,.04); }
 
-  .ev-live-start-call {
-    background:   rgba(255,255,255,.03);
-    border-color: rgba(255,255,255,.08);
-  }
-
   .ev-recmap-ubicacion { color: var(--ui-text-muted); }
 
-  .ev-recmap-list {
+  .ev-live-list {
     background:   rgba(255,255,255,.02);
     border-color: var(--ui-border);
   }
