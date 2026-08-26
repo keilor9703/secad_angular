@@ -341,6 +341,7 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
   readonly adjuntos = signal<DtoAdjunto[]>([]);
 
   // ─── Videollamada con el ciudadano (WebRTC P2P) ──────────────────────────────
+  videollamadaAbierta      = true;
   readonly videollamadaEstado = signal<EstadoLlamada>('inactiva');
   readonly videollamadaLink   = signal('');
   readonly videollamadaMensaje = signal('');
@@ -1076,11 +1077,18 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
     }
   }
 
+  /** Centra el mapa en la última ubicación conocida del ciudadano — botón "Centrar" del panel de videollamada. */
+  centrarEnCiudadano(): void {
+    if (!this.mapaDetalle || !this.ciudadanoMarker) return;
+    this.mapaDetalle.flyTo(this.ciudadanoMarker.getLatLng(), 16, { duration: 0.6 });
+    this.ciudadanoMarker.openPopup();
+  }
+
   private limpiarUbicacionCiudadanoEnMapa(): void {
     if (this.ciudadanoMarker) { try { this.ciudadanoMarker.remove(); } catch { /* mapa ya destruido */ } }
     if (this.ciudadanoTrail)  { try { this.ciudadanoTrail.remove(); }  catch { /* mapa ya destruido */ } }
-    this.ciudadanoMarker   = null;
-    this.ciudadanoTrail    = null;
+    this.ciudadanoMarker    = null;
+    this.ciudadanoTrail     = null;
     this.ciudadanoHistorial = [];
   }
 
@@ -2409,26 +2417,6 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
     if (!this.mapaDetalle || r.lat == null || r.lng == null) return;
     this.mapaDetalle.flyTo([r.lat, r.lng], 16, { duration: 0.6 });
     this.recursoMarkersPorCodigo.get(r.patrullaCodigo)?.openPopup();
-  }
-
-  /**
-   * true mientras hay una llamada realmente en curso (cualquier estado salvo
-   * inactiva/finalizada) y el caso no está cerrado — controla si el panel de
-   * videollamada ocupa su propia columna, o si en su lugar el mapa se expande
-   * a ese espacio (ver .ev-recmap-mapwrap en la plantilla) para no dejar una
-   * columna en blanco cuando no hay llamada activa.
-   */
-  llamadaEnCurso(detalle: DtoPedidoDetalle): boolean {
-    return detalle.estado !== 'C'
-      && this.videollamadaEstado() !== 'inactiva'
-      && this.videollamadaEstado() !== 'finalizada';
-  }
-
-  /** Centra el mapa en la última ubicación conocida del ciudadano — botón "Centrar" del panel de videollamada. */
-  centrarEnCiudadano(): void {
-    if (!this.mapaDetalle || !this.ciudadanoMarker) return;
-    this.mapaDetalle.flyTo(this.ciudadanoMarker.getLatLng(), 16, { duration: 0.6 });
-    this.ciudadanoMarker.openPopup();
   }
 
   formatDistancia(km?: number): string {

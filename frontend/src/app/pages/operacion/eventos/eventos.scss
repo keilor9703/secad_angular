@@ -768,83 +768,15 @@ html.dark-mode .ev-no-canal-banner {
   i { font-size: 10px; }
 }
 
-// Orden izquierda→derecha: videollamada | mapa | recursos.
-//
-// Videollamada y recursos son de ANCHO FIJO — un video o una lista de
-// patrullas no ganan nada con más espacio horizontal. El mapa es el ÚNICO
-// panel elástico (1fr): crece o se achica según el espacio disponible, y en
-// particular se EXPANDE a la columna de videollamada cuando no hay una
-// llamada en curso (ver .ev-recmap-main--sin-llamada) — así nunca queda una
-// columna vacía en blanco esperando a que alguien inicie una videollamada.
 .ev-recmap-main {
   display:               grid;
-  grid-template-columns: 420px 1fr 260px;
+  grid-template-columns: 340px 1fr;
   gap:                   12px;
   margin-bottom:         10px;
 
-  // Sin llamada en curso: la columna de videollamada no se renderiza en el
-  // DOM (ver @if en la plantilla) — el mapa toma ese espacio y un pequeño
-  // control flotante sobre el propio mapa permite iniciar una nueva llamada.
-  &--sin-llamada {
-    grid-template-columns: 1fr 260px;
-  }
-
-  @media (max-width: 1300px) {
+  @media (max-width: 900px) {
     grid-template-columns: 1fr;
-
-    &--sin-llamada { grid-template-columns: 1fr; }
-
-    .ev-recmap-video, .ev-recmap-mapwrap, .ev-recmap-list {
-      grid-column: auto;
-    }
   }
-}
-
-.ev-recmap-video {
-  display:        flex;
-  flex-direction: column;
-  width:          420px;
-  height:         680px;
-
-  @media (max-width: 1300px) {
-    width:  100%;
-    height: auto;
-  }
-}
-
-.ev-video-card {
-  display:        flex;
-  flex-direction: column;
-  flex:           1;
-  min-height:     0;
-  border:         1px solid var(--ui-border, rgba(21,27,59,.14));
-  border-radius:  var(--ui-radius-sm, 10px);
-  overflow:       hidden;
-  background:     var(--ui-surface, #fff);
-}
-
-.ev-video-card__head {
-  display:        flex;
-  align-items:    center;
-  gap:            8px;
-  padding:        10px 14px;
-  background:     var(--policia-gradiente-deep);
-  color:          #fff;
-  font-size:      calc(12px * var(--font-size-scale, 1));
-  font-weight:    900;
-  letter-spacing: .25px;
-  text-transform: uppercase;
-
-  > i:first-child { color: var(--policia-acento); }
-}
-
-.ev-video-card__body {
-  display:        flex;
-  flex-direction: column;
-  flex:           1;
-  min-height:     0;
-  padding:        12px 14px;
-  overflow-y:     auto;
 }
 
 .ev-recmap-list {
@@ -960,37 +892,7 @@ html.dark-mode .ev-no-canal-banner {
   }
 }
 
-.ev-recmap-mapwrap { position: relative; min-width: 0; }
-
-// Control flotante sobre el mapa para iniciar una videollamada cuando no hay
-// ninguna en curso — el mapa ocupa entonces todo el espacio que dejaría libre
-// la columna de videollamada, y este es el único rastro visible de esa
-// función mientras no se use (nunca queda un hueco en blanco).
-.ev-map-overlay-call {
-  position:       absolute;
-  top:            14px;
-  left:           14px;
-  z-index:        500; // por encima de los tiles/controles de Leaflet (z-index ~400)
-  display:        flex;
-  flex-direction: column;
-  gap:            8px;
-  width:          260px;
-  padding:        12px;
-  border-radius:  var(--ui-radius-sm, 10px);
-  background:     var(--ui-surface, #fff);
-  box-shadow:     0 4px 16px rgba(21,27,59,.25);
-}
-
-.ev-map-overlay-call__label {
-  display:     flex;
-  align-items: center;
-  gap:         6px;
-  font-size:   0.78rem;
-  font-weight: 700;
-  color:       var(--ui-text, #1a1a2e);
-
-  i { color: var(--policia-acento, #08a6cb); }
-}
+.ev-recmap-mapwrap { min-width: 0; }
 
 // ══════════════════════════════════════════════════════════════
 //  DATOS DEL INCIDENTE — ficha de solo consulta (no formulario)
@@ -2928,8 +2830,6 @@ html.dark-mode {
 .ev-video-panel {
   display:        flex;
   flex-direction: column;
-  flex:           1;
-  min-height:     0;
   gap:            10px;
 }
 
@@ -2946,21 +2846,20 @@ html.dark-mode {
   color:      var(--ui-text-muted, #6b7280);
 }
 
-// El frame del video es lo más importante del panel — antes quedaba angosto
-// y con relación de aspecto de retrato (9:16) encajado en una columna lateral
-// de 360px, lo que lo hacía ver como un elemento secundario diminuto. Ahora la
-// columna tiene el mismo ancho que el mapa, así que el frame crece para llenar
-// el espacio vertical disponible en la tarjeta (flex:1), con una altura mínima
-// generosa para que nunca se vea como una franja.
+// Contenedor con relación de aspecto fija (retrato, la más común en video de
+// celular sostenido en vertical) para que el video nunca se vea como una
+// franja alargada mientras espera a que lleguen los metadatos del track.
 .ev-video-frame {
-  position:      relative;
-  flex:          1;
-  width:         100%;
-  min-height:    320px;
-  border-radius: 12px;
-  overflow:      hidden;
-  background:    #0b1220;
-  box-shadow:    0 4px 18px rgba(0, 0, 0, 0.25);
+  position:        relative;
+  width:            100%;
+  max-width:        560px;
+  aspect-ratio:     9 / 16;
+  max-height:       78vh;
+  margin:           0 auto;
+  border-radius:    12px;
+  overflow:         hidden;
+  background:       #0b1220;
+  box-shadow:       0 4px 18px rgba(0, 0, 0, 0.25);
 }
 
 .ev-video-remoto {
@@ -2968,25 +2867,6 @@ html.dark-mode {
   height:           100%;
   object-fit:       cover;
   background:       #000;
-}
-
-// Estados sin video real todavía (esperando/conectando/error) — mismo tamaño
-// que el frame conectado, para que el panel no cambie de tamaño ni se vea
-// vacío/roto mientras se establece la llamada.
-.ev-video-frame--placeholder {
-  display:        flex;
-  flex-direction: column;
-  align-items:    center;
-  justify-content: center;
-  gap:            10px;
-  background:     rgba(21, 27, 59, 0.04);
-  border:         1px dashed var(--ui-border, rgba(21,27,59,.18));
-  color:          var(--ui-text-muted, #6b7280);
-  text-align:     center;
-  padding:        20px;
-
-  i { font-size: 2rem; opacity: 0.5; }
-  span { font-size: 0.85rem; max-width: 260px; }
 }
 
 .ev-video-badges {
@@ -3032,9 +2912,10 @@ html.dark-mode {
   gap:       8px;
 }
 
-// Fila informativa dentro de la tarjeta de videollamada — la ubicación en sí
-// se dibuja en el mapa grande del panel (mapaEvento, ver actualizarUbicacionCiudadanoEnMapa
-// en eventos.ts), esto es solo el aviso + acceso rápido para centrar el mapa ahí.
+// Fila informativa dentro del panel de videollamada — la ubicación en sí se
+// dibuja en el mapa grande del panel de recursos (mapaEvento, ver
+// actualizarUbicacionCiudadanoEnMapa en eventos.ts), esto es solo el aviso +
+// acceso rápido para centrar el mapa ahí.
 .ev-video-ubicacion {
   display:         flex;
   flex-wrap:       wrap;
@@ -3234,20 +3115,6 @@ html.dark-mode {
   }
 
   .ev-map { background: rgba(255,255,255,.04); }
-
-  .ev-video-card {
-    background:   rgba(255,255,255,.03);
-    border-color: rgba(255,255,255,.08);
-  }
-
-  .ev-map-overlay-call { background: var(--ui-surface, #1a1f3a); }
-
-  .ev-video-frame--placeholder {
-    background:   rgba(255,255,255,.02);
-    border-color: rgba(255,255,255,.14);
-  }
-
-  .ev-video-ubicacion { background: rgba(37, 99, 235, 0.16); color: var(--ui-text); }
 
   .ev-recmap-ubicacion { color: var(--ui-text-muted); }
 
