@@ -768,38 +768,46 @@ html.dark-mode .ev-no-canal-banner {
   i { font-size: 10px; }
 }
 
-// 3 columnas: lista de recursos (angosta, solo identificación) | mapa | videollamada.
-// El mapa y la videollamada reciben el MISMO peso (1fr cada uno) — en una
-// emergencia en vivo, ver al ciudadano es tan importante como ver el mapa; antes
-// la videollamada quedaba apretada en una columna fija de 360px y se veía como
-// un panel secundario, que era justo el problema reportado.
+// Orden izquierda→derecha: videollamada | mapa | recursos.
+//
+// Videollamada y recursos son de ANCHO FIJO — un video o una lista de
+// patrullas no ganan nada con más espacio horizontal. El mapa es el ÚNICO
+// panel elástico (1fr): crece o se achica según el espacio disponible, y en
+// particular se EXPANDE a la columna de videollamada cuando no hay una
+// llamada en curso (ver .ev-recmap-main--sin-llamada) — así nunca queda una
+// columna vacía en blanco esperando a que alguien inicie una videollamada.
 .ev-recmap-main {
   display:               grid;
-  grid-template-columns: 280px 1fr 1fr;
+  grid-template-columns: 420px 1fr 260px;
   gap:                   12px;
   margin-bottom:         10px;
 
-  @media (max-width: 1500px) {
-    grid-template-columns: 260px 1fr;
-
-    // Con menos ancho, la videollamada pasa a ocupar toda la fila siguiente
-    // en vez de angostarse hasta ser inusable otra vez.
-    .ev-recmap-video { grid-column: 1 / -1; }
+  // Sin llamada en curso: la columna de videollamada no se renderiza en el
+  // DOM (ver @if en la plantilla) — el mapa toma ese espacio y un pequeño
+  // control flotante sobre el propio mapa permite iniciar una nueva llamada.
+  &--sin-llamada {
+    grid-template-columns: 1fr 260px;
   }
 
-  @media (max-width: 900px) {
+  @media (max-width: 1300px) {
     grid-template-columns: 1fr;
 
-    .ev-recmap-video { grid-column: auto; }
+    &--sin-llamada { grid-template-columns: 1fr; }
+
+    .ev-recmap-video, .ev-recmap-mapwrap, .ev-recmap-list {
+      grid-column: auto;
+    }
   }
 }
 
 .ev-recmap-video {
   display:        flex;
   flex-direction: column;
+  width:          420px;
   height:         680px;
 
-  @media (max-width: 1500px) {
+  @media (max-width: 1300px) {
+    width:  100%;
     height: auto;
   }
 }
@@ -952,7 +960,37 @@ html.dark-mode .ev-no-canal-banner {
   }
 }
 
-.ev-recmap-mapwrap { min-width: 0; }
+.ev-recmap-mapwrap { position: relative; min-width: 0; }
+
+// Control flotante sobre el mapa para iniciar una videollamada cuando no hay
+// ninguna en curso — el mapa ocupa entonces todo el espacio que dejaría libre
+// la columna de videollamada, y este es el único rastro visible de esa
+// función mientras no se use (nunca queda un hueco en blanco).
+.ev-map-overlay-call {
+  position:       absolute;
+  top:            14px;
+  left:           14px;
+  z-index:        500; // por encima de los tiles/controles de Leaflet (z-index ~400)
+  display:        flex;
+  flex-direction: column;
+  gap:            8px;
+  width:          260px;
+  padding:        12px;
+  border-radius:  var(--ui-radius-sm, 10px);
+  background:     var(--ui-surface, #fff);
+  box-shadow:     0 4px 16px rgba(21,27,59,.25);
+}
+
+.ev-map-overlay-call__label {
+  display:     flex;
+  align-items: center;
+  gap:         6px;
+  font-size:   0.78rem;
+  font-weight: 700;
+  color:       var(--ui-text, #1a1a2e);
+
+  i { color: var(--policia-acento, #08a6cb); }
+}
 
 // ══════════════════════════════════════════════════════════════
 //  DATOS DEL INCIDENTE — ficha de solo consulta (no formulario)
@@ -3201,6 +3239,8 @@ html.dark-mode {
     background:   rgba(255,255,255,.03);
     border-color: rgba(255,255,255,.08);
   }
+
+  .ev-map-overlay-call { background: var(--ui-surface, #1a1f3a); }
 
   .ev-video-frame--placeholder {
     background:   rgba(255,255,255,.02);

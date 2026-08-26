@@ -19,6 +19,9 @@
       @if (ubicacionActiva()) {
         <span class="vc-pill vc-pill--info"><i class="fa-solid fa-location-dot"></i>Compartiendo su ubicación</span>
       }
+      @if (errorCamara()) {
+        <span class="vc-pill vc-pill--warning"><i class="fa-solid fa-triangle-exclamation"></i>{{ errorCamara() }}</span>
+      }
     </div>
 
     @if (chatAbierto()) {

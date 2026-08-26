@@ -2411,6 +2411,19 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
     this.recursoMarkersPorCodigo.get(r.patrullaCodigo)?.openPopup();
   }
 
+  /**
+   * true mientras hay una llamada realmente en curso (cualquier estado salvo
+   * inactiva/finalizada) y el caso no está cerrado — controla si el panel de
+   * videollamada ocupa su propia columna, o si en su lugar el mapa se expande
+   * a ese espacio (ver .ev-recmap-mapwrap en la plantilla) para no dejar una
+   * columna en blanco cuando no hay llamada activa.
+   */
+  llamadaEnCurso(detalle: DtoPedidoDetalle): boolean {
+    return detalle.estado !== 'C'
+      && this.videollamadaEstado() !== 'inactiva'
+      && this.videollamadaEstado() !== 'finalizada';
+  }
+
   /** Centra el mapa en la última ubicación conocida del ciudadano — botón "Centrar" del panel de videollamada. */
   centrarEnCiudadano(): void {
     if (!this.mapaDetalle || !this.ciudadanoMarker) return;
