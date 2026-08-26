@@ -48,6 +48,7 @@ export class VideoCiudadanoComponent implements OnInit, OnDestroy {
   readonly mensajeError = signal('');
   readonly camaraFrontal = signal(false);
   readonly cambiandoCamara = signal(false);
+  readonly errorCamara = signal('');
   readonly chatMensajes = signal<ChatMensaje[]>([]);
   readonly chatDisponible = signal(false);
   readonly chatAbierto = signal(false);
@@ -260,21 +261,28 @@ export class VideoCiudadanoComponent implements OnInit, OnDestroy {
   async cambiarCamara(): Promise<void> {
     if (!this.localStream || this.cambiandoCamara()) return;
     this.cambiandoCamara.set(true);
+    this.errorCamara.set('');
 
     const nuevoFacingMode: 'environment' | 'user' = this.facingModeActual === 'environment' ? 'user' : 'environment';
+    const trackViejo = this.localStream.getVideoTracks()[0];
 
     try {
+      // Libera la cámara actual ANTES de pedir la otra. La mayoría de
+      // celulares (Android/iOS) exponen un solo handle de hardware de cámara
+      // a la vez — pedir la nueva mientras la vieja seguía activa (como se
+      // hacía antes) hace que getUserMedia falle con NotReadableError en la
+      // práctica, y como el error solo quedaba en console.error, el botón se
+      // veía como si "no hiciera nada".
+      if (trackViejo) {
+        this.localStream.removeTrack(trackViejo);
+        trackViejo.stop();
+      }
+
       const nuevoStream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: { ideal: nuevoFacingMode } },
         audio: false
       });
       const nuevoTrack = nuevoStream.getVideoTracks()[0];
-      const trackViejo = this.localStream.getVideoTracks()[0];
-
-      if (trackViejo) {
-        this.localStream.removeTrack(trackViejo);
-        trackViejo.stop();
-      }
       this.localStream.addTrack(nuevoTrack);
 
       const sender = this.pc?.getSenders().find(s => s.track?.kind === 'video');
@@ -291,9 +299,35 @@ export class VideoCiudadanoComponent implements OnInit, OnDestroy {
     } catch (err) {
       // eslint-disable-next-line no-console
       console.error('[video-ciudadano] no se pudo cambiar de cámara:', err);
+      this.mostrarErrorCamara('No se pudo cambiar de cámara.');
+
+      // Ya se liberó la cámara vieja — si la nueva falló, intenta recuperar
+      // AL MENOS la que tenía antes, para no dejar al ciudadano sin video.
+      if (this.localStream.getVideoTracks().length === 0) {
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: { ideal: this.facingModeActual } },
+            audio: false
+          });
+          const track = stream.getVideoTracks()[0];
+          this.localStream.addTrack(track);
+          const sender = this.pc?.getSenders().find(s => s.track?.kind === 'video');
+          if (sender) await sender.replaceTrack(track);
+          const videoLocalRef = this.videoLocalRef();
+          if (videoLocalRef) videoLocalRef.nativeElement.srcObject = this.localStream;
+        } catch {
+          // eslint-disable-next-line no-console
+          console.error('[video-ciudadano] no se pudo recuperar ninguna cámara.');
+        }
+      }
     } finally {
       this.cambiandoCamara.set(false);
     }
+  }
+
+  private mostrarErrorCamara(mensaje: string): void {
+    this.errorCamara.set(mensaje);
+    setTimeout(() => this.errorCamara.set(''), 4000);
   }
 
   private configurarDataChannel(dc: RTCDataChannel): void {
