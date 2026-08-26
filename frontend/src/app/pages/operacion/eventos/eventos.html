@@ -913,9 +913,9 @@
                         <div id="mapaEvento" class="ev-map ev-map--lg"></div>
                       </div>
 
-                      <!-- VIDEOLLAMADA + ARCHIVOS MULTIMEDIA — columna lateral derecha, junto al
-                           mapa que ambas alimentan/consultan (antes vivían como secciones sueltas,
-                           lejos del mapa y entre sí). -->
+                      <!-- VIDEOLLAMADA — misma prominencia visual que el mapa (columna igual de
+                           ancha), no un panel lateral angosto: en una emergencia en vivo es tan
+                           importante como ver dónde está todo el mundo. -->
                       <div class="ev-recmap-video">
 
                         @if (detalle.estado !== 'C') {
@@ -987,6 +987,17 @@
                                         }
                                       </div>
                                     </div>
+                                  } @else {
+                                    <!-- Mismo tamaño que el frame conectado — para que el panel no
+                                         "salte" de tamaño ni se vea vacío mientras el ciudadano se conecta. -->
+                                    <div class="ev-video-frame ev-video-frame--placeholder">
+                                      <i class="fa-solid fa-video-slash"></i>
+                                      @switch (videollamadaEstado()) {
+                                        @case ('esperando')  { <span>Esperando a que el ciudadano toque el enlace…</span> }
+                                        @case ('conectando') { <span>Estableciendo la conexión…</span> }
+                                        @case ('error')      { <span>No fue posible conectar con el ciudadano.</span> }
+                                      }
+                                    </div>
                                   }
 
                                   <div class="ev-video-controles">
@@ -1045,58 +1056,6 @@
                             </div>
                           </div>
                         }
-
-                        <!-- ARCHIVOS MULTIMEDIA — debajo de la videollamada: son, en su mayoría,
-                             lo que produce la propia videollamada (grabaciones) además de fotos
-                             recibidas por chat/SMS. -->
-                        @if (adjuntos().length > 0) {
-                          <div class="ev-video-card">
-                            <div class="ev-video-card__head">
-                              <i class="fa-solid fa-photo-film"></i> Archivos multimedia
-                              <span class="ev-badge" style="margin-left:auto;">{{ adjuntos().length }}</span>
-                            </div>
-                            <div class="ev-video-card__body">
-                              <div class="ev-adjuntos-grid ev-adjuntos-grid--compacta">
-                                @for (adj of adjuntos(); track adj.id) {
-                                  @if (adj.tipoAdjunto === 'VIDEO') {
-                                    <a [href]="adj.urlPublica" target="_blank"
-                                       class="ev-adjunto-card ev-adjunto-card--video" [title]="adj.nombreOriginal">
-                                      <div class="ev-adjunto-card__img ev-adjunto-card__img--video">
-                                        <video [src]="adj.urlPublica" preload="metadata" muted></video>
-                                        <i class="fa-solid fa-circle-play ev-adjunto-card__play"></i>
-                                      </div>
-                                      <div class="ev-adjunto-video-meta">
-                                        @if (adj.numeroTelefonoLlamada) {
-                                          <span><i class="fa-solid fa-phone"></i> {{ adj.numeroTelefonoLlamada }}</span>
-                                        }
-                                        @if (adj.fechaInicioLlamada) {
-                                          <span><i class="fa-regular fa-calendar"></i> {{ adj.fechaInicioLlamada }}</span>
-                                        }
-                                        @if (adj.duracionSegundos != null) {
-                                          <span><i class="fa-regular fa-clock"></i> {{ formatDuracion(adj.duracionSegundos) }}</span>
-                                        }
-                                      </div>
-                                    </a>
-                                  } @else {
-                                    <a [href]="adj.urlPublica" target="_blank"
-                                       class="ev-adjunto-card" [title]="adj.nombreOriginal">
-                                      <div class="ev-adjunto-card__img">
-                                        <img [src]="adj.urlPublica" [alt]="adj.nombreOriginal" loading="lazy">
-                                        <i class="fa-solid fa-image ev-adjunto-card__fallback"></i>
-                                      </div>
-                                      <span class="ev-adjunto-card__nombre">{{ adj.nombreOriginal }}</span>
-                                      <span class="ev-adjunto-card__canal">
-                                        @if (adj.canalOrigen === 'API_CHAT') { Chat }
-                                        @else if (adj.canalOrigen === 'API_SMS') { SMS }
-                                        @else { Manual }
-                                      </span>
-                                    </a>
-                                  }
-                                }
-                              </div>
-                            </div>
-                          </div>
-                        }
                       </div>
 
                     </div><!-- /ev-recmap-main -->
@@ -1114,6 +1073,55 @@
                     }
                   </div>
                 </app-panel-colapsable>
+
+              <!-- ARCHIVOS MULTIMEDIA — debajo de la videollamada: son, en su mayoría, lo que
+                   produce la propia videollamada (grabaciones) además de fotos recibidas por
+                   chat/SMS. Panel propio y a todo el ancho — la videollamada ya tiene suficiente
+                   protagonismo en la fila de arriba como para además cargar con esta grilla. -->
+              @if (adjuntos().length > 0) {
+                <app-panel-colapsable titulo="Archivos multimedia" icono="fa-solid fa-photo-film"
+                                      [(abierto)]="fotosAbierto">
+                  <span extra class="ev-badge" style="margin-left:auto;">{{ adjuntos().length }}</span>
+                  <div class="ev-adjuntos-grid">
+                    @for (adj of adjuntos(); track adj.id) {
+                      @if (adj.tipoAdjunto === 'VIDEO') {
+                        <a [href]="adj.urlPublica" target="_blank"
+                           class="ev-adjunto-card ev-adjunto-card--video" [title]="adj.nombreOriginal">
+                          <div class="ev-adjunto-card__img ev-adjunto-card__img--video">
+                            <video [src]="adj.urlPublica" preload="metadata" muted></video>
+                            <i class="fa-solid fa-circle-play ev-adjunto-card__play"></i>
+                          </div>
+                          <div class="ev-adjunto-video-meta">
+                            @if (adj.numeroTelefonoLlamada) {
+                              <span><i class="fa-solid fa-phone"></i> {{ adj.numeroTelefonoLlamada }}</span>
+                            }
+                            @if (adj.fechaInicioLlamada) {
+                              <span><i class="fa-regular fa-calendar"></i> {{ adj.fechaInicioLlamada }}</span>
+                            }
+                            @if (adj.duracionSegundos != null) {
+                              <span><i class="fa-regular fa-clock"></i> {{ formatDuracion(adj.duracionSegundos) }}</span>
+                            }
+                          </div>
+                        </a>
+                      } @else {
+                        <a [href]="adj.urlPublica" target="_blank"
+                           class="ev-adjunto-card" [title]="adj.nombreOriginal">
+                          <div class="ev-adjunto-card__img">
+                            <img [src]="adj.urlPublica" [alt]="adj.nombreOriginal" loading="lazy">
+                            <i class="fa-solid fa-image ev-adjunto-card__fallback"></i>
+                          </div>
+                          <span class="ev-adjunto-card__nombre">{{ adj.nombreOriginal }}</span>
+                          <span class="ev-adjunto-card__canal">
+                            @if (adj.canalOrigen === 'API_CHAT') { Chat }
+                            @else if (adj.canalOrigen === 'API_SMS') { SMS }
+                            @else { Manual }
+                          </span>
+                        </a>
+                      }
+                    }
+                  </div>
+                </app-panel-colapsable>
+              }
 
               <!-- ════════════ TIMELINE DE DESPACHO ════════════ -->
               <app-panel-colapsable titulo="Despacho activo" icono="fa-solid fa-route"

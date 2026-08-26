@@ -768,21 +768,22 @@ html.dark-mode .ev-no-canal-banner {
   i { font-size: 10px; }
 }
 
-// 3 columnas: lista de recursos | mapa (protagonista) | videollamada + multimedia.
-// Antes el mapa y la videollamada vivían en secciones separadas, lejos entre sí —
-// ahora comparten esta misma fila para que el despachador vea todo de un vistazo:
-// caso + patrullas + ciudadano en el mapa central, control de la llamada al lado.
+// 3 columnas: lista de recursos (angosta, solo identificación) | mapa | videollamada.
+// El mapa y la videollamada reciben el MISMO peso (1fr cada uno) — en una
+// emergencia en vivo, ver al ciudadano es tan importante como ver el mapa; antes
+// la videollamada quedaba apretada en una columna fija de 360px y se veía como
+// un panel secundario, que era justo el problema reportado.
 .ev-recmap-main {
   display:               grid;
-  grid-template-columns: 340px 1fr 360px;
+  grid-template-columns: 280px 1fr 1fr;
   gap:                   12px;
   margin-bottom:         10px;
 
-  @media (max-width: 1300px) {
-    grid-template-columns: 300px 1fr;
+  @media (max-width: 1500px) {
+    grid-template-columns: 260px 1fr;
 
-    // La columna de videollamada pasa a ocupar toda la fila siguiente en vez
-    // de angostarse hasta ser inusable.
+    // Con menos ancho, la videollamada pasa a ocupar toda la fila siguiente
+    // en vez de angostarse hasta ser inusable otra vez.
     .ev-recmap-video { grid-column: 1 / -1; }
   }
 
@@ -796,20 +797,22 @@ html.dark-mode .ev-no-canal-banner {
 .ev-recmap-video {
   display:        flex;
   flex-direction: column;
-  gap:            12px;
-  max-height:     680px;
-  overflow-y:     auto;
+  height:         680px;
 
-  @media (max-width: 900px) {
-    max-height: none;
+  @media (max-width: 1500px) {
+    height: auto;
   }
 }
 
 .ev-video-card {
-  border:        1px solid var(--ui-border, rgba(21,27,59,.14));
-  border-radius: var(--ui-radius-sm, 10px);
-  overflow:      hidden;
-  background:    var(--ui-surface, #fff);
+  display:        flex;
+  flex-direction: column;
+  flex:           1;
+  min-height:     0;
+  border:         1px solid var(--ui-border, rgba(21,27,59,.14));
+  border-radius:  var(--ui-radius-sm, 10px);
+  overflow:       hidden;
+  background:     var(--ui-surface, #fff);
 }
 
 .ev-video-card__head {
@@ -828,16 +831,12 @@ html.dark-mode .ev-no-canal-banner {
 }
 
 .ev-video-card__body {
-  padding: 12px 14px;
-}
-
-// Grilla de adjuntos compacta — la misma tarjeta pero en una columna angosta
-// (360px) en vez del ancho completo del panel de "Archivos multimedia" original.
-.ev-adjuntos-grid--compacta {
-  padding:  0;
-  gap:      8px;
-
-  .ev-adjunto-card { width: 100px; }
+  display:        flex;
+  flex-direction: column;
+  flex:           1;
+  min-height:     0;
+  padding:        12px 14px;
+  overflow-y:     auto;
 }
 
 .ev-recmap-list {
@@ -2891,6 +2890,8 @@ html.dark-mode {
 .ev-video-panel {
   display:        flex;
   flex-direction: column;
+  flex:           1;
+  min-height:     0;
   gap:            10px;
 }
 
@@ -2907,20 +2908,21 @@ html.dark-mode {
   color:      var(--ui-text-muted, #6b7280);
 }
 
-// Contenedor con relación de aspecto fija (retrato, la más común en video de
-// celular sostenido en vertical) para que el video nunca se vea como una
-// franja alargada mientras espera a que lleguen los metadatos del track.
+// El frame del video es lo más importante del panel — antes quedaba angosto
+// y con relación de aspecto de retrato (9:16) encajado en una columna lateral
+// de 360px, lo que lo hacía ver como un elemento secundario diminuto. Ahora la
+// columna tiene el mismo ancho que el mapa, así que el frame crece para llenar
+// el espacio vertical disponible en la tarjeta (flex:1), con una altura mínima
+// generosa para que nunca se vea como una franja.
 .ev-video-frame {
-  position:        relative;
-  width:            100%;
-  max-width:        560px;
-  aspect-ratio:     9 / 16;
-  max-height:       78vh;
-  margin:           0 auto;
-  border-radius:    12px;
-  overflow:         hidden;
-  background:       #0b1220;
-  box-shadow:       0 4px 18px rgba(0, 0, 0, 0.25);
+  position:      relative;
+  flex:          1;
+  width:         100%;
+  min-height:    320px;
+  border-radius: 12px;
+  overflow:      hidden;
+  background:    #0b1220;
+  box-shadow:    0 4px 18px rgba(0, 0, 0, 0.25);
 }
 
 .ev-video-remoto {
@@ -2928,6 +2930,25 @@ html.dark-mode {
   height:           100%;
   object-fit:       cover;
   background:       #000;
+}
+
+// Estados sin video real todavía (esperando/conectando/error) — mismo tamaño
+// que el frame conectado, para que el panel no cambie de tamaño ni se vea
+// vacío/roto mientras se establece la llamada.
+.ev-video-frame--placeholder {
+  display:        flex;
+  flex-direction: column;
+  align-items:    center;
+  justify-content: center;
+  gap:            10px;
+  background:     rgba(21, 27, 59, 0.04);
+  border:         1px dashed var(--ui-border, rgba(21,27,59,.18));
+  color:          var(--ui-text-muted, #6b7280);
+  text-align:     center;
+  padding:        20px;
+
+  i { font-size: 2rem; opacity: 0.5; }
+  span { font-size: 0.85rem; max-width: 260px; }
 }
 
 .ev-video-badges {
@@ -3179,6 +3200,11 @@ html.dark-mode {
   .ev-video-card {
     background:   rgba(255,255,255,.03);
     border-color: rgba(255,255,255,.08);
+  }
+
+  .ev-video-frame--placeholder {
+    background:   rgba(255,255,255,.02);
+    border-color: rgba(255,255,255,.14);
   }
 
   .ev-video-ubicacion { background: rgba(37, 99, 235, 0.16); color: var(--ui-text); }

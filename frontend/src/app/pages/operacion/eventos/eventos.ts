@@ -111,6 +111,7 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
   datosAbierto            = true;
   recursosAbierto         = true;
   despachoAbierto         = true;
+  fotosAbierto            = true;
   anotacionesAbierto      = true;
   canalesAsignadosAbierto = true;
 
