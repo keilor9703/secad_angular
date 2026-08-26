@@ -845,11 +845,31 @@ html.dark-mode .ev-no-canal-banner {
   i { color: var(--policia-acento, #08a6cb); }
 }
 
-// Con el mapa y los recursos ocupando todo el ancho (sin llamada en curso),
-// vale la pena que también crezcan de alto — hay espacio de sobra.
+// Sin llamada en curso, el mapa y los recursos ocupan todo el ancho — la
+// lista vuelve a ir AL LADO del mapa (como el panel original de "Recursos y
+// ubicación en tiempo real"), no apilada debajo, que es como se ve cuando sí
+// hay una videollamada angosta a su lado. También crecen de alto: hay
+// espacio de sobra.
 .ev-live-grid--sin-llamada {
-  .ev-map--md      { height: 460px; }
-  .ev-recmap-list--sm { height: 380px; }
+  .ev-live-side {
+    display:               grid;
+    grid-template-columns: 320px 1fr;
+    gap:                   12px;
+    align-items:           start;
+
+    @media (max-width: 900px) {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  // La barra para iniciar llamada ocupa las dos columnas; la lista se
+  // reordena para quedar a la izquierda del mapa (el DOM trae primero el
+  // mapa y luego la lista).
+  .ev-live-start-call { grid-column: 1 / -1; }
+  .ev-recmap-list--sm { order: -1; }
+
+  .ev-map--md          { height: 560px; }
+  .ev-recmap-list--sm  { height: 560px; }
 }
 
 .ev-live-mapwrap {
@@ -2969,6 +2989,11 @@ html.dark-mode {
   pointer-events:   none;
 }
 
+.ev-video-badges__left {
+  display: inline-flex;
+  gap:     8px;
+}
+
 .ev-video-badge {
   display:          inline-flex;
   align-items:      center;
@@ -2984,6 +3009,19 @@ html.dark-mode {
 
   &--live .ev-video-dot { background: #22c55e; }
   &--rec  .ev-video-dot { background: #ef4444; }
+
+  // Es un <button> real (los otros son <span>) — .ev-video-badges tiene
+  // pointer-events:none para no bloquear el video, así que hay que
+  // reactivarlos puntualmente aquí.
+  &--expand {
+    pointer-events: auto;
+    border:         none;
+    cursor:         pointer;
+    font-size:      0.85rem;
+    padding:        6px 8px;
+
+    &:hover { background: rgba(17, 24, 39, 0.8); }
+  }
 }
 
 .ev-video-dot {
