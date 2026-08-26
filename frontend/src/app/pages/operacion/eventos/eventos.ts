@@ -341,7 +341,6 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewChecked {
   readonly adjuntos = signal<DtoAdjunto[]>([]);
 
   // ─── Videollamada con el ciudadano (WebRTC P2P) ──────────────────────────────
-  videollamadaAbierta      = true;
   readonly videollamadaEstado = signal<EstadoLlamada>('inactiva');
   readonly videollamadaLink   = signal('');
   readonly videollamadaMensaje = signal('');

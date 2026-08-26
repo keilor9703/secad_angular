@@ -721,207 +721,342 @@
               }
               }
 
-              <!-- RECURSOS Y UBICACIÓN EN TIEMPO REAL (mapa + despacho) -->
-              @if (canalSeleccionado > 0) {
-                <app-panel-colapsable titulo="Recursos y ubicación en tiempo real" icono="fa-solid fa-map-location-dot"
-                                      [(abierto)]="recursosAbierto" [sticky]="true">
-                  <span extra class="ev-rec-live">
-                    <span class="ev-live-dot"></span>
-                    c/8s
-                  </span>
+              <!-- VIDEOLLAMADA (grande, izquierda) + MAPA Y RECURSOS (más pequeños, apilados
+                   a la derecha) — misma línea de visión: el despachador ve al ciudadano y el
+                   mapa/las patrullas de un vistazo, sin tener que bajar por la página.
+                   No se gatea en canalSeleccionado>0 (la videollamada no depende del canal) —
+                   la lista de recursos ya maneja su propio estado vacío cuando no hay canal. -->
+              <app-panel-colapsable titulo="Videollamada y mapa en vivo" icono="fa-solid fa-video"
+                                    [(abierto)]="recursosAbierto" [sticky]="true">
+                <span extra class="ev-rec-live">
+                  <span class="ev-live-dot"></span>
+                  c/8s
+                </span>
 
-                  <div style="padding:10px 14px">
+                <div class="ev-live-grid">
 
-                    <!-- Cabecera y última actualización -->
-                    <div class="ev-rec-meta">
-                      @if (ultimaActRecursos()) {
-                        <span class="ev-rec-time">
-                          <i class="fa-regular fa-clock"></i>
-                          Actualizado {{ ultimaActRecursos() | date:'HH:mm:ss' }}
-                        </span>
-                      }
-                      <span class="ev-rec-count">{{ recursos().length }} recurso(s)</span>
-                      <button type="button" class="ui-btn xs ghost ev-rec-btn"
-                              (click)="sugerirRecursoCercano()"
-                              title="Sugerir el cuadrante libre más cercano al sitio del hecho">
-                        <i class="fa-solid fa-location-crosshairs"></i>
-                        Cuadrante más cercano
-                      </button>
-                      @if (detalle.latitudCaso || detalle.longitudCaso) {
-                        <span class="ev-recmap-ubicacion" title="Coordenadas del incidente">
-                          <i class="fa-solid fa-location-dot"></i>
-                          {{ detalle.latitudCaso || '—' }}, {{ detalle.longitudCaso || '—' }}
-                        </span>
-                      }
-                      @if (errorRecursos()) {
-                        <span class="ev-err">
-                          <i class="fa-solid fa-triangle-exclamation"></i>
-                          {{ errorRecursos() }}
-                        </span>
-                      }
-                    </div>
-
-                    <!-- Sugerencia de cuadrante más cercano (PostGIS) — visible arriba,
-                         antes de la fila lista+mapa, para que nunca requiera scroll. -->
-                    @if (mostrarSugerencia()) {
-                      <div class="ev-sugerencia-box">
-                        <div class="ev-sugerencia-box__head">
-                          <i class="fa-solid fa-location-crosshairs"></i>
-                          Recomendación — más cercano al hecho
-                          <button type="button" class="ev-sugerencia-box__close"
-                                  (click)="mostrarSugerencia.set(false)">
-                            <i class="fa-solid fa-xmark"></i>
-                          </button>
-                        </div>
-                        @if (cargandoSugerencia()) {
-                          <div class="ev-empty-state" style="padding:10px 0">
-                            <i class="fa-solid fa-spinner fa-spin"></i>
-                            <p>Buscando el más cercano…</p>
+                  <!-- IZQUIERDA: videollamada con el ciudadano — misma funcionalidad de
+                       siempre (link, ubicación, mic, chat, grabar, colgar), solo reubicada. -->
+                  <div class="ev-live-video">
+                    @if (detalle.estado !== 'C') {
+                      @if (videollamadaEstado() === 'inactiva' || videollamadaEstado() === 'finalizada') {
+                        <div class="ui-grid" style="gap:10px; align-items:end;">
+                          <div class="ui-field ui-col-8">
+                            <label class="ui-label">Teléfono del ciudadano</label>
+                            <input class="ui-control" type="text"
+                                   [(ngModel)]="videollamadaTelefono"
+                                   placeholder="Número al que se enviará el enlace…">
                           </div>
-                        } @else if (errorSugerencia()) {
-                          <div class="ev-sugerencia-box__empty">{{ errorSugerencia() }}</div>
-                        } @else {
-                          @for (s of sugerenciasRecurso(); track s.medioId; let i = $index) {
-                            <div class="ev-sugerencia-item" [class.ev-sugerencia-item--top]="i === 0">
-                              <span class="ev-sugerencia-item__rank">{{ i + 1 }}</span>
-                              <div class="ev-sugerencia-item__info">
-                                <strong>{{ nombrePatrulla(s) }}</strong>
-                              </div>
-                              <span class="ev-sugerencia-item__dist">
-                                {{ s.distanciaM < 1000 ? (s.distanciaM + ' m') : ((s.distanciaM/1000 | number:'1.1-1') + ' km') }}
-                                @if (etaMin(s.distanciaM / 1000, s.tipoMedio) !== null) {
-                                  <span class="ev-eta" title="Tiempo estimado de llegada (estimación por distancia y tipo de recurso)">
-                                    · ~{{ etaMin(s.distanciaM / 1000, s.tipoMedio) }} min
-                                  </span>
-                                }
+                          <div class="ui-col-4">
+                            <button type="button" class="ui-btn ui-btn-primary" style="width:100%;"
+                                    [disabled]="creandoVideollamada()"
+                                    (click)="iniciarVideollamada()">
+                              @if (creandoVideollamada()) { Creando… } @else { <i class="fa-solid fa-video"></i> Iniciar }
+                            </button>
+                          </div>
+                        </div>
+                      } @else {
+                        <div class="ev-video-panel">
+                          <div class="ev-video-estado">
+                            @switch (videollamadaEstado()) {
+                              @case ('esperando')  { <span class="ui-badge ui-badge-warning">Esperando al ciudadano…</span> }
+                              @case ('conectando') { <span class="ui-badge ui-badge-warning">Conectando…</span> }
+                              @case ('conectada')  { <span class="ui-badge ui-badge-success">Conectada</span> }
+                              @case ('error')      { <span class="ui-badge ui-badge-danger">Error de conexión</span> }
+                            }
+                          </div>
+
+                          @if (videollamadaLink()) {
+                            <div class="ev-video-link">
+                              <input class="ui-control" type="text" readonly [value]="videollamadaLink()">
+                              <button type="button" class="ui-btn ui-btn-secondary" (click)="copiarLinkVideollamada()">
+                                <i class="fa-solid fa-copy"></i> Copiar
+                              </button>
+                            </div>
+                            @if (videollamadaMensaje()) {
+                              <p class="ev-video-mensaje">{{ videollamadaMensaje() }}</p>
+                            }
+                          }
+
+                          <!-- La ubicación en sí se dibuja sobre el mapa de la derecha (mismo
+                               mapa que muestra el caso y las patrullas) — ver
+                               actualizarUbicacionCiudadanoEnMapa() en el componente. -->
+                          @if (videollamadaUbicacion(); as ubic) {
+                            <div class="ev-video-ubicacion">
+                              <i class="fa-solid fa-location-dot"></i>
+                              <span>
+                                Ciudadano ubicado en el mapa
+                                @if (ubic.precision) { <small>(precisión ~{{ ubic.precision | number:'1.0-0' }} m)</small> }
                               </span>
-                              <button type="button" class="ui-btn xs primary"
-                                      [disabled]="!!asignandoMedioId()"
-                                      (click)="asignarSugerido(s)">
-                                Asignar
+                              <button type="button" class="ui-btn xs ui-btn-secondary" (click)="centrarEnCiudadano()">
+                                <i class="fa-solid fa-crosshairs"></i> Centrar
                               </button>
                             </div>
                           }
-                        }
-                      </div>
-                    }
 
-                    <!-- Fila principal: lista de patrullas (izq.) + mapa grande (der.) —
-                         el mapa vive fuera de cualquier @if de "recursos.length" para que
-                         el div #mapaEvento siempre exista en el DOM y initMapaDetalle()
-                         no se quede esperando un elemento que nunca aparece. -->
-                    <div class="ev-recmap-main">
-
-                      <!-- Lista lateral: solo identificación — nombre de patrulla + personal -->
-                      <div class="ev-recmap-list">
-                        @if (cargandoRecursos() && recursos().length === 0) {
-                          <div class="ev-empty-state" style="padding:20px 0">
-                            <i class="fa-solid fa-hourglass-half fa-spin"></i>
-                            <p>Consultando…</p>
-                          </div>
-                        } @else if (recursos().length === 0) {
-                          <div class="ev-empty-state" style="padding:16px 0">
-                            <i class="fa-solid fa-car-side"></i>
-                            <p>Sin recursos activos en turno para este canal.</p>
-                          </div>
-                        } @else {
-                          @for (r of recursos(); track r.id) {
-                            <div class="ev-recmap-item"
-                                 [class.ev-recmap-item--ocupado]="r.estado === 28 || r.estado === 30"
-                                 [class.ev-recmap-item--asignado]="medioAsignadoAEsteEvento(r)">
-
-                              <!-- Encabezado: nombre (igual que en el mapa) + GPS. Clic → centrar. -->
-                              <div class="ev-recmap-item__head"
-                                   (click)="centrarEnRecurso(r)"
-                                   [title]="r.lat != null && r.lng != null ? 'Centrar en el mapa' : 'Sin señal GPS'">
-                                <i [class]="iconoTipo(r.tipoMedio) + ' ev-recmap-item__icon'"
-                                   [title]="etiquetaTipoMedio(r.tipoMedio)"></i>
-                                <div class="ev-recmap-item__info">
-                                  <strong class="ev-recmap-item__nombre">{{ nombrePatrulla(r) }}</strong>
-                                  <span class="ev-recmap-item__personal">{{ r.personalResumen || 'Sin personal asignado' }}</span>
-                                </div>
-                                <span class="ev-gps-dot" [class.ev-gps-dot--on]="r.gpsActivo"
-                                      [title]="r.gpsActivo ? 'GPS activo' : 'Sin señal GPS'"></span>
-                              </div>
-
-                              <!-- Meta: estado + distancia al incidente + ETA -->
-                              <div class="ev-recmap-item__meta">
-                                <span class="ev-rec-estado-badge" [ngClass]="claseEstadoMedio(r.estado)">
-                                  {{ r.estadoDesc }}
-                                </span>
-                                @if (r.distanciaKm != null) {
-                                  <span class="ev-recmap-item__dist"
-                                        [class.ev-recmap-item__dist--near]="r.distanciaKm < 1"
-                                        title="Distancia en línea recta al incidente">
-                                    <i class="fa-solid fa-route"></i>
-                                    {{ formatDistancia(r.distanciaKm) }}
-                                    @if (etaMin(r.distanciaKm, r.tipoMedio) !== null) {
-                                      <span class="ev-eta" title="Tiempo estimado de llegada">~{{ etaMin(r.distanciaKm, r.tipoMedio) }} min</span>
-                                    }
-                                  </span>
-                                } @else {
-                                  <span class="ev-recmap-item__dist ev-recmap-item__dist--nogps"
-                                        title="Sin señal GPS para calcular distancia">
-                                    <i class="fa-solid fa-location-crosshairs"></i> Sin GPS
-                                  </span>
+                          @if (videollamadaEstado() === 'conectada') {
+                            <div class="ev-video-frame">
+                              <video #videoRemoto autoplay playsinline class="ev-video-remoto"
+                                     [srcObject]="videollamadaRemoteStream()"></video>
+                              <div class="ev-video-badges">
+                                <span class="ev-video-badge ev-video-badge--live"><i class="ev-video-dot"></i>En vivo</span>
+                                @if (grabandoVideollamada) {
+                                  <span class="ev-video-badge ev-video-badge--rec"><i class="ev-video-dot"></i>REC</span>
                                 }
                               </div>
-
-                              <!-- Acciones -->
-                              <div class="ev-recmap-item__actions">
-                                @if (r.estado === 27 && !medioAsignadoAEsteEvento(r) && !r.eventoId) {
-                                  <button class="ui-btn xs primary" type="button"
-                                          [disabled]="!!asignandoMedioId() || detalle!.estado === 'C'"
-                                          (click)="asignarRecursoAlEvento(r)"
-                                          title="Paso 1: Asignar recurso a este incidente">
-                                    <i class="fa-solid fa-plus"></i>
-                                    {{ asignandoMedioId() === r.id ? '…' : 'Asignar' }}
-                                  </button>
-                                }
-                                @if (r.estado === 27 && r.eventoId && !medioAsignadoAEsteEvento(r)) {
-                                  <span class="ev-rec-otro-evento" title="Este recurso ya está vinculado a otro caso">
-                                    <i class="fa-solid fa-link"></i> Otro caso
-                                  </span>
-                                }
-                                @if (medioAsignadoAEsteEvento(r)) {
-                                  <span class="ev-rec-asignado-badge">
-                                    <i class="fa-solid fa-link"></i> Asignado a este evento
-                                  </span>
-                                }
-                                @if (r.estado === 30 || r.estado === 28) {
-                                  <span class="ev-rec-ocupado-badge" [title]="'Estado: ' + etiquetaEstadoMedio(r.estado)">
-                                    <i class="fa-solid fa-circle-dot"></i>
-                                    {{ etiquetaEstadoMedio(r.estado) }}
-                                  </span>
-                                }
-                              </div>
-
                             </div>
                           }
-                        }
-                      </div>
 
-                      <!-- Mapa — el centro de atención del panel -->
-                      <div class="ev-recmap-mapwrap">
-                        <div id="mapaEvento" class="ev-map ev-map--lg"></div>
-                      </div>
+                          <div class="ev-video-controles">
+                            @if (videollamadaEstado() === 'conectada') {
+                              <button type="button" class="ui-btn"
+                                      [class.ui-btn-danger]="!videollamadaMicActivo()"
+                                      [class.ui-btn-secondary]="videollamadaMicActivo()"
+                                      (click)="toggleMicVideollamada()"
+                                      title="Silenciar/activar su propio micrófono — el ciudadano puede seguir escribiéndole por chat aunque lo silencie">
+                                <i class="fa-solid" [class.fa-microphone]="videollamadaMicActivo()" [class.fa-microphone-slash]="!videollamadaMicActivo()"></i>
+                                {{ videollamadaMicActivo() ? 'Silenciar mi micrófono' : 'Mi micrófono está silenciado' }}
+                              </button>
+                              <button type="button" class="ui-btn ui-btn-secondary" (click)="toggleChatVideollamada()">
+                                <i class="fa-solid fa-comment"></i> Chat
+                                @if (!videollamadaChatAbierto && videollamadaChatMensajes().length > 0) {
+                                  <span class="ev-chat-badge"></span>
+                                }
+                              </button>
+                              <button type="button" class="ui-btn"
+                                      [class.ui-btn-danger]="grabandoVideollamada"
+                                      [class.ui-btn-secondary]="!grabandoVideollamada"
+                                      (click)="toggleGrabacionVideollamada()">
+                                <i class="fa-solid" [class.fa-record-vinyl]="!grabandoVideollamada" [class.fa-stop]="grabandoVideollamada"></i>
+                                {{ grabandoVideollamada ? 'Detener grabación' : 'Grabar' }}
+                              </button>
+                            }
+                            <button type="button" class="ui-btn ui-btn-danger" (click)="colgarVideollamada()">
+                              <i class="fa-solid fa-phone-slash"></i> Colgar
+                            </button>
+                          </div>
 
-                    </div><!-- /ev-recmap-main -->
-
-                    <!-- Error de asignación -->
-                    @if (errorAsignacion()) {
-                      <div class="ev-assign-error">
-                        <i class="fa-solid fa-triangle-exclamation"></i>
-                        {{ errorAsignacion() }}
-                        <button class="ev-assign-error__close" type="button"
-                                (click)="errorAsignacion.set('')">
-                          <i class="fa-solid fa-xmark"></i>
-                        </button>
+                          @if (videollamadaChatAbierto && videollamadaEstado() === 'conectada') {
+                            <div class="ev-chat-panel">
+                              <div class="ev-chat-mensajes">
+                                @if (videollamadaChatMensajes().length === 0) {
+                                  <p class="ev-chat-vacio">Sin mensajes todavía.</p>
+                                }
+                                @for (m of videollamadaChatMensajes(); track $index) {
+                                  <div class="ev-chat-burbuja" [class.ev-chat-burbuja--propia]="m.propio">
+                                    <span>{{ m.texto }}</span>
+                                    <small>{{ m.hora }}</small>
+                                  </div>
+                                }
+                              </div>
+                              <form class="ev-chat-form" (submit)="enviarChatVideollamada(); $event.preventDefault()">
+                                <input class="ui-control" type="text" placeholder="Escriba un mensaje al ciudadano…"
+                                       [(ngModel)]="videollamadaChatTexto" name="videollamadaChatTexto">
+                                <button type="submit" class="ui-btn ui-btn-primary">
+                                  <i class="fa-solid fa-paper-plane"></i>
+                                </button>
+                              </form>
+                            </div>
+                          }
+                        </div>
+                      }
+                    } @else {
+                      <div class="ev-empty-state">
+                        <i class="fa-solid fa-video-slash"></i>
+                        <p>Caso cerrado — videollamada no disponible.</p>
                       </div>
                     }
                   </div>
-                </app-panel-colapsable>
-              }
+
+                  <!-- DERECHA: mapa (arriba) + lista de recursos (abajo) — más pequeños,
+                       apoyando a la videollamada en vez de competir con ella. -->
+                  <div class="ev-live-side">
+
+                    <div class="ev-live-mapwrap">
+                      <!-- Cabecera y última actualización -->
+                      <div class="ev-rec-meta">
+                        @if (ultimaActRecursos()) {
+                          <span class="ev-rec-time">
+                            <i class="fa-regular fa-clock"></i>
+                            Actualizado {{ ultimaActRecursos() | date:'HH:mm:ss' }}
+                          </span>
+                        }
+                        <span class="ev-rec-count">{{ recursos().length }} recurso(s)</span>
+                        <button type="button" class="ui-btn xs ghost ev-rec-btn"
+                                (click)="sugerirRecursoCercano()"
+                                title="Sugerir el cuadrante libre más cercano al sitio del hecho">
+                          <i class="fa-solid fa-location-crosshairs"></i>
+                          Cuadrante más cercano
+                        </button>
+                        @if (detalle.latitudCaso || detalle.longitudCaso) {
+                          <span class="ev-recmap-ubicacion" title="Coordenadas del incidente">
+                            <i class="fa-solid fa-location-dot"></i>
+                            {{ detalle.latitudCaso || '—' }}, {{ detalle.longitudCaso || '—' }}
+                          </span>
+                        }
+                        @if (errorRecursos()) {
+                          <span class="ev-err">
+                            <i class="fa-solid fa-triangle-exclamation"></i>
+                            {{ errorRecursos() }}
+                          </span>
+                        }
+                      </div>
+
+                      <!-- Sugerencia de cuadrante más cercano (PostGIS). -->
+                      @if (mostrarSugerencia()) {
+                        <div class="ev-sugerencia-box">
+                          <div class="ev-sugerencia-box__head">
+                            <i class="fa-solid fa-location-crosshairs"></i>
+                            Recomendación — más cercano al hecho
+                            <button type="button" class="ev-sugerencia-box__close"
+                                    (click)="mostrarSugerencia.set(false)">
+                              <i class="fa-solid fa-xmark"></i>
+                            </button>
+                          </div>
+                          @if (cargandoSugerencia()) {
+                            <div class="ev-empty-state" style="padding:10px 0">
+                              <i class="fa-solid fa-spinner fa-spin"></i>
+                              <p>Buscando el más cercano…</p>
+                            </div>
+                          } @else if (errorSugerencia()) {
+                            <div class="ev-sugerencia-box__empty">{{ errorSugerencia() }}</div>
+                          } @else {
+                            @for (s of sugerenciasRecurso(); track s.medioId; let i = $index) {
+                              <div class="ev-sugerencia-item" [class.ev-sugerencia-item--top]="i === 0">
+                                <span class="ev-sugerencia-item__rank">{{ i + 1 }}</span>
+                                <div class="ev-sugerencia-item__info">
+                                  <strong>{{ nombrePatrulla(s) }}</strong>
+                                </div>
+                                <span class="ev-sugerencia-item__dist">
+                                  {{ s.distanciaM < 1000 ? (s.distanciaM + ' m') : ((s.distanciaM/1000 | number:'1.1-1') + ' km') }}
+                                  @if (etaMin(s.distanciaM / 1000, s.tipoMedio) !== null) {
+                                    <span class="ev-eta" title="Tiempo estimado de llegada (estimación por distancia y tipo de recurso)">
+                                      · ~{{ etaMin(s.distanciaM / 1000, s.tipoMedio) }} min
+                                    </span>
+                                  }
+                                </span>
+                                <button type="button" class="ui-btn xs primary"
+                                        [disabled]="!!asignandoMedioId()"
+                                        (click)="asignarSugerido(s)">
+                                  Asignar
+                                </button>
+                              </div>
+                            }
+                          }
+                        </div>
+                      }
+
+                      <!-- El mapa vive fuera de cualquier @if de "recursos.length" para que
+                           el div #mapaEvento siempre exista en el DOM y initMapaDetalle() no
+                           se quede esperando un elemento que nunca aparece. -->
+                      <div id="mapaEvento" class="ev-map ev-map--md"></div>
+
+                      <!-- Error de asignación -->
+                      @if (errorAsignacion()) {
+                        <div class="ev-assign-error">
+                          <i class="fa-solid fa-triangle-exclamation"></i>
+                          {{ errorAsignacion() }}
+                          <button class="ev-assign-error__close" type="button"
+                                  (click)="errorAsignacion.set('')">
+                            <i class="fa-solid fa-xmark"></i>
+                          </button>
+                        </div>
+                      }
+                    </div>
+
+                    <!-- Lista de recursos — debajo del mapa, solo identificación. -->
+                    <div class="ev-recmap-list ev-recmap-list--sm">
+                      @if (cargandoRecursos() && recursos().length === 0) {
+                        <div class="ev-empty-state" style="padding:20px 0">
+                          <i class="fa-solid fa-hourglass-half fa-spin"></i>
+                          <p>Consultando…</p>
+                        </div>
+                      } @else if (recursos().length === 0) {
+                        <div class="ev-empty-state" style="padding:16px 0">
+                          <i class="fa-solid fa-car-side"></i>
+                          <p>Sin recursos activos en turno para este canal.</p>
+                        </div>
+                      } @else {
+                        @for (r of recursos(); track r.id) {
+                          <div class="ev-recmap-item"
+                               [class.ev-recmap-item--ocupado]="r.estado === 28 || r.estado === 30"
+                               [class.ev-recmap-item--asignado]="medioAsignadoAEsteEvento(r)">
+
+                            <!-- Encabezado: nombre (igual que en el mapa) + GPS. Clic → centrar. -->
+                            <div class="ev-recmap-item__head"
+                                 (click)="centrarEnRecurso(r)"
+                                 [title]="r.lat != null && r.lng != null ? 'Centrar en el mapa' : 'Sin señal GPS'">
+                              <i [class]="iconoTipo(r.tipoMedio) + ' ev-recmap-item__icon'"
+                                 [title]="etiquetaTipoMedio(r.tipoMedio)"></i>
+                              <div class="ev-recmap-item__info">
+                                <strong class="ev-recmap-item__nombre">{{ nombrePatrulla(r) }}</strong>
+                                <span class="ev-recmap-item__personal">{{ r.personalResumen || 'Sin personal asignado' }}</span>
+                              </div>
+                              <span class="ev-gps-dot" [class.ev-gps-dot--on]="r.gpsActivo"
+                                    [title]="r.gpsActivo ? 'GPS activo' : 'Sin señal GPS'"></span>
+                            </div>
+
+                            <!-- Meta: estado + distancia al incidente + ETA -->
+                            <div class="ev-recmap-item__meta">
+                              <span class="ev-rec-estado-badge" [ngClass]="claseEstadoMedio(r.estado)">
+                                {{ r.estadoDesc }}
+                              </span>
+                              @if (r.distanciaKm != null) {
+                                <span class="ev-recmap-item__dist"
+                                      [class.ev-recmap-item__dist--near]="r.distanciaKm < 1"
+                                      title="Distancia en línea recta al incidente">
+                                  <i class="fa-solid fa-route"></i>
+                                  {{ formatDistancia(r.distanciaKm) }}
+                                  @if (etaMin(r.distanciaKm, r.tipoMedio) !== null) {
+                                    <span class="ev-eta" title="Tiempo estimado de llegada">~{{ etaMin(r.distanciaKm, r.tipoMedio) }} min</span>
+                                  }
+                                </span>
+                              } @else {
+                                <span class="ev-recmap-item__dist ev-recmap-item__dist--nogps"
+                                      title="Sin señal GPS para calcular distancia">
+                                  <i class="fa-solid fa-location-crosshairs"></i> Sin GPS
+                                </span>
+                              }
+                            </div>
+
+                            <!-- Acciones -->
+                            <div class="ev-recmap-item__actions">
+                              @if (r.estado === 27 && !medioAsignadoAEsteEvento(r) && !r.eventoId) {
+                                <button class="ui-btn xs primary" type="button"
+                                        [disabled]="!!asignandoMedioId() || detalle!.estado === 'C'"
+                                        (click)="asignarRecursoAlEvento(r)"
+                                        title="Paso 1: Asignar recurso a este incidente">
+                                  <i class="fa-solid fa-plus"></i>
+                                  {{ asignandoMedioId() === r.id ? '…' : 'Asignar' }}
+                                </button>
+                              }
+                              @if (r.estado === 27 && r.eventoId && !medioAsignadoAEsteEvento(r)) {
+                                <span class="ev-rec-otro-evento" title="Este recurso ya está vinculado a otro caso">
+                                  <i class="fa-solid fa-link"></i> Otro caso
+                                </span>
+                              }
+                              @if (medioAsignadoAEsteEvento(r)) {
+                                <span class="ev-rec-asignado-badge">
+                                  <i class="fa-solid fa-link"></i> Asignado a este evento
+                                </span>
+                              }
+                              @if (r.estado === 30 || r.estado === 28) {
+                                <span class="ev-rec-ocupado-badge" [title]="'Estado: ' + etiquetaEstadoMedio(r.estado)">
+                                  <i class="fa-solid fa-circle-dot"></i>
+                                  {{ etiquetaEstadoMedio(r.estado) }}
+                                </span>
+                              }
+                            </div>
+
+                          </div>
+                        }
+                      }
+                    </div>
+
+                  </div>
+
+                </div><!-- /ev-live-grid -->
+              </app-panel-colapsable>
 
               <!-- ════════════ TIMELINE DE DESPACHO ════════════ -->
               <app-panel-colapsable titulo="Despacho activo" icono="fa-solid fa-route"
@@ -1294,137 +1429,6 @@
                           </span>
                         </a>
                       }
-                    }
-                  </div>
-                </app-panel-colapsable>
-              }
-
-              <!-- VIDEOLLAMADA CON EL CIUDADANO (WebRTC P2P) -->
-              @if (detalle.estado !== 'C') {
-                <app-panel-colapsable titulo="Videollamada con el ciudadano" icono="fa-solid fa-video"
-                                      [(abierto)]="videollamadaAbierta">
-                  <div style="padding:12px 14px;">
-                    @if (videollamadaEstado() === 'inactiva' || videollamadaEstado() === 'finalizada') {
-                      <div class="ui-grid" style="gap:10px; align-items:end;">
-                        <div class="ui-field ui-col-8">
-                          <label class="ui-label">Teléfono del ciudadano</label>
-                          <input class="ui-control" type="text"
-                                 [(ngModel)]="videollamadaTelefono"
-                                 placeholder="Número al que se enviará el enlace…">
-                        </div>
-                        <div class="ui-col-4">
-                          <button type="button" class="ui-btn ui-btn-primary" style="width:100%;"
-                                  [disabled]="creandoVideollamada()"
-                                  (click)="iniciarVideollamada()">
-                            @if (creandoVideollamada()) { Creando… } @else { <i class="fa-solid fa-video"></i> Iniciar }
-                          </button>
-                        </div>
-                      </div>
-                    } @else {
-                      <div class="ev-video-panel">
-                        <div class="ev-video-estado">
-                          @switch (videollamadaEstado()) {
-                            @case ('esperando')  { <span class="ui-badge ui-badge-warning">Esperando al ciudadano…</span> }
-                            @case ('conectando') { <span class="ui-badge ui-badge-warning">Conectando…</span> }
-                            @case ('conectada')  { <span class="ui-badge ui-badge-success">Conectada</span> }
-                            @case ('error')      { <span class="ui-badge ui-badge-danger">Error de conexión</span> }
-                          }
-                        </div>
-
-                        @if (videollamadaLink()) {
-                          <div class="ev-video-link">
-                            <input class="ui-control" type="text" readonly [value]="videollamadaLink()">
-                            <button type="button" class="ui-btn ui-btn-secondary" (click)="copiarLinkVideollamada()">
-                              <i class="fa-solid fa-copy"></i> Copiar
-                            </button>
-                          </div>
-                          @if (videollamadaMensaje()) {
-                            <p class="ev-video-mensaje">{{ videollamadaMensaje() }}</p>
-                          }
-                        }
-
-                        <!-- La ubicación en sí se dibuja directamente sobre el mapa del panel
-                             "Recursos y ubicación en tiempo real" (mismo mapa que muestra el caso
-                             y las patrullas) — ver actualizarUbicacionCiudadanoEnMapa() en el
-                             componente. Esto es solo el aviso + acceso rápido para centrar ahí. -->
-                        @if (videollamadaUbicacion(); as ubic) {
-                          <div class="ev-video-ubicacion">
-                            <i class="fa-solid fa-location-dot"></i>
-                            <span>
-                              Ciudadano ubicado en el mapa
-                              @if (ubic.precision) { <small>(precisión ~{{ ubic.precision | number:'1.0-0' }} m)</small> }
-                            </span>
-                            <button type="button" class="ui-btn xs ui-btn-secondary" (click)="centrarEnCiudadano()">
-                              <i class="fa-solid fa-crosshairs"></i> Centrar
-                            </button>
-                          </div>
-                        }
-
-                        @if (videollamadaEstado() === 'conectada') {
-                          <div class="ev-video-frame">
-                            <video #videoRemoto autoplay playsinline class="ev-video-remoto"
-                                   [srcObject]="videollamadaRemoteStream()"></video>
-                            <div class="ev-video-badges">
-                              <span class="ev-video-badge ev-video-badge--live"><i class="ev-video-dot"></i>En vivo</span>
-                              @if (grabandoVideollamada) {
-                                <span class="ev-video-badge ev-video-badge--rec"><i class="ev-video-dot"></i>REC</span>
-                              }
-                            </div>
-                          </div>
-                        }
-
-                        <div class="ev-video-controles">
-                          @if (videollamadaEstado() === 'conectada') {
-                            <button type="button" class="ui-btn"
-                                    [class.ui-btn-danger]="!videollamadaMicActivo()"
-                                    [class.ui-btn-secondary]="videollamadaMicActivo()"
-                                    (click)="toggleMicVideollamada()"
-                                    title="Silenciar/activar su propio micrófono — el ciudadano puede seguir escribiéndole por chat aunque lo silencie">
-                              <i class="fa-solid" [class.fa-microphone]="videollamadaMicActivo()" [class.fa-microphone-slash]="!videollamadaMicActivo()"></i>
-                              {{ videollamadaMicActivo() ? 'Silenciar mi micrófono' : 'Mi micrófono está silenciado' }}
-                            </button>
-                            <button type="button" class="ui-btn ui-btn-secondary" (click)="toggleChatVideollamada()">
-                              <i class="fa-solid fa-comment"></i> Chat
-                              @if (!videollamadaChatAbierto && videollamadaChatMensajes().length > 0) {
-                                <span class="ev-chat-badge"></span>
-                              }
-                            </button>
-                            <button type="button" class="ui-btn"
-                                    [class.ui-btn-danger]="grabandoVideollamada"
-                                    [class.ui-btn-secondary]="!grabandoVideollamada"
-                                    (click)="toggleGrabacionVideollamada()">
-                              <i class="fa-solid" [class.fa-record-vinyl]="!grabandoVideollamada" [class.fa-stop]="grabandoVideollamada"></i>
-                              {{ grabandoVideollamada ? 'Detener grabación' : 'Grabar' }}
-                            </button>
-                          }
-                          <button type="button" class="ui-btn ui-btn-danger" (click)="colgarVideollamada()">
-                            <i class="fa-solid fa-phone-slash"></i> Colgar
-                          </button>
-                        </div>
-
-                        @if (videollamadaChatAbierto && videollamadaEstado() === 'conectada') {
-                          <div class="ev-chat-panel">
-                            <div class="ev-chat-mensajes">
-                              @if (videollamadaChatMensajes().length === 0) {
-                                <p class="ev-chat-vacio">Sin mensajes todavía.</p>
-                              }
-                              @for (m of videollamadaChatMensajes(); track $index) {
-                                <div class="ev-chat-burbuja" [class.ev-chat-burbuja--propia]="m.propio">
-                                  <span>{{ m.texto }}</span>
-                                  <small>{{ m.hora }}</small>
-                                </div>
-                              }
-                            </div>
-                            <form class="ev-chat-form" (submit)="enviarChatVideollamada(); $event.preventDefault()">
-                              <input class="ui-control" type="text" placeholder="Escriba un mensaje al ciudadano…"
-                                     [(ngModel)]="videollamadaChatTexto" name="videollamadaChatTexto">
-                              <button type="submit" class="ui-btn ui-btn-primary">
-                                <i class="fa-solid fa-paper-plane"></i>
-                              </button>
-                            </form>
-                          </div>
-                        }
-                      </div>
                     }
                   </div>
                 </app-panel-colapsable>
