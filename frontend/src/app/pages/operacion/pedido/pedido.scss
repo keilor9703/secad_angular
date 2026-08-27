@@ -1894,11 +1894,11 @@
 // Un <video> con póster del primer frame; antes se pintaban con <img> y salía
 // el ícono de imagen rota.
 .ev-adjunto-card--video {
-  width: 150px;
+  width: 190px;
 
   .ev-adjunto-card__img--video {
-    width:  150px;
-    height: 110px;
+    width:  190px;
+    height: 120px;
 
     video {
       width:      100%;
@@ -1928,6 +1928,11 @@
 }
 
 // ── Trazabilidad de videollamadas del caso ─────────────────────────────────────
+// OJO con el ancho: el panel de detalle del expediente pasa de los 1600px en un
+// puesto de CAD. Una rejilla de datos con columnas elásticas se desparrama a lo
+// ancho y obliga a barrer la pantalla con la vista para leer seis datos. Por eso
+// aquí NADA usa 1fr: las pistas tienen ancho fijo y se apilan a la izquierda, y
+// el hilo del chat va acotado a una medida legible.
 .seg-vc-lista {
   display:        flex;
   flex-direction: column;
@@ -1936,28 +1941,29 @@
 }
 
 .seg-vc {
-  border:        1px solid var(--ui-border, #e5e9f0);
-  border-radius: 8px;
+  border:        1px solid rgba(21,27,59,.12);
+  border-radius: 10px;
   overflow:      hidden;
   background:    var(--ui-surface, #fff);
 
+  // ── Cabecera ────────────────────────────────────────────────────────────
   &__head {
-    display:     flex;
-    align-items: center;
-    gap:         10px;
-    flex-wrap:   wrap;
-    padding:     8px 12px;
-    background:  rgba(8,166,203,.08);
-    border-bottom: 1px solid var(--ui-border, #e5e9f0);
+    display:       flex;
+    align-items:   center;
+    gap:           10px;
+    flex-wrap:     wrap;
+    padding:       8px 14px;
+    background:    var(--ui-bg, #f8fafc);
+    border-bottom: 1px solid rgba(21,27,59,.1);
   }
 
   &__estado {
-    font-size:      0.68rem;
-    font-weight:    700;
+    font-size:      calc(10px * var(--font-size-scale, 1));
+    font-weight:    800;
     text-transform: uppercase;
-    letter-spacing: .3px;
-    padding:        2px 8px;
-    border-radius:  20px;
+    letter-spacing: .4px;
+    padding:        2px 9px;
+    border-radius:  999px;
     background:     rgba(107,114,128,.15);
     color:          #4b5563;
 
@@ -1970,104 +1976,113 @@
     display:     flex;
     align-items: center;
     gap:         6px;
-    font-size:   0.78rem;
+    font-size:   calc(12px * var(--font-size-scale, 1));
     color:       var(--ui-text);
-    i { color: var(--ui-text-muted, #6b7280); }
+    i { color: var(--ui-text-muted, #6b7280); font-size: 11px; }
+    strong { font-weight: 700; }
   }
 
-  // Rejilla de datos: se adapta al ancho del panel de detalle sin desbordarlo.
-  &__datos {
-    display:               grid;
-    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
-    gap:                   8px 16px;
-    padding:               10px 12px;
+  // La duración se repite arriba a propósito: es el dato que más se busca al
+  // revisar si la llamada llegó a servir de algo.
+  &__dur {
+    display:       inline-flex;
+    align-items:   center;
+    gap:           5px;
+    font-size:     calc(11px * var(--font-size-scale, 1));
+    font-weight:   700;
+    color:         #0e7490;
+    background:    rgba(8,166,203,.12);
+    border-radius: 999px;
+    padding:       2px 9px;
   }
 
-  &__dato {
-    display:        flex;
-    flex-direction: column;
-    gap:            2px;
-    min-width:      0;
-  }
-
-  &__lbl {
-    display:     flex;
-    align-items: center;
-    gap:         5px;
-    font-size:   0.66rem;
-    text-transform: uppercase;
-    letter-spacing: .3px;
+  &__cuando {
+    margin-left: auto;
+    font-size:   calc(10.5px * var(--font-size-scale, 1));
     color:       var(--ui-text-muted, #6b7280);
-    i { width: 12px; text-align: center; }
   }
 
-  &__val {
-    font-size:     0.8rem;
-    color:         var(--ui-text);
-    word-break:    break-word;
-    em { color: var(--ui-text-muted, #6b7280); font-size: 0.76rem; }
+  // ── Cuerpo: reproductor a la izquierda, datos a la derecha, chat abajo ───
+  // El reproductor ocupa las dos filas del riel izquierdo y los datos + el chat
+  // se apilan a su derecha. Si el chat fuera a lo ancho debajo, el costado del
+  // video quedaría en blanco — que es justo lo que se veía mal.
+  &__body {
+    display:               grid;
+    grid-template-columns: 250px minmax(0, 1fr);
+    grid-template-rows:    auto auto;
+    gap:                   12px 20px;
+    padding:               14px;
+    align-items:           start;
   }
 
-  &__link {
-    color:           #0ea5c9;
-    text-decoration: none;
-    &:hover { text-decoration: underline; }
+  &__grab  { grid-column: 1; grid-row: 1 / span 2; }
+  &__datos { grid-column: 2; grid-row: 1; }
+  &__chat  { grid-column: 2; grid-row: 2; }
+
+  // Sin grabación no hay nada que poner en el riel: una sola columna.
+  &--sin-grab &__body { grid-template-columns: minmax(0, 1fr); }
+  &--sin-grab &__grab,
+  &--sin-grab &__datos,
+  &--sin-grab &__chat  { grid-column: 1; grid-row: auto; }
+
+  @media (max-width: 900px) {
+    &__body  { grid-template-columns: minmax(0, 1fr); }
+    &__grab,
+    &__datos,
+    &__chat  { grid-column: 1; grid-row: auto; }
+    &__grab-card { max-width: 320px; }
   }
 
   // ── Grabación ───────────────────────────────────────────────────────────
   &__grab {
-    display:     flex;
-    align-items: center;
-    gap:         12px;
-    padding:     10px 12px;
-    border-top:  1px dashed var(--ui-border, #e5e9f0);
+    display:        flex;
+    flex-direction: column;
+    gap:            4px;
+    min-width:      0;
   }
 
   &__grab-card {
     position:      relative;
-    flex:          0 0 auto;
-    width:         150px;
-    height:        90px;
-    border-radius: 6px;
+    width:         100%;
+    aspect-ratio:  16 / 10;
+    border-radius: 8px;
     overflow:      hidden;
-    border:        1px solid var(--ui-border, #e5e9f0);
+    border:        1px solid rgba(21,27,59,.12);
     display:       flex;
     align-items:   center;
     justify-content: center;
+    background:    #000;
+    transition:    transform .12s;
+
+    &:hover { transform: scale(1.02); }
 
     video {
       width:      100%;
       height:     100%;
       object-fit: cover;
-      background: #000;
     }
   }
 
   &__grab-play {
-    position:    absolute;
-    font-size:   2rem;
-    color:       rgba(255,255,255,.9);
-    text-shadow: 0 2px 6px rgba(0,0,0,.6);
+    position:       absolute;
+    font-size:      2.2rem;
+    color:          rgba(255,255,255,.92);
+    text-shadow:    0 2px 8px rgba(0,0,0,.7);
     pointer-events: none;
-  }
-
-  &__grab-info {
-    display:        flex;
-    flex-direction: column;
-    gap:            3px;
-    min-width:      0;
-    font-size:      0.76rem;
   }
 
   &__grab-si {
     display:     flex;
     align-items: center;
     gap:         5px;
-    font-weight: 600;
+    margin-top:  2px;
+    font-size:   calc(11.5px * var(--font-size-scale, 1));
+    font-weight: 700;
     color:       #15803d;
   }
 
   &__grab-nombre {
+    font-size:     calc(10.5px * var(--font-size-scale, 1));
     color:         var(--ui-text-muted, #6b7280);
     white-space:   nowrap;
     overflow:      hidden;
@@ -2075,76 +2090,140 @@
   }
 
   &__grab-no {
-    display:     flex;
-    align-items: center;
-    gap:         6px;
-    font-size:   0.78rem;
-    font-style:  italic;
-    color:       var(--ui-text-muted, #6b7280);
+    display:       inline-flex;
+    align-items:   center;
+    gap:           7px;
+    align-self:    flex-start;
+    font-size:     calc(11.5px * var(--font-size-scale, 1));
+    font-style:    italic;
+    color:         var(--ui-text-muted, #6b7280);
+    background:    rgba(21,27,59,.04);
+    border-radius: 6px;
+    padding:       5px 10px;
 
-    &--abierta { color: #b45309; font-style: normal; }
+    &--abierta {
+      color:      #b45309;
+      background: rgba(245,158,11,.12);
+      font-style: normal;
+      font-weight: 600;
+    }
+  }
+
+  // ── Datos ───────────────────────────────────────────────────────────────
+  // auto-fill con tope de 200px (no 1fr): las pistas se empaquetan a la
+  // izquierda y el sobrante queda libre, en vez de estirarse hasta el borde.
+  &__datos {
+    display:               grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 200px));
+    justify-content:       start;
+    gap:                   10px 14px;
+  }
+
+  &__dato {
+    display:        flex;
+    flex-direction: column;
+    gap:            1px;
+    min-width:      0;
+    padding-left:   9px;
+    border-left:    2px solid rgba(8,166,203,.35);
+  }
+
+  &__lbl {
+    font-size:      calc(9.5px * var(--font-size-scale, 1));
+    text-transform: uppercase;
+    letter-spacing: .4px;
+    font-weight:    700;
+    color:          var(--ui-text-muted, #6b7280);
+  }
+
+  &__val {
+    font-size:   calc(12px * var(--font-size-scale, 1));
+    color:       var(--ui-text);
+    word-break:  break-word;
+    em { color: var(--ui-text-muted, #6b7280); font-size: calc(11px * var(--font-size-scale, 1)); }
+  }
+
+  &__link {
+    color:           #0e7490;
+    font-size:       calc(11.5px * var(--font-size-scale, 1));
+    text-decoration: none;
+    i { font-size: 10px; }
+    &:hover { text-decoration: underline; }
   }
 
   // ── Transcripción del chat ──────────────────────────────────────────────
-  &__chat { border-top: 1px dashed var(--ui-border, #e5e9f0); }
+  &__chat {
+    border-top:  1px dashed rgba(21,27,59,.12);
+    padding-top: 10px;
+  }
 
   &__chat-head {
     display:        flex;
     align-items:    center;
     gap:            7px;
-    padding:        8px 12px;
-    font-size:      0.72rem;
-    font-weight:    700;
+    margin-bottom:  8px;
+    font-size:      calc(10.5px * var(--font-size-scale, 1));
+    font-weight:    800;
     text-transform: uppercase;
-    letter-spacing: .3px;
+    letter-spacing: .4px;
     color:          var(--ui-text-muted, #6b7280);
   }
 
+  &__chat-n {
+    background:    rgba(8,166,203,.14);
+    color:         #0e7490;
+    border-radius: 999px;
+    padding:       1px 8px;
+    font-size:     calc(9.5px * var(--font-size-scale, 1));
+  }
+
   &__chat-vacio {
-    padding:    0 12px 10px;
-    font-size:  0.78rem;
+    font-size:  calc(11.5px * var(--font-size-scale, 1));
     font-style: italic;
     color:      var(--ui-text-muted, #6b7280);
   }
 
-  // Se limita la altura para que una conversación larga no empuje el resto del
-  // expediente fuera de la vista; el hilo se desplaza dentro de su caja.
+  // Acotado: una conversación no se lee si las burbujas quedan a 1500px una de
+  // otra. Y con tope de altura para que un chat largo no empuje el resto del
+  // expediente fuera de la vista.
   &__chat-hilo {
     display:        flex;
     flex-direction: column;
-    gap:            6px;
-    padding:        0 12px 12px;
-    max-height:     260px;
+    gap:            7px;
+    max-width:      780px;
+    max-height:     300px;
     overflow-y:     auto;
+    padding-right:  4px;
   }
 
-  // El ciudadano a la izquierda, el CAD a la derecha — misma convención que la
+  // Ciudadano a la izquierda, CAD a la derecha — misma convención que la
   // pantalla de la videollamada, para que se lea igual al revisar el caso.
   &__msg {
     align-self:    flex-start;
-    max-width:     78%;
-    padding:       6px 10px;
-    border-radius: 10px 10px 10px 2px;
-    background:    rgba(21,27,59,.06);
+    max-width:     72%;
+    padding:       6px 11px;
+    border-radius: 12px 12px 12px 3px;
+    background:    rgba(21,27,59,.055);
 
     &--cad {
       align-self:    flex-end;
-      border-radius: 10px 10px 2px 10px;
-      background:    rgba(8,166,203,.14);
+      border-radius: 12px 12px 3px 12px;
+      background:    rgba(8,166,203,.13);
     }
   }
 
   &__msg-meta {
-    display:     flex;
-    align-items: baseline;
-    gap:         8px;
-    font-size:   0.66rem;
-    color:       var(--ui-text-muted, #6b7280);
-    margin-bottom: 2px;
+    display:       flex;
+    align-items:   baseline;
+    gap:           8px;
+    margin-bottom: 1px;
+    font-size:     calc(9.5px * var(--font-size-scale, 1));
+    color:         var(--ui-text-muted, #6b7280);
+    strong { font-weight: 700; }
   }
 
   &__msg-texto {
-    font-size:   0.82rem;
+    font-size:   calc(12.5px * var(--font-size-scale, 1));
     color:       var(--ui-text);
     white-space: pre-wrap;
     word-break:  break-word;
@@ -2167,21 +2246,25 @@ html.dark-mode {
     background:   rgba(255,255,255,.03);
     border-color: rgba(255,255,255,.12);
 
-    &__head       { background: rgba(8,166,203,.12); border-bottom-color: rgba(255,255,255,.12); }
-    &__grab,
+    &__head       { background: rgba(255,255,255,.04); border-bottom-color: rgba(255,255,255,.12); }
     &__chat       { border-top-color: rgba(255,255,255,.12); }
     &__grab-card  { border-color: rgba(255,255,255,.12); }
-    &__val        { color: rgba(228,231,235,.92); }
+    &__val,
     &__atendio    { color: rgba(228,231,235,.92); }
     &__msg        { background: rgba(255,255,255,.07); }
     &__msg--cad   { background: rgba(8,166,203,.20); }
     &__msg-texto  { color: rgba(228,231,235,.92); }
+    &__link,
+    &__dur,
+    &__chat-n     { color: #67e8f9; }
     &__estado     { background: rgba(255,255,255,.10); color: rgba(228,231,235,.85); }
     &__estado--ok   { background: rgba(22,163,74,.22);  color: #4ade80; }
     &__estado--viva { background: rgba(37,99,235,.25);  color: #93c5fd; }
     &__estado--nula { background: rgba(220,38,38,.22);  color: #fca5a5; }
     &__grab-si      { color: #4ade80; }
-    &__grab-no--abierta { color: #fbbf24; }
+    &__grab-no      { background: rgba(255,255,255,.05); }
+    &__grab-no--abierta { color: #fbbf24; background: rgba(245,158,11,.15); }
+    &__dato         { border-left-color: rgba(8,166,203,.45); }
   }
 
   // Canales de atención (detalle del pedido)
