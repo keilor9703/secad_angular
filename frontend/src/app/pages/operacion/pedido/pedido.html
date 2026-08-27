@@ -1073,11 +1073,15 @@
 
                 <!-- ARCHIVOS MULTIMEDIA DEL CASO (fotos + grabaciones de videollamada) -->
                 @if (adjuntos().length > 0) {
-                  <div class="seg-section seg-tl-section">
-                    <div class="seg-section__head">
-                      <i class="fa-solid fa-photo-film"></i>
-                      Archivos multimedia
-                      <span class="seg-badge">{{ adjuntos().length }}</span>
+                  <div class="seg-tl-section">
+                    <div class="seg-tl-header">
+                      <div class="seg-tl-header__left">
+                        <i class="fa-solid fa-photo-film"></i>
+                        Archivos multimedia
+                        <span class="seg-tl-count">
+                          {{ adjuntos().length }} archivo{{ adjuntos().length !== 1 ? 's' : '' }}
+                        </span>
+                      </div>
                     </div>
                     <div class="ev-adjuntos-grid">
                       @for (adj of adjuntos(); track adj.id) {
@@ -1087,7 +1091,7 @@
                           <a [href]="adj.urlPublica" target="_blank"
                              class="ev-adjunto-card ev-adjunto-card--video" [title]="adj.nombreOriginal">
                             <div class="ev-adjunto-card__img ev-adjunto-card__img--video">
-                              <video [src]="adj.urlPublica" preload="metadata" muted></video>
+                              <video [src]="adj.urlPublica + '#t=0.5'" preload="metadata" muted></video>
                               <i class="fa-solid fa-circle-play ev-adjunto-card__play"></i>
                             </div>
                             <div class="ev-adjunto-video-meta">
@@ -1130,18 +1134,25 @@
                      crítico cuando el ciudadano no puede hablar).
                      ══════════════════════════════════════════════════════════════ -->
                 @if (videoSesiones().length > 0) {
-                  <div class="seg-section seg-tl-section">
-                    <div class="seg-section__head">
-                      <i class="fa-solid fa-video"></i>
-                      Videollamadas
-                      <span class="seg-badge">{{ videoSesiones().length }}</span>
+                  <div class="seg-tl-section">
+                    <div class="seg-tl-header">
+                      <div class="seg-tl-header__left">
+                        <i class="fa-solid fa-video"></i>
+                        Videollamadas
+                        <span class="seg-tl-count">
+                          {{ videoSesiones().length }} llamada{{ videoSesiones().length !== 1 ? 's' : '' }}
+                        </span>
+                      </div>
                     </div>
 
                     <div class="seg-vc-lista">
                       @for (vs of videoSesiones(); track vs.sesionId) {
-                        <div class="seg-vc">
+                        <!-- Sin grabación la columna del reproductor sobra: la tarjeta
+                             colapsa a una sola columna en vez de dejar un hueco. -->
+                        <div class="seg-vc"
+                             [class.seg-vc--sin-grab]="!(vs.tieneGrabacion && vs.grabacionUrl)">
 
-                          <!-- Cabecera: estado + quién atendió -->
+                          <!-- Cabecera: estado + quién atendió + cuándo -->
                           <div class="seg-vc__head">
                             <span class="seg-vc__estado"
                                   [class.seg-vc__estado--ok]="vs.estado === 'FINALIZADA'"
@@ -1153,103 +1164,111 @@
                               <i class="fa-solid fa-headset"></i>
                               Atendida por <strong>{{ vs.usuarioDespachador || '—' }}</strong>
                             </span>
-                          </div>
-
-                          <!-- Datos de trazabilidad -->
-                          <div class="seg-vc__datos">
-                            <div class="seg-vc__dato">
-                              <span class="seg-vc__lbl"><i class="fa-solid fa-paper-plane"></i> Enlace enviado</span>
-                              <span class="seg-vc__val">{{ formatFechaHora(vs.fechaCreacion) }}</span>
-                            </div>
-                            <div class="seg-vc__dato">
-                              <span class="seg-vc__lbl"><i class="fa-solid fa-play"></i> Inicio de la llamada</span>
-                              <span class="seg-vc__val">
-                                @if (vs.fechaConectado) { {{ formatFechaHora(vs.fechaConectado) }} }
-                                @else { <em>el ciudadano nunca se conectó</em> }
+                            @if (vs.duracionSegundos != null) {
+                              <span class="seg-vc__dur">
+                                <i class="fa-regular fa-clock"></i> {{ formatDuracion(vs.duracionSegundos) }}
                               </span>
-                            </div>
-                            <div class="seg-vc__dato">
-                              <span class="seg-vc__lbl"><i class="fa-solid fa-stop"></i> Fin</span>
-                              <span class="seg-vc__val">{{ formatFechaHora(vs.fechaFinalizado) }}</span>
-                            </div>
-                            <div class="seg-vc__dato">
-                              <span class="seg-vc__lbl"><i class="fa-regular fa-clock"></i> Duración</span>
-                              <span class="seg-vc__val">{{ formatDuracion(vs.duracionSegundos) }}</span>
-                            </div>
-                            @if (vs.numeroTelefono) {
-                              <div class="seg-vc__dato">
-                                <span class="seg-vc__lbl"><i class="fa-solid fa-phone"></i> Teléfono</span>
-                                <span class="seg-vc__val">{{ vs.numeroTelefono }}</span>
-                              </div>
                             }
-                            @if (vs.ultimaLat != null && vs.ultimaLng != null) {
-                              <div class="seg-vc__dato">
-                                <span class="seg-vc__lbl"><i class="fa-solid fa-location-dot"></i> Última ubicación</span>
-                                <span class="seg-vc__val">
-                                  <a [href]="urlMapaUbicacion(vs.ultimaLat, vs.ultimaLng)" target="_blank"
-                                     rel="noopener" class="seg-vc__link">
-                                    {{ vs.ultimaLat }}, {{ vs.ultimaLng }}
-                                  </a>
-                                </span>
-                              </div>
-                            }
+                            <span class="seg-vc__cuando">{{ formatFechaHora(vs.fechaCreacion) }}</span>
                           </div>
 
-                          <!-- Grabación asociada -->
-                          <div class="seg-vc__grab">
-                            @if (vs.tieneGrabacion && vs.grabacionUrl) {
-                              <a [href]="vs.grabacionUrl" target="_blank" rel="noopener"
-                                 class="seg-vc__grab-card" [title]="vs.grabacionNombre || 'Grabación'">
-                                <video [src]="vs.grabacionUrl" preload="metadata" muted></video>
-                                <i class="fa-solid fa-circle-play seg-vc__grab-play"></i>
-                              </a>
-                              <div class="seg-vc__grab-info">
+                          <div class="seg-vc__body">
+
+                            <!-- Grabación: riel izquierdo, lo primero que se busca al revisar -->
+                            <div class="seg-vc__grab">
+                              @if (vs.tieneGrabacion && vs.grabacionUrl) {
+                                <a [href]="vs.grabacionUrl" target="_blank" rel="noopener"
+                                   class="seg-vc__grab-card" [title]="vs.grabacionNombre || 'Grabación'">
+                                  <video [src]="vs.grabacionUrl + '#t=0.5'" preload="metadata" muted></video>
+                                  <i class="fa-solid fa-circle-play seg-vc__grab-play"></i>
+                                </a>
                                 <span class="seg-vc__grab-si"><i class="fa-solid fa-circle-check"></i> Con grabación</span>
-                                <span class="seg-vc__grab-nombre">{{ vs.grabacionNombre }}</span>
+                                <span class="seg-vc__grab-nombre" [title]="vs.grabacionNombre">{{ vs.grabacionNombre }}</span>
                                 <a [href]="vs.grabacionUrl" target="_blank" rel="noopener" class="seg-vc__link">
                                   <i class="fa-solid fa-download"></i> Abrir / descargar
                                 </a>
-                              </div>
-                            } @else if (vs.grabacionEstado === 'GRABANDO') {
-                              <span class="seg-vc__grab-no seg-vc__grab-no--abierta">
-                                <i class="fa-solid fa-circle-notch"></i>
-                                Grabación en curso — aún no se ha cerrado el archivo
-                              </span>
-                            } @else {
-                              <span class="seg-vc__grab-no">
-                                <i class="fa-regular fa-circle"></i> Sin grabación asociada
-                              </span>
-                            }
-                          </div>
-
-                          <!-- Transcripción del chat -->
-                          <div class="seg-vc__chat">
-                            <div class="seg-vc__chat-head">
-                              <i class="fa-regular fa-comments"></i>
-                              Chat de la videollamada
-                              <span class="seg-badge">{{ vs.chat.length }}</span>
+                              } @else if (vs.grabacionEstado === 'GRABANDO') {
+                                <span class="seg-vc__grab-no seg-vc__grab-no--abierta">
+                                  <i class="fa-solid fa-circle-notch"></i>
+                                  Grabación en curso — aún no se ha cerrado el archivo
+                                </span>
+                              } @else {
+                                <span class="seg-vc__grab-no">
+                                  <i class="fa-regular fa-circle"></i> Sin grabación asociada
+                                </span>
+                              }
                             </div>
-                            @if (vs.chat.length === 0) {
-                              <div class="seg-vc__chat-vacio">No se intercambiaron mensajes de texto.</div>
-                            } @else {
-                              <div class="seg-vc__chat-hilo">
-                                @for (m of vs.chat; track m.id) {
-                                  <div class="seg-vc__msg"
-                                       [class.seg-vc__msg--cad]="m.emisor === 'DESPACHADOR'">
-                                    <div class="seg-vc__msg-meta">
-                                      <strong>
-                                        @if (m.emisor === 'DESPACHADOR') { {{ m.usuario || 'Despachador' }} }
-                                        @else { Ciudadano }
-                                      </strong>
-                                      <span>{{ formatHoraChat(m.fecha) }}</span>
-                                    </div>
-                                    <div class="seg-vc__msg-texto">{{ m.texto }}</div>
-                                  </div>
-                                }
-                              </div>
-                            }
-                          </div>
 
+                            <!-- Trazabilidad: pistas compactas, no una fila dispersa -->
+                            <div class="seg-vc__datos">
+                              <div class="seg-vc__dato">
+                                <span class="seg-vc__lbl">Enlace enviado</span>
+                                <span class="seg-vc__val">{{ formatFechaHora(vs.fechaCreacion) }}</span>
+                              </div>
+                              <div class="seg-vc__dato">
+                                <span class="seg-vc__lbl">Inicio de la llamada</span>
+                                <span class="seg-vc__val">
+                                  @if (vs.fechaConectado) { {{ formatFechaHora(vs.fechaConectado) }} }
+                                  @else { <em>nunca se conectó</em> }
+                                </span>
+                              </div>
+                              <div class="seg-vc__dato">
+                                <span class="seg-vc__lbl">Fin</span>
+                                <span class="seg-vc__val">{{ formatFechaHora(vs.fechaFinalizado) }}</span>
+                              </div>
+                              <div class="seg-vc__dato">
+                                <span class="seg-vc__lbl">Duración</span>
+                                <span class="seg-vc__val">{{ formatDuracion(vs.duracionSegundos) }}</span>
+                              </div>
+                              @if (vs.numeroTelefono) {
+                                <div class="seg-vc__dato">
+                                  <span class="seg-vc__lbl">Teléfono</span>
+                                  <span class="seg-vc__val">{{ vs.numeroTelefono }}</span>
+                                </div>
+                              }
+                              @if (vs.ultimaLat != null && vs.ultimaLng != null) {
+                                <div class="seg-vc__dato">
+                                  <span class="seg-vc__lbl">Última ubicación</span>
+                                  <span class="seg-vc__val">
+                                    <a [href]="urlMapaUbicacion(vs.ultimaLat, vs.ultimaLng)" target="_blank"
+                                       rel="noopener" class="seg-vc__link">
+                                      <i class="fa-solid fa-location-dot"></i>
+                                      {{ vs.ultimaLat }}, {{ vs.ultimaLng }}
+                                    </a>
+                                  </span>
+                                </div>
+                              }
+                            </div>
+
+                            <!-- Transcripción del chat -->
+                            <div class="seg-vc__chat">
+                              <div class="seg-vc__chat-head">
+                                <i class="fa-regular fa-comments"></i>
+                                Chat de la videollamada
+                                <span class="seg-vc__chat-n">{{ vs.chat.length }}</span>
+                              </div>
+                              @if (vs.chat.length === 0) {
+                                <div class="seg-vc__chat-vacio">No se intercambiaron mensajes de texto.</div>
+                              } @else {
+                                <div class="seg-vc__chat-hilo">
+                                  @for (m of vs.chat; track m.id) {
+                                    <div class="seg-vc__msg"
+                                         [class.seg-vc__msg--cad]="m.emisor === 'DESPACHADOR'">
+                                      <div class="seg-vc__msg-meta">
+                                        <strong>
+                                          @if (m.emisor === 'DESPACHADOR') { {{ m.usuario || 'Despachador' }} }
+                                          @else { Ciudadano }
+                                        </strong>
+                                        <span>{{ formatHoraChat(m.fecha) }}</span>
+                                      </div>
+                                      <div class="seg-vc__msg-texto">{{ m.texto }}</div>
+                                    </div>
+                                  }
+                                </div>
+                              }
+                            </div>
+
+                          </div><!-- /seg-vc__body -->
                         </div>
                       }
                     </div>
