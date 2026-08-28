@@ -38,6 +38,7 @@
     "@microsoft/signalr": "^8.0.29",
     "@policia/mfa": "file:dist-libs/policia-mfa-1.0.0.tgz",
     "exceljs": "^4.4.0",
+    "flatpickr": "^4.6.13",
     "ngx-editor": "^19.0.0-beta.1",
     "rxjs": "~7.8.0",
     "tslib": "^2.3.0",

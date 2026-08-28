@@ -1,0 +1,73 @@
+<label
+  class="form-field"
+  [class.form-field--focused]="focused"
+  [class.form-field--filled]="shouldFloat"
+  [class.form-field--invalid]="error"
+  [class.form-field--disabled]="isDisabled"
+  [class.form-field--multiline]="multiline"
+  [class.form-field--label-floating]="labelMode() === 'floating'"
+  [class.form-field--label-active]="labelMode() === 'floating' && shouldFloat"
+  >
+  @if (label) {
+    <span class="form-field__label">
+      {{ label }}
+      @if (required && showRequiredMarker()) {
+        <strong class="form-field__required-marker" [class.is-invalid]="!!error" aria-hidden="true">
+          *
+        </strong>
+      }
+    </span>
+  }
+
+  <span class="form-field__control">
+    @if (multiline) {
+      <textarea
+        class="form-field__native"
+        [id]="inputId"
+        [rows]="rows"
+        [placeholder]="placeholder"
+        [readonly]="readonly"
+        [disabled]="isDisabled"
+        [attr.maxlength]="maxlength"
+        [attr.aria-required]="required"
+        [attr.aria-describedby]="describedBy"
+        [attr.aria-invalid]="!!error"
+        [value]="value"
+        (input)="handleInput($event)"
+        (focus)="handleFocus()"
+        (blur)="handleBlur()"
+      ></textarea>
+    } @else {
+      <input
+        class="form-field__native"
+        [id]="inputId"
+        [type]="type"
+        [placeholder]="placeholder"
+        [autocomplete]="autocomplete"
+        [readonly]="readonly"
+        [disabled]="isDisabled"
+        [attr.maxlength]="maxlength"
+        [attr.aria-required]="required"
+        [attr.aria-describedby]="describedBy"
+        [attr.aria-invalid]="!!error"
+        [value]="value"
+        (input)="handleInput($event)"
+        (focus)="handleFocus()"
+        (blur)="handleBlur()"
+        (keydown.enter)="handleEnter()"
+        />
+      }
+
+
+      @if (icon) {
+        <i class="form-field__icon" [class]="icon"></i>
+      }
+    </span>
+
+    @if (error) {
+      <small class="form-field__error" [id]="inputId + '-error'">{{ error }}</small>
+    }
+    @if (hint && !error) {
+      <small class="form-field__hint" [id]="inputId + '-hint'">{{ hint }}</small>
+    }
+  </label>

@@ -1,0 +1,337 @@
+@use '../../../../styles/components/form-control-sizing' as form-sizing;
+@use '../../../../styles/components/floating-label' as floating-label;
+
+:host {
+  --_form-inset-shadow: var(
+    --form-control-inset-shadow,
+    inset 0 1px 2px rgba(15, 23, 42, 0.05),
+    inset 0 0 0 1px rgba(148, 163, 184, 0.025)
+  );
+
+  @include form-sizing.host-sizing;
+}
+
+.form-select {
+  position: relative;
+  width: 100%;
+}
+
+.form-select__label {
+  @include floating-label.surface;
+
+  position: absolute;
+  top: -8px;
+  left: 11px;
+  z-index: 3;
+  color: var(--form-label-color, #334155);
+  font-size: calc(11px * var(--font-size-scale));
+  font-weight: 700;
+  line-height: 1.2;
+  max-width: calc(100% - 22px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  @include floating-label.animated-transition;
+}
+
+.form-select__required-marker {
+  margin-left: 2px;
+  color: var(--form-required-marker-color, #111827);
+  transition: color 150ms ease;
+}
+
+.form-select__required-marker.is-invalid {
+  color: var(--form-error-color, #b42318);
+}
+
+.form-select__control {
+  position: relative;
+  width: 100%;
+  height: var(--_form-control-height);
+  min-height: var(--_form-control-height);
+  border: 1px solid var(--form-border-color, #cbd5e1);
+  border-radius: var(--form-border-radius, 7px);
+  outline: 0;
+  background: var(--form-bg, #fff);
+  color: var(--ui-text, #0f172a);
+  padding: 0 38px 0 12px;
+  display: flex;
+  align-items: center;
+  text-align: left;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: calc(13px * var(--font-size-scale));
+  box-shadow: var(--_form-inset-shadow);
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.form-select__control--with-clear {
+  padding-right: 64px;
+}
+
+.form-select__value {
+  display: block;
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.form-select__value.is-placeholder {
+  color: #8a8f98;
+  transition: color 120ms ease;
+}
+
+.form-select--label-floating .form-select__label {
+  @include floating-label.animated-idle;
+}
+
+.form-select--label-floating:not(.form-select--label-active)
+  .form-select__value.is-placeholder {
+  color: transparent;
+}
+
+.form-select--label-floating.form-select--label-active .form-select__label,
+.form-select--label-floating:focus-within .form-select__label {
+  @include floating-label.animated-active;
+}
+
+.form-select--label-floating:focus-within .form-select__value.is-placeholder {
+  color: #8a8f98;
+}
+
+.form-select--invalid .form-select__label {
+  color: var(--form-error-color, #b42318);
+}
+
+.form-select--disabled .form-select__label {
+  color: var(--form-hint-color, #64748b);
+}
+
+.form-select__clear {
+  position: absolute;
+  top: 50%;
+  right: 34px;
+  display: grid;
+  width: 24px;
+  height: 24px;
+  place-items: center;
+  font-size: 18px;
+  line-height: 1;
+  color: #64748b;
+  transform: translateY(-50%);
+}
+
+.form-select__arrow {
+  position: absolute;
+  top: 50%;
+  right: 14px;
+  width: 8px;
+  height: 8px;
+  border-right: 2px solid #53565a;
+  border-bottom: 2px solid #53565a;
+  transform: translateY(-65%) rotate(45deg);
+  transition: transform 0.15s ease;
+}
+
+.form-select--open .form-select__arrow {
+  transform: translateY(-35%) rotate(225deg);
+}
+
+.form-select--open .form-select__control {
+  border-color: var(--form-focus-color, #1f4e79);
+  box-shadow:
+    var(--_form-inset-shadow),
+    0 0 0 3px rgba(31, 78, 121, 0.12);
+}
+
+/* Reemplaza el contorno negro nativo por un foco institucional exterior. */
+.form-select__control:focus-visible {
+  border-color: var(--form-focus-color, #1f4e79);
+  box-shadow:
+    var(--_form-inset-shadow),
+    0 0 0 3px rgba(31, 78, 121, 0.14);
+}
+
+.form-select--invalid .form-select__control {
+  border-color: var(--form-error-color, #b42318);
+}
+
+.form-select--invalid.form-select--open .form-select__control {
+  box-shadow:
+    var(--_form-inset-shadow),
+    0 0 0 3px rgba(180, 35, 24, 0.12);
+}
+
+.form-select__panel {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  padding: 7px;
+  border-radius: 10px;
+  background: var(--form-bg, #fff);
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  box-shadow: 0 14px 34px rgba(2, 6, 23, 0.16);
+  display: grid;
+  gap: 3px;
+  max-height: min(280px, calc(100vh - 24px));
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  visibility: hidden;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-5px) scale(0.992);
+  transform-origin: top center;
+}
+
+.form-select__panel.is-positioned {
+  visibility: visible;
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0) scale(1);
+  transition:
+    opacity 140ms ease,
+    transform 140ms ease;
+}
+
+.form-select__panel--above {
+  transform: translateY(5px) scale(0.992);
+  transform-origin: bottom center;
+}
+
+.form-select__panel--above.is-positioned {
+  transform: translateY(0) scale(1);
+}
+
+.form-select__search {
+  position: sticky;
+  z-index: 1;
+  top: 0;
+  width: 100%;
+  border: 1px solid var(--form-border-color, #cbd5e1);
+  border-radius: 7px;
+  padding: 9px 10px;
+  outline: 0;
+  font-family: inherit;
+  font-size: calc(13px * var(--font-size-scale));
+  box-shadow: var(--_form-inset-shadow);
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.form-select__search:focus {
+  border-color: var(--form-focus-color, #1f4e79);
+  box-shadow:
+    var(--_form-inset-shadow),
+    0 0 0 2px rgba(31, 78, 121, 0.1);
+}
+
+.form-select__option {
+  width: 100%;
+  min-height: 36px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--ui-text, #0f172a);
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr);
+  align-items: center;
+  text-align: left;
+  padding: 0 9px;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: calc(13px * var(--font-size-scale));
+}
+
+.form-select__option-check {
+  justify-self: center;
+  color: var(--form-focus-color, #1f4e79);
+  opacity: 0;
+  transform: scale(0.72);
+  transition:
+    opacity 140ms ease,
+    transform 140ms ease;
+}
+
+.form-select__option-check.is-visible {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.form-select__option-label {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.form-select__option:hover,
+.form-select__option.is-selected {
+  background: rgba(15, 23, 42, 0.07);
+}
+
+.form-select__option:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.form-select__empty {
+  padding: 10px;
+  color: var(--form-hint-color, #64748b);
+  font-size: calc(12px * var(--font-size-scale));
+}
+
+.form-select__hint,
+.form-select__error {
+  display: block;
+  margin-top: 5px;
+  font-size: calc(11px * var(--font-size-scale));
+}
+
+.form-select__hint {
+  color: var(--form-hint-color, #64748b);
+}
+
+.form-select__error {
+  color: var(--form-error-color, #b42318);
+  font-weight: 700;
+}
+
+:host-context(html.dark-mode) {
+  --_form-inset-shadow: var(
+    --form-control-inset-shadow-dark,
+    inset 0 1px 2px rgba(0, 0, 0, 0.16),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.02)
+  );
+
+  .form-select__control,
+  .form-select__panel {
+    background: #1e2840;
+  }
+
+  .form-select__control,
+  .form-select__option {
+    color: var(--ui-text);
+  }
+
+  .form-select__search {
+    background: #252f45;
+    color: var(--ui-text);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .form-select__label,
+  .form-select__value.is-placeholder {
+    transition: none;
+  }
+}

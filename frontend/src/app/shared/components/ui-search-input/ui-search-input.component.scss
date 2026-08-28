@@ -1,0 +1,273 @@
+@use '../../../../styles/components/form-control-sizing' as form-sizing;
+@use '../../../../styles/components/floating-label' as floating-label;
+
+:host {
+  --_form-inset-shadow: var(
+    --form-control-inset-shadow,
+    inset 0 1px 2px rgba(15, 23, 42, 0.05),
+    inset 0 0 0 1px rgba(148, 163, 184, 0.025)
+  );
+
+  @include form-sizing.host-sizing;
+}
+
+.search-field {
+  position: relative;
+  width: 100%;
+}
+
+.search-field__label {
+  @include floating-label.surface;
+
+  position: absolute;
+  top: -8px;
+  left: 11px;
+  z-index: 2;
+  color: var(--form-label-color, #334155);
+  font-size: calc(11px * var(--font-size-scale));
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.search-field__required-marker {
+  margin-left: 2px;
+  color: var(--form-required-marker-color, #111827);
+  transition: color 150ms ease;
+}
+
+.search-field__required-marker.is-invalid {
+  color: var(--form-error-color, #b42318);
+}
+
+.search-field__control {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: stretch;
+  width: 100%;
+  min-width: 0;
+}
+
+.search-field__control--attached {
+  gap: 0;
+}
+
+.search-field__control--detached {
+  gap: var(--search-button-gap, 8px);
+}
+
+.search-field__control--without-button {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.search-field__shell {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  min-width: 0;
+  height: var(--_form-control-height);
+  min-height: var(--_form-control-height);
+  border: 1px solid var(--form-border-color, #cbd5e1);
+  border-radius: var(--form-border-radius, 7px);
+  overflow: hidden;
+  background: var(--form-bg, #fff);
+  box-shadow: var(--_form-inset-shadow);
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.search-field__shell--without-button {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+}
+
+.search-field__control--attached .search-field__shell {
+  border-radius: var(--form-border-radius, 7px) 0 0 var(--form-border-radius, 7px);
+}
+
+.search-field__leading-icon {
+  display: grid;
+  width: 38px;
+  height: 100%;
+  place-items: center;
+  align-self: center;
+  color: #718096;
+  font-size: calc(12px * var(--font-size-scale));
+  pointer-events: none;
+}
+
+.search-field__shell--without-button .search-field__input {
+  padding-left: 0;
+}
+
+.search-field__input {
+  min-width: 0;
+  height: 100%;
+  border: 0;
+  outline: 0;
+  padding: 0 11px;
+  font-family: inherit;
+  font-size: calc(13px * var(--font-size-scale));
+  background: transparent;
+  color: var(--ui-text, #0f172a);
+}
+
+.search-field__input::placeholder {
+  color: #8a8f98;
+}
+
+.search-field__clear {
+  border: 0;
+  border-left: 1px solid var(--form-border-color, #cbd5e1);
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.search-field__clear {
+  width: 38px;
+  background: transparent;
+  color: #64748b;
+  font-size: 18px;
+}
+
+.search-field__button {
+  align-self: stretch;
+  min-width: max-content;
+  --ui-button-height: var(--_form-control-height);
+}
+
+.search-field__control--attached .search-field__button {
+  margin-left: -1px;
+  --ui-button-radius: 0 var(--form-border-radius, 7px) var(--form-border-radius, 7px) 0;
+}
+
+.search-field__control--detached .search-field__button {
+  --ui-button-radius: var(--form-border-radius, 7px);
+}
+
+.search-field--focused .search-field__shell {
+  border-color: var(--form-focus-color, #1f4e79);
+  box-shadow:
+    var(--_form-inset-shadow),
+    0 0 0 3px rgba(31, 78, 121, 0.12);
+}
+
+.search-field--invalid .search-field__shell {
+  border-color: var(--form-error-color, #b42318);
+}
+
+.search-field--invalid.search-field--focused .search-field__shell {
+  box-shadow:
+    var(--_form-inset-shadow),
+    0 0 0 3px rgba(180, 35, 24, 0.12);
+}
+
+.search-field--disabled {
+  opacity: 0.75;
+}
+
+.search-field--disabled .search-field__shell {
+  background: var(--form-disabled-bg, #f1f5f9);
+}
+
+.search-field__hint,
+.search-field__error {
+  display: block;
+  margin-top: 5px;
+  font-size: calc(11px * var(--font-size-scale));
+}
+
+.search-field__hint {
+  color: var(--form-hint-color, #64748b);
+}
+
+.search-field__error {
+  color: var(--form-error-color, #b42318);
+  font-weight: 700;
+}
+
+@media (max-width: 640px) {
+  .search-field__shell {
+    /*
+     * En móvil todos los controles permanecen en una sola fila.
+     * Las columnas automáticas reservan espacio para limpiar y buscar
+     * sin permitir que esos botones compriman el campo de texto.
+     */
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-rows: var(--_form-control-height);
+  }
+
+  .search-field__shell--without-button {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+  }
+
+  .search-field__input {
+    grid-column: 1;
+    grid-row: 1;
+    min-width: 0;
+    height: var(--_form-control-height);
+    min-height: var(--_form-control-height);
+    padding: 9px 12px;
+    line-height: 1.25;
+  }
+
+  .search-field__clear {
+    grid-column: 2;
+    grid-row: 1;
+    height: var(--_form-control-height);
+    min-height: var(--_form-control-height);
+  }
+
+  .search-field__button {
+    grid-column: 2;
+    grid-row: 1;
+    min-width: 0;
+  }
+
+  .search-field__shell--without-button .search-field__leading-icon {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .search-field__shell--without-button .search-field__input {
+    grid-column: 2;
+    grid-row: 1;
+    padding-left: 0;
+  }
+
+  .search-field__shell--without-button .search-field__clear {
+    grid-column: 3;
+    grid-row: 1;
+  }
+
+  /*
+   * Comportamiento móvil predeterminado. Solo oculta el texto visual:
+   * title y aria-label conservan el nombre accesible de la acción.
+   */
+}
+
+:host-context(html.dark-mode) {
+  --_form-inset-shadow: var(
+    --form-control-inset-shadow-dark,
+    inset 0 1px 2px rgba(0, 0, 0, 0.16),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.02)
+  );
+
+  .search-field__shell {
+    background: #1e2840;
+  }
+
+  .search-field__input {
+    color: var(--ui-text);
+  }
+
+  .search-field__input::placeholder {
+    color: #9ca3af;
+  }
+
+  .search-field__clear {
+    color: #cbd5e1;
+  }
+
+  .search-field__leading-icon {
+    color: #aeb9ca;
+  }
+}

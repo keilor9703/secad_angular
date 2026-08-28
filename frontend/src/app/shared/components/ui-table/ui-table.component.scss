@@ -1,0 +1,602 @@
+:host {
+  display: block;
+  width: 100%;
+}
+
+.ui-table-panel {
+  --ui-table-action-cell-surface: var(--ui-surface, #ffffff);
+  --ui-table-body-text-color: var(--ui-table-body-text-color-light, #5b708a);
+  --ui-table-body-font-size: 13px;
+  --ui-table-body-font-weight: 600;
+  --ui-table-body-text-transform: none;
+  --ui-table-row-height: auto;
+  --ui-table-row-padding-block: 14px;
+  --ui-table-header-color-middle: color-mix(
+    in srgb,
+    var(--ui-table-header-color) 48%,
+    var(--ui-table-header-color-end)
+  );
+  /*
+   * El degradado es vertical para que no se reinicie visualmente con un tono
+   * diferente en columnas de distinto ancho.
+   */
+  --ui-table-header-background:
+    linear-gradient(180deg, rgba(3, 22, 38, 0.05) 0%, rgba(3, 22, 38, 0.13) 100%),
+    linear-gradient(
+      180deg,
+      var(--ui-table-header-color) 0%,
+      var(--ui-table-header-color-middle) 52%,
+      var(--ui-table-header-color-end) 100%
+    );
+  --ui-table-header-border-color: color-mix(
+    in srgb,
+    var(--ui-table-header-text-color) 24%,
+    transparent
+  );
+  border-color: rgba(148, 163, 184, 0.18);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.05);
+  margin-top: 0;
+}
+
+.ui-table-panel .ui-panel__body {
+  padding: 18px 16px 0;
+}
+
+/*
+ * Modo embebido: evita una tarjeta duplicada cuando el consumidor ya aporta
+ * su propio contenedor visual. No modifica la caja ni el scroll de la grilla.
+ */
+.ui-table-panel.ui-table-panel--embedded {
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  overflow: visible;
+}
+
+.ui-table-panel.ui-table-panel--embedded .ui-panel__body {
+  padding: 0;
+}
+
+.ui-table-filters {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 22px;
+}
+
+.ui-table-toolbar {
+  display: block;
+  margin-bottom: 18px;
+}
+
+.ui-table-toolbar:empty {
+  display: none;
+}
+
+.ui-table-filter {
+  min-width: 0;
+}
+
+.ui-table-viewport {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+}
+
+.ui-table-panel .ui-table-wrap {
+  border-color: rgba(148, 163, 184, 0.22);
+  border-radius: 2px;
+  background: #fff;
+  max-height: 400px;
+  overflow: auto;
+}
+
+.ui-table-panel .ui-table {
+  border-collapse: separate;
+  border-spacing: 0;
+  color: #5b708a;
+  font-size: calc(var(--ui-table-body-font-size) * var(--font-size-scale));
+  min-width: var(--ui-table-min-width, 980px);
+}
+
+.ui-table th {
+  white-space: nowrap;
+}
+
+// .ui-table-panel .ui-table thead th {
+//   background-color: rgba(var(--bs-light-rgb, 248, 249, 250), 0.75);
+//   border-bottom: 1px solid rgba(148, 163, 184, 0.24);
+//   border-right: 1px solid rgba(148, 163, 184, 0.2);
+//   color: #5d7087;
+//   font-size: calc(12px * var(--font-size-scale));
+//   font-weight: 800;
+//   letter-spacing: 0;
+//   padding: 12px 14px;
+//   text-transform: none;
+// }
+
+/* Compatibilidad con las variables de tabla de Bootstrap sin fijar colores. */
+.ui-table-panel .ui-table > thead {
+  --bs-table-bg: transparent;
+  --bs-table-color: var(--ui-table-header-text-color);
+  --bs-table-accent-bg: transparent;
+  --bs-table-striped-bg: transparent;
+  --bs-table-hover-bg: transparent;
+  --bs-table-active-bg: transparent;
+}
+
+.ui-table-panel .ui-table > thead > tr > th {
+  background: var(--ui-table-header-background);
+  background-color: transparent;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.14),
+    inset 0 -2px 0 var(--ui-table-header-border-color);
+  border-bottom: 0;
+  border-right: 1px solid color-mix(in srgb, var(--ui-table-header-text-color) 16%, transparent);
+  color: var(--ui-table-header-text-color);
+  font-size: calc(12px * var(--font-size-scale));
+  font-weight: 800;
+  letter-spacing: 0;
+  padding: 12px 14px;
+  text-transform: none;
+  transition: filter 160ms ease;
+}
+
+/*
+ * Variante limpia inspirada en tablas de datos administrativas:
+ * conserva tipografía, ordenamiento, densidad y colores configurables, pero
+ * elimina el relleno institucional del encabezado y las divisiones verticales.
+ */
+.ui-table-panel--plain .ui-table-wrap {
+  border: 0;
+  border-top: 1px solid rgba(148, 163, 184, 0.2);
+  border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 0;
+}
+
+.ui-table-panel--plain .ui-table > thead > tr > th {
+  border-right: 0;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.28);
+  background: var(--ui-surface, #ffffff);
+  box-shadow: none;
+  color: var(--ui-table-header-text-color);
+}
+
+.ui-table-panel--plain .ui-table > thead > tr > th.is-sortable:hover {
+  background: #f7f9fc;
+  color: var(--policia-medio, #1f4e79);
+  filter: none;
+}
+
+.ui-table-panel--plain .ui-table thead .ui-table-sort-button i {
+  color: #77879a;
+}
+
+.ui-table-panel--plain .ui-table > thead > tr > th[aria-sort='ascending'],
+.ui-table-panel--plain .ui-table > thead > tr > th[aria-sort='descending'] {
+  box-shadow: inset 0 -2px 0 var(--policia-cielo, #08a6cb);
+}
+
+.ui-table-panel--plain .ui-table > thead > tr > th[aria-sort='ascending'] .ui-table-sort-button i,
+.ui-table-panel--plain .ui-table > thead > tr > th[aria-sort='descending'] .ui-table-sort-button i {
+  color: var(--policia-medio, #1f4e79);
+}
+
+.ui-table-panel .ui-table--sticky-header thead th {
+  position: sticky;
+  top: 0;
+  z-index: 4;
+}
+
+.ui-table-panel .ui-table thead th:last-child,
+.ui-table-panel .ui-table tbody td:last-child {
+  border-right: 0;
+}
+
+.ui-table th > span,
+.ui-table-sort-button span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ui-table-sort-button {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  font-weight: inherit;
+  gap: 10px;
+  padding: 0;
+  text-align: inherit;
+}
+
+.ui-table th.align-left .ui-table-sort-button {
+  justify-content: flex-start;
+}
+
+.ui-table th.align-center .ui-table-sort-button {
+  justify-content: center;
+}
+
+.ui-table th.align-right .ui-table-sort-button {
+  justify-content: flex-end;
+}
+
+.ui-table-panel .ui-table thead .ui-table-sort-button i {
+  margin-left: auto;
+  color: color-mix(in srgb, var(--ui-table-header-text-color) 78%, transparent);
+  font-size: calc(11px * var(--font-size-scale));
+  transition:
+    color 160ms ease,
+    transform 160ms ease;
+}
+
+.ui-table th.is-sortable {
+  user-select: none;
+}
+
+.ui-table-panel .ui-table > thead > tr > th.is-sortable:hover {
+  color: var(--ui-table-header-text-color);
+  filter: brightness(1.1);
+}
+
+.ui-table-panel .ui-table > thead > tr > th[aria-sort='ascending'],
+.ui-table-panel .ui-table > thead > tr > th[aria-sort='descending'] {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.14),
+    inset 0 -3px 0 #c8ff00;
+}
+
+.ui-table-panel .ui-table > thead > tr > th[aria-sort='ascending'] .ui-table-sort-button i,
+.ui-table-panel .ui-table > thead > tr > th[aria-sort='descending'] .ui-table-sort-button i {
+  color: #c8ff00;
+}
+
+.ui-table-sort-button:focus-visible {
+  border-radius: 3px;
+  outline: 2px solid #c8ff00;
+  outline-offset: 4px;
+}
+
+.ui-table-panel .ui-table tbody tr:not(.ui-table-loading-row) {
+  height: var(--ui-table-current-row-height, var(--ui-table-row-height));
+  background: var(--ui-table-row-background-light, transparent);
+}
+
+.ui-table-panel .ui-table tbody tr.is-selected {
+  box-shadow: inset 3px 0 0 var(--ui-table-row-accent-color, var(--policia-cielo, #08a6cb));
+}
+
+.ui-table-panel .ui-table tbody td {
+  border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+  border-right: 1px solid rgba(148, 163, 184, 0.16);
+  color: var(
+    --ui-table-cell-text-color-light,
+    var(--ui-table-row-text-color-light, var(--ui-table-body-text-color))
+  );
+  font-size: calc(
+    var(--ui-table-cell-font-size, var(--ui-table-row-font-size, var(--ui-table-body-font-size))) *
+      var(--font-size-scale)
+  );
+  font-weight: var(
+    --ui-table-cell-font-weight,
+    var(--ui-table-row-font-weight, var(--ui-table-body-font-weight))
+  );
+  padding: var(--ui-table-current-row-padding-block, var(--ui-table-row-padding-block)) 14px;
+  text-transform: var(--ui-table-cell-text-transform, var(--ui-table-body-text-transform));
+}
+
+.ui-table-panel--plain .ui-table tbody td {
+  border-right: 0;
+  background: transparent;
+}
+
+.ui-table-panel .ui-table tbody tr:hover {
+  background: rgba(241, 245, 249, 0.7);
+}
+
+.ui-table-panel .ui-table tbody tr.is-selected:hover {
+  background: var(--ui-table-row-background-light, rgba(225, 244, 249, 0.88));
+}
+
+.ui-table-panel .ui-table tbody .ui-table-loading-cell {
+  height: 142px;
+  padding: 0;
+  border-right: 0;
+  background:
+    linear-gradient(180deg, rgba(248, 250, 252, 0.82), rgba(255, 255, 255, 0.96)), #ffffff;
+}
+
+.ui-table-panel .ui-table tbody .ui-table-loading-row:hover {
+  background: transparent;
+}
+
+.ui-table-loading-overlay {
+  position: absolute;
+  inset: 43px 1px 1px;
+  z-index: 7;
+  display: grid;
+  place-items: center;
+  min-width: 0;
+  padding: 18px;
+  overflow: hidden;
+  background:
+    linear-gradient(180deg, rgba(248, 250, 252, 0.82), rgba(255, 255, 255, 0.96)), #ffffff;
+  pointer-events: none;
+}
+
+.ui-table-loading-overlay app-ui-spinner {
+  display: inline-block;
+  max-width: calc(100% - 24px);
+}
+
+.align-center {
+  text-align: center;
+}
+
+.align-right {
+  text-align: right;
+}
+
+.ui-table-panel .ui-table .ui-table-actions-header,
+.ui-table-panel .ui-table .ui-table-actions-cell {
+  width: 92px;
+  min-width: 92px;
+  text-align: center;
+}
+
+.ui-table-panel .ui-table--sticky-actions.ui-table--actions-start .ui-table-actions-header,
+.ui-table-panel .ui-table--sticky-actions.ui-table--actions-start .ui-table-actions-cell {
+  position: sticky;
+  left: 0;
+  right: auto;
+}
+
+.ui-table-panel .ui-table--sticky-actions.ui-table--actions-end .ui-table-actions-header,
+.ui-table-panel .ui-table--sticky-actions.ui-table--actions-end .ui-table-actions-cell {
+  position: sticky;
+  right: 0;
+  left: auto;
+}
+
+.ui-table-panel .ui-table--sticky-actions .ui-table-actions-header {
+  z-index: 6;
+  box-shadow: 8px 0 14px rgba(15, 23, 42, 0.05);
+}
+
+.ui-table-panel .ui-table--sticky-actions.ui-table--actions-end .ui-table-actions-header {
+  box-shadow: -8px 0 14px rgba(15, 23, 42, 0.05);
+}
+
+.ui-table-panel .ui-table .ui-table-actions-cell {
+  padding: 4px 8px;
+  /*
+   * La primera capa conserva el resaltado de fila y la segunda garantiza una
+   * superficie opaca cuando la columna sticky pasa sobre otras celdas.
+   */
+  background:
+    linear-gradient(
+      var(--ui-table-row-background-light, transparent),
+      var(--ui-table-row-background-light, transparent)
+    ),
+    var(--ui-table-action-cell-surface);
+  background-clip: padding-box;
+  isolation: isolate;
+  transition: background-color 150ms ease;
+}
+
+.ui-table-panel .ui-table--sticky-actions .ui-table-actions-cell {
+  z-index: 3;
+  box-shadow: 8px 0 14px rgba(15, 23, 42, 0.035);
+}
+
+.ui-table-panel .ui-table--sticky-actions.ui-table--actions-end .ui-table-actions-cell {
+  box-shadow: -8px 0 14px rgba(15, 23, 42, 0.035);
+}
+
+.ui-table-panel .ui-table tbody tr:hover .ui-table-actions-cell {
+  background:
+    linear-gradient(rgba(241, 245, 249, 0.78), rgba(241, 245, 249, 0.78)),
+    linear-gradient(
+      var(--ui-table-row-background-light, transparent),
+      var(--ui-table-row-background-light, transparent)
+    ),
+    var(--ui-table-action-cell-surface);
+}
+
+.ui-table-panel .ui-table tbody tr.is-selected .ui-table-actions-cell,
+.ui-table-panel .ui-table tbody tr.is-selected:hover .ui-table-actions-cell {
+  background:
+    linear-gradient(
+      var(--ui-table-row-background-light, #eaf7fb),
+      var(--ui-table-row-background-light, #eaf7fb)
+    ),
+    var(--ui-table-action-cell-surface);
+}
+
+.ui-table-actions-cell app-ui-table-actions {
+  width: 100%;
+}
+
+.ui-table-panel .ui-table--hover-actions .ui-table-actions-header,
+.ui-table-panel .ui-table--hover-actions .ui-table-actions-cell {
+  box-sizing: border-box;
+  width: 54px;
+  min-width: 54px;
+  max-width: 54px;
+  overflow: visible;
+}
+
+.ui-table-panel .ui-table--hover-actions .ui-table-actions-header {
+  padding-right: 8px;
+  padding-left: 8px;
+}
+
+.ui-table-panel .ui-table--hover-actions .ui-table-actions-cell app-ui-table-actions {
+  overflow: visible;
+}
+
+app-ui-pagination {
+  display: block;
+  width: 100%;
+}
+
+.ui-table-panel .ui-table .ui-badge {
+  border-color: transparent;
+  gap: 5px;
+  line-height: 1;
+  padding: 5px 9px;
+}
+
+.ui-table-panel .ui-table .ui-badge.success {
+  background: #dcfce7;
+  color: #008236;
+}
+
+.ui-table-panel .ui-table .ui-badge.warning {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.ui-table-panel .ui-table .ui-badge.danger {
+  background: #fee2e2;
+  color: #b42318;
+}
+
+.ui-table-panel .ui-table .ui-badge i {
+  font-size: calc(11px * var(--font-size-scale));
+}
+
+.ui-table-empty {
+  margin-top: 12px;
+  padding: 22px 12px;
+  border: 1px dashed rgba(var(--policia-oscuro-rgb), 0.2);
+  border-radius: 12px;
+  background: rgba(var(--policia-oscuro-rgb), 0.02);
+  color: rgba(var(--policia-neutral-oscuro-rgb), 0.95);
+  font-size: calc(13px * var(--font-size-scale));
+  font-weight: 800;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+}
+
+@media (max-width: 900px) {
+  .ui-table-filters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .ui-table-filters {
+    grid-template-columns: 1fr;
+  }
+}
+
+.ui-table-panel .ui-table--hover-actions tbody tr:hover .ui-table-actions-cell,
+.ui-table-panel .ui-table--hover-actions tbody tr:focus-within .ui-table-actions-cell {
+  z-index: 8;
+}
+
+:host-context(html.dark-mode) {
+  .ui-table-panel {
+    --ui-table-body-text-color: var(--ui-table-body-text-color-dark, var(--ui-text, #e4e7eb));
+    --ui-table-action-cell-surface: var(--ui-surface, #1e2840);
+  }
+
+  .ui-table-panel .ui-table-wrap {
+    background: var(--ui-surface);
+  }
+
+  .ui-table-panel .ui-table > thead > tr > th {
+    background: var(--ui-table-header-background);
+    color: var(--ui-table-header-text-color);
+  }
+
+  .ui-table-panel--plain .ui-table > thead > tr > th {
+    border-bottom-color: rgba(255, 255, 255, 0.14);
+    background: var(--ui-surface, #1e2840);
+    color: var(--ui-table-header-text-color);
+  }
+
+  .ui-table-panel--plain .ui-table > thead > tr > th.is-sortable:hover {
+    background: #26324c;
+    color: #ffffff;
+  }
+
+  /*
+   * Evita que la regla global de botones del tema oscuro convierta el control
+   * del encabezado en un botón sólido.
+   */
+  .ui-table-panel .ui-table thead .ui-table-sort-button,
+  .ui-table-panel .ui-table thead .ui-table-sort-button:hover {
+    border-color: transparent;
+    background: transparent;
+    color: inherit;
+  }
+
+  .ui-table-empty {
+    color: var(--ui-text);
+  }
+
+  .ui-table-panel .ui-table tbody td {
+    color: var(
+      --ui-table-cell-text-color-dark,
+      var(--ui-table-row-text-color-dark, var(--ui-table-body-text-color))
+    );
+  }
+
+  .ui-table-panel .ui-table tbody tr:not(.ui-table-loading-row) {
+    background: var(--ui-table-row-background-dark, transparent);
+  }
+
+  .ui-table-panel .ui-table tbody tr.is-selected:hover {
+    background: var(--ui-table-row-background-dark, rgba(8, 166, 203, 0.14));
+  }
+
+  .ui-table-panel .ui-table .ui-table-actions-cell {
+    background:
+      linear-gradient(
+        var(--ui-table-row-background-dark, transparent),
+        var(--ui-table-row-background-dark, transparent)
+      ),
+      var(--ui-table-action-cell-surface);
+  }
+
+  .ui-table-panel .ui-table tbody .ui-table-loading-cell {
+    background: var(--ui-surface);
+  }
+
+  .ui-table-loading-overlay {
+    background: var(--ui-surface);
+  }
+
+  .ui-table-panel .ui-table tbody tr:hover .ui-table-actions-cell {
+    background:
+      linear-gradient(rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.07)),
+      linear-gradient(
+        var(--ui-table-row-background-dark, transparent),
+        var(--ui-table-row-background-dark, transparent)
+      ),
+      var(--ui-table-action-cell-surface);
+  }
+
+  .ui-table-panel .ui-table tbody tr.is-selected .ui-table-actions-cell,
+  .ui-table-panel .ui-table tbody tr.is-selected:hover .ui-table-actions-cell {
+    background:
+      linear-gradient(
+        var(--ui-table-row-background-dark, #22384a),
+        var(--ui-table-row-background-dark, #22384a)
+      ),
+      var(--ui-table-action-cell-surface);
+  }
+}

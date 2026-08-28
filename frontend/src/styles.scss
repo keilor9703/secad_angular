@@ -1,3 +1,10 @@
+// Partials del kit de UI compartido (shared/components/ui-*), traídos de la
+// plantilla secad-agularv2. Deben ir aquí y no dentro de cada componente:
+// flatpickr y el espaciado de formularios pintan fuera del árbol del
+// componente (overlays), así que su CSS no puede quedar encapsulado.
+@use './styles/components/form-layout-spacing';
+@use './styles/components/flatpickr-theme';
+
 /* ==========================================
    VARIABLES Y CONFIGURACIÓN BASE
    ========================================== */

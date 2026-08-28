@@ -1,0 +1,61 @@
+@if (open()) {
+  <div
+    class="ui-modal"
+    role="presentation"
+    animate.enter="ui-modal--enter"
+    animate.leave="ui-modal--leave"
+    (click)="handleBackdropClick($event)"
+    (keydown)="handleKeydown($event)"
+  >
+    <section
+      [class]="dialogClasses()"
+      role="dialog"
+      aria-modal="true"
+      [attr.aria-labelledby]="title() ? titleId : null"
+      [attr.aria-describedby]="subtitle() ? subtitleId : null"
+      [attr.aria-label]="title() ? null : ariaLabel()"
+      cdkTrapFocus
+      [cdkTrapFocusAutoCapture]="true"
+    >
+      <header class="ui-modal__head">
+        <div class="ui-modal__heading">
+          @if (icon()) {
+            <span class="ui-modal__icon" aria-hidden="true">
+              <i [class]="icon()"></i>
+            </span>
+          }
+
+          <div class="ui-modal__heading-copy">
+            @if (title()) {
+              <h2 class="ui-modal__title" [id]="titleId">{{ title() }}</h2>
+            }
+
+            @if (subtitle()) {
+              <p class="ui-modal__subtitle" [id]="subtitleId">{{ subtitle() }}</p>
+            }
+          </div>
+        </div>
+
+        @if (showCloseButton()) {
+          <button
+            class="ui-modal__close"
+            type="button"
+            aria-label="Cerrar ventana"
+            title="Cerrar"
+            (click)="requestClose('close-button')"
+          >
+            <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+          </button>
+        }
+      </header>
+
+      <div class="ui-modal__body">
+        <ng-content select="[modal-body]"></ng-content>
+      </div>
+
+      <footer class="ui-modal__foot">
+        <ng-content select="[modal-actions]"></ng-content>
+      </footer>
+    </section>
+  </div>
+}
