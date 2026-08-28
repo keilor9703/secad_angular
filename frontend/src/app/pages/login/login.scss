@@ -10,10 +10,6 @@ body, input, button, textarea, select, label, p, h1, h2, h3, h4, h5, h6, a, span
     font-family: 'Montserrat', sans-serif;
 }
 
-/* Asegurar que Font Awesome use su propia fuente */
-.fa, .fas, .far, .fal, .fab, .fa-solid, .fa-regular, .fa-light, .fa-brands {
-    font-family: "Font Awesome 6 Free", "Font Awesome 6 Pro", "Font Awesome 6 Brands" !important;
-}
 
 /* Carrusel de Fondo Animado */
 .background-carousel {

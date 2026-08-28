@@ -933,11 +933,12 @@ body {
   transition: background-color 0.3s ease, color 0.3s ease;
 }
 
-/* Soporte íconos Font Awesome */
-.fa, .fas, .far, .fal, .fab,
-.fa-solid, .fa-regular, .fa-light, .fa-brands {
-  font-family: "Font Awesome 6 Free", "Font Awesome 6 Pro", "Font Awesome 6 Brands" !important;
-}
+/* Font Awesome define por sí solo la fuente de .fa-solid/.fa-regular/.fa-brands,
+   y su hoja carga de última en angular.json, así que gana el cascade sin ayuda.
+   Aquí había un override con !important que la fijaba a "Font Awesome 6 Free":
+   quedó de cuando la 6 venía por CDN, y al empaquetar la 7 dejaba TODOS los
+   íconos en blanco, porque esa familia ya no existe. No volver a fijarla a mano:
+   se rompe en cada cambio de versión. */
 html.no-scroll,
 body.no-scroll{
   overflow: hidden !important;
