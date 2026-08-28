@@ -1,0 +1,97 @@
+<div
+  class="search-field"
+  [class.search-field--focused]="focused"
+  [class.search-field--invalid]="error"
+  [class.search-field--disabled]="isDisabled"
+  >
+  @if (label) {
+    <span class="search-field__label">
+      {{ label }}
+      @if (required && showRequiredMarker()) {
+        <strong class="search-field__required-marker" [class.is-invalid]="!!error" aria-hidden="true">
+          *
+        </strong>
+      }
+    </span>
+  }
+
+  <div
+    class="search-field__control"
+    [class.search-field__control--attached]="showButton() && buttonLayout() === 'attached'"
+    [class.search-field__control--detached]="showButton() && buttonLayout() === 'detached'"
+    [class.search-field__control--without-button]="!showButton()"
+    [style.--search-button-gap]="buttonGapCss()"
+    >
+    <div class="search-field__shell" [class.search-field__shell--without-button]="!showButton()">
+      @if (!showButton() && icon) {
+        <i
+          [class]="'search-field__leading-icon ' + icon"
+          [style.color]="leadingIconColor() || null"
+          aria-hidden="true"
+        ></i>
+      }
+
+      <input
+        class="search-field__input"
+        [id]="inputId"
+        type="text"
+        [placeholder]="placeholder"
+        [disabled]="isDisabled"
+        [attr.maxlength]="maxlength"
+        [attr.aria-label]="ariaLabel || (!label ? placeholder : null)"
+        [attr.aria-required]="required"
+        [attr.aria-describedby]="describedBy"
+        [attr.aria-invalid]="!!error"
+        [value]="value"
+        (input)="handleInput($event)"
+        (focus)="handleFocus()"
+        (blur)="handleBlur()"
+        (keydown.enter)="emitSearch()"
+        />
+
+        @if (clearable && value) {
+          <button
+            class="search-field__clear"
+            type="button"
+            [disabled]="isDisabled"
+            (click)="clear()"
+            title="Limpiar"
+            aria-label="Limpiar búsqueda"
+            >
+            ×
+          </button>
+        }
+      </div>
+
+      @if (showButton()) {
+        <app-ui-button
+          class="search-field__button"
+          type="button"
+          [variant]="buttonVariant()"
+          [appearance]="buttonAppearance()"
+          [icon]="icon"
+          [iconOnly]="iconOnly"
+          [hideTextOnMobile]="hideButtonTextOnMobile()"
+          [backgroundColor]="buttonBackgroundColor()"
+          [textColor]="buttonTextColor()"
+          [borderColor]="buttonBorderColor()"
+          [iconColor]="buttonIconColor()"
+          [disabled]="isDisabled"
+          [title]="searchLabel"
+          [ariaLabel]="searchLabel"
+          (buttonClick)="emitSearch()"
+          >
+          {{ buttonText }}
+        </app-ui-button>
+      }
+    </div>
+
+    @if (error) {
+      <small class="search-field__error" [id]="inputId + '-error'">{{ error }}</small>
+    }
+    @if (hint && !error) {
+      <small class="search-field__hint" [id]="inputId + '-hint'">
+        {{ hint }}
+      </small>
+    }
+  </div>
