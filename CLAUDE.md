@@ -1,5 +1,22 @@
 # CLAUDE.md
 
+> ## ⛔ REPOSITORIO CONGELADO — 28/08/2026
+>
+> **El desarrollo de este proyecto se trasladó a
+> [`keilor9703/secad-agularv2`](https://github.com/keilor9703/secad-agularv2).**
+>
+> No hacer aquí funcionalidad nueva ni rediseños. Este repositorio queda como
+> referencia de la lógica operativa (recepción, eventos, pedido, turnos,
+> reportes, mapas y videollamada) mientras se termina de portar a la plantilla,
+> y como respaldo de lo que hoy está en producción.
+>
+> Se admiten únicamente correcciones críticas de producción, y cada una debe
+> replicarse en `secad-agularv2` para que las dos versiones no se separen.
+>
+> El backend (`backend/oftic/`) y las migraciones (`docs/sql/master/`) **NO**
+> están congelados: siguen siendo los de todo el sistema y `secad-agularv2`
+> consume esta misma API.
+
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Project Overview
