@@ -23,7 +23,7 @@
     </button>
     <button class="integ-tab" [class.integ-tab--active]="tab() === 'entrantes'"
             (click)="setTab('entrantes')">
-      <i class="fa-solid fa-arrow-down-to-bracket"></i>
+      <i class="fa-solid fa-inbox"></i>
       Integraciones Entrantes
       <span class="integ-tab__badge">{{ entrantes().length }}</span>
     </button>
@@ -329,7 +329,7 @@
         <div class="integ-loading"><i class="fa-solid fa-spinner fa-spin"></i> Cargando…</div>
       } @else if (entrantes().length === 0) {
         <div class="integ-empty">
-          <i class="fa-solid fa-arrow-down-to-bracket"></i>
+          <i class="fa-solid fa-inbox"></i>
           <p>No hay integraciones entrantes configuradas.</p>
           <button class="ui-btn primary sm" (click)="openCreateEnt()">Agregar integración</button>
         </div>
@@ -491,7 +491,7 @@
         </button>
         <button class="integ-aud-subtab" [class.integ-aud-subtab--active]="audTab() === 'entrantes'"
                 (click)="setAudTab('entrantes')">
-          <i class="fa-solid fa-arrow-down-to-bracket"></i>
+          <i class="fa-solid fa-inbox"></i>
           Recepciones Entrantes
           <span class="integ-tab__badge">{{ audEntrantes().length }}</span>
         </button>
@@ -910,7 +910,7 @@
 
       <div class="ui-modal__head">
         <div class="ui-modal__title">
-          <i class="fa-solid fa-arrow-down-to-bracket"></i>
+          <i class="fa-solid fa-inbox"></i>
           {{ modal() === 'entrante-create' ? 'Nueva integración entrante' : 'Editar integración' }}
         </div>
         <button class="ui-icon-btn" (click)="closeModal()"><i class="fa-solid fa-xmark"></i></button>

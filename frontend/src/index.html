@@ -23,8 +23,10 @@
   <!-- Chart.js — gráficas del módulo de Reportes y GIS Estadístico -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js" crossorigin=""></script>
 
-  <!-- Font Awesome -->
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.5.1/css/all.min.css">
+  <!-- Font Awesome se empaqueta desde node_modules (ver "styles" en angular.json).
+       Antes se cargaba además la 6.5.1 por CDN: convivían dos versiones, y los
+       íconos de todo el CAD dependían de que jsdelivr fuera alcanzable desde la
+       red de la Policía. Verificado que la 7 cubre los 250 íconos en uso. -->
 </head>
 <body>
   <app-root></app-root>
