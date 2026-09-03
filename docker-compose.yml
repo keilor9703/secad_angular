@@ -113,9 +113,18 @@ services:
       timeout: 10s
       retries: 3
 
+  # El frontend ya NO se construye desde ./frontend de este repositorio: esa
+  # carpeta quedó congelada (ver CLAUDE.md) y el desarrollo pasó a
+  # keilor9703/secad-agularv2, que trae su propio Dockerfile y su nginx.conf.
+  # Se espera clonado AL LADO de este repositorio; si está en otro sitio, se
+  # apunta con FRONTEND_CONTEXT en el .env.
+  #
+  # El backend (servicio `api` de arriba) sí sigue saliendo de este repositorio:
+  # backend/oftic/ es el mismo código en los dos, y este es el que tiene el
+  # Dockerfile del API.
   frontend:
     build:
-      context: ./frontend
+      context: ${FRONTEND_CONTEXT:-../secad-agularv2}
       dockerfile: Dockerfile
     image: secad-frontend:latest
     container_name: secad-frontend
